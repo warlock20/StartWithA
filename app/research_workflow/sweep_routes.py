@@ -16,7 +16,8 @@
 
 """
 Market Sweep Routes — "Start with A's" feature.
-Single-page experience for systematically screening all companies in a country.
+Landing page (server-rendered) + sweep view (React island) for systematically
+screening all companies in a country.
 """
 
 import logging
@@ -40,20 +41,138 @@ from app.utils.response_utils import json_error
 
 logger = logging.getLogger(__name__)
 
+# Country name → flag emoji mapping.  Extend as new markets are uploaded.
+COUNTRY_FLAGS = {
+    'Australia': '\U0001F1E6\U0001F1FA',
+    'Canada': '\U0001F1E8\U0001F1E6',
+    'China': '\U0001F1E8\U0001F1F3',
+    'France': '\U0001F1EB\U0001F1F7',
+    'Germany': '\U0001F1E9\U0001F1EA',
+    'Hong Kong': '\U0001F1ED\U0001F1F0',
+    'India': '\U0001F1EE\U0001F1F3',
+    'Japan': '\U0001F1EF\U0001F1F5',
+    'Singapore': '\U0001F1F8\U0001F1EC',
+    'South Korea': '\U0001F1F0\U0001F1F7',
+    'United Kingdom': '\U0001F1EC\U0001F1E7',
+    'United States': '\U0001F1FA\U0001F1F8',
+}
+GLOBE_FALLBACK = '\U0001F30D'
+
+
+def _build_sweep_stats(sweep, user_id):
+    """Compute per-sweep stats for the landing page (and the API)."""
+    decision_counts = db.session.query(
+        MarketSweepDecision.decision, func.count(MarketSweepDecision.id)
+    ).join(MarketSweepCompany).filter(
+        MarketSweepCompany.sweep_id == sweep.id,
+        MarketSweepDecision.user_id == user_id,
+    ).group_by(MarketSweepDecision.decision).all()
+
+    breakdown = dict(decision_counts)
+    reviewed = sum(breakdown.values())
+    inbox_count = breakdown.get('inbox', 0)
+    killed_count = breakdown.get('killed', 0)
+    total = sweep.total_companies or 0
+
+    # First unreviewed company → current letter
+    first_unreviewed = MarketSweepCompany.query.filter(
+        MarketSweepCompany.sweep_id == sweep.id,
+        ~MarketSweepCompany.id.in_(
+            db.session.query(MarketSweepDecision.sweep_company_id).filter(
+                MarketSweepDecision.user_id == user_id,
+            )
+        ),
+    ).order_by(MarketSweepCompany.sort_order).first()
+    current_letter = (
+        first_unreviewed.company_name[0].upper()
+        if first_unreviewed and first_unreviewed.company_name
+        else None
+    )
+
+    # Most recent decision timestamp
+    last_worked_at = db.session.query(
+        func.max(MarketSweepDecision.decided_at)
+    ).join(MarketSweepCompany).filter(
+        MarketSweepCompany.sweep_id == sweep.id,
+        MarketSweepDecision.user_id == user_id,
+    ).scalar()
+
+    pct_complete = round(reviewed / total * 100) if total else 0
+    find_rate = round(inbox_count / reviewed * 100, 1) if reviewed else 0
+
+    if reviewed == 0:
+        status = 'not-started'
+    elif reviewed >= total:
+        status = 'completed'
+    else:
+        status = 'in-progress'
+
+    return {
+        'id': sweep.id,
+        'name': sweep.name,
+        'country': sweep.country,
+        'flag': COUNTRY_FLAGS.get(sweep.country, GLOBE_FALLBACK),
+        'description': sweep.description,
+        'total_companies': total,
+        'reviewed': reviewed,
+        'inbox_count': inbox_count,
+        'killed_count': killed_count,
+        'current_letter': current_letter,
+        'last_worked_at': last_worked_at,
+        'pct_complete': pct_complete,
+        'find_rate': find_rate,
+        'status': status,
+    }
+
 
 @research_workflow_bp.route('/start-with-A')
 @login_required
 def start_with_a():
-    """Render the Start with A's single-page application."""
+    """Render the Start with A's server-rendered landing page."""
+    sweeps_db = MarketSweep.query.filter_by(is_active=True).order_by(
+        MarketSweep.created_at.desc()
+    ).all()
+
+    sweeps = [_build_sweep_stats(s, current_user.id) for s in sweeps_db]
+
+    # Aggregate metrics across all markets
+    total_all = sum(s['total_companies'] for s in sweeps)
+    reviewed_all = sum(s['reviewed'] for s in sweeps)
+    inbox_all = sum(s['inbox_count'] for s in sweeps)
+    killed_all = sum(s['killed_count'] for s in sweeps)
+    reviewed_pct = round(reviewed_all / total_all * 100) if total_all else 0
+    find_rate_all = round(inbox_all / reviewed_all * 100, 1) if reviewed_all else 0
+
+    return render_template(
+        'start_with_a.html',
+        title="Start with A's",
+        sweeps=sweeps,
+        total_all=total_all,
+        reviewed_all=reviewed_all,
+        inbox_all=inbox_all,
+        killed_all=killed_all,
+        reviewed_pct=reviewed_pct,
+        find_rate_all=find_rate_all,
+        market_count=len(sweeps),
+    )
+
+
+@research_workflow_bp.route('/start-with-A/<int:sweep_id>')
+@login_required
+def start_with_a_sweep(sweep_id):
+    """Render the sweep view page (React island for the company table)."""
+    sweep = MarketSweep.query.get_or_404(sweep_id)
     sectors = Sector.query.filter_by(
         user_id=current_user.id, status='active'
     ).order_by(Sector.display_name).all()
-
     sectors_json = [{'id': s.id, 'name': s.display_name} for s in sectors]
 
-    return render_template('start_with_a.html',
-                           title="Start with A's",
-                           sectors_json=sectors_json)
+    return render_template(
+        'start_with_a_sweep.html',
+        title=f"Start with A's \u2014 {sweep.name}",
+        sweep=sweep,
+        sectors_json=sectors_json,
+    )
 
 
 @research_workflow_bp.route('/api/sweeps')
@@ -66,25 +185,20 @@ def list_sweeps():
 
     result = []
     for sweep in sweeps:
-        decision_counts = db.session.query(
-            MarketSweepDecision.decision, func.count(MarketSweepDecision.id)
-        ).join(MarketSweepCompany).filter(
-            MarketSweepCompany.sweep_id == sweep.id,
-            MarketSweepDecision.user_id == current_user.id,
-        ).group_by(MarketSweepDecision.decision).all()
-
-        breakdown = dict(decision_counts)
-        reviewed = sum(breakdown.values())
-
+        stats = _build_sweep_stats(sweep, current_user.id)
+        # Serialise datetime for JSON
+        lw = stats['last_worked_at']
         result.append({
-            'id': sweep.id,
-            'name': sweep.name,
-            'country': sweep.country,
-            'description': sweep.description,
-            'total_companies': sweep.total_companies,
-            'reviewed': reviewed,
-            'inbox_count': breakdown.get('inbox', 0),
-            'killed_count': breakdown.get('killed', 0),
+            'id': stats['id'],
+            'name': stats['name'],
+            'country': stats['country'],
+            'description': stats['description'],
+            'total_companies': stats['total_companies'],
+            'reviewed': stats['reviewed'],
+            'inbox_count': stats['inbox_count'],
+            'killed_count': stats['killed_count'],
+            'current_letter': stats['current_letter'],
+            'last_worked_at': lw.isoformat() if lw else None,
         })
 
     return jsonify({'success': True, 'sweeps': result})

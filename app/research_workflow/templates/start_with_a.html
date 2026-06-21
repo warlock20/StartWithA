@@ -1,9 +1,5 @@
 {% extends "main/_base_companies.html" %}
 
-{% block head %}
-{% include 'components/_tabulator.html' %}
-{% endblock %}
-
 {% block content %}
 <div class="research-workspace-dashboard-container">
 
@@ -14,87 +10,243 @@
         <header class="dashboard-header">
             <div>
                 <h1 class="dashboard-title font-poppins">Start with A's</h1>
-                <p class="dashboard-subtitle">Systematically screen every company in a market &mdash; inspired by Buffett.</p>
-            </div>
-            <div class="dashboard-header-actions">
-                <button class="action-btn" id="backToSweeps" style="display:none;">
-                    <i class="bi bi-arrow-left"></i> All Sweeps
-                </button>
+                <p class="dashboard-subtitle">Systematically screen every company in a market &mdash; one by one, no shortcuts.</p>
             </div>
         </header>
 
-        <!-- Picker metrics strip — shown on picker view -->
-        <div class="dashboard-metrics-strip" id="pickerMetrics">
-            <div class="portfolio-metric">
-                <span class="portfolio-metric-icon"><i class="bi bi-globe-americas"></i></span>
-                <span class="portfolio-metric-label">Countries</span>
-                <span class="portfolio-metric-value" id="metricCountries">0</span>
-            </div>
+        <!-- Aggregate metrics strip -->
+        <div class="dashboard-metrics-strip">
             <div class="portfolio-metric">
                 <span class="portfolio-metric-icon"><i class="bi bi-buildings"></i></span>
                 <span class="portfolio-metric-label">Total Companies</span>
-                <span class="portfolio-metric-value" id="metricTotalAll">0</span>
+                <span class="portfolio-metric-value">{{ "{:,}".format(total_all) }}</span>
+                <div class="portfolio-metric-subtext">across {{ market_count }} market{{ 's' if market_count != 1 else '' }}</div>
             </div>
             <div class="portfolio-metric">
                 <span class="portfolio-metric-icon"><i class="bi bi-check2-circle"></i></span>
                 <span class="portfolio-metric-label">Reviewed</span>
-                <span class="portfolio-metric-value" id="metricReviewedAll">0</span>
+                <span class="portfolio-metric-value">{{ "{:,}".format(reviewed_all) }}</span>
+                <div class="portfolio-metric-subtext">{{ reviewed_pct }}% of all</div>
             </div>
             <div class="portfolio-metric">
-                <span class="portfolio-metric-icon"><i class="bi bi-inbox"></i></span>
+                <span class="portfolio-metric-icon green"><i class="bi bi-inbox"></i></span>
                 <span class="portfolio-metric-label">Inbox Finds</span>
-                <span class="portfolio-metric-value" id="metricInboxAll">0</span>
+                <span class="portfolio-metric-value">{{ "{:,}".format(inbox_all) }}</span>
+                <div class="portfolio-metric-subtext">{{ find_rate_all }}% find rate</div>
             </div>
             <div class="portfolio-metric">
-                <span class="portfolio-metric-icon"><i class="bi bi-x-circle"></i></span>
+                <span class="portfolio-metric-icon gray"><i class="bi bi-x-circle"></i></span>
                 <span class="portfolio-metric-label">Killed</span>
-                <span class="portfolio-metric-value" id="metricKilledAll">0</span>
-            </div>
-        </div>
-
-        <!-- Sweep metrics strip — shown when inside a sweep -->
-        <div class="dashboard-metrics-strip" id="sweepMetrics" style="display:none;">
-            <div class="portfolio-metric">
-                <span class="portfolio-metric-icon"><i class="bi bi-buildings"></i></span>
-                <span class="portfolio-metric-label">Total</span>
-                <span class="portfolio-metric-value" id="metricTotal">0</span>
-            </div>
-            <div class="portfolio-metric">
-                <span class="portfolio-metric-icon"><i class="bi bi-check2-circle"></i></span>
-                <span class="portfolio-metric-label">Reviewed</span>
-                <span class="portfolio-metric-value" id="metricReviewed">0</span>
-            </div>
-            <div class="portfolio-metric">
-                <span class="portfolio-metric-icon"><i class="bi bi-inbox"></i></span>
-                <span class="portfolio-metric-label">To Inbox</span>
-                <span class="portfolio-metric-value" id="metricInbox">0</span>
-            </div>
-            <div class="portfolio-metric">
-                <span class="portfolio-metric-icon"><i class="bi bi-x-circle"></i></span>
-                <span class="portfolio-metric-label">Killed</span>
-                <span class="portfolio-metric-value" id="metricKilled">0</span>
+                <span class="portfolio-metric-value">{{ "{:,}".format(killed_all) }}</span>
+                <div class="portfolio-metric-subtext">moved to Too Hard</div>
             </div>
         </div>
     </div>
 
-    <!-- React island mount point (picker + table + kill modal) -->
-    <div id="market-sweep-mount"></div>
+    <!-- ════════════════════════════════════════════════
+         MARKET PICKER
+         ════════════════════════════════════════════════ -->
+    <div class="sweep-picker">
+        <!-- Header with search / filter / sort -->
+        <div class="sweep-picker-header">
+            <div class="sweep-picker-header__left">
+                <h3>Your Markets</h3>
+                <span class="sweep-picker-header__count" id="sweepFilteredCount">{{ sweeps|length }} of {{ sweeps|length }}</span>
+            </div>
+            <div class="sweep-picker-header__controls">
+                <div class="rcl-search">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="sweepSearch" placeholder="Search country or market...">
+                </div>
+                <select class="rcl-filter-select" id="sweepStatusFilter">
+                    <option value="all">All Status</option>
+                    <option value="not-started">Not Started</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                </select>
+                <select class="rcl-filter-select" id="sweepSortBy">
+                    <option value="progress">Sort: Progress</option>
+                    <option value="recent">Sort: Recent</option>
+                    <option value="country">Sort: Country</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Card grid -->
+        <div class="sweep-picker-grid" id="sweepGrid">
+            {% for s in sweeps %}
+            <a href="{{ url_for('research_workflow.start_with_a_sweep', sweep_id=s.id) }}"
+               class="sweep-picker-card{% if s.status == 'not-started' %} sweep-picker-card--not-started{% endif %}"
+               data-country="{{ s.country|lower }}"
+               data-name="{{ s.name|lower }}"
+               data-status="{{ s.status }}"
+               data-progress="{{ s.pct_complete }}"
+               data-last-worked="{{ s.last_worked_at.isoformat() if s.last_worked_at else '' }}">
+
+                <!-- Flag + Country -->
+                <div class="sweep-picker-card__country">
+                    {{ s.flag }} {{ s.country }}
+                </div>
+                <!-- Market name + company count -->
+                <div class="sweep-picker-card__name">
+                    {{ s.name }} &middot; {{ "{:,}".format(s.total_companies) }} companies
+                </div>
+
+                {% if s.status != 'not-started' %}
+                    <!-- Progress row: percentage + current letter -->
+                    <div class="sweep-picker-card__progress-row">
+                        <span class="sweep-picker-card__pct">{{ s.pct_complete }}%</span>
+                        <span class="sweep-picker-card__pct-label">complete</span>
+                        {% if s.current_letter %}
+                        <span class="sweep-picker-card__letter-badge">Currently: {{ s.current_letter }}'s</span>
+                        {% endif %}
+                    </div>
+                    <!-- Stats row -->
+                    <div class="sweep-picker-card__stats">
+                        <span class="sweep-picker-card__stat"><strong>{{ s.reviewed }}</strong> reviewed</span>
+                        <span class="sweep-picker-card__stat sweep-picker-card__stat--inbox"><strong>{{ s.inbox_count }}</strong> inbox</span>
+                        <span class="sweep-picker-card__stat"><strong>{{ s.killed_count }}</strong> killed</span>
+                        <span class="sweep-picker-card__stat">{{ s.find_rate }}% find rate</span>
+                    </div>
+                    <!-- Footer -->
+                    <div class="sweep-picker-card__footer">
+                        {% if s.last_worked_at %}
+                        <span class="sweep-picker-card__last-worked" data-timestamp="{{ s.last_worked_at.isoformat() }}">
+                            Last worked: &mdash;
+                        </span>
+                        {% else %}
+                        <span class="sweep-picker-card__last-worked"></span>
+                        {% endif %}
+                        <span class="sweep-picker-card__action-btn">Continue &rarr;</span>
+                    </div>
+                {% else %}
+                    <!-- Not started state -->
+                    <div class="sweep-picker-card__empty-state">
+                        <i class="bi bi-telescope"></i>
+                        <p>Not started yet</p>
+                    </div>
+                    <div class="sweep-picker-card__footer sweep-picker-card__footer--centered">
+                        <span class="sweep-picker-card__action-btn sweep-picker-card__action-btn--outline">Start Screening &rarr;</span>
+                    </div>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+
+        <!-- Empty filtered state -->
+        <div class="sweep-empty" id="sweepEmptyFiltered" style="display:none;">
+            <i class="bi bi-search"></i>
+            <h5>No markets match your filters</h5>
+            <p>Try adjusting your search or filter criteria.</p>
+        </div>
+
+        {% if not sweeps %}
+        <div class="sweep-empty">
+            <i class="bi bi-globe-americas"></i>
+            <h5>No market sweeps available</h5>
+            <p>Ask your admin to upload a company list via the admin panel.</p>
+        </div>
+        {% endif %}
+    </div>
 
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-{% include 'components/_tabulator_js.html' %}
-<script defer src="{{ url_for('static', filename='js/dist/market-sweep.bundle.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    if (window.initMarketSweep) {
-        window.initMarketSweep('market-sweep-mount', {
-            sectors: {{ sectors_json|tojson }}
+    var searchInput = document.getElementById('sweepSearch');
+    var statusFilter = document.getElementById('sweepStatusFilter');
+    var sortSelect = document.getElementById('sweepSortBy');
+    var grid = document.getElementById('sweepGrid');
+    var countEl = document.getElementById('sweepFilteredCount');
+    var emptyEl = document.getElementById('sweepEmptyFiltered');
+    var totalCount = {{ sweeps|length }};
+
+    // Populate relative timestamps
+    var timestamps = document.querySelectorAll('[data-timestamp]');
+    timestamps.forEach(function(el) {
+        var iso = el.getAttribute('data-timestamp');
+        if (iso) el.textContent = 'Last worked: ' + timeAgo(iso);
+    });
+
+    if (searchInput) searchInput.addEventListener('input', applyAll);
+    if (statusFilter) statusFilter.addEventListener('change', applyAll);
+    if (sortSelect) sortSelect.addEventListener('change', applyAll);
+
+    function applyAll() {
+        applyFilters();
+        applySorting();
+        updateCount();
+    }
+
+    function applyFilters() {
+        var query = (searchInput.value || '').toLowerCase().trim();
+        var status = statusFilter.value;
+        var cards = grid.querySelectorAll('.sweep-picker-card');
+
+        cards.forEach(function(card) {
+            var country = card.dataset.country || '';
+            var name = card.dataset.name || '';
+            var cardStatus = card.dataset.status || '';
+
+            var searchMatch = !query || country.indexOf(query) !== -1 || name.indexOf(query) !== -1;
+            var statusMatch = status === 'all' || cardStatus === status;
+
+            card.style.display = (searchMatch && statusMatch) ? '' : 'none';
         });
     }
+
+    function applySorting() {
+        var sortBy = sortSelect.value;
+        var cards = Array.from(grid.querySelectorAll('.sweep-picker-card'));
+
+        cards.sort(function(a, b) {
+            if (sortBy === 'progress') {
+                return (parseFloat(b.dataset.progress) || 0) - (parseFloat(a.dataset.progress) || 0);
+            }
+            if (sortBy === 'recent') {
+                var aTime = a.dataset.lastWorked || '';
+                var bTime = b.dataset.lastWorked || '';
+                if (!aTime && !bTime) return 0;
+                if (!aTime) return 1;
+                if (!bTime) return -1;
+                return bTime.localeCompare(aTime);
+            }
+            if (sortBy === 'country') {
+                return (a.dataset.country || '').localeCompare(b.dataset.country || '');
+            }
+            return 0;
+        });
+
+        cards.forEach(function(card) {
+            grid.appendChild(card);
+        });
+    }
+
+    function updateCount() {
+        var visible = grid.querySelectorAll('.sweep-picker-card:not([style*="display: none"])').length;
+        if (countEl) countEl.textContent = visible + ' of ' + totalCount;
+        if (emptyEl) emptyEl.style.display = (visible === 0 && totalCount > 0) ? '' : 'none';
+    }
+
+    function timeAgo(isoString) {
+        if (!isoString) return '';
+        var diff = Date.now() - new Date(isoString).getTime();
+        var mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return mins + ' minute' + (mins !== 1 ? 's' : '') + ' ago';
+        var hours = Math.floor(diff / 3600000);
+        if (hours < 24) return hours + ' hour' + (hours !== 1 ? 's' : '') + ' ago';
+        var days = Math.floor(diff / 86400000);
+        if (days < 30) return days + ' day' + (days !== 1 ? 's' : '') + ' ago';
+        var months = Math.floor(days / 30);
+        return months + ' month' + (months !== 1 ? 's' : '') + ' ago';
+    }
+
+    // Initial sort
+    applySorting();
 });
 </script>
 {% endblock %}

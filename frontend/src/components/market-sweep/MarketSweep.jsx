@@ -3,6 +3,9 @@ import { apiGet, apiPost } from '../../lib/api';
 import { createDataTable } from '../../lib/dataTable';
 import { SweepPicker } from './SweepPicker';
 import { KillChecklistModal } from './KillChecklistModal';
+import { AlphabetProgress } from './AlphabetProgress';
+import { SessionTracker } from './SessionTracker';
+import { FocusMode } from './FocusMode';
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -17,17 +20,19 @@ function setDomText(id, text) {
 }
 
 /**
- * MarketSweep — "Start with A's" single-page React island.
+ * MarketSweep — "Start with A's" React island.
  *
- * Renders sweep picker (card grid), Tabulator company table with inline
- * decision buttons, and kill-checklist modal. Header metrics in the
- * Jinja2 template are updated via bridge pattern (DOM id lookups).
+ * When sweepId is provided (sweep view page), renders alphabet progress,
+ * session tracker, view toggle (Focus Mode / Table View), and the
+ * active view (focus card or Tabulator table) plus kill-checklist modal.
  *
  * Props (via config):
  *   sectors: Array<{ id, name }> — available sectors for inbox assignment
+ *   sweepId: number — sweep to load (always provided from sweep view route)
  */
-export function MarketSweep({ sectors }) {
-  const [view, setView] = useState('picker');
+export function MarketSweep({ sectors, sweepId }) {
+  const [view, setView] = useState(sweepId ? 'sweep' : 'picker');
+  const [viewMode, setViewMode] = useState('focus');
   const [sweeps, setSweeps] = useState([]);
   const [search, setSearch] = useState('');
   const [decisionFilter, setDecisionFilter] = useState('all');
@@ -40,7 +45,7 @@ export function MarketSweep({ sectors }) {
   const tableRef = useRef(null);
   const companiesRef = useRef([]);
   const handlersRef = useRef({});
-  const pendingBuildRef = useRef(null);
+  const sessionStatsRef = useRef({ reviewed: 0, inbox: 0, killed: 0 });
 
   // ------------------------------------------------------------------
   // Keep handler refs current so the global API always calls latest fns
@@ -73,41 +78,16 @@ export function MarketSweep({ sectors }) {
   // Load data on mount
   // ------------------------------------------------------------------
   useEffect(() => {
-    loadSweeps();
+    if (sweepId) {
+      handleSelectSweep(sweepId);
+    } else {
+      loadSweeps();
+    }
     loadKillChecklist();
   }, []);
 
   // ------------------------------------------------------------------
-  // Back button listener (bridge to header)
-  // ------------------------------------------------------------------
-  useEffect(() => {
-    const backBtn = document.getElementById('backToSweeps');
-    if (!backBtn) return;
-    const handler = () => handlersRef.current.showPicker();
-    backBtn.addEventListener('click', handler);
-    return () => backBtn.removeEventListener('click', handler);
-  }, []);
-
-  // ------------------------------------------------------------------
-  // Toggle header metric strips (bridge)
-  // ------------------------------------------------------------------
-  useEffect(() => {
-    const pickerMetrics = document.getElementById('pickerMetrics');
-    const sweepMetrics = document.getElementById('sweepMetrics');
-    const backBtn = document.getElementById('backToSweeps');
-    if (view === 'picker') {
-      if (pickerMetrics) pickerMetrics.style.display = '';
-      if (sweepMetrics) sweepMetrics.style.display = 'none';
-      if (backBtn) backBtn.style.display = 'none';
-    } else {
-      if (pickerMetrics) pickerMetrics.style.display = 'none';
-      if (sweepMetrics) sweepMetrics.style.display = '';
-      if (backBtn) backBtn.style.display = 'inline-flex';
-    }
-  }, [view]);
-
-  // ------------------------------------------------------------------
-  // Apply filters when search / decisionFilter change
+  // Apply filters when search / decisionFilter change (table view only)
   // ------------------------------------------------------------------
   useEffect(() => {
     if (!tableRef.current) return;
@@ -139,18 +119,21 @@ export function MarketSweep({ sectors }) {
   }, []);
 
   // ------------------------------------------------------------------
-  // Build table after loading finishes and DOM has #sweepTable
+  // Build / destroy table when viewMode changes
   // ------------------------------------------------------------------
   useEffect(() => {
-    if (view === 'table' && !tableLoading && pendingBuildRef.current) {
-      const companies = pendingBuildRef.current;
-      pendingBuildRef.current = null;
+    if (viewMode === 'table' && !tableLoading && companiesRef.current.length > 0) {
       requestAnimationFrame(() => {
-        buildTable(companies);
-        updateStats();
+        buildTable(companiesRef.current);
       });
     }
-  }, [view, tableLoading]);
+    return () => {
+      if (tableRef.current) {
+        tableRef.current.destroy();
+        tableRef.current = null;
+      }
+    };
+  }, [viewMode, tableLoading]);
 
   // ------------------------------------------------------------------
   // Data loading
@@ -181,7 +164,7 @@ export function MarketSweep({ sectors }) {
   }
 
   // ------------------------------------------------------------------
-  // Picker metrics (bridge to header)
+  // Picker metrics (bridge to header — legacy fallback)
   // ------------------------------------------------------------------
 
   function updatePickerMetrics(sweepsList) {
@@ -217,10 +200,17 @@ export function MarketSweep({ sectors }) {
       if (c.decision === 'inbox') inbox++;
       if (c.decision === 'killed') killed++;
     });
-    setDomText('metricTotal', total);
-    setDomText('metricReviewed', reviewed);
+
+    var pct = total > 0 ? Math.round((reviewed / total) * 100) : 0;
+    var findRate = reviewed > 0 ? ((inbox / reviewed) * 100).toFixed(1) : '0.0';
+
+    // Update header DOM bridge
+    setDomText('metricReviewedSlash', reviewed + '/' + total);
+    setDomText('metricPctComplete', pct + '%');
     setDomText('metricInbox', inbox);
     setDomText('metricKilled', killed);
+    setDomText('metricFindRate', findRate + '%');
+
     setStats({ total, reviewed, inbox, killed });
   }
 
@@ -228,20 +218,20 @@ export function MarketSweep({ sectors }) {
   // Sweep selection
   // ------------------------------------------------------------------
 
-  async function handleSelectSweep(sweepId) {
-    setView('table');
+  async function handleSelectSweep(id) {
+    setView('sweep');
     setSearch('');
     setDecisionFilter('all');
     setTableLoading(true);
 
     try {
-      const data = await apiGet('/research/workflow/api/sweep/' + sweepId + '/companies');
+      const data = await apiGet('/research/workflow/api/sweep/' + id + '/companies');
       if (!data.success) {
         setTableLoading(false);
         return;
       }
       companiesRef.current = data.companies;
-      pendingBuildRef.current = data.companies;
+      updateStats();
       setTableLoading(false);
     } catch (err) {
       console.error('Load companies error:', err);
@@ -367,7 +357,7 @@ export function MarketSweep({ sectors }) {
           },
         },
         {
-          title: 'Decision',
+          title: 'Status',
           field: 'decision',
           sorter: 'string',
           hozAlign: 'center',
@@ -469,6 +459,12 @@ export function MarketSweep({ sectors }) {
           break;
         }
       }
+
+      // Update session tracking
+      sessionStatsRef.current.reviewed++;
+      if (decision === 'inbox') sessionStatsRef.current.inbox++;
+      if (decision === 'killed') sessionStatsRef.current.killed++;
+
       if (tableRef.current) {
         await tableRef.current.updateData([
           {
@@ -567,55 +563,100 @@ export function MarketSweep({ sectors }) {
   // Render
   // ------------------------------------------------------------------
 
-  var pct = stats.total ? Math.round((stats.reviewed / stats.total) * 100) : 0;
+  // Picker fallback (legacy — landing page is now server-rendered)
+  if (view === 'picker') {
+    return (
+      <>
+        <SweepPicker sweeps={sweeps} loading={loading} onSelect={handleSelectSweep} />
+        {killTarget && (
+          <KillChecklistModal
+            target={killTarget}
+            criteria={killCriteria}
+            onConfirmKill={handleConfirmKill}
+            onConfirmInbox={handleConfirmInbox}
+            onClose={() => setKillTarget(null)}
+          />
+        )}
+      </>
+    );
+  }
 
+  // Sweep view
   return (
     <>
-      {view === 'picker' && <SweepPicker sweeps={sweeps} loading={loading} onSelect={handleSelectSweep} />}
-
-      {view === 'table' && (
-        <div>
-          {tableLoading ? (
-            <div className="sweep-loading">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-              <p>Loading companies...</p>
-            </div>
-          ) : (
-            <>
-              <div className="sweep-progress-bar-container">
-                <div className="sweep-progress-bar">
-                  <div className="sweep-progress-fill" style={{ width: pct + '%' }} />
-                </div>
-              </div>
-              <div className="rcl-panel">
-                <div className="rcl-panel-controls">
-                  <div className="rcl-search">
-                    <i className="bi bi-search" />
-                    <input
-                      type="text"
-                      placeholder="Search company, ticker or notes..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                    />
-                  </div>
-                  <select
-                    className="rcl-filter-select"
-                    value={decisionFilter}
-                    onChange={(e) => setDecisionFilter(e.target.value)}
-                  >
-                    <option value="all">All Companies</option>
-                    <option value="pending">Pending</option>
-                    <option value="inbox">Inbox</option>
-                    <option value="killed">Killed</option>
-                  </select>
-                </div>
-                <div id="sweepTable" />
-              </div>
-            </>
-          )}
+      {tableLoading ? (
+        <div className="sweep-loading">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading companies...</p>
         </div>
+      ) : (
+        <>
+          {/* Alphabetical Progress */}
+          <AlphabetProgress companies={companiesRef.current} />
+
+          {/* Today's Session */}
+          <SessionTracker
+            sessionStats={sessionStatsRef.current}
+            totalCompanies={stats.total}
+            totalReviewed={stats.reviewed}
+          />
+
+          {/* View Toggle */}
+          <div className="sweep-view-toggle">
+            <button
+              className={'portfolio-tab-btn' + (viewMode === 'focus' ? ' active' : '')}
+              onClick={() => setViewMode('focus')}
+            >
+              <i className="bi bi-fire" /> Focus Mode
+            </button>
+            <button
+              className={'portfolio-tab-btn' + (viewMode === 'table' ? ' active' : '')}
+              onClick={() => setViewMode('table')}
+            >
+              <i className="bi bi-table" /> Table View
+            </button>
+          </div>
+
+          {/* Focus Mode */}
+          {viewMode === 'focus' && (
+            <FocusMode
+              companies={companiesRef.current}
+              onDecide={handleDecide}
+              onOpenKill={handleOpenKill}
+              disabled={!!killTarget}
+            />
+          )}
+
+          {/* Table View */}
+          {viewMode === 'table' && (
+            <div className="rcl-panel">
+              <div className="rcl-panel-controls">
+                <div className="rcl-search">
+                  <i className="bi bi-search" />
+                  <input
+                    type="text"
+                    placeholder="Search company or ticker..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <select
+                  className="rcl-filter-select"
+                  value={decisionFilter}
+                  onChange={(e) => setDecisionFilter(e.target.value)}
+                >
+                  <option value="all">All Companies</option>
+                  <option value="pending">Pending</option>
+                  <option value="inbox">Inbox</option>
+                  <option value="killed">Killed</option>
+                </select>
+              </div>
+              <div id="sweepTable" />
+            </div>
+          )}
+        </>
       )}
 
       {killTarget && (
