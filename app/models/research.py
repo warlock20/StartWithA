@@ -60,7 +60,7 @@ class ChecklistAnswer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     answer_text = db.Column(db.Text, nullable=True)
     answered_at = db.Column(db.DateTime, default=now_utc)
-    satisfaction_status = db.Column(db.String(30), nullable=True, default="neutral")
+    satisfaction_status = db.Column(db.String(30), nullable=True, default=None)
 
     checklist_analysis_id = db.Column(
         db.Integer, db.ForeignKey("checklist_analysis.id"), nullable=False, index=True
