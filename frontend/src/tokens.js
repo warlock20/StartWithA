@@ -19,6 +19,9 @@
 export const colors = {
   // Accent — Forest Green
   accent: "var(--accent-color, #2d6a4f)",
+  accentLight: "var(--accent-light, #40916c)",
+  accentDark: "var(--accent-dark, #1b4332)",
+  accentSoft: "var(--accent-soft, #f0fdf4)",
   accent50: "var(--accent-50, #f0fdf4)",
   accent100: "var(--accent-100, #dcfce7)",
   accent700: "var(--accent-700, #1b4332)",
@@ -37,11 +40,11 @@ export const colors = {
 
   // Semantic
   success50: "var(--success-50, #f0fdf4)",
-  success500: "var(--success-500, #10b981)",
+  success500: "var(--success-500, #059669)",
   warning50: "var(--warning-50, #fef3c7)",
   warning500: "var(--warning-500, #f59e0b)",
   danger50: "var(--danger-50, #fef2f2)",
-  danger500: "var(--danger-500, #ef4444)",
+  danger500: "var(--danger-500, #dc2626)",
   info50: "var(--info-50, #eff6ff)",
   info500: "var(--info-500, #3b82f6)",
   purple50: "var(--purple-50, #f5f3ff)",
@@ -50,9 +53,9 @@ export const colors = {
   // Semantic aliases
   border: "var(--border-light, #e5e7eb)",
   borderMedium: "var(--border-medium, #d1d5db)",
-  textPrimary: "var(--text-primary, #374151)",
-  textSecondary: "var(--text-secondary, #4b5563)",
-  textMuted: "var(--text-muted, #6b7280)",
+  textPrimary: "var(--text-primary, #111827)",
+  textSecondary: "var(--text-secondary, #6b7280)",
+  textMuted: "var(--text-muted, #9ca3af)",
   white: "#ffffff",
 };
 
@@ -61,13 +64,15 @@ export const colors = {
 // ─────────────────────────────────────────────────────────────────────────────
 export const rawColors = {
   accent: "#2d6a4f",
+  accentLight: "#40916c",
+  accentDark: "#1b4332",
   gray200: "#e5e7eb",
   gray500: "#6b7280",
   gray800: "#1f2937",
   gray900: "#111827",
-  danger500: "#ef4444",
+  danger500: "#dc2626",
   info500: "#3b82f6",
-  success500: "#10b981",
+  success500: "#059669",
   warning500: "#f59e0b",
   white: "#ffffff",
 };
@@ -100,6 +105,7 @@ export const spacingPx = {
 export const radius = {
   sm: "var(--radius-sm, 4px)",
   md: "var(--radius-md, 8px)",
+  btn: "var(--radius-btn, 10px)",
   lg: "var(--radius-lg, 12px)",
   xl: "var(--radius-xl, 16px)",
   pill: "var(--radius-pill, 50px)",

@@ -1,0 +1,71 @@
+{% extends "main/_base_companies.html" %}
+
+{% block head %}
+{% include 'components/_tabulator.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="research-workspace-dashboard-container">
+
+    <!-- ════════════════════════════════════════════════
+         HEADER CARD
+         ════════════════════════════════════════════════ -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Start with A's</h1>
+                <p class="dashboard-subtitle">{{ sweep.country }} &middot; {{ sweep.name }}</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('research_workflow.start_with_a') }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i> All Sweeps
+                </a>
+            </div>
+        </header>
+
+        <!-- Sweep metrics strip — updated by React via DOM bridge -->
+        <div class="dashboard-metrics-strip" id="sweepMetrics">
+            <div class="portfolio-metric highlight">
+                <span class="portfolio-metric-value gain" id="metricReviewedSlash">0/{{ sweep.total_companies }}</span>
+                <span class="portfolio-metric-label">Reviewed</span>
+            </div>
+            <div class="portfolio-metric highlight">
+                <span class="portfolio-metric-value gain" id="metricPctComplete">0%</span>
+                <span class="portfolio-metric-label">Complete</span>
+            </div>
+            <div class="portfolio-metric highlight">
+                <span class="portfolio-metric-value gain" id="metricInbox">0</span>
+                <span class="portfolio-metric-label">Inbox</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-value" id="metricKilled">0</span>
+                <span class="portfolio-metric-label">Killed</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-value" id="metricFindRate">0%</span>
+                <span class="portfolio-metric-label">Find Rate</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- React island mount point (alphabet progress, session tracker, view toggle, table/focus, kill modal) -->
+    <div id="market-sweep-mount"></div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% include 'components/_tabulator_js.html' %}
+<script defer src="{{ url_for('static', filename='js/dist/market-sweep.bundle.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.initMarketSweep) {
+        window.initMarketSweep('market-sweep-mount', {
+            sectors: {{ sectors_json|tojson }},
+            sweepId: {{ sweep.id }}
+        });
+    }
+});
+</script>
+{% endblock %}

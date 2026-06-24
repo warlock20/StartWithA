@@ -31,7 +31,7 @@ export function Btn({ icon, children, kind = "secondary", onClick, size = "md" }
       onMouseLeave={() => setHover(false)}
       style={{
         display: "inline-flex", alignItems: "center", gap: 6,
-        padding: pad, borderRadius: 8,
+        padding: pad, borderRadius: 10,
         fontWeight: 600, fontSize: fs, cursor: "pointer",
         transition: transitions.fast, whiteSpace: "nowrap",
         fontFamily: "inherit",

@@ -17,6 +17,9 @@
 
     /* Accent - Forest Green */
     --accent-color: #2d6a4f;
+    --accent-light: #40916c;
+    --accent-dark: #1b4332;
+    --accent-soft: #f0fdf4;
     --accent-50: #f0fdf4;
     --accent-100: #dcfce7;
     --accent-200: #bbf7d0;
@@ -33,24 +36,24 @@
     --gray-100: #f3f4f6;         /* Light gray for cards */
     --gray-200: #e5e7eb;         /* Borders and dividers */
     --gray-300: #d1d5db;         /* Subtle borders */
-    --gray-400: #9ca3af;         /* Muted text */
+    --gray-400: #9ca3af;         /* Muted text / tertiary */
     --gray-500: #6b7280;         /* Secondary text */
     --gray-600: #4b5563;         /* Body text */
     --gray-700: #374151;         /* Dark text */
     --gray-800: #1f2937;         /* Headings */
-    --gray-900: #111827;         /* Darkest text */
+    --gray-900: #111827;         /* Darkest text / primary */
 
-    /* Sophisticated Semantic Colors */
-    --success-500: #10b981;      /* Green - success */
-    --success-600: #059669;      /* Green hover */
+    /* Semantic Colors */
+    --success-500: #059669;      /* Green - success */
+    --success-600: #047857;      /* Green hover */
     --success-50: #f0fdf4;       /* Success background */
 
     --warning-500: #f59e0b;      /* Warm amber */
     --warning-600: #d97706;      /* Warm amber hover */
     --warning-50: #fef3c7;       /* Warning background */
 
-    --danger-500: #ef4444;       /* Error red */
-    --danger-600: #dc2626;       /* Error red hover */
+    --danger-500: #dc2626;       /* Error red */
+    --danger-600: #b91c1c;       /* Error red hover */
     --danger-50: #fef2f2;        /* Error background */
 
     --info-500: #3b82f6;         /* Blue - info */
@@ -72,13 +75,15 @@
     --warm-stone: #6b7280;       /* Warm stone for secondary text */
 
     /* Public pages */
-    --public-bg: #fafaf8;
+    --public-bg: #ffffff;
     --public-surface: #ffffff;
-    --public-text: #1e293b;
-    --public-text-muted: #64748b;
+    --public-bg-alt: #f7f9f8;
+    --public-text: #0f172a;
+    --public-text-muted: #475569;
+    --public-text-faint: #94a3b8;
     --public-border: #e2e8f0;
     --public-accent: #2d6a4f;
-    --public-accent-light: #d1fae5;
+    --public-accent-light: #40916c;
 
     /* Legacy variable mappings for backwards compatibility */
     --primary-color: var(--primary-600);
@@ -89,9 +94,9 @@
     --border-color: var(--border-light);
 
     /* Text Colors */
-    --text-primary: var(--gray-700);
-    --text-secondary: var(--gray-600);
-    --text-muted: var(--gray-500);
+    --text-primary: var(--gray-900);
+    --text-secondary: var(--gray-500);
+    --text-muted: var(--gray-400);
     --text-white: #ffffff;
 
     /* Background Colors */
@@ -102,10 +107,13 @@
     /* Border Colors */
     --border-light: var(--gray-200);
     --border-medium: var(--gray-300);
+    --border-subtle: var(--gray-100);
 
     /* Component Colors */
-    --color-primary: var(--primary-600);
-    --color-primary-dark: var(--primary-700);
+    --color-primary: var(--accent-color);
+    --color-primary-light: var(--accent-light);
+    --color-primary-dark: var(--accent-dark);
+    --color-primary-soft: var(--accent-soft);
     --color-success: var(--success-500);
     --color-warning: var(--warning-500);
     --color-danger: var(--danger-500);
@@ -125,18 +133,19 @@
     --space-xl: 2rem;
     --space-2xl: 3rem;
 
-    /* Typography Scale (~10% larger) */
-    --font-size-xs: 0.8125rem;
-    --font-size-sm: 0.9375rem;
-    --font-size-base: 1.0625rem;
-    --font-size-lg: 1.25rem;
-    --font-size-xl: 1.375rem;
-    --font-size-2xl: 1.625rem;
-    --font-size-3xl: 2.1875rem;
+    /* Typography Scale */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 2rem;
 
     /* Border Radius */
     --radius-sm: 4px;
     --radius-md: 8px;
+    --radius-btn: 10px;
     --radius-lg: 12px;
     --radius-xl: 16px;
     --radius-2xl: 24px;
