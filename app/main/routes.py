@@ -33,9 +33,6 @@ def index():
     # No explicit title → falls back to APP_NAME (brand) in the base template
     return render_template('main/public_home.html')
 
-@bp.route('/mental-models')
-def mental_models():
-    return render_template('main/mental_models.html', title="Mental Models")
 
 @bp.route('/legal/imprint')
 def imprint():

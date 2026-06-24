@@ -1,22 +1,37 @@
 {% extends "main/_base.html" %}
 
+{% block page_css %}
+<style>
+    /* Full-bleed landing: remove wrapper padding so sections span edge-to-edge */
+    .has-sidebar .app-main .content-wrapper.landing-page,
+    .app-main .content-wrapper.landing-page {
+        padding: 0 !important;
+        max-width: 100%;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="landing-page">
 
     <!-- Hero Section -->
     <section class="landing-hero">
         <div class="landing-hero-inner">
-            <p class="landing-eyebrow">An intelligent investment research platform</p>
+            <p class="landing-eyebrow">Systematic investment research</p>
             <h1 class="landing-hero-title font-poppins">The best investors don't have better data. They have better thinking.</h1>
             <p class="landing-hero-body">
-                Build a repeatable, systematic research process that turns scattered notes and gut feelings into disciplined investment decisions. Stop chasing tips. Start building a framework.
+                Build a repeatable, systematic research process that turns scattered notes and gut feelings
+                into disciplined investment decisions. Stop chasing tips. Start building a framework.
             </p>
             <div class="landing-hero-cta">
-                <a href="{{ url_for('auth.auth0_login') }}" class="btn-accent">Start Building Your Framework</a>
-                <a href="{{ url_for('auth.login') }}" class="btn-subtle">Sign In</a>
+                <a href="{{ url_for('auth.auth0_login') }}" class="btn-accent">Build Your Framework</a>
+                <a href="#method" class="btn-subtle">See How It Works</a>
             </div>
             <blockquote class="landing-hero-quote">
-                <p>"It is remarkable how much long-term advantage people like us have gotten by trying to be consistently not stupid, instead of trying to be very intelligent."</p>
-                <footer>Charlie Munger</footer>
+                <p>When Buffett was nineteen, he sat down with the Moody's manuals — thousands of pages
+                    of companies listed alphabetically — and went through them one by one, starting with the A's.
+                    Not because he was smarter. Because he was willing to do the work nobody else would.
+                    This tool is that method — built for the modern investor, powered by AI.</p>
             </blockquote>
         </div>
     </section>
@@ -39,54 +54,54 @@
         </div>
     </section>
 
-    <!-- The Problem -->
-    <section class="landing-problem">
+    <!-- Product Preview (React island) -->
+    <section class="landing-preview">
         <div class="landing-section-inner">
             <div class="landing-section-header">
-                <span class="landing-eyebrow">The Reality</span>
-                <h2 class="font-poppins">Most investors repeat the same mistakes</h2>
+                <span class="landing-eyebrow">The Platform</span>
+                <h2 class="font-poppins">Not just screening. A complete research system.</h2>
+                <p class="landing-section-subtitle">From first glance to investment thesis — every step is tracked, structured, and powered by AI.</p>
             </div>
-            <div class="landing-problem-grid">
-                <div class="landing-problem-card">
-                    <div class="landing-problem-icon"><i class="bi bi-journals"></i></div>
-                    <h3>Scattered Research</h3>
-                    <p>Notes in spreadsheets, bookmarks, messaging apps, and your head. No single system to hold it all together.</p>
-                </div>
-                <div class="landing-problem-card">
-                    <div class="landing-problem-icon"><i class="bi bi-heart-pulse"></i></div>
-                    <h3>Emotional Decisions</h3>
-                    <p>FOMO drives buying. Panic drives selling. Confirmation bias fills in the gaps between.</p>
-                </div>
-                <div class="landing-problem-card">
-                    <div class="landing-problem-icon"><i class="bi bi-sign-stop"></i></div>
-                    <h3>No Kill Discipline</h3>
-                    <p>No clear exit criteria. Losers stay in the portfolio while good capital sits trapped.</p>
-                </div>
-                <div class="landing-problem-card">
-                    <div class="landing-problem-icon"><i class="bi bi-arrow-repeat"></i></div>
-                    <h3>Lost Lessons</h3>
-                    <p>The same mistake made twice costs twice. Without a feedback loop, every loss is wasted.</p>
-                </div>
-            </div>
+            <div id="home-preview-root"></div>
         </div>
     </section>
 
-    <!-- The Framework -->
-    <section class="landing-framework">
-        <div class="landing-section-inner">
+    <!-- The Method -->
+    <section id="method" class="landing-method">
+        <div class="landing-section-inner landing-method-inner">
             <div class="landing-section-header">
-                <span class="landing-eyebrow">The Framework</span>
-                <h2 class="font-poppins">A systematic approach to investment research</h2>
+                <span class="landing-eyebrow">The Method</span>
+                <h2 class="font-poppins">Two ways in. Same rigorous process.</h2>
             </div>
-            <div class="landing-framework-steps">
+
+            <!-- Method path toggle -->
+            <div class="method-toggle">
+                <button class="method-toggle-btn active" data-method-tab="sweep">
+                    <i class="bi bi-collection"></i>
+                    <span class="method-toggle-text">
+                        <span class="method-toggle-label">The Sweep</span>
+                        <span class="method-toggle-sub">Every company, A to Z</span>
+                    </span>
+                </button>
+                <button class="method-toggle-btn" data-method-tab="direct">
+                    <i class="bi bi-bullseye"></i>
+                    <span class="method-toggle-text">
+                        <span class="method-toggle-label">Direct Research</span>
+                        <span class="method-toggle-sub">Any company, anytime</span>
+                    </span>
+                </button>
+            </div>
+
+            <!-- Sweep path steps -->
+            <div class="landing-method-steps method-panel active" id="method-sweep">
                 <div class="landing-step">
                     <div class="landing-step-marker">
                         <span class="landing-step-number">1</span>
                         <span class="landing-step-line"></span>
                     </div>
                     <div class="landing-step-content">
-                        <h3>Capture</h3>
-                        <p>Quick-capture ideas before they slip away. Every tip, observation, or thesis gets logged instantly.</p>
+                        <h3>Pick your universe</h3>
+                        <p>DAX 40. MDAX. FTSE 350. Choose any market, and every company in it gets queued — ready for your systematic review.</p>
                     </div>
                 </div>
                 <div class="landing-step">
@@ -95,8 +110,8 @@
                         <span class="landing-step-line"></span>
                     </div>
                     <div class="landing-step-content">
-                        <h3>Filter</h3>
-                        <p>A kill checklist eliminates bad ideas fast. Save your time and capital for what deserves deep research.</p>
+                        <h3>Start at A</h3>
+                        <p>Companies appear one by one, alphabetically. No cherry-picking. No jumping to the popular names. You see everything.</p>
                     </div>
                 </div>
                 <div class="landing-step">
@@ -105,8 +120,8 @@
                         <span class="landing-step-line"></span>
                     </div>
                     <div class="landing-step-content">
-                        <h3>Research</h3>
-                        <p>Structured templates guide thorough analysis. Never miss critical due diligence again.</p>
+                        <h3>Inbox or Kill</h3>
+                        <p>Each company gets your focused attention. Interesting? Inbox it for deep research. Not worth your time? Kill it and move on.</p>
                     </div>
                 </div>
                 <div class="landing-step">
@@ -115,8 +130,8 @@
                         <span class="landing-step-line"></span>
                     </div>
                     <div class="landing-step-content">
-                        <h3>Decide</h3>
-                        <p>AI-assisted insights help you see clearly. Track your thesis and monitor conviction over time.</p>
+                        <h3>Research with your framework</h3>
+                        <p>Run your custom checklist, log findings, flag green and red flags. Argos surfaces insights from your history — patterns, past mistakes, relevant notes.</p>
                     </div>
                 </div>
                 <div class="landing-step">
@@ -124,55 +139,92 @@
                         <span class="landing-step-number">5</span>
                     </div>
                     <div class="landing-step-content">
-                        <h3>Learn</h3>
-                        <p>Journal your decisions, log your mistakes, and feed lessons back into your process. Compound your wisdom.</p>
+                        <h3>Compound your edge</h3>
+                        <p>Every decision is logged. Every kill reason recorded. Your Knowledge Hub becomes institutional memory. Your edge compounds with every name you see.</p>
                     </div>
                 </div>
+            </div>
+
+            <!-- Direct Research path steps -->
+            <div class="landing-method-steps method-panel" id="method-direct">
+                <div class="landing-step">
+                    <div class="landing-step-marker">
+                        <span class="landing-step-number">1</span>
+                        <span class="landing-step-line"></span>
+                    </div>
+                    <div class="landing-step-content">
+                        <h3>Start a research — any company, anytime</h3>
+                        <p>Heard about a company on a call? Read something interesting? Add it directly to your inbox from the search bar. No sweep required.</p>
+                    </div>
+                </div>
+                <div class="landing-step">
+                    <div class="landing-step-marker">
+                        <span class="landing-step-number">2</span>
+                        <span class="landing-step-line"></span>
+                    </div>
+                    <div class="landing-step-content">
+                        <h3>Same rigorous process</h3>
+                        <p>Whether a company came from a sweep or your own idea, it enters the same workflow — free research, structured checklist, investment thesis.</p>
+                    </div>
+                </div>
+                <div class="landing-step">
+                    <div class="landing-step-marker">
+                        <span class="landing-step-number">3</span>
+                        <span class="landing-step-line"></span>
+                    </div>
+                    <div class="landing-step-content">
+                        <h3>Your checklist enforces discipline</h3>
+                        <p>No shortcuts. Every company goes through your custom framework — the same questions, the same structure, whether it's a hot tip or the 300th name in a sweep.</p>
+                    </div>
+                </div>
+                <div class="landing-step">
+                    <div class="landing-step-marker">
+                        <span class="landing-step-number">4</span>
+                        <span class="landing-step-line"></span>
+                    </div>
+                    <div class="landing-step-content">
+                        <h3>Argos keeps you honest</h3>
+                        <p>Your AI assistant checks your research history. Are you chasing momentum again? Did you kill a similar company last month? It warns you before you repeat mistakes.</p>
+                    </div>
+                </div>
+                <div class="landing-step">
+                    <div class="landing-step-marker">
+                        <span class="landing-step-number">5</span>
+                    </div>
+                    <div class="landing-step-content">
+                        <h3>Build your Knowledge Hub</h3>
+                        <p>Notes, findings, and curated wisdom — all searchable, all tagged. Next time you look at this sector, your past thinking is right there waiting.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Convergence note -->
+            <div class="method-convergence">
+                <p><strong>Both paths converge</strong> — every company flows through the same checklist, the same Argos insights, the same Knowledge Hub. The process is the edge.</p>
             </div>
         </div>
     </section>
 
-    <!-- Key Capabilities -->
-    <section class="landing-capabilities">
+    <!-- Quotes -->
+    <section class="landing-quotes">
         <div class="landing-section-inner">
-            <div class="landing-section-header">
-                <span class="landing-eyebrow">What You Get</span>
-                <h2 class="font-poppins">Tools built for serious researchers</h2>
-            </div>
-            <div class="landing-cap-grid">
-                <div class="landing-cap-card">
-                    <div class="landing-cap-icon"><i class="bi bi-funnel"></i></div>
-                    <h3>Idea Pipeline</h3>
-                    <p>Capture, triage, and prioritize investment ideas in a structured flow.</p>
+            <div class="landing-quotes-grid">
+                <div class="landing-quote-card landing-origin-card">
+                    <span class="landing-eyebrow">The Origin</span>
+                    <p class="landing-origin-text">
+                        When Buffett was nineteen, he sat down with the Moody's manuals — thousands of pages of companies
+                        listed alphabetically — and went through them one by one, starting with the A's.
+                    </p>
+                    <p class="landing-origin-subtext">
+                        Not because he was smarter. Because he was willing to do the work nobody else would.
+                        That discipline — systematic, exhaustive, patient — is what this tool is built on.
+                    </p>
                 </div>
-                <div class="landing-cap-card">
-                    <div class="landing-cap-icon"><i class="bi bi-shield-check"></i></div>
-                    <h3>Kill Checklists</h3>
-                    <p>Inversion-based filters that eliminate bad ideas before they waste your time.</p>
-                </div>
-                <div class="landing-cap-card">
-                    <div class="landing-cap-icon"><i class="bi bi-clipboard2-data"></i></div>
-                    <h3>Research Templates</h3>
-                    <p>Design repeatable workflows that match your investment style.</p>
-                </div>
-                <div class="landing-cap-card">
-                    <div class="landing-cap-icon"><i class="bi bi-cpu"></i></div>
-                    <h3>AI Research Assistant</h3>
-                    <p>Parse financials, earnings calls, and documents in seconds.</p>
-                </div>
-                <div class="landing-cap-card">
-                    <div class="landing-cap-icon"><i class="bi bi-book"></i></div>
-                    <h3>Knowledge Hub</h3>
-                    <p>Capture wisdom, connect ideas, and build institutional knowledge.</p>
-                </div>
-                <div class="landing-cap-card">
-                    <div class="landing-cap-icon"><i class="bi bi-graph-up"></i></div>
-                    <h3>Analytics & Patterns</h3>
-                    <p>Track your research patterns and identify biases over time.</p>
-                </div>
-            </div>
-            <div class="landing-cap-footer">
-                <a href="{{ url_for('main.mental_models') }}">See how it works <i class="bi bi-arrow-right"></i></a>
+                <blockquote class="landing-quote-card landing-munger-card">
+                    <p>"It is remarkable how much long-term advantage people like us have gotten by trying
+                        to be consistently not stupid, instead of trying to be very intelligent."</p>
+                    <footer>Charlie Munger</footer>
+                </blockquote>
             </div>
         </div>
     </section>
@@ -180,11 +232,32 @@
     <!-- Final CTA -->
     <section class="landing-cta">
         <div class="landing-cta-inner">
-            <h2 class="font-poppins">Ready to build your investment process?</h2>
-            <p>Join investors who think systematically about every decision.</p>
-            <a href="{{ url_for('auth.auth0_login') }}" class="btn-accent">Get Started Free</a>
-            <small>Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></small>
+            <h2 class="font-poppins">Ready to start with the A's?</h2>
+            <p>Join investors who think systematically about every decision. No shortcuts.</p>
+            <div class="landing-cta-buttons">
+                <a href="{{ url_for('auth.auth0_login') }}" class="btn-accent">Build Your Framework</a>
+                <a href="{{ url_for('auth.login') }}" class="btn-subtle-light">Sign In</a>
+            </div>
         </div>
     </section>
 
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script defer src="{{ url_for('static', filename='js/dist/home-preview.bundle.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.method-toggle-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var tab = btn.getAttribute('data-method-tab');
+            document.querySelectorAll('.method-toggle-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            document.querySelectorAll('.method-panel').forEach(function (p) { p.classList.remove('active'); });
+            document.getElementById('method-' + tab).classList.add('active');
+        });
+    });
+});
+</script>
 {% endblock %}

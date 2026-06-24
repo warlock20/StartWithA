@@ -4,7 +4,7 @@
 
 /* Base Button Styling - Enhanced from Professional Button System */
 .btn {
-    border-radius: 8px;
+    border-radius: var(--radius-btn, 10px);
     font-weight: 500;
     transition: all 0.2s ease;
     border: 1px solid transparent;

@@ -202,7 +202,7 @@
 /* Focus States for Accessibility */
 .btn[class*="btn-platform"]:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.25);
+    box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.25);
 }
 
 /* Button Groups */
