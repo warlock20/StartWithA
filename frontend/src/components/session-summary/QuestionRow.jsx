@@ -31,8 +31,7 @@ export function QuestionRow({ question, index, isSelected, onClick }) {
     >
       {/* Number */}
       <span style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: fontSizes.xs, fontWeight: 600,
+        fontSize: '0.65rem', fontWeight: 600,
         color: isSelected ? sc.rawColor : colors.gray400,
         width: 22, flexShrink: 0, textAlign: 'center',
       }}>{index + 1}</span>

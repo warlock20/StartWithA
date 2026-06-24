@@ -23,11 +23,10 @@ export function AnswerDetail({ question, index, editAnswerUrl }) {
           marginBottom: 10,
         }}>
           <span style={{
-            fontFamily: 'var(--font-mono)',
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 28, height: 28, borderRadius: 7,
+            width: 32, height: 32, borderRadius: '50%',
             background: sc.rawColor, color: '#fff',
-            fontSize: fontSizes.xs, fontWeight: 700,
+            fontSize: fontSizes.sm, fontWeight: 700,
           }}>{index + 1}</span>
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -44,8 +43,8 @@ export function AnswerDetail({ question, index, editAnswerUrl }) {
           </span>
         </div>
         <h3 style={{
-          fontSize: fontSizes.base, fontWeight: 700, color: colors.gray900,
-          lineHeight: 1.4, letterSpacing: '-0.01em',
+          fontSize: fontSizes.lg, fontWeight: 600, color: colors.gray900,
+          lineHeight: 1.4,
           margin: 0,
         }}>{question.text}</h3>
         {question.parent && (
@@ -66,7 +65,7 @@ export function AnswerDetail({ question, index, editAnswerUrl }) {
           <div
             className="answer-text"
             style={{
-              fontSize: fontSizes.sm, lineHeight: 1.75, color: colors.gray700,
+              fontSize: fontSizes.sm, lineHeight: 1.6, color: colors.gray700,
             }}
             dangerouslySetInnerHTML={{ __html: question.answerHtml }}
           />
