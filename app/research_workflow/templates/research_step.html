@@ -580,7 +580,7 @@
     }
 
     function updateQuestionCard(data) {
-        const status = data.satisfaction_status === 'pending' ? 'pending' : data.satisfaction_status;
+        const status = (!data.satisfaction_status || data.satisfaction_status === 'pending') ? 'pending' : data.satisfaction_status;
 
         // Update card border
         const card = document.getElementById('questionCard');
@@ -630,7 +630,7 @@
     }
 
     function updateVerdictButtons(data) {
-        const isPending = data.satisfaction_status === 'pending';
+        const isPending = !data.satisfaction_status || data.satisfaction_status === 'pending';
         const status = isPending ? '' : data.satisfaction_status;
         document.getElementById('satisfaction_status').value = status;
         document.querySelectorAll('.cl-verdict-btn').forEach(btn => {

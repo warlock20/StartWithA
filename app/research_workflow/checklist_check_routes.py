@@ -138,7 +138,7 @@ def research_step(analysis_id, item_id):
 
     if request.method == 'POST':
         answer_text = request.form.get('answer_text')
-        satisfaction_status_from_form = request.form.get('satisfaction_status') or 'neutral'
+        satisfaction_status_from_form = request.form.get('satisfaction_status') or None
         if research_answer:
             research_answer.answer_text = answer_text
             research_answer.answered_at = now_utc()
@@ -245,7 +245,7 @@ def research_step_json(analysis_id, item_id):
     all_answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
     answers_map = {}
     for ans in all_answers:
-        answers_map[ans.checklist_item_id] = ans.satisfaction_status or 'neutral'
+        answers_map[ans.checklist_item_id] = ans.satisfaction_status or 'pending'
 
     # Status counts
     status_counts = {'satisfied': 0, 'not_satisfied': 0, 'needs_attention': 0, 'neutral': 0, 'pending': 0}
@@ -296,13 +296,17 @@ def autosave_research_answer(analysis_id, item_id):
             return json_error('Invalid item for this session')
 
         # Get data from request (supports both JSON and form data)
+        # Only update satisfaction_status if explicitly provided (BlockNote editor
+        # autosave only sends content, so we must not overwrite the verdict).
         if request.is_json:
             data = request.get_json()
             answer_text = data.get('content', '')
-            satisfaction_status = data.get('satisfaction_status', 'neutral')
+            has_status = 'satisfaction_status' in data
+            satisfaction_status = data.get('satisfaction_status') or None
         else:
             answer_text = request.form.get('answer_text', '')
-            satisfaction_status = request.form.get('satisfaction_status', 'neutral')
+            has_status = 'satisfaction_status' in request.form
+            satisfaction_status = request.form.get('satisfaction_status') or None
 
         # Find or create research answer
         research_answer = ChecklistAnswer.query.filter_by(
@@ -313,13 +317,14 @@ def autosave_research_answer(analysis_id, item_id):
         if research_answer:
             research_answer.answer_text = answer_text
             research_answer.answered_at = now_utc()
-            research_answer.satisfaction_status = satisfaction_status
+            if has_status:
+                research_answer.satisfaction_status = satisfaction_status
         else:
             research_answer = ChecklistAnswer(
                 answer_text=answer_text,
                 checklist_analysis_id=session.id,
                 checklist_item_id=current_item.id,
-                satisfaction_status=satisfaction_status
+                satisfaction_status=satisfaction_status if has_status else None
             )
             db.session.add(research_answer)
 
@@ -354,10 +359,10 @@ def save_and_next(analysis_id, item_id):
         if request.is_json:
             data = request.get_json()
             answer_text = data.get('content', '')
-            satisfaction_status = data.get('satisfaction_status', 'neutral')
+            satisfaction_status = data.get('satisfaction_status') or None
         else:
             answer_text = request.form.get('answer_text', '')
-            satisfaction_status = request.form.get('satisfaction_status', 'neutral')
+            satisfaction_status = request.form.get('satisfaction_status') or None
 
         # Save answer
         research_answer = ChecklistAnswer.query.filter_by(
