@@ -44,7 +44,6 @@ function HeatmapCell({ question, index, isSelected, onSelect }) {
         transition: 'all .15s',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 9, fontWeight: 700, color: '#fff',
-        fontFamily: 'var(--font-mono)',
         transform: isSelected ? 'scale(1.15)' : 'scale(1)',
         boxShadow: isSelected ? `0 0 0 3px ${sc.rawColor}22` : 'none',
       }}
