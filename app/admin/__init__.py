@@ -24,8 +24,6 @@ Flask-Admin based admin interface for managing:
 - Analytics
 """
 
-import csv
-import io
 import os
 
 from flask_admin import Admin, AdminIndexView, expose
@@ -45,6 +43,7 @@ from app.models import (
     MarketSweep,
     MarketSweepCompany,
 )
+from app.services.market_sweep_service import parse_companies_file
 
 
 class SecureAdminIndexView(AdminIndexView):
@@ -262,40 +261,17 @@ class MarketSweepAdminView(SecureModelView):
             flash('No file selected', 'error')
             return redirect(self.get_url('.edit_view', id=sweep_id))
 
-        filename = file.filename.lower()
-        rows = []
-
-        # Normalise header names: strip whitespace, lowercase, underscores
-        def _norm(h):
-            if h is None:
-                return ''
-            return str(h).strip().lower().replace(' ', '_')
-
         try:
-            if filename.endswith('.csv'):
-                content = file.read().decode('utf-8-sig')
-                reader = csv.DictReader(io.StringIO(content))
-                rows = [{_norm(k): v for k, v in r.items()} for r in reader]
-            elif filename.endswith(('.xlsx', '.xls')):
-                import openpyxl
-                wb = openpyxl.load_workbook(file)
-                ws = wb.active
-                headers = [_norm(cell.value) for cell in ws[1]]
-                for row in ws.iter_rows(min_row=2, values_only=True):
-                    if any(v is not None for v in row):
-                        rows.append(dict(zip(headers, row)))
-            else:
-                flash('Unsupported file format. Use CSV or Excel (.xlsx).', 'error')
-                return redirect(self.get_url('.edit_view', id=sweep_id))
+            rows = parse_companies_file(file, filename=file.filename)
+        except ValueError as e:
+            flash(str(e), 'error')
+            return redirect(self.get_url('.edit_view', id=sweep_id))
         except Exception as e:
             flash(f'Error reading file: {str(e)}', 'error')
             return redirect(self.get_url('.edit_view', id=sweep_id))
 
         # Clear existing companies
         MarketSweepCompany.query.filter_by(sweep_id=sweep_id).delete()
-
-        # Sort alphabetically, assign sort_order
-        rows.sort(key=lambda r: (r.get('company_name') or '').strip().lower())
 
         if rows:
             sample_keys = list(rows[0].keys())
