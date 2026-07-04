@@ -125,6 +125,14 @@ def create_app(config_class=Config):
     from app.settings.profile_routes import profile_bp
     app.register_blueprint(profile_bp)
 
+    # Auto-seed market sweeps from data/market-sweeps/ if any files present
+    with app.app_context():
+        try:
+            from app.services.market_sweep_service import seed_market_sweeps
+            seed_market_sweeps()
+        except Exception as e:
+            app.logger.warning("Market sweep auto-seed skipped: %s", e)
+
     # Add custom template filters
     @app.template_filter('nl2br')
     def nl2br_filter(text):
