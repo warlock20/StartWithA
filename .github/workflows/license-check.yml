@@ -39,7 +39,7 @@ jobs:
             echo ""
             echo "Add this header to the top of each file:"
             echo ""
-            echo "# Investment Checklist Platform"
+            echo "# StartWithA"
             echo "# Copyright (C) 2024-2026 Kiran Mathews"
             echo "#"
             echo "# This program is free software: you can redistribute it and/or modify"

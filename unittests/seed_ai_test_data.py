@@ -1,4 +1,4 @@
-# Investment Checklist Platform
+# StartWithA
 # Copyright (C) 2024-2026 Kiran Mathews
 #
 # This program is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@ Usage:
     python -m tests.seed_ai_test_data --clean  # Wipe AI-related data first
     python -m tests.seed_ai_test_data --users 20 --transactions 50
 
-Author: Generated for Investment Checklist Platform
+Author: Generated for StartWithA
 """
 
 import argparse

@@ -1,4 +1,4 @@
-# Investment Research Platform
+# StartWithA
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
@@ -90,8 +90,8 @@ docker compose down -v
 Requires Python 3.12+, PostgreSQL with the [pgvector](https://github.com/pgvector/pgvector) extension, Redis, and Node.js.
 
 ```bash
-git clone https://github.com/warlock20/investment-checklist.git
-cd investment-checklist
+git clone https://github.com/warlock20/StartWithA.git
+cd StartWithA
 
 # Python
 python3 -m venv venv && source venv/bin/activate
@@ -165,7 +165,7 @@ The app uses [Auth0](https://auth0.com) for authentication. To set it up:
 
 ## Hosted Version
 
-Don't want to self-host? A managed, hosted instance is available — [open a discussion](https://github.com/warlock20/investment-checklist/discussions) to request access.
+Don't want to self-host? A managed, hosted instance is available — [open a discussion](https://github.com/warlock20/StartWithA/discussions) to request access.
 
 ---
 
