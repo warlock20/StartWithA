@@ -1,7 +1,7 @@
 {
-  "name": "investment-checklist",
+  "name": "startwitha",
   "version": "1.0.0",
-  "description": "Investment Research Platform - Frontend Assets",
+  "description": "StartWithA - Frontend Assets",
   "private": true,
   "scripts": {
     "build": "webpack --mode production",
