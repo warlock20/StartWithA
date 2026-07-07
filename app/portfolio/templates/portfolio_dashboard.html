@@ -78,16 +78,16 @@
                 <div class="portfolio-metric-label">Cash</div>
                 <div class="portfolio-metric-value">{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.cash_balance) }}</div>
             </div>
-            <div class="portfolio-metric highlight {% if portfolio_value.total_unrealized_gain_loss >= 0 %}gain{% else %}loss{% endif %}" id="metricPLCard">
+            <div class="portfolio-metric highlight {% if portfolio_value.total_return >= 0 %}gain{% else %}loss{% endif %}" id="metricPLCard">
                 <div class="portfolio-metric-icon green">
                     <i class="bi bi-graph-up-arrow"></i>
                 </div>
-                <div class="portfolio-metric-label">Unrealized P/L</div>
+                <div class="portfolio-metric-label">Total P/L</div>
                 <div class="portfolio-metric-value" id="metricPLValue">
-                    {% if portfolio_value.total_unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.total_unrealized_gain_loss) }}
+                    {% if portfolio_value.total_return >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.total_return) }}
                 </div>
                 <div class="portfolio-metric-subtext" id="metricPLPct">
-                    {% if portfolio_value.total_unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(portfolio_value.total_unrealized_gain_loss_pct) }}%
+                    {% if portfolio_value.total_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(portfolio_value.total_return_pct) }}%
                 </div>
             </div>
             <div class="portfolio-metric">
@@ -255,8 +255,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update portfolio value for React island
         portfolioValue.total_value = totalValue + cashBalance;
         portfolioValue.total_cost = totalCost;
-        portfolioValue.total_unrealized_gain_loss = totalPL;
-        portfolioValue.total_unrealized_gain_loss_pct = totalPct;
+        portfolioValue.total_return = totalPL;
+        portfolioValue.total_return_pct = totalPct;
         portfolioValue.invested_value = totalValue;
 
         // Update header metrics
