@@ -15,7 +15,13 @@ See [vision.md](vision.md) for the full product vision.
 ## Core Flow
 
 ```
-Idea → Kill Screen → Research → Buy Decision → Track Position → Journal → Learn → Better Research
+Idea or Market Sweeper
+    → Kill Screen
+    → Research ←──────────────┐
+    → Buy Decision            │
+    → Track Position         Updated Checklist
+    → Journal                 │
+    → Learn   |───────────────┘
 ```
 
 ## Tech Stack

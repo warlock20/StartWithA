@@ -190,6 +190,9 @@ class PortfolioPosition(db.Model):
     realized_gain_loss = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)
     realized_gain_loss_pct = db.Column(db.Numeric(6, 2), nullable=True)
 
+    # Total dividends collected (cumulative, in base currency)
+    total_dividends = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)
+
     # Metadata
     first_purchase_date = db.Column(db.Date, nullable=True, index=True)
     last_transaction_date = db.Column(db.Date, nullable=True)
@@ -258,6 +261,7 @@ class PortfolioPosition(db.Model):
             'unrealized_gain_loss_pct': float(self.unrealized_gain_loss_pct) if self.unrealized_gain_loss_pct else None,
             'realized_gain_loss': float(self.realized_gain_loss),
             'realized_gain_loss_pct': float(self.realized_gain_loss_pct) if self.realized_gain_loss_pct else None,
+            'total_dividends': float(self.total_dividends) if self.total_dividends else 0,
             'days_held': self.days_held,
             'first_purchase_date': self.first_purchase_date.isoformat() if self.first_purchase_date else None,
             'last_price_update': self.last_price_update.isoformat() if self.last_price_update else None,
@@ -297,7 +301,7 @@ def calculate_fifo_cost_basis(company_id, user_id):
     all calculations are in the user's base currency.
 
     Returns:
-        tuple: (total_shares, avg_cost_basis, total_cost, realized_gain_loss, first_purchase_date)
+        tuple: (total_shares, avg_cost_basis, total_cost, realized_gain_loss, first_purchase_date, total_dividends)
     """
     transactions = Transaction.query.filter_by(
         company_id=company_id,
@@ -309,6 +313,7 @@ def calculate_fifo_cost_basis(company_id, user_id):
     total_shares = 0
     total_cost = Decimal('0.00')
     realized_gain_loss = Decimal('0.00')
+    total_dividends = Decimal('0.00')
     first_purchase_date = None
 
     for txn in transactions:
@@ -371,6 +376,7 @@ def calculate_fifo_cost_basis(company_id, user_id):
             # But they do affect realized gains (cash received, minus fees)
             dividend_amount = Decimal(str(txn.quantity)) * price - fees
             realized_gain_loss += dividend_amount
+            total_dividends += dividend_amount
 
         elif txn.type == 'SPLIT':
             # Stock split: adjust all batches in queue
@@ -392,7 +398,8 @@ def calculate_fifo_cost_basis(company_id, user_id):
         avg_cost_basis,
         total_cost,
         realized_gain_loss,
-        first_purchase_date
+        first_purchase_date,
+        total_dividends
     )
 
 
@@ -421,7 +428,7 @@ def update_portfolio_position_for_company(company_id, user_id, last_transaction_
         last_transaction_date: Optional last transaction date (will query if not provided)
     """
     # Recalculate position from scratch using FIFO
-    total_shares, avg_cost, total_cost, realized_gl, first_date = calculate_fifo_cost_basis(
+    total_shares, avg_cost, total_cost, realized_gl, first_date, total_divs = calculate_fifo_cost_basis(
         company_id,
         user_id
     )
@@ -463,6 +470,7 @@ def update_portfolio_position_for_company(company_id, user_id, last_transaction_
     position.average_cost_basis_base = avg_cost
     position.total_cost_base = total_cost
     position.realized_gain_loss = realized_gl
+    position.total_dividends = total_divs
     position.first_purchase_date = first_date
     position.last_transaction_date = last_transaction_date
     position.is_active = (total_shares > 0)

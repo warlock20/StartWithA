@@ -87,6 +87,7 @@ def dashboard():
     total_value = Decimal('0.00')
     total_cost = Decimal('0.00')
     total_unrealized = Decimal('0.00')
+    total_dividends = Decimal('0.00')
 
     for pos in positions:
         if pos.current_value:
@@ -94,15 +95,18 @@ def dashboard():
         total_cost += pos.total_cost
         if pos.unrealized_gain_loss:
             total_unrealized += pos.unrealized_gain_loss
+        total_dividends += pos.total_dividends or Decimal('0.00')
 
-    total_pct = (total_unrealized / total_cost * 100) if total_cost > 0 else Decimal('0.00')
+    total_return = total_unrealized + total_dividends
+    total_pct = (total_return / total_cost * 100) if total_cost > 0 else Decimal('0.00')
     cash_balance = Decimal(str(current_user.cash_balance)) if current_user.cash_balance else Decimal('0.00')
 
     portfolio_value = {
         'total_value': total_value + cash_balance,
         'total_cost': total_cost,
-        'total_unrealized_gain_loss': total_unrealized,
-        'total_unrealized_gain_loss_pct': total_pct,
+        'total_return': total_return,
+        'total_return_pct': total_pct,
+        'total_dividends': total_dividends,
         'positions_count': len(positions),
         'cash_balance': cash_balance,
         'invested_value': total_value,
@@ -133,8 +137,9 @@ def dashboard():
         'current_price': float(round(pos.current_price_base, 2)) if pos.current_price_base else (float(round(pos.current_price, 2)) if pos.current_price else None),
         'current_value': float(round(pos.current_value)) if pos.current_value else None,
         'cost_basis': float(round(pos.total_cost)) if pos.total_cost else None,
-        'gain_loss': float(round(pos.unrealized_gain_loss)) if pos.unrealized_gain_loss else None,
-        'gain_loss_pct': float(round(pos.unrealized_gain_loss_pct, 1)) if pos.unrealized_gain_loss_pct else None,
+        'gain_loss': float(round((pos.unrealized_gain_loss or Decimal('0.00')) + (pos.total_dividends or Decimal('0.00')))),
+        'gain_loss_pct': float(round(((pos.unrealized_gain_loss or Decimal('0.00')) + (pos.total_dividends or Decimal('0.00'))) / pos.total_cost * 100, 1)) if pos.total_cost else None,
+        'total_dividends': float(pos.total_dividends or 0),
         'days_held': pos.days_held or 0,
         'company_id': pos.company_id,
         'position_url': url_for('companies.company_detail', company_id=pos.company_id),

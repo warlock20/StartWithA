@@ -203,7 +203,7 @@ def reset_portfolio():
         
     return redirect(url_for('portfolio.dashboard'))
 
-@portfolio_bp.route('/debug/force-resync')
+@portfolio_bp.route('/debug/force-resync', methods=['GET', 'POST'])
 @login_required
 def force_resync():
     """

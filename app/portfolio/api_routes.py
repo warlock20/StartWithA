@@ -484,6 +484,11 @@ def refresh_positions_batch():
 
 def _serialize_position(position):
     """Serialize a position for JSON API responses."""
+    unrealized = float(position.unrealized_gain_loss or 0)
+    dividends = float(position.total_dividends or 0)
+    total_return = unrealized + dividends
+    cost = float(position.total_cost or 0)
+    total_return_pct = round(total_return / cost * 100, 1) if cost > 0 else None
     return {
         'company_id': position.company_id,
         'ticker': position.company.ticker_symbol,
@@ -493,8 +498,9 @@ def _serialize_position(position):
         'current_price': float(round(position.current_price, 2)) if position.current_price else None,
         'current_price_base': float(round(position.current_price_base, 2)) if position.current_price_base else None,
         'current_value': float(round(position.current_value)) if position.current_value else None,
-        'gain_loss': float(round(position.unrealized_gain_loss)) if position.unrealized_gain_loss else None,
-        'gain_loss_pct': float(round(position.unrealized_gain_loss_pct, 1)) if position.unrealized_gain_loss_pct else None,
+        'gain_loss': round(total_return),
+        'gain_loss_pct': total_return_pct,
+        'total_dividends': dividends,
         'days_held': position.days_held or 0,
         'position_url': url_for('companies.company_detail', company_id=position.company_id),
         'add_tx_url': url_for('portfolio.add_transaction', company_id=position.company_id),

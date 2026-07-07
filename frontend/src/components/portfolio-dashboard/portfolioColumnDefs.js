@@ -79,14 +79,25 @@ export function overviewColumns(currencySymbol) {
       },
     },
     {
-      title: 'P/L',
+      title: 'Total P/L',
       field: 'gain_loss',
       sorter: 'number',
       hozAlign: 'right',
       formatter: ColumnFormatters.gainLoss(currencySymbol, 0),
     },
     {
-      title: 'Return',
+      title: 'Dividends',
+      field: 'total_dividends',
+      sorter: 'number',
+      hozAlign: 'right',
+      formatter: function (cell) {
+        const v = cell.getValue();
+        if (!v) return '<span class="table-cell-muted">--</span>';
+        return `<span style="font-family:${MONO};color:var(--success-600,#059669);">${currencySymbol}${Math.round(v).toLocaleString()}</span>`;
+      },
+    },
+    {
+      title: 'Total Return',
       field: 'gain_loss_pct',
       sorter: 'number',
       hozAlign: 'right',
@@ -224,7 +235,7 @@ export function performanceColumns(currencySymbol) {
       formatter: companyFormatter,
     },
     {
-      title: 'Return %',
+      title: 'Total Return',
       field: 'gain_loss_pct',
       sorter: 'number',
       hozAlign: 'right',
@@ -239,11 +250,22 @@ export function performanceColumns(currencySymbol) {
       },
     },
     {
-      title: 'P/L',
+      title: 'Total P/L',
       field: 'gain_loss',
       sorter: 'number',
       hozAlign: 'right',
       formatter: ColumnFormatters.gainLoss(currencySymbol, 0),
+    },
+    {
+      title: 'Dividends',
+      field: 'total_dividends',
+      sorter: 'number',
+      hozAlign: 'right',
+      formatter: function (cell) {
+        const v = cell.getValue();
+        if (!v) return '<span class="table-cell-muted">--</span>';
+        return `<span style="font-family:${MONO};color:var(--success-600,#059669);">${currencySymbol}${Math.round(v).toLocaleString()}</span>`;
+      },
     },
     {
       title: 'Cost \u2192 Value',
