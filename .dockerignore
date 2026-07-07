@@ -41,6 +41,11 @@ data/
 docs/
 mockups/
 
+# Allow market sweep seed data
+!data/market-sweeps/
+!data/market-sweeps/*.xlsx
+!data/market-sweeps/*.csv
+
 # Tests
 unittests/
 tests/
