@@ -145,7 +145,7 @@ def auth0_callback():
                 name=name,
                 picture=picture,
                 auth_provider=auth_provider,
-                subscription_tier=current_app.config.get('DEFAULT_USER_TIER', 'free')
+                subscription_tier=current_app.config.get('DEFAULT_USER_TIER', 'amateur')
             )
 
             db.session.add(user)

@@ -22,11 +22,11 @@ Features not listed here default to 'core' (always visible).
 """
 
 # Maps feature keys to their required tier.
-# 'core' = visible to everyone, 'pro' = hidden for free users.
+# 'core' = visible to everyone, 'pro' = hidden for amateur users.
 FEATURE_TIERS = {
     # Research
     'sectors': 'pro',
-    'start_with_a': 'pro',
+    'start_with_a': 'core',
     'analytics': 'pro',
     'research_templates': 'pro',
     'kill_checklists': 'pro',
@@ -45,7 +45,7 @@ FEATURE_TIERS = {
 
 # Which tiers can see which feature levels
 TIER_ACCESS = {
-    'free': ['core'],
+    'amateur': ['core'],
     'pro': ['core', 'pro'],
     'beta_tester': ['core', 'pro'],
 }
@@ -93,7 +93,7 @@ def user_has_feature(user, feature_name):
         return True
 
     # Check subscription tier
-    tier = getattr(user, 'subscription_tier', 'free') or 'free'
+    tier = getattr(user, 'subscription_tier', 'amateur') or 'amateur'
     allowed_tiers = TIER_ACCESS.get(tier, ['core'])
     if feature_tier in allowed_tiers:
         return True

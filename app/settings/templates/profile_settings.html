@@ -165,7 +165,7 @@
                     <!-- Subscription Tier Badge -->
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <span class="text-muted small">Subscription Tier</span>
-                        <span class="badge bg-{% if current_user.subscription_tier == 'free' %}secondary{% elif current_user.subscription_tier == 'beta_tester' %}info{% else %}primary{% endif %}">
+                        <span class="badge bg-{% if current_user.subscription_tier == 'amateur' %}secondary{% elif current_user.subscription_tier == 'beta_tester' %}info{% else %}primary{% endif %}">
                             {{ current_user.subscription_tier|upper }}
                         </span>
                     </div>

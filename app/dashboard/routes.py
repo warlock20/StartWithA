@@ -94,8 +94,8 @@ def index():
 
     # --- Unlock Progress (free-tier users only) ---
     unlock_progress = []
-    tier = current_user.subscription_tier or 'free'
-    if tier == 'free' and not current_user.show_advanced_features:
+    tier = current_user.subscription_tier or 'amateur'
+    if tier == 'amateur' and not current_user.show_advanced_features:
         unlock_progress = FeatureUnlockService.get_unlock_progress(current_user)
 
     return render_template(

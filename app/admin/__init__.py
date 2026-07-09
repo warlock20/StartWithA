@@ -196,7 +196,7 @@ class UserView(SecureModelView):
     }
 
     column_descriptions = {
-        'subscription_tier': 'User subscription level (free, beta_tester, pro)',
+        'subscription_tier': 'User subscription level (amateur, beta_tester, pro)',
         'ai_tokens_used': 'Tokens used in current period',
         'ai_tokens_limit': 'Token limit per period',
         'ai_tokens_reset_date': 'When token usage resets'
