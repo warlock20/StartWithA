@@ -55,7 +55,7 @@ def fetch_financial_data_task(self, company_id):
 
         # Determine data depth based on user's subscription tier
         user = company.creator
-        years_to_fetch = 5 if user.subscription_tier == 'free' else 15
+        years_to_fetch = 5 if user.subscription_tier == 'amateur' else 15
 
         logger.info(f"TASK {self.request.id}: Fetching {years_to_fetch} years of financial data for {company.ticker_symbol}")
 

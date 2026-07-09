@@ -31,10 +31,26 @@ from app.models import (
     Checklist,
     KillChecklist,
     IdeaPipeline,
-    QualitativeAnalysis
+    QualitativeAnalysis,
+    FreeResearchQuestion,
 )
+from app.utils.checklist_utils import get_all_ordered_items_for_checklist
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_checklist_id(project, step, step_index):
+    """Resolve the effective checklist_id, respecting step_overrides."""
+    if project.step_overrides and str(step_index) in project.step_overrides:
+        override_id = project.step_overrides[str(step_index)].get('checklist_id')
+        if override_id:
+            return int(override_id)
+
+    config = step.get('config', {})
+    checklist_id = config.get('checklist_id')
+    if checklist_id:
+        return int(checklist_id)
+    return None
 
 
 class StepProgressCalculator:
@@ -79,16 +95,12 @@ def calculate_checklist_progress(project, step, step_index):
     Calculate progress for a checklist step.
 
     Progress is based on how many checklist items have been answered
-    out of the total items in the checklist.
+    out of the total navigable items in the checklist.
     """
     try:
-        config = step.get('config', {})
-        checklist_id = config.get('checklist_id')
+        checklist_id = _resolve_checklist_id(project, step, step_index)
         if not checklist_id:
             return 0.0
-
-        # Convert to int if it's a string
-        checklist_id = int(checklist_id)
 
         analysis = ChecklistAnalysis.query.filter_by(
             company_id=project.company_id,
@@ -109,11 +121,7 @@ def calculate_checklist_progress(project, step, step_index):
             ChecklistAnswer.answer_text != ''
         ).count()
 
-        checklist = Checklist.query.get(checklist_id)
-        if not checklist:
-            return 0.0
-
-        total_items = checklist.items.count()
+        total_items = len(get_all_ordered_items_for_checklist(checklist_id))
         if total_items == 0:
             return 0.0
 
@@ -180,6 +188,21 @@ def calculate_kill_checklist_progress(project, step, step_index):
     except Exception as e:
         logger.error(f"Error calculating kill checklist progress for project {project.id}, step {step_index}: {e}")
         return 0.0
+
+
+def calculate_model_progress(project, step, step_index):
+    """
+    Calculate progress for a model step (e.g. SWOT Analysis).
+
+    Delegates to the appropriate model calculator based on model_type.
+    """
+    config = step.get('config', {})
+    model_type = config.get('model_type', '')
+
+    if model_type == 'SWOT Analysis':
+        return calculate_swot_progress(project, step, step_index)
+
+    return 0.0
 
 
 def calculate_swot_progress(project, step, step_index):
@@ -270,21 +293,29 @@ def calculate_free_research_progress(project, step, step_index):
         return 0.0
 
 
-def calculate_free_research_progress(project, step, step_index):
+def calculate_thesis_progress(project, step, step_index):
     """
-    Calculate progress for a free research step.
+    Calculate progress for a thesis writing step.
 
-    Free research uses binary progress: 0% until user completes the step.
-    The 100% case is already handled by get_step_progress() checking completed_steps.
+    Binary: 100% if investment_thesis has content, 0% otherwise.
     """
-    return 0.0
+    try:
+        if project.investment_thesis:
+            return 100.0
+        return 0.0
+    except Exception as e:
+        logger.error(f"Error calculating thesis progress for project {project.id}, step {step_index}: {e}")
+        return 0.0
 
 
 STEP_CALCULATORS = {
     'checklist': calculate_checklist_progress,
     'kill_checklist': calculate_kill_checklist_progress,
     'kill_checklist_reference': calculate_kill_checklist_progress,
+    'model': calculate_model_progress,
     'swot': calculate_swot_progress,
     'free_research': calculate_free_research_progress,
+    'competitor_analysis': calculate_custom_step_progress,
+    'thesis_writing': calculate_thesis_progress,
     'custom': calculate_custom_step_progress,
 }

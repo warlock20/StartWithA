@@ -77,7 +77,7 @@ class Config:
     CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
 
     # 8. BUSINESS LOGIC
-    DEFAULT_USER_TIER = os.environ.get('DEFAULT_USER_TIER', 'free')
+    DEFAULT_USER_TIER = os.environ.get('DEFAULT_USER_TIER', 'amateur')
 
     # 8b. BRAND: Single source of truth for the product name/tagline.
     # Defined once here so the name can be changed in one place.

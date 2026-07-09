@@ -227,8 +227,8 @@ def create_app(config_class=Config):
         def get_tier_info():
             if not current_user.is_authenticated:
                 return None
-            tier = current_user.subscription_tier or 'free'
-            if tier != 'free' or current_user.show_advanced_features:
+            tier = current_user.subscription_tier or 'amateur'
+            if tier != 'amateur' or current_user.show_advanced_features:
                 return None
             cache = getattr(g, '_tier_info_cache', None)
             if cache is not None:
@@ -238,7 +238,7 @@ def create_app(config_class=Config):
             total_groups = 4
             unlocked_count = total_groups - len(progress)
             info = {
-                'tier': 'free',
+                'tier': 'amateur',
                 'progress': progress,
                 'unlocked_count': unlocked_count,
                 'total_groups': total_groups,
