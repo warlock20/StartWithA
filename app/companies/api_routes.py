@@ -71,6 +71,7 @@ def api_search_companies():
     ).order_by(Company.name).limit(10).all()
 
     user_company_data = []
+    seen_tickers = set()
     for company in user_companies:
         user_company_data.append({
             'id': company.id,
@@ -80,6 +81,8 @@ def api_search_companies():
             'sector': company.sector.display_name if company.sector else None,
             'source': 'existing'
         })
+        if company.ticker_symbol:
+            seen_tickers.add(company.ticker_symbol.upper())
 
     # Try financial data service lookup - both by ticker AND by company name
     yahoo_suggestions = []
@@ -89,23 +92,26 @@ def api_search_companies():
     if normalized_ticker:
         try:
             # Check if this ticker already exists for the user
-            existing = Company.query.filter_by(
-                ticker_symbol=normalized_ticker,
-                user_id=current_user.id
-            ).first()
+            normalized_ticker_upper = normalized_ticker.upper()
+            if normalized_ticker_upper not in seen_tickers:
+                existing = Company.query.filter_by(
+                    ticker_symbol=normalized_ticker,
+                    user_id=current_user.id
+                ).first()
 
-            if not existing:
-                info = service.get_ticker_info(normalized_ticker)
+                if not existing:
+                    info = service.get_ticker_info(normalized_ticker)
 
-                if info and info.get('name'):
-                    yahoo_suggestions.append({
-                        'ticker_symbol': normalized_ticker,
-                        'name': info.get('name'),
-                        'industry': info.get('industry') or '',
-                        'sector': info.get('sector') or '',
-                        'summary': '',
-                        'source': 'financial_data_service'
-                    })
+                    if info and info.get('name'):
+                        yahoo_suggestions.append({
+                            'ticker_symbol': normalized_ticker,
+                            'name': info.get('name'),
+                            'industry': info.get('industry') or '',
+                            'sector': info.get('sector') or '',
+                            'summary': '',
+                            'source': 'financial_data_service'
+                        })
+                        seen_tickers.add(normalized_ticker_upper)
         except Exception:
             # Silently fail - expected for partial/invalid tickers during typing
             pass
@@ -119,6 +125,10 @@ def api_search_companies():
                 ticker_symbol = result.get('ticker_symbol')
 
                 if not ticker_symbol:
+                    continue
+
+                ticker_upper = ticker_symbol.upper()
+                if ticker_upper in seen_tickers:
                     continue
 
                 # Skip if user already has this company
@@ -136,6 +146,7 @@ def api_search_companies():
                         'summary': '',
                         'source': 'financial_data_service'
                     })
+                    seen_tickers.add(ticker_upper)
         except Exception as e:
             logger.debug(f'Company search failed: {e}')
             pass
