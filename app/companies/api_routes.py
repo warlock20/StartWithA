@@ -71,6 +71,7 @@ def api_search_companies():
     ).order_by(Company.name).limit(10).all()
 
     user_company_data = []
+    # track tickers to avoid showing duplicates to the user
     seen_tickers = set()
     for company in user_companies:
         user_company_data.append({
@@ -93,6 +94,7 @@ def api_search_companies():
         try:
             # Check if this ticker already exists for the user
             normalized_ticker_upper = normalized_ticker.upper()
+            # skip if user already has it or it's already in the search results
             if normalized_ticker_upper not in seen_tickers:
                 existing = Company.query.filter_by(
                     ticker_symbol=normalized_ticker,
@@ -128,6 +130,7 @@ def api_search_companies():
                     continue
 
                 ticker_upper = ticker_symbol.upper()
+                # skip duplicate tickers from the search provider
                 if ticker_upper in seen_tickers:
                     continue
 
