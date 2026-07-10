@@ -292,5 +292,141 @@ def init_db_command():
 #             print(f"❌ Error creating tables: {e}")
 
 
+@app.cli.command("reset-user")
+def reset_user_command():
+    """Reset a user account to factory state (preserves login credentials).
+
+    Usage:  flask reset-user
+    Prompts for the email address interactively.
+    """
+    import click
+    from sqlalchemy import text
+    from app.models import User
+
+    email = click.prompt("Email of the user to reset")
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        print(f"No user found with email: {email}")
+        return
+
+    click.echo(f"This will DELETE all data for {user.email} (id={user.id}) "
+               "and reset onboarding state.\nLogin credentials will be preserved.")
+    if not click.confirm("Proceed?"):
+        print("Aborted.")
+        return
+
+    uid = user.id
+
+    # Tables split by how they reference the user:
+    #   - tables_by_user_id: have a direct user_id column
+    #   - tables_by_parent: no user_id, linked via a parent FK
+    tables_by_user_id = [
+        'ai_research_feedback',
+        'prompt_usage_log',
+        'bias_check_result',
+        'ai_insight',
+        'research_outcome',
+        'embedding_store',
+        'ml_prediction_log',
+        'portfolio_ui_insights',
+        'background_task',
+        'pattern_recognition',
+        'investment_postmortem',
+        'learning_note',
+        'thesis_evolution',
+        'journal_template',
+        'journal_entry',
+        'decision_journal',
+        'mistake_log',
+        'free_research_question',
+        'research_log',
+        'research_metrics',
+        'research_settings',
+        'work_session',
+        'template_step',
+        'checklist_analysis',
+        'research_project',
+        'research_template',
+        'kill_session',
+        'kill_checklist_suggestion',
+        'kill_checklist',
+        'idea_source_analysis',
+        'market_sweep_decision',
+        'idea_pipeline',
+        'transaction',
+        'portfolio_position',
+        'sector_analysis',
+        'sector',
+        'checklist',
+        'question_bank_item',
+        'destination_checkpoint',
+        'document_imports',
+        'document_annotation',
+        'company_resource',
+        'qualitative_analysis',
+        'favorite_companies',
+        'company',
+        'user_investment_profile',
+    ]
+
+    # Child tables without user_id — delete via parent FK
+    tables_by_parent = [
+        # (table, fk_column, parent_table)
+        ('kill_answer', 'kill_session_id', 'kill_session'),
+        ('kill_criterion', 'kill_checklist_id', 'kill_checklist'),
+        ('checklist_item', 'checklist_id', 'checklist'),
+        ('checklist_answer', 'checklist_analysis_id', 'checklist_analysis'),
+        ('journal_attachment', 'journal_entry_id', 'journal_entry'),
+    ]
+
+    conn = db.session.connection()
+    # Disable trigger-based FK enforcement so delete order doesn't matter
+    conn.execute(text('SET session_replication_role = replica'))
+
+    try:
+        # Delete child rows (no user_id) via their parent's user_id
+        for table, fk_col, parent in tables_by_parent:
+            conn.execute(text(
+                f'DELETE FROM "{table}" WHERE "{fk_col}" IN '
+                f'(SELECT id FROM "{parent}" WHERE user_id = :uid)'
+            ), {'uid': uid})
+
+        # Delete all tables that have a direct user_id column
+        for table in tables_by_user_id:
+            conn.execute(text(f'DELETE FROM "{table}" WHERE user_id = :uid'), {'uid': uid})
+
+        # Reset user fields to factory defaults
+        conn.execute(text('''
+            UPDATE "user" SET
+                onboarding_completed = false,
+                onboarding_path_chosen = NULL,
+                onboarding_completed_at = NULL,
+                page_tours_completed = '{}',
+                tour_preferences = '{"show_page_tours": true}',
+                show_advanced_features = false,
+                unlocked_features = '{}',
+                newly_unlocked_features = '{}',
+                ai_tokens_used = 0,
+                ai_tokens_reset_date = NULL,
+                ai_consent_given = false,
+                ai_consent_date = NULL,
+                cash_balance = 0,
+                cash_setup_complete = false
+            WHERE id = :uid
+        '''), {'uid': uid})
+
+        db.session.commit()
+        print(f"User {email} has been reset to factory state.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Reset failed: {e}")
+    finally:
+        # Restore normal FK enforcement
+        try:
+            conn.execute(text('SET session_replication_role = DEFAULT'))
+        except Exception:
+            pass
+
+
 if __name__ == '__main__':
     app.run(debug=True)
