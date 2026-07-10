@@ -41,6 +41,7 @@ export function MarketSweep({ sectors, sweepId }) {
   const [stats, setStats] = useState({ total: 0, reviewed: 0, inbox: 0, killed: 0 });
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
+  const [newChecklistBanner, setNewChecklistBanner] = useState(null);
 
   const tableRef = useRef(null);
   const companiesRef = useRef([]);
@@ -157,7 +158,14 @@ export function MarketSweep({ sectors, sweepId }) {
   async function loadKillChecklist() {
     try {
       const data = await apiGet('/research/workflow/api/sweep/kill-checklist');
-      if (data.success) setKillCriteria(data.criteria || []);
+      if (data.success) {
+        setKillCriteria(data.criteria || []);
+        if (data.is_new) {
+          setNewChecklistBanner(
+            'A default kill checklist has been created for you. You can customize it from the Ideas page.',
+          );
+        }
+      }
     } catch (err) {
       console.error('Load kill checklist error:', err);
     }
@@ -584,6 +592,19 @@ export function MarketSweep({ sectors, sweepId }) {
   // Sweep view
   return (
     <>
+      {newChecklistBanner && (
+        <div className="alert alert-info d-flex align-items-center justify-content-between py-2 mb-3" role="alert">
+          <span><i className="bi bi-info-circle me-2" />{newChecklistBanner}</span>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-primary ms-3"
+            onClick={() => setNewChecklistBanner(null)}
+          >
+            OK
+          </button>
+        </div>
+      )}
+
       {tableLoading ? (
         <div className="sweep-loading">
           <div className="spinner-border text-primary" role="status">

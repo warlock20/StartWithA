@@ -545,12 +545,10 @@ def sweep_kill_checklist():
         is_default=True,
     ).first()
 
+    is_new = False
     if not checklist:
-        return jsonify({
-            'success': True,
-            'checklist': None,
-            'criteria': [],
-        })
+        from app.ideas.routes import ensure_default_checklist  # deferred to avoid circular import
+        checklist, is_new = ensure_default_checklist(current_user)
 
     criteria = KillCriterion.query.filter_by(
         kill_checklist_id=checklist.id,
@@ -558,6 +556,7 @@ def sweep_kill_checklist():
 
     return jsonify({
         'success': True,
+        'is_new': is_new,
         'checklist': {'id': checklist.id, 'name': checklist.name},
         'criteria': [{
             'id': c.id,
