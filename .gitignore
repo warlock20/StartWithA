@@ -35,7 +35,7 @@ local_backup_*
 *.pdf
 *.woff
 *.woff2
-docs/
+#docs/
 mockups/
 
 # ── Local utilities ──
