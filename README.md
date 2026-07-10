@@ -6,10 +6,16 @@ A platform that connects research, portfolio monitoring, and journaling into one
 
 See [vision.md](vision.md) for the full product vision.
 
+![StartWithA demo](docs/Screenshots_and_gifs/StartWithALoginAMarketSweeper.gif)
+
+[See more screenshots and demos](docs/screenshots.md)
+
 ## Three Parts
 
-**Research** — Idea inbox, kill screening, company & sector research, AI assistant
+**Research** — Find ideas via Market Sweeper or external sources (Dataroma, podcasts, 13F filings), then kill screen, research the company & sector, and dig deeper using your data and your AI assistant.
+
 **Portfolio** — Position tracking, thesis vs reality, checkpoints, AI analytics
+
 **Journal** — Decision journal, mistake log, learning insights
 
 ## Core Flow
@@ -151,7 +157,7 @@ Copy `.env.example` to `.env`. Docker Compose sets `DATABASE_URL` and `REDIS_URL
 | `ADMIN_EMAILS` | Comma-separated emails that get admin access | — |
 | `DATABASE_URL` | PostgreSQL connection string | set by Docker Compose |
 | `REDIS_URL` | Redis connection string | set by Docker Compose |
-| `DEFAULT_USER_TIER` | Default tier for new users (`free` or `premium`) | `free` |
+| `DEFAULT_USER_TIER` | Default tier for new users (`amateur` or `pro`) | `amateur` |
 | `FLASK_DEBUG` | Enable debug mode | `False` |
 | `SESSION_COOKIE_SECURE` | Require HTTPS for cookies | `True` |
 | `UPLOAD_FOLDER` | Path for file uploads | `instance/uploads` |
