@@ -49,3 +49,4 @@ scripts/*
 
 # ── Files with local overrides (tracked but ignored locally) ──
 app/portfolio/routes.py
+stratergy.md
