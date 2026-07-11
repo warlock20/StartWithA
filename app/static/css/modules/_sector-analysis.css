@@ -708,9 +708,9 @@
 /* Investment Checklists Page */
 .investment-checklists-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
     gap: 2rem;
-    margin-top: 2rem;
+    margin-top: 2.5rem;
 }
 
 @media (max-width: 768px) {
@@ -724,15 +724,15 @@
     border-radius: 16px;
     border: 1px solid #e5e7eb;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease-in-out;
+    transition: all 0.2s ease-in-out;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
 .investment-checklist-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
+    transform: translateY(-4px);
 }
 
 .investment-checklist-content {
