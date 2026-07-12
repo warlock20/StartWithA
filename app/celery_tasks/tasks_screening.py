@@ -29,7 +29,7 @@ from app.models import BackgroundTask, User
 from celery_app import celery
 
 from app.services.ai import ai_service
-from app.services.ai.prompt_service import prompt_service
+from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 from app.services.ai.config import AITaskType
 from app.services.screening_analysis_service import ScreeningAnalysisService
 from app.utils.time_utils import now_utc
@@ -88,12 +88,17 @@ def screening_analysis_task(self, task_id, user_id):
             prompt_text = prompt_data['prompt']
             metadata = prompt_data.get('metadata', {})
             system_context = prompt_data.get('system_context')
+            model_enum, provider_enum = resolve_model_provider(
+                metadata, user_id=user_id, prompt_category=SCREENING_PROMPT_CATEGORY,
+            )
 
             result = ai_service.generate_json(
                 prompt=prompt_text,
                 max_tokens=metadata.get('max_tokens', 4000),
                 temperature=metadata.get('temperature', 0.3),
                 task=AITaskType.CHECKLIST_ANALYSIS,
+                model=model_enum,
+                provider=provider_enum,
                 system=system_context,
             )
 

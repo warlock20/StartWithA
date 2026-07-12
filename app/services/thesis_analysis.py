@@ -46,7 +46,7 @@ import logging
 import json
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
-from app.services.ai.prompt_service import get_intelligence_prompt
+from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 
 logger = logging.getLogger(__name__)
 
@@ -286,15 +286,20 @@ class ThesisAnalyzer:
 
         context = "\n".join(context_parts) if context_parts else "No additional context provided"
 
-        # Use YAML-based prompt
-        prompt = get_intelligence_prompt(
-            'thesis_analysis_simple',
+        # Use YAML-based prompt with metadata for model routing
+        prompt_data = prompt_service.get_prompt_with_metadata(
+            'intelligence', 'thesis_analysis_simple',
             context_info=context,
             thesis_text=thesis
         )
+        prompt = prompt_data['prompt']
+        metadata = prompt_data.get('metadata', {})
+        model_enum, provider_enum = resolve_model_provider(metadata)
 
         try:
-            response = self.ai_service.generate_json(prompt)
+            response = self.ai_service.generate_json(
+                prompt, model=model_enum, provider=provider_enum,
+            )
             
             # Extract and validate response
             quality_score = int(response.get('quality_score', 50))

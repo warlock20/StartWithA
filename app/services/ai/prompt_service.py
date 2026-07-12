@@ -43,8 +43,9 @@ import os
 import yaml
 import re
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
+from app.services.ai.config import AIModel, AIProvider as AIProviderEnum
 
 logger = logging.getLogger(__name__)
 
@@ -297,6 +298,84 @@ class PromptService:
 
 # Create singleton instance
 prompt_service = PromptService()
+
+
+# ============================================================
+# Model / Provider Resolution
+# ============================================================
+
+
+def resolve_model_provider(
+    metadata: Dict[str, Any],
+    user_id: Optional[int] = None,
+    prompt_category: Optional[str] = None,
+) -> Tuple[Optional['AIModel'], Optional['AIProvider']]:
+    """
+    Resolve model and provider for a prompt using the priority chain:
+
+    1. **User override** – ``UserAIPreference`` row for *(user_id, prompt_category)*.
+       Checked only when both *user_id* and *prompt_category* are supplied.
+    2. **YAML prompt config** – ``model`` / ``preferred_provider`` fields in the
+       prompt metadata dict.
+
+    Levels 3–4 (``AITaskType`` routing and environment-variable defaults) are
+    handled downstream by ``AIService._get_provider()``.
+
+    Returns ``(None, None)`` for any level that is missing or unrecognised so
+    callers can fall through to task-based routing.
+
+    Args:
+        metadata: The ``metadata`` dict from ``get_prompt_with_metadata()``.
+        user_id:  Current user's ID (optional).
+        prompt_category: Prompt category string, e.g. ``'screening'`` (optional).
+
+    Returns:
+        (model_enum_or_None, provider_enum_or_None)
+    """
+    # ------------------------------------------------------------------
+    # Priority 1: User override (UserAIPreference table)
+    # ------------------------------------------------------------------
+    if user_id and prompt_category:
+        from app.models.user_ai_preferences import UserAIPreference
+
+        pref = UserAIPreference.get_preference(user_id, prompt_category)
+        if pref and pref.model_override:
+            try:
+                model_enum = AIModel.from_string(pref.model_override)
+                provider_enum = model_enum.provider
+                logger.info(
+                    "User %s override for '%s': %s",
+                    user_id, prompt_category, pref.model_override,
+                )
+                return model_enum, provider_enum
+            except (ValueError, KeyError):
+                logger.warning(
+                    "Invalid user model override '%s' for user %s, "
+                    "category '%s' – falling through to YAML config",
+                    pref.model_override, user_id, prompt_category,
+                )
+
+    # ------------------------------------------------------------------
+    # Priority 2: YAML prompt metadata
+    # ------------------------------------------------------------------
+    model_enum = None
+    provider_enum = None
+
+    model_str = metadata.get('model')
+    if model_str:
+        try:
+            model_enum = AIModel.from_string(model_str)
+        except (ValueError, KeyError):
+            logger.warning(f"Unknown model in prompt metadata: {model_str}")
+
+    provider_str = metadata.get('preferred_provider')
+    if provider_str:
+        try:
+            provider_enum = AIProviderEnum(provider_str)
+        except (ValueError, KeyError):
+            logger.warning(f"Unknown provider in prompt metadata: {provider_str}")
+
+    return model_enum, provider_enum
 
 
 # ============================================================

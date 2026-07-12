@@ -22,14 +22,16 @@ This package contains implementations for different AI providers.
 Available Providers:
     - GeminiProvider: Google Gemini API
     - ClaudeProvider: Anthropic Claude API
+    - DeepseekProvider: DeepSeek API (OpenAI-compatible)
 
 Usage:
-    from app.services.ai.providers import GeminiProvider, ClaudeProvider
-    
+    from app.services.ai.providers import GeminiProvider, ClaudeProvider, DeepseekProvider
+
     # Create provider with default model
     gemini = GeminiProvider()
     claude = ClaudeProvider()
-    
+    deepseek = DeepseekProvider()
+
     # Create with specific model
     from app.services.ai.config import AIModel
     gemini = GeminiProvider(model=AIModel.GEMINI_PRO_25)
@@ -38,9 +40,11 @@ Usage:
 from .base import AIProvider
 from .gemini import GeminiProvider
 from .claude import ClaudeProvider
+from .deepseek import DeepseekProvider
 
 __all__ = [
     'AIProvider',
-    'GeminiProvider', 
+    'GeminiProvider',
     'ClaudeProvider',
+    'DeepseekProvider',
 ]

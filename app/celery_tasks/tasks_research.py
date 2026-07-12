@@ -32,7 +32,7 @@ from app.models import Company, BackgroundTask, WorkSession, User, ResearchProje
 from celery_app import celery
 
 from app.services.ai import generate_text, ai_service
-from app.services.ai.prompt_service import get_competitor_analysis_prompt, prompt_service
+from app.services.ai.prompt_service import get_competitor_analysis_prompt, prompt_service, resolve_model_provider
 from app.services.ai.config import AITaskType
 from app.services.argos import ArgosService
 from app.services.ai_research_assistant import ai_research_assistant
@@ -63,19 +63,29 @@ def competitor_analysis_task(self, task_id, company_data):
 
             logger.info(f"TASK {self.request.id}: Starting competitor analysis for {company_data['name']}")
 
-            # Generate the analysis prompt
-            analysis_prompt = get_competitor_analysis_prompt(
-                'landscape_analysis',
+            # Generate the analysis prompt with metadata for model routing
+            prompt_data = prompt_service.get_prompt_with_metadata(
+                'competitor_analysis', 'landscape_analysis',
                 company_name=company_data['name'],
                 ticker_symbol=company_data['ticker_symbol'],
                 company_description=company_data['summary'] or 'No description available',
                 sector=company_data['sector'] or 'Unknown',
                 industry=company_data['industry'] or 'Unknown'
             )
+            analysis_prompt = prompt_data['prompt']
+            metadata = prompt_data.get('metadata', {})
+            model_enum, provider_enum = resolve_model_provider(
+                metadata, user_id=task.user_id, prompt_category='competitor_analysis',
+            )
 
             # Call LLM service - this is where the long wait happens
             logger.info(f"TASK {self.request.id}: Calling LLM service...")
-            competitor_analysis = generate_text(analysis_prompt, max_tokens=2000)
+            competitor_analysis = generate_text(
+                analysis_prompt,
+                max_tokens=metadata.get('max_tokens', 2000),
+                model=model_enum,
+                provider=provider_enum,
+            )
 
             # Store result in work session
             session = WorkSession.query.filter_by(
@@ -170,6 +180,9 @@ def bias_check_task(self, task_id, user_id, project_id):
             prompt_text = prompt_data['prompt']
             metadata = prompt_data.get('metadata', {})
             system_context = prompt_data.get('system_context')
+            model_enum, provider_enum = resolve_model_provider(
+                metadata, user_id=user_id, prompt_category=BIAS_CHECK_PROMPT_CATEGORY,
+            )
 
             logger.info(f"TASK {self.request.id}: Running bias check for project {project_id} (words: {word_count})")
 
@@ -178,7 +191,9 @@ def bias_check_task(self, task_id, user_id, project_id):
                 max_tokens=metadata.get('max_tokens', 3000),
                 temperature=metadata.get('temperature', 0.4),
                 task=AITaskType.BIAS_CHECK,
-                system=system_context,  # Pass system context for Gemini
+                model=model_enum,
+                provider=provider_enum,
+                system=system_context,
             )
 
             if not result:
@@ -451,7 +466,7 @@ def checklist_item_analyze_task(self, task_id, user_id, analysis_id, item_id, se
 
             # 4. BUILD PROMPT FROM YAML AND CALL AI
             company = session.company
-            prompt_for_llm = prompt_service.get_prompt(
+            prompt_data = prompt_service.get_prompt_with_metadata(
                 'research',
                 'checklist_item_analyze',
                 context=aggregated_text_content if aggregated_text_content.strip() else "No documents provided.",
@@ -461,9 +476,19 @@ def checklist_item_analyze_task(self, task_id, user_id, analysis_id, item_id, se
                 sector=company.sector.display_name if company.sector else 'N/A',
                 industry=company.industry or 'N/A'
             )
+            prompt_for_llm = prompt_data['prompt']
+            metadata = prompt_data.get('metadata', {})
+            model_enum, provider_enum = resolve_model_provider(
+                metadata, user_id=user_id, prompt_category='research',
+            )
 
             logger.info(f"TASK {self.request.id}: Running checklist item analysis for item {item_id} in session {analysis_id}")
-            ai_suggestion = generate_text(prompt_for_llm, google_search=True)
+            ai_suggestion = generate_text(
+                prompt_for_llm,
+                model=model_enum,
+                provider=provider_enum,
+                google_search=True,
+            )
 
             # 5. ESTIMATE TOKENS AND TRACK USAGE
             tokens_estimate = len(prompt_for_llm) // 4 + len(ai_suggestion) // 4

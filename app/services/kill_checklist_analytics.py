@@ -27,7 +27,7 @@ from app import db
 from app.models import (KillChecklist, KillCriterion, KillSession, KillAnswer,
                        KillChecklistSuggestion, MistakeLog, IdeaPipeline)
 from app.services.ai import generate_text
-from app.services.ai import get_kill_checklist_prompt
+from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 import re
 from typing import List, Dict, Optional, Tuple
 
@@ -181,9 +181,9 @@ class KillChecklistAnalytics:
         existing_criteria = [c.question for c in checklist.criteria.all()]
         existing_context = "\n".join([f"- {criteria}" for criteria in existing_criteria[:5]]) if existing_criteria else "No existing criteria"
 
-        # Use centralized prompt management
-        llm_prompt = get_kill_checklist_prompt(
-            'mistake_analysis',
+        # Use centralized prompt management with metadata for model routing
+        prompt_data = prompt_service.get_prompt_with_metadata(
+            'kill_checklist', 'mistake_analysis',
             mistake_title=mistake.title,
             mistake_description=mistake.description,
             mistake_type=mistake.mistake_type,
@@ -192,10 +192,18 @@ class KillChecklistAnalytics:
             mistake_date=mistake.occurred_date.strftime('%Y-%m-%d') if mistake.occurred_date else "Unknown",
             existing_criteria=existing_context
         )
+        llm_prompt = prompt_data['prompt']
+        metadata = prompt_data.get('metadata', {})
+        model_enum, provider_enum = resolve_model_provider(
+            metadata, user_id=mistake.user_id, prompt_category='kill_checklist',
+        )
 
         try:
             # Generate LLM response
-            llm_response = generate_text(llm_prompt, max_tokens=800)
+            llm_response = generate_text(
+                llm_prompt, max_tokens=metadata.get('max_tokens', 800),
+                model=model_enum, provider=provider_enum,
+            )
 
             if not llm_response:
                 # Fallback to rule-based extraction

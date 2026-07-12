@@ -34,7 +34,7 @@ from pathlib import Path
 from app.models.portfolio import Transaction, PortfolioPosition
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.ai.ai_service import AIService
-from app.services.ai.prompt_service import PromptService
+from app.services.ai.prompt_service import PromptService, resolve_model_provider
 from app.services.ai.config import AIProvider, AIModel
 
 logger = logging.getLogger(__name__)
@@ -253,13 +253,10 @@ class PortfolioAIAnalytics:
             logger.info(prompt_text)
             logger.info(f"=" * 80)
 
-            # Get provider and model from metadata
-            provider_str = metadata.get('preferred_provider', 'gemini')
-            model_str = metadata.get('model', 'gemini-flash-latest')
-
-            # Convert to enums
-            provider_enum = AIProvider(provider_str)
-            model_enum = AIModel.from_string(model_str)
+            # Resolve model/provider via priority chain (user override > YAML > defaults)
+            model_enum, provider_enum = resolve_model_provider(
+                metadata, user_id=self.user_id, prompt_category='portfolio',
+            )
 
             # Call AIService to generate insights
             logger.info(f"Calling AIService with provider={provider_enum}, model={model_enum}")
