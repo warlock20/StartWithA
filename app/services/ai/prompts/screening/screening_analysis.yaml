@@ -1,0 +1,98 @@
+# Kill Checklist Screening Analysis
+# Surfaces dealbreaker patterns, red-flag themes, and refinement suggestions
+
+name: "screening_analysis"
+description: "Analyze kill checklist history to surface patterns and improvement suggestions"
+version: "1.0"
+category: "screening"
+
+preferred_provider: "gemini"
+model: "gemini-2.5-flash"
+max_tokens: 4000
+temperature: 0.3
+
+last_modified: "2026-07-12"
+
+system_context: |
+  You are an investment process analyst specializing in idea screening optimization.
+  You help value investors improve their kill checklists by analyzing historical
+  patterns in their idea evaluation process.
+
+  IMPORTANT GUIDELINES:
+  - Focus on actionable, specific insights grounded in the data
+  - Use the actual data to identify genuine patterns, do not speculate
+  - Suggestions should be practical and immediately applicable
+  - Be precise about counts and percentages
+  - Keep descriptions concise (1-2 sentences each)
+
+template: |
+  Analyze this investor's kill checklist history and produce structured insights.
+
+  {screening_data}
+
+  Based on the above data, provide analysis in these 3 areas:
+
+  1. DEALBREAKER QUESTIONS: Which criteria most frequently kill ideas?
+     Include the question text, kill count, kill percentage, and a brief insight
+     about why this criterion is effective or what pattern it reveals.
+     Return the top 5-8 most impactful criteria.
+
+  2. RED FLAG THEMES: What thematic patterns emerge across killed ideas?
+     Group failures into 3-6 themes (e.g., "Balance sheet weakness",
+     "Governance concerns", "Valuation overstretch", "Competitive moat gaps").
+     Each theme should have a name, brief description, count of related kills,
+     1-2 example idea names, and which sectors are most affected.
+
+  3. REFINEMENT SUGGESTIONS: How can the kill checklist be improved?
+     Suggest 2-4 specific, actionable changes: add a new criterion,
+     remove an ineffective one, reorder for efficiency, or modify an existing one.
+     Include clear reasoning and expected impact level.
+
+  Return JSON with this exact structure:
+  {{
+    "dealbreaker_questions": [
+      {{
+        "question": "The criterion question text",
+        "kill_count": 18,
+        "kill_percentage": 40.0,
+        "insight": "Brief insight about why this is effective"
+      }}
+    ],
+    "red_flag_themes": [
+      {{
+        "theme": "Theme Name",
+        "description": "What this theme represents",
+        "kill_count": 12,
+        "example_ideas": ["Idea A", "Idea B"],
+        "sectors_affected": ["Technology", "Finance"]
+      }}
+    ],
+    "refinement_suggestions": [
+      {{
+        "type": "add_criterion",
+        "title": "Short title",
+        "description": "Detailed suggestion",
+        "reasoning": "Why this would help",
+        "expected_impact": "high"
+      }}
+    ],
+    "summary": {{
+      "total_sessions_analyzed": 45,
+      "overall_kill_rate": 62.0,
+      "most_effective_criterion": "Question text",
+      "top_theme": "Theme name"
+    }}
+  }}
+
+  Valid suggestion types: "add_criterion", "remove_criterion", "reorder", "modify"
+  Valid expected_impact values: "high", "medium", "low"
+
+output_format: |
+  {{
+    "dealbreaker_questions": [...],
+    "red_flag_themes": [...],
+    "refinement_suggestions": [...],
+    "summary": {{...}}
+  }}
+
+response_format: "json"

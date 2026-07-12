@@ -32,6 +32,7 @@ celery = Celery('app.celery_tasks',
                     'app.celery_tasks.tasks_data_retention',   # GDPR data retention tasks
                     'app.celery_tasks.tasks_import',           # Portfolio import tasks
                     'app.celery_tasks.tasks_checkpoint_analysis',  # Daily checkpoint analysis
+                    'app.celery_tasks.tasks_screening',             # Screening analysis tasks
                 ]
                 )
 
