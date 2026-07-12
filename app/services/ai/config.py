@@ -36,6 +36,7 @@ Environment Variables:
     GEMINI_API_KEY      - Google Gemini API key
     ANTHROPIC_API_KEY   - Anthropic Claude API key  
     OPENAI_API_KEY      - OpenAI API key (optional)
+    DEEPSEEK_API_KEY    - DeepSeek API key (optional)
     
     AI_DEFAULT_MODEL    - Default model (default: gemini-2.5-flash)
     AI_QUALITY_MODEL    - Model for quality tasks (default: gemini-2.5-pro)
