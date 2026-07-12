@@ -98,10 +98,6 @@
     grid-column: span 2;
 }
 
-.ah-card--full {
-    grid-column: 1 / -1;
-}
-
 .ah-card-head {
     display: flex;
     align-items: baseline;
@@ -143,23 +139,8 @@
     min-height: 0;
 }
 
-.ah-chart-wrap--sm {
-    height: 100px;
-    flex: none;
-}
-
 .ah-chart-wrap--donut {
     height: 280px;
-}
-
-.ah-chart-label {
-    font-size: var(--font-size-xs);
-    color: var(--gray-400);
-    text-align: center;
-    margin: var(--space-xs) 0 0;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 500;
 }
 
 /* ── Stats ── */
