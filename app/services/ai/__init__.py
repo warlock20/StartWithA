@@ -126,6 +126,7 @@ from .prompt_service import (
     prompt_service,
     PromptService,
     resolve_model_provider,
+    get_effective_model_display,
     get_kill_checklist_prompt,
     get_research_journal_prompt,
     get_research_template_prompt,

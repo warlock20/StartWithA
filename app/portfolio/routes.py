@@ -56,6 +56,7 @@ from app.services.portfolio_intelligence import (
     )
 from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
+from app.services.ai.prompt_service import get_effective_model_display
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.cash_service import CashService
 
@@ -449,11 +450,13 @@ def analytics():
 
     if running_task:
         # Task is running, show loading page
+        ai_model_name = get_effective_model_display('portfolio', user_id=current_user.id)
         return render_template('portfolio_analytics_loading.html',
                               task_id=running_task.id,
                               chart_data=chart_data,
                               chart_task_id=chart_task_id,
-                              selected_period=time_periods)
+                              selected_period=time_periods,
+                              ai_model_name=ai_model_name)
 
     # 2. Check for latest completed task in database (cache)
     if not force_refresh:
@@ -522,11 +525,13 @@ def analytics():
         # User has enough tokens - start task
         task_id = BackgroundTaskService.start_portfolio_analysis(current_user.id, template_name)
         session[f'portfolio_analysis_task_{current_user.id}'] = task_id
+        ai_model_name = get_effective_model_display('portfolio', user_id=current_user.id)
         return render_template('portfolio_analytics_loading.html',
                               task_id=task_id,
                               chart_data=chart_data,
                               chart_task_id=chart_task_id,
-                              selected_period=time_periods)
+                              selected_period=time_periods,
+                              ai_model_name=ai_model_name)
 
     # 4. No completed analysis, no running task, no refresh requested - show placeholder
     analytics_service = PortfolioAIAnalytics(user_id=current_user.id)
