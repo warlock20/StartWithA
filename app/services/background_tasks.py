@@ -34,6 +34,7 @@ from app.celery_tasks import argos_deep_analysis_task
 from app.celery_tasks import portfolio_import_task
 from app.celery_tasks import checklist_item_analyze_task
 from app.celery_tasks import ai_research_assist_task
+from app.celery_tasks import screening_analysis_task
 
 logger = logging.getLogger(__name__)
 
@@ -410,5 +411,40 @@ class BackgroundTaskService:
         )
 
         logger.info(f"Started AI research assist task {task_id} (Celery: {celery_task.id}, mode: {mode}) for user {user_id}")
+
+        return task_id
+
+    @staticmethod
+    def start_screening_analysis(user_id):
+        """Start a screening analysis task in the background.
+
+        Uses task_type 'screening_analysis' to prevent duplicate concurrent tasks.
+        """
+        task_type = 'screening_analysis'
+
+        existing_task = BackgroundTask.query.filter_by(
+            user_id=user_id,
+            task_type=task_type,
+            status='running'
+        ).first()
+
+        if existing_task:
+            logger.info(f"Screening analysis task {existing_task.id} already running for user {user_id}")
+            return existing_task.id
+
+        task_id = str(uuid.uuid4())
+        task = BackgroundTask(
+            id=task_id,
+            user_id=user_id,
+            task_type=task_type,
+            status='pending'
+        )
+
+        db.session.add(task)
+        db.session.commit()
+
+        celery_task = screening_analysis_task.delay(task_id, user_id)
+
+        logger.info(f"Started screening analysis task {task_id} (Celery: {celery_task.id}) for user {user_id}")
 
         return task_id

@@ -61,6 +61,10 @@ from app.celery_tasks.tasks_checkpoint_analysis import (
     analyze_all_checkpoints,
 )
 
+from app.celery_tasks.tasks_screening import (
+    screening_analysis_task,
+)
+
 __all__ = [
     # Portfolio tasks
     'portfolio_ai_analysis_task',
@@ -83,4 +87,7 @@ __all__ = [
 
     # Checkpoint analysis tasks
     'analyze_all_checkpoints',
+
+    # Screening analysis tasks
+    'screening_analysis_task',
 ]

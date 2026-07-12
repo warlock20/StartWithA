@@ -1,763 +1,441 @@
 {% extends "main/_base_portfolio.html" %}
 
 {% block head %}
-{% include 'components/_tabulator.html' %}
 <script defer src="{{ url_for('static', filename='js/dist/vendors-recharts.bundle.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/dist/analytics-charts.bundle.js') }}"></script>
 {% endblock %}
 
 {% block content %}
 <div class="portfolio-dashboard-container">
-    <!-- Header -->
-    <div class="dashboard-header-card">
-        <header class="dashboard-header">
-            <div>
-                <h1 class="dashboard-title font-poppins">📊 Research Analytics</h1>
-                <p class="dashboard-subtitle">Track your research patterns and improve your investment decision quality</p>
-            </div>
-            <div class="dashboard-header-actions">
-                <a href="{{ url_for('portfolio.decision_journal_list') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-journal-text"></i> Decision Journal
-                </a>
-            </div>
-        </header>
+
+  {# ── Header + Tabs ── #}
+  <div class="dashboard-header-card">
+    <header class="dashboard-header" style="margin-bottom: 0;">
+      <div>
+        <h1 class="dashboard-title font-poppins">Analytics</h1>
+        <p class="dashboard-subtitle">Research patterns, decision quality, and competence tracking</p>
+      </div>
+    </header>
+    <nav class="ah-tabs" role="tablist" aria-label="Analytics sections">
+      <button class="ah-tab ah-tab--active" data-tab="insights" role="tab" aria-selected="true" aria-controls="panel-insights">
+        <i class="bi bi-graph-up"></i> Insights
+      </button>
+      <button class="ah-tab" data-tab="screening" role="tab" aria-selected="false" aria-controls="panel-screening">
+        <i class="bi bi-funnel"></i> Initial Screening
+      </button>
+      <button class="ah-tab" data-tab="competence" role="tab" aria-selected="false" aria-controls="panel-competence">
+        <i class="bi bi-bullseye"></i> Circle of Competence
+      </button>
+    </nav>
+  </div>
+
+  {# ════════════════════════════════════════════════
+     PANEL: INSIGHTS
+     ════════════════════════════════════════════════ #}
+  <section class="ah-panel ah-panel--active" id="panel-insights" role="tabpanel">
+    <div class="ah-bento">
+
+      {# ── Research Velocity (2 col) ── #}
+      <div class="ah-card ah-card--2col">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-activity"></i> Research Velocity</h3>
+          <span class="ah-card-meta">Last 12 months</span>
+        </div>
+        <div class="ah-chart-wrap" id="velocity-chart-mount"></div>
+      </div>
+
+      {# ── Kill Patterns (1 col) ── #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-x-octagon"></i> Kill Patterns</h3>
+          <span class="ah-card-meta">{{ total_kills }} rejection{{ 's' if total_kills != 1 else '' }}</span>
+        </div>
+        {% if top_kill_reasons %}
+        <div class="ah-kill-list">
+          {% for reason, count in top_kill_reasons[:6] %}
+          <div class="ah-kill-row">
+            <span class="ah-kill-reason" title="{{ reason }}">{{ reason }}</span>
+            <span class="ah-kill-count">{{ count }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% if kill_stages %}
+        <div class="ah-kill-stages">
+          {% for stage in kill_stages %}
+          <span class="ah-kill-stage"><strong>{{ stage.count }}</strong> {{ stage.name }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="ah-empty">
+          <i class="bi bi-shield-check"></i>
+          <p>No kills yet</p>
+        </div>
+        {% endif %}
+      </div>
+
+      {# ── Idea Sources (2 col) ── #}
+      <div class="ah-card ah-card--2col">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-signpost-split"></i> Idea Sources</h3>
+          <span class="ah-card-meta">{{ sources_total }} idea{{ 's' if sources_total != 1 else '' }}</span>
+        </div>
+        <div id="sources-chart-mount" style="padding: 4px 0;"></div>
+      </div>
+
+      {# ── Research Efficiency (1 col) ── #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-speedometer2"></i> Research Efficiency</h3>
+        </div>
+        <div class="ah-stat-grid">
+          <div class="ah-stat">
+            <span class="ah-stat-val">{{ completion_rate }}%</span>
+            <span class="ah-stat-lbl">Completion</span>
+          </div>
+          <div class="ah-stat">
+            <span class="ah-stat-val">{{ avg_days }}d</span>
+            <span class="ah-stat-lbl">Avg to Decision</span>
+          </div>
+          <div class="ah-stat">
+            <span class="ah-stat-val">{{ selectivity }}%</span>
+            <span class="ah-stat-lbl">Selectivity</span>
+          </div>
+        </div>
+        <p class="ah-eff-detail">{{ efficiency_detail }}</p>
+      </div>
+
+    </div>
+  </section>
+
+  {# ════════════════════════════════════════════════
+     PANEL: INITIAL SCREENING  (backend deferred)
+     ════════════════════════════════════════════════ #}
+  <section class="ah-panel" id="panel-screening" role="tabpanel">
+    <div class="ah-screening-header">
+      <p class="ah-screening-desc">
+        <strong>AI-powered analysis</strong> of your kill checklists — surfaces the most common dealbreaker
+        questions, red-flag themes, and refinement suggestions.
+      </p>
+      <div class="ah-screening-meta">
+        <span class="ah-screening-ts" id="screening-timestamp" style="display:none;">
+          <i class="bi bi-clock"></i> <span id="screening-ts-text"></span>
+        </span>
+        <button class="ah-refresh-btn" id="screening-refresh-btn" onclick="ScreeningAnalysis.run()">
+          <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+      </div>
     </div>
 
-    <!-- Tab Navigation -->
-    <ul class="nav nav-pills analytics-nav-tabs mb-4" id="analyticsTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
-                <i class="bi bi-speedometer2"></i> Overview
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="time-analysis-tab" data-bs-toggle="tab" data-bs-target="#time-analysis" type="button" role="tab">
-                <i class="bi bi-clock-history"></i> Time Analysis
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="idea-sources-tab" data-bs-toggle="tab" data-bs-target="#idea-sources" type="button" role="tab">
-                <i class="bi bi-lightbulb"></i> Idea Sources
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="patterns-tab" data-bs-toggle="tab" data-bs-target="#patterns" type="button" role="tab">
-                <i class="bi bi-graph-up"></i> Research Patterns
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="coc-tab" data-bs-toggle="tab" data-bs-target="#circle-of-competence" type="button" role="tab">
-                <i class="bi bi-bullseye"></i> Circle of Competence
-            </button>
-        </li>
-    </ul>
+    <div id="screening-error" style="display:none;"></div>
 
-    <!-- Tab Content -->
-    <div class="tab-content" id="analyticsTabsContent">
-        <!-- ========================================
-             OVERVIEW TAB
-             ======================================== -->
-        <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
-            <!-- Pipeline & Performance Grid -->
-            <div class="analytics-pipeline-grid">
-                <!-- Idea Pipeline Stats -->
-                <div class="analytics-pipeline-card">
-                    <h3 class="analytics-pipeline-title">💡 Idea Pipeline</h3>
-                    <div class="analytics-pipeline-stats">
-                        <div class="analytics-pipeline-stat">
-                            <span class="analytics-pipeline-value">{{ metrics.ideas_in_pipeline if metrics else 0 }}</span>
-                            <span class="analytics-pipeline-label">In Pipeline</span>
-                        </div>
-                        <div class="analytics-pipeline-stat">
-                            <span class="analytics-pipeline-value">{{ metrics.ideas_killed if metrics else 0 }}</span>
-                            <span class="analytics-pipeline-label">Killed</span>
-                        </div>
-                        <div class="analytics-pipeline-stat">
-                            <span class="analytics-pipeline-value">{{ metrics.ideas_promoted if metrics else 0 }}</span>
-                            <span class="analytics-pipeline-label">Promoted</span>
-                        </div>
-                    </div>
-                    {% if metrics and metrics.most_common_kill_reason %}
-                    <div class="analytics-pipeline-insight">
-                        Top Kill: <strong>{{ metrics.most_common_kill_reason|truncate(40) }}</strong>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Research Projects Stats -->
-                <div class="analytics-pipeline-card">
-                    <h3 class="analytics-pipeline-title">🔬 Research Projects</h3>
-                    <div class="analytics-pipeline-stats">
-                        <div class="analytics-pipeline-stat">
-                            <span class="analytics-pipeline-value">{{ metrics.invest_decisions if metrics else 0 }}</span>
-                            <span class="analytics-pipeline-label">Invested</span>
-                        </div>
-                        <div class="analytics-pipeline-stat">
-                            <span class="analytics-pipeline-value">{{ metrics.pass_decisions if metrics else 0 }}</span>
-                            <span class="analytics-pipeline-label">Passed</span>
-                        </div>
-                        <div class="analytics-pipeline-stat">
-                            <span class="analytics-pipeline-value">{{ "%.1f"|format(metrics.average_days_to_decision) if metrics and metrics.average_days_to_decision else 0 }}</span>
-                            <span class="analytics-pipeline-label">Days/Decision</span>
-                        </div>
-                    </div>
-                    {% if metrics and metrics.average_confidence_score %}
-                    <div class="analytics-pipeline-insight">
-                        Avg Confidence: <strong>{{ "%.1f"|format(metrics.average_confidence_score) }}/10</strong>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Productivity Patterns -->
-                <div class="analytics-pipeline-card">
-                    <h3 class="analytics-pipeline-title">⚡ Productivity</h3>
-                    <div class="analytics-productivity-list">
-                        <div class="analytics-productivity-item">
-                            <span class="analytics-productivity-label">Best Day:</span>
-                            <span class="analytics-productivity-value">{{ metrics.most_productive_day or 'N/A' }}</span>
-                        </div>
-                        <div class="analytics-productivity-item">
-                            <span class="analytics-productivity-label">Peak Hour:</span>
-                            <span class="analytics-productivity-value">
-                                {% if metrics and metrics.most_productive_hour is not none %}
-                                    {{ metrics.most_productive_hour }}:00
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </span>
-                        </div>
-                        <div class="analytics-productivity-item">
-                            <span class="analytics-productivity-label">Heavy Step:</span>
-                            <span class="analytics-productivity-value">{{ metrics.most_time_consuming_step|truncate(20) if metrics and metrics.most_time_consuming_step else 'N/A' }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Graveyard Stats -->
-                <div class="analytics-pipeline-card">
-                    <h3 class="analytics-pipeline-title">💀 Graveyard</h3>
-                    <div class="analytics-pipeline-stats">
-                        <div class="analytics-pipeline-stat">
-                            <span class="analytics-pipeline-value">{{ metrics.ideas_killed if metrics else 0 }}</span>
-                            <span class="analytics-pipeline-label">Total Killed</span>
-                        </div>
-                        <div class="analytics-pipeline-stat">
-                            <span class="analytics-pipeline-value">{{ "%.0f"|format(metrics.kill_rate) if metrics and metrics.kill_rate else 0 }}%</span>
-                            <span class="analytics-pipeline-label">Kill Rate</span>
-                        </div>
-                    </div>
-                    {% if metrics and metrics.most_common_kill_reason %}
-                    <div class="analytics-pipeline-insight">
-                        Top Kill: <strong>{{ metrics.most_common_kill_reason|truncate(40) }}</strong>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Performance Stats -->
-                <div class="analytics-pipeline-card">
-                    <h3 class="analytics-pipeline-title">📈 Performance</h3>
-                    <div class="analytics-pipeline-stats">
-                        <div class="analytics-pipeline-stat">
-                            <span class="analytics-pipeline-value">{{ metrics.winning_investments if metrics else 0 }}</span>
-                            <span class="analytics-pipeline-label">Winners</span>
-                        </div>
-                        <div class="analytics-pipeline-stat">
-                            <span class="analytics-pipeline-value">{{ metrics.losing_investments if metrics else 0 }}</span>
-                            <span class="analytics-pipeline-label">Losers</span>
-                        </div>
-                    </div>
-                    {% if metrics and metrics.average_return %}
-                    <div class="analytics-pipeline-insight">
-                        Avg Return: <strong>{{ "%.1f"|format(metrics.average_return) }}%</strong>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Best Source -->
-                <div class="analytics-pipeline-card">
-                    <h3 class="analytics-pipeline-title">🏆 Best Source</h3>
-                    {% if metrics and metrics.best_idea_source %}
-                    <div style="padding: 1rem 0;">
-                        <div style="font-size: 1.125rem; font-weight: 600; color: #111827; margin-bottom: 0.5rem;">
-                            {{ metrics.best_idea_source|truncate(30) }}
-                        </div>
-                        <div style="font-size: 0.875rem; color: #6b7280;">
-                            {{ "%.0f"|format(metrics.best_source_success_rate) if metrics.best_source_success_rate else 0 }}% success rate
-                        </div>
-                    </div>
-                    {% else %}
-                    <div style="padding: 1rem 0; text-align: center; color: #9ca3af;">
-                        <div style="font-size: 0.875rem;">No sources yet</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem;">Add ideas with sources to see your top performer</div>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Quick Stats Summary -->
-                <div class="analytics-pipeline-card">
-                    <h3 class="analytics-pipeline-title">📊 Quick Stats</h3>
-                    <div class="analytics-pipeline-stats" style="grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
-                        <div class="analytics-pipeline-stat" style="text-align: center;">
-                            <span class="analytics-pipeline-value" style="font-size: 1.5rem;">{{ metrics.total_ideas_captured if metrics else 0 }}</span>
-                            <span class="analytics-pipeline-label" style="font-size: 0.7rem;">Ideas</span>
-                        </div>
-                        <div class="analytics-pipeline-stat" style="text-align: center;">
-                            <span class="analytics-pipeline-value" style="font-size: 1.5rem;">{{ "%.0f"|format(metrics.total_research_hours) if metrics else 0 }}h</span>
-                            <span class="analytics-pipeline-label" style="font-size: 0.7rem;">Research</span>
-                        </div>
-                        <div class="analytics-pipeline-stat" style="text-align: center;">
-                            <span class="analytics-pipeline-value" style="font-size: 1.5rem;">{{ metrics.total_investment_decisions if metrics else 0 }}</span>
-                            <span class="analytics-pipeline-label" style="font-size: 0.7rem;">Decisions</span>
-                        </div>
-                        <div class="analytics-pipeline-stat" style="text-align: center;">
-                            <span class="analytics-pipeline-value" style="font-size: 1.5rem; color: #dc2626;">{{ metrics.research_streak_days if metrics else 0 }}d</span>
-                            <span class="analytics-pipeline-label" style="font-size: 0.7rem;">Streak</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Research Activity Chart -->
-            <div class="analytics-chart-section">
-                <div class="analytics-chart-card">
-                    <div class="analytics-chart-body">
-                        <h5 class="mb-3" style="font-weight: 700; color: #111827;">Research Activity (Last 30 Days)</h5>
-                        <div id="overview-chart-mount"></div>
-                    </div>
-                    <div class="analytics-chart-footer">
-                        Total: {{ "%.1f"|format(time_data.total_minutes / 60) if time_data else 0 }} hours |
-                        Daily Avg: {{ "%.1f"|format(time_data.total_minutes / 60 / 30) if time_data else 0 }} hours
-                    </div>
-                </div>
-            </div>
+    <div class="ah-bento ah-bento--screening">
+      {# Dealbreaker questions #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-exclamation-triangle"></i> Top Dealbreaker Questions</h3>
+          <span class="ah-card-meta ah-card-meta--ai"><i class="bi bi-stars"></i></span>
         </div>
-
-        <!-- ========================================
-             TIME ANALYSIS TAB
-             ======================================== -->
-        <div class="tab-pane fade" id="time-analysis" role="tabpanel" aria-labelledby="time-analysis-tab">
-            <div id="time-analysis-charts-mount"></div>
+        <div id="screening-dealbreakers">
+          <div class="ah-empty">
+            <i class="bi bi-robot"></i>
+            <p>Run your first screening analysis<br>to surface dealbreaker patterns</p>
+          </div>
         </div>
+      </div>
 
-        <!-- ========================================
-             IDEA SOURCES TAB
-             ======================================== -->
-        <div class="tab-pane fade" id="idea-sources" role="tabpanel" aria-labelledby="idea-sources-tab">
-            <!-- Idea Funnel Chart (React Island) -->
-            <div id="source-chart-mount" class="mb-4"></div>
-
-            <!-- Full Source Table -->
-            <div class="rcl-panel">
-                <div class="rcl-panel-header">
-                    <h2 class="rcl-panel-title">Source Leaderboard</h2>
-                    <button class="action-btn" onclick="if(window.sourcesTable) window.sourcesTable.download('csv', 'idea-sources.csv')">
-                        <i class="bi bi-download"></i> Export
-                    </button>
-                </div>
-                <div id="sources-table"></div>
-            </div>
-
-            <!-- Top Performers -->
-            {% if source_analyses and source_analyses|length > 0 %}
-            <div class="analytics-bottom-grid mt-4">
-                <div class="analytics-compact-section">
-                    <h6 class="analytics-compact-title mb-3">🏆 Best Source by Survival</h6>
-                    {% if by_survival and by_survival|length > 0 and by_survival[0].survival_rate %}
-                    <div class="analytics-best-source">
-                        <div class="analytics-best-source-name">{{ by_survival[0].source_name }}</div>
-                        <div class="analytics-best-source-rate">{{ "%.0f"|format(by_survival[0].survival_rate) }}%</div>
-                        <p class="text-muted mb-0 mt-2" style="font-size: 0.875rem;">
-                            {{ by_survival[0].total_ideas }} ideas tracked
-                        </p>
-                    </div>
-                    {% else %}
-                    <p class="text-muted text-center mb-0">Not enough data yet</p>
-                    {% endif %}
-                </div>
-
-                <div class="analytics-compact-section">
-                    <h6 class="analytics-compact-title mb-3">💰 Best Source by Investment</h6>
-                    {% if by_investment and by_investment|length > 0 and by_investment[0].investment_rate %}
-                    <div class="analytics-best-source">
-                        <div class="analytics-best-source-name">{{ by_investment[0].source_name }}</div>
-                        <div class="analytics-best-source-rate">{{ "%.0f"|format(by_investment[0].investment_rate) }}%</div>
-                        <p class="text-muted mb-0 mt-2" style="font-size: 0.875rem;">
-                            {{ by_investment[0].ideas_invested }} investments made
-                        </p>
-                    </div>
-                    {% else %}
-                    <p class="text-muted text-center mb-0">Not enough data yet</p>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
+      {# Red flag themes #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-flag"></i> Red Flag Themes</h3>
+          <span class="ah-card-meta ah-card-meta--ai"><i class="bi bi-stars"></i></span>
         </div>
-
-        <!-- ========================================
-             RESEARCH PATTERNS TAB
-             ======================================== -->
-        <div class="tab-pane fade" id="patterns" role="tabpanel" aria-labelledby="patterns-tab">
-            <div id="patterns-charts-mount"></div>
+        <div id="screening-themes">
+          <div class="ah-empty">
+            <i class="bi bi-robot"></i>
+            <p>Themes will appear after<br>the first analysis run</p>
+          </div>
         </div>
+      </div>
 
-        <!-- ========================================
-             CIRCLE OF COMPETENCE TAB
-             ======================================== -->
-        <div class="tab-pane fade" id="circle-of-competence" role="tabpanel" aria-labelledby="coc-tab">
-            <!-- Summary Stats -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="coc-analytics-metric-card">
-                        <div class="coc-analytics-metric-icon bg-primary">
-                            <i class="bi bi-building"></i>
-                        </div>
-                        <div class="metric-content">
-                            <div class="coc-analytics-metric-value">{{ coc_total_companies }}</div>
-                            <div class="coc-analytics-metric-label">Companies Analyzed</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="coc-analytics-metric-card">
-                        <div class="coc-analytics-metric-icon bg-success">
-                            <i class="bi bi-bullseye"></i>
-                        </div>
-                        <div class="metric-content">
-                            <div class="coc-analytics-metric-value">{{ coc_overall_confidence }}%</div>
-                            <div class="coc-analytics-metric-label">CoC Confidence</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="coc-analytics-metric-card">
-                        <div class="coc-analytics-metric-icon bg-info">
-                            <i class="bi bi-check-circle"></i>
-                        </div>
-                        <div class="metric-content">
-                            <div class="coc-analytics-metric-value">{{ coc_total_within }}</div>
-                            <div class="coc-analytics-metric-label">Within Competence</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="coc-analytics-metric-card">
-                        <div class="coc-analytics-metric-icon bg-warning">
-                            <i class="bi bi-clock-history"></i>
-                        </div>
-                        <div class="metric-content">
-                            <div class="coc-analytics-metric-value">{{ coc_total_hours }}h</div>
-                            <div class="coc-analytics-metric-label">Total Research Time</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- CoC Breakdown & Stats -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Circle of Competence Distribution</h3>
-                        </div>
-                        <div class="card-body">
-                            <div id="coc-breakdown-chart-mount"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Assessment Breakdown</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="coc-stats-list">
-                                <div class="coc-stat-item">
-                                    <div class="coc-stat-indicator bg-success"></div>
-                                    <div class="coc-stat-content">
-                                        <div class="coc-stat-label">Within Circle of Competence</div>
-                                        <div class="coc-stat-value">{{ coc_total_within }} companies</div>
-                                        <div class="coc-stat-percent">{{ ((coc_total_within / coc_total_assessed * 100) if coc_total_assessed > 0 else 0)|round(1) }}% of assessments</div>
-                                    </div>
-                                </div>
-                                <div class="coc-stat-item">
-                                    <div class="coc-stat-indicator bg-danger"></div>
-                                    <div class="coc-stat-content">
-                                        <div class="coc-stat-label">Outside Circle of Competence</div>
-                                        <div class="coc-stat-value">{{ coc_total_outside }} companies</div>
-                                        <div class="coc-stat-percent">{{ ((coc_total_outside / coc_total_assessed * 100) if coc_total_assessed > 0 else 0)|round(1) }}% of assessments</div>
-                                    </div>
-                                </div>
-                                <div class="coc-stat-item">
-                                    <div class="coc-stat-indicator bg-secondary"></div>
-                                    <div class="coc-stat-content">
-                                        <div class="coc-stat-label">Unsure / Developing</div>
-                                        <div class="coc-stat-value">{{ coc_total_unsure }} companies</div>
-                                        <div class="coc-stat-percent">{{ ((coc_total_unsure / coc_total_assessed * 100) if coc_total_assessed > 0 else 0)|round(1) }}% of assessments</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recommendations -->
-            {% if coc_recommendations %}
-            <div class="recommendations-section mb-4">
-                <div class="recommendations-header">
-                    <h2 class="recommendations-title">
-                        <i class="bi bi-lightbulb"></i>
-                        Insights & Recommendations
-                    </h2>
-                </div>
-                <div class="recommendations-list">
-                    {% for rec in coc_recommendations %}
-                    <div class="recommendation-card type-{{ rec.type }}">
-                        <div class="recommendation-indicator"></div>
-                        <div class="recommendation-icon">
-                            {% if rec.type == 'avoid' %}
-                                <i class="bi bi-x-circle-fill"></i>
-                            {% elif rec.type == 'strength' %}
-                                <i class="bi bi-check-circle-fill"></i>
-                            {% elif rec.type == 'efficiency' %}
-                                <i class="bi bi-lightning-charge-fill"></i>
-                            {% else %}
-                                <i class="bi bi-info-circle-fill"></i>
-                            {% endif %}
-                        </div>
-                        <div class="recommendation-content">
-                            <div class="recommendation-sector">{{ rec.sector }}</div>
-                            <p class="recommendation-message">{{ rec.message }}</p>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Sectors by Competence Level -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Sectors by Competence Level</h3>
-                        </div>
-                        <div class="card-body">
-                            {% if sectors_by_competence.expert or sectors_by_competence.proficient or sectors_by_competence.developing or sectors_by_competence.novice %}
-
-                            <!-- Expert Sectors -->
-                            {% if sectors_by_competence.expert %}
-                            <div class="competence-section mb-4">
-                                <h4 class="competence-level-title">
-                                    <span class="competence-badge bg-success">Expert</span>
-                                    High confidence and proven success
-                                </h4>
-                                <div class="sectors-grid">
-                                    {% for sector in sectors_by_competence.expert %}
-                                    <div class="sector-card expert-sector">
-                                        <div class="coc-analytics-sector-card-header">
-                                            <h5 class="sector-name">{{ sector.name }}</h5>
-                                            <span class="competence-badge-sm bg-success">Expert</span>
-                                        </div>
-                                        <div class="sector-card-body">
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">CoC Confidence:</span>
-                                                <span class="sector-stat-value">{{ sector.coc_confidence }}%</span>
-                                            </div>
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">Success Rate:</span>
-                                                <span class="sector-stat-value">{{ sector.success_rate }}%</span>
-                                            </div>
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">Companies:</span>
-                                                <span class="sector-stat-value">{{ sector.companies_analyzed }} analyzed, {{ sector.companies_invested }} invested</span>
-                                            </div>
-                                        </div>
-                                        <div class="sector-card-footer">
-                                            <a href="{{ url_for('sectors.notebook', sector_name=sector.slug) }}" class="btn btn-sm btn-outline-primary">
-                                                View Sector
-                                            </a>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endif %}
-
-                            <!-- Proficient Sectors -->
-                            {% if sectors_by_competence.proficient %}
-                            <div class="competence-section mb-4">
-                                <h4 class="competence-level-title">
-                                    <span class="competence-badge bg-info">Proficient</span>
-                                    Good understanding with some experience
-                                </h4>
-                                <div class="sectors-grid">
-                                    {% for sector in sectors_by_competence.proficient %}
-                                    <div class="sector-card proficient-sector">
-                                        <div class="coc-analytics-sector-card-header">
-                                            <h5 class="sector-name">{{ sector.name }}</h5>
-                                            <span class="competence-badge-sm bg-info">Proficient</span>
-                                        </div>
-                                        <div class="sector-card-body">
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">CoC Confidence:</span>
-                                                <span class="sector-stat-value">{{ sector.coc_confidence }}%</span>
-                                            </div>
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">Success Rate:</span>
-                                                <span class="sector-stat-value">{{ sector.success_rate }}%</span>
-                                            </div>
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">Companies:</span>
-                                                <span class="sector-stat-value">{{ sector.companies_analyzed }} analyzed, {{ sector.companies_invested }} invested</span>
-                                            </div>
-                                        </div>
-                                        <div class="sector-card-footer">
-                                            <a href="{{ url_for('sectors.notebook', sector_name=sector.slug) }}" class="btn btn-sm btn-outline-primary">
-                                                View Sector
-                                            </a>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endif %}
-
-                            <!-- Developing Sectors -->
-                            {% if sectors_by_competence.developing %}
-                            <div class="competence-section mb-4">
-                                <h4 class="competence-level-title">
-                                    <span class="competence-badge bg-warning">Developing</span>
-                                    Building knowledge and experience
-                                </h4>
-                                <div class="sectors-grid">
-                                    {% for sector in sectors_by_competence.developing %}
-                                    <div class="sector-card developing-sector">
-                                        <div class="coc-analytics-sector-card-header">
-                                            <h5 class="sector-name">{{ sector.name }}</h5>
-                                            <span class="competence-badge-sm bg-warning">Developing</span>
-                                        </div>
-                                        <div class="sector-card-body">
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">CoC Confidence:</span>
-                                                <span class="sector-stat-value">{{ sector.coc_confidence }}%</span>
-                                            </div>
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">Success Rate:</span>
-                                                <span class="sector-stat-value">{{ sector.success_rate }}%</span>
-                                            </div>
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">Companies:</span>
-                                                <span class="sector-stat-value">{{ sector.companies_analyzed }} analyzed, {{ sector.companies_invested }} invested</span>
-                                            </div>
-                                        </div>
-                                        <div class="sector-card-footer">
-                                            <a href="{{ url_for('sectors.notebook', sector_name=sector.slug) }}" class="btn btn-sm btn-outline-primary">
-                                                View Sector
-                                            </a>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endif %}
-
-                            <!-- Novice Sectors -->
-                            {% if sectors_by_competence.novice %}
-                            <div class="competence-section">
-                                <h4 class="competence-level-title">
-                                    <span class="competence-badge bg-secondary">Novice</span>
-                                    Early exploration or limited experience
-                                </h4>
-                                <div class="sectors-grid">
-                                    {% for sector in sectors_by_competence.novice %}
-                                    <div class="sector-card novice-sector">
-                                        <div class="coc-analytics-sector-card-header">
-                                            <h5 class="sector-name">{{ sector.name }}</h5>
-                                            <span class="competence-badge-sm bg-secondary">Novice</span>
-                                        </div>
-                                        <div class="sector-card-body">
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">CoC Confidence:</span>
-                                                <span class="sector-stat-value">{{ sector.coc_confidence }}%</span>
-                                            </div>
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">Success Rate:</span>
-                                                <span class="sector-stat-value">{{ sector.success_rate }}%</span>
-                                            </div>
-                                            <div class="sector-stat">
-                                                <span class="sector-stat-label">Companies:</span>
-                                                <span class="sector-stat-value">{{ sector.companies_analyzed }} analyzed, {{ sector.companies_invested }} invested</span>
-                                            </div>
-                                        </div>
-                                        <div class="sector-card-footer">
-                                            <a href="{{ url_for('sectors.notebook', sector_name=sector.slug) }}" class="btn btn-sm btn-outline-primary">
-                                                View Sector
-                                            </a>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endif %}
-
-                            {% else %}
-                            <div class="coc-analytics-empty-state text-center py-5">
-                                <i class="bi bi-graph-up text-muted" style="font-size: 3rem;"></i>
-                                <p class="text-muted mt-3">No sector data available yet.<br>Start researching companies to build your competence map.</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sector Performance Chart -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Top Sectors by Activity</h3>
-                        </div>
-                        <div class="card-body">
-                            <div id="coc-sector-chart-mount"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      {# Checklist refinement suggestions (full width) #}
+      <div class="ah-card" style="grid-column: 1 / -1;">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-lightbulb"></i> Checklist Refinement Suggestions</h3>
+          <span class="ah-card-meta ah-card-meta--ai"><i class="bi bi-stars"></i></span>
         </div>
+        <div id="screening-suggestions">
+          <div class="ah-empty">
+            <i class="bi bi-robot"></i>
+            <p>Actionable suggestions to improve your kill checklist<br>will appear after running the analysis</p>
+          </div>
+        </div>
+      </div>
     </div>
+  </section>
+
+  {# ════════════════════════════════════════════════
+     PANEL: CIRCLE OF COMPETENCE
+     ════════════════════════════════════════════════ #}
+  <section class="ah-panel" id="panel-competence" role="tabpanel">
+    <div class="ah-bento ah-bento--2col">
+
+      {# ── Sector Distribution (doughnut) ── #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-pie-chart"></i> Sector Distribution</h3>
+          <span class="ah-card-meta">{{ sectors_total }} sector{{ 's' if sectors_total != 1 else '' }}</span>
+        </div>
+        <div class="ah-chart-wrap ah-chart-wrap--donut" id="sector-donut-mount"></div>
+      </div>
+
+      {# ── Competence Ranking ── #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-bar-chart-steps"></i> Competence Ranking</h3>
+          <span class="ah-card-meta">{{ sectors_assessed }} assessed</span>
+        </div>
+        {% if coc_sectors_ranked %}
+        <div class="coc-rank-list">
+          {% for sector in coc_sectors_ranked %}
+          <div class="coc-rank-row">
+            <span class="coc-rank-name" title="{{ sector.name }}">{{ sector.name }}</span>
+            <span class="coc-rank-count">{{ sector.count }}</span>
+            <div class="coc-rank-bar-bg">
+              <div class="coc-rank-bar-fill" style="width: {{ (sector.confidence / 10 * 100)|round }}%"></div>
+            </div>
+            <span class="coc-rank-score {{ 'coc-rank-score--high' if sector.confidence >= 7 else ('coc-rank-score--mid' if sector.confidence >= 4 else '') }}">
+              {{ sector.confidence if sector.confidence > 0 else '—' }}
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="ah-empty">
+          <i class="bi bi-bullseye"></i>
+          <p>No sector assessments yet.<br>Research companies to build your competence map.</p>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </section>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-{% include 'components/_tabulator_js.html' %}
-<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Chart data from backend
-    var timeData = {{ time_by_day_chart|safe if time_by_day_chart is defined else '[]' }};
-    var stepData = {{ step_chart_data|safe if step_chart_data is defined else '[]' }};
-    var companyData = {{ company_chart_data|safe if company_chart_data is defined else '[]' }};
-    var sourceChartData = {{ source_chart_data|safe if source_chart_data is defined else '[]' }};
-    var productivityHour = {{ productivity_by_hour|tojson|safe if productivity_by_hour is defined else '{}' }};
-    var productivityDay = {{ productivity_by_day|tojson|safe if productivity_by_day is defined else '{}' }};
-    var topKillReasons = {{ top_kill_reasons|tojson|safe if top_kill_reasons is defined else '[]' }};
-    var velocityData = {{ velocity_data|safe if velocity_data is defined else '[]' }};
-    var confidenceTrend = {{ confidence_trend|safe if confidence_trend is defined else '[]' }};
-    var cocBreakdown = {{ coc_breakdown|tojson|safe if coc_breakdown is defined else '{"yes": 0, "no": 0, "unsure": 0}' }};
-    var cocSectorData = {{ coc_sector_chart_data|safe if coc_sector_chart_data is defined else '[]' }};
+(function () {
+  /* ── Tab switching ── */
+  var tabs = document.querySelectorAll('.ah-tab');
+  tabs.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      tabs.forEach(function (b) {
+        b.classList.remove('ah-tab--active');
+        b.setAttribute('aria-selected', 'false');
+      });
+      document.querySelectorAll('.ah-panel').forEach(function (p) {
+        p.classList.remove('ah-panel--active');
+      });
+      btn.classList.add('ah-tab--active');
+      btn.setAttribute('aria-selected', 'true');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('ah-panel--active');
+    });
+  });
 
-    // Initialize React chart islands
-    if (window.initOverviewChart) {
-        window.initOverviewChart('overview-chart-mount', { data: timeData });
+  /* ── Mount React islands on DOMContentLoaded ── */
+  var velocityData  = {{ velocity_data|safe }};
+  var sourcesData   = {{ sources_simple|safe }};
+  var sectorData    = {{ sector_donut_data|safe }};
+
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.initInsightsVelocityChart) {
+      window.initInsightsVelocityChart('velocity-chart-mount', { data: velocityData });
     }
-    if (window.initTimeAnalysisCharts) {
-        window.initTimeAnalysisCharts('time-analysis-charts-mount', {
-            stepData: stepData,
-            companyData: companyData,
-            productivityByHour: productivityHour,
-            productivityByDay: productivityDay
+    if (window.initInsightsSourcesChart) {
+      window.initInsightsSourcesChart('sources-chart-mount', { data: sourcesData });
+    }
+    if (window.initSectorDonutChart) {
+      window.initSectorDonutChart('sector-donut-mount', { data: sectorData });
+    }
+    ScreeningAnalysis.init();
+  });
+
+  /* ── Screening Analysis ── */
+  var THEME_ICONS = ['red', 'amber', 'blue', 'slate', 'red', 'amber'];
+  var SUGGESTION_TYPE_MAP = {
+    add_criterion: { label: 'Add', cls: 'ah-suggestion-type--add' },
+    modify:        { label: 'Refine', cls: 'ah-suggestion-type--refine' },
+    reorder:       { label: 'Refine', cls: 'ah-suggestion-type--refine' },
+    remove_criterion: { label: 'Remove', cls: 'ah-suggestion-type--remove' }
+  };
+
+  window.ScreeningAnalysis = {
+    pollTimer: null,
+
+    init: function () {
+      this.loadLatest();
+    },
+
+    loadLatest: function () {
+      var self = this;
+      fetch('/analytics/api/screening-analysis/latest')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.has_result) {
+            self.displayResult(data.result, data.analyzed_at);
+          }
+        })
+        .catch(function () { /* silent — empty state stays visible */ });
+    },
+
+    run: function () {
+      var self = this;
+      var btn = document.getElementById('screening-refresh-btn');
+      btn.disabled = true;
+      btn.classList.add('ah-refresh-btn--loading');
+      this.hideError();
+
+      fetch('/analytics/api/screening-analysis', { method: 'POST' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) {
+            self.startPolling(data.task_id);
+          } else {
+            self.showError(data.error || 'Failed to start analysis');
+            self.resetButton();
+          }
+        })
+        .catch(function () {
+          self.showError('Network error — please try again');
+          self.resetButton();
         });
-    }
-    if (window.initSourceFunnelChart) {
-        window.initSourceFunnelChart('source-chart-mount', { data: sourceChartData });
-    }
-    if (window.initPatternsCharts) {
-        window.initPatternsCharts('patterns-charts-mount', {
-            killReasons: topKillReasons,
-            velocityData: velocityData,
-            confidenceTrend: confidenceTrend
-        });
-    }
-    if (window.initCocBreakdownChart) {
-        window.initCocBreakdownChart('coc-breakdown-chart-mount', { cocBreakdown: cocBreakdown });
-    }
-    if (window.initCocSectorChart) {
-        window.initCocSectorChart('coc-sector-chart-mount', { data: cocSectorData });
-    }
+    },
 
-    // Initialize Sources Table (Tabulator CDN — stays as-is)
-    var sourcesData = [
-        {% if by_survival %}
-        {% for source in by_survival %}
-        {
-            source_name: "{{ source.source_name }}",
-            total_ideas: {{ source.total_ideas }},
-            survival_rate: {{ source.survival_rate or 0 }},
-            investment_rate: {{ source.investment_rate or 0 }},
-            ideas_invested: {{ source.ideas_invested }}
-        }{{ ',' if not loop.last else '' }}
-        {% endfor %}
-        {% endif %}
-    ];
-
-    if (sourcesData.length > 0) {
-        window.sourcesTable = createDataTable('#sources-table', {
-            data: sourcesData,
-            columns: [
-                {
-                    title: "Source Name",
-                    field: "source_name",
-                    sorter: "string",
-                    minWidth: 200,
-                    widthGrow: 3
-                },
-                {
-                    title: "Total",
-                    field: "total_ideas",
-                    sorter: "number",
-                    hozAlign: "right",
-                    minWidth: 80,
-                    widthGrow: 1
-                },
-                {
-                    title: "Survival Rate",
-                    field: "survival_rate",
-                    sorter: "number",
-                    hozAlign: "right",
-                    formatter: function(cell) {
-                        var val = cell.getValue() || 0;
-                        return '<div class="rcl-progress-wrap">' +
-                            '<div class="rcl-progress-bar" style="width: ' + val + '%"></div>' +
-                            '<span class="rcl-progress-label">' + val.toFixed(0) + '%</span>' +
-                        '</div>';
-                    },
-                    minWidth: 150,
-                    widthGrow: 2
-                },
-                {
-                    title: "Investment Rate",
-                    field: "investment_rate",
-                    sorter: "number",
-                    hozAlign: "right",
-                    formatter: function(cell) {
-                        return (cell.getValue() || 0).toFixed(0) + '%';
-                    },
-                    minWidth: 130,
-                    widthGrow: 1
-                },
-                {
-                    title: "Invested",
-                    field: "ideas_invested",
-                    sorter: "number",
-                    hozAlign: "right",
-                    formatter: function(cell) {
-                        var val = cell.getValue();
-                        var cls = val > 0 ? 'rcl-cell-badge rcl-cell-badge--active' : 'rcl-cell-badge rcl-cell-badge--default';
-                        return '<span class="' + cls + '">' + val + '</span>';
-                    },
-                    minWidth: 100,
-                    widthGrow: 1
-                }
-            ],
-            customConfig: {
-                initialSort: [{ column: "survival_rate", dir: "desc" }]
+    startPolling: function (taskId) {
+      var self = this;
+      this.stopPolling();
+      this.pollTimer = setInterval(function () {
+        fetch('/analytics/api/screening-analysis/status/' + taskId)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.state === 'COMPLETED' && data.result) {
+              self.stopPolling();
+              self.displayResult(data.result, new Date().toISOString());
+              self.resetButton();
+            } else if (data.state === 'FAILED') {
+              self.stopPolling();
+              self.showError(data.error || 'Analysis failed');
+              self.resetButton();
             }
-        });
+          })
+          .catch(function () {
+            self.stopPolling();
+            self.showError('Lost connection while polling');
+            self.resetButton();
+          });
+      }, 3000);
+    },
+
+    stopPolling: function () {
+      if (this.pollTimer) {
+        clearInterval(this.pollTimer);
+        this.pollTimer = null;
+      }
+    },
+
+    resetButton: function () {
+      var btn = document.getElementById('screening-refresh-btn');
+      btn.disabled = false;
+      btn.classList.remove('ah-refresh-btn--loading');
+    },
+
+    showError: function (msg) {
+      var el = document.getElementById('screening-error');
+      el.style.display = 'block';
+      el.innerHTML = '<div class="ah-empty"><i class="bi bi-exclamation-circle"></i><p>' + msg + '</p></div>';
+    },
+
+    hideError: function () {
+      var el = document.getElementById('screening-error');
+      el.style.display = 'none';
+    },
+
+    displayResult: function (result, analyzedAt) {
+      this.hideError();
+      if (analyzedAt) {
+        var tsEl = document.getElementById('screening-timestamp');
+        var d = new Date(analyzedAt);
+        document.getElementById('screening-ts-text').textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        tsEl.style.display = '';
+      }
+      this.renderDealbreakers(result.dealbreaker_questions || []);
+      this.renderThemes(result.red_flag_themes || []);
+      this.renderSuggestions(result.refinement_suggestions || []);
+    },
+
+    renderDealbreakers: function (questions) {
+      var el = document.getElementById('screening-dealbreakers');
+      if (!questions.length) return;
+      var maxKill = Math.max.apply(null, questions.map(function (q) { return q.kill_percentage || 0; }));
+      var html = '<div class="ah-dealbreaker-list">';
+      questions.forEach(function (q, i) {
+        var pct = Math.round(q.kill_percentage || 0);
+        var barW = maxKill > 0 ? Math.round((q.kill_percentage / maxKill) * 100) : 0;
+        html += '<div class="ah-dealbreaker-row">'
+          + '<span class="ah-dealbreaker-rank">' + (i + 1) + '</span>'
+          + '<span class="ah-dealbreaker-text" title="' + (q.insight || '') + '">' + q.question + '</span>'
+          + '<div class="ah-dealbreaker-bar">'
+          + '<div class="ah-dealbreaker-bar-bg"><div class="ah-dealbreaker-bar-fill" style="width:' + barW + '%"></div></div>'
+          + '<span class="ah-dealbreaker-pct">' + pct + '%</span>'
+          + '</div>'
+          + '</div>';
+      });
+      html += '</div>';
+      el.innerHTML = html;
+    },
+
+    renderThemes: function (themes) {
+      var el = document.getElementById('screening-themes');
+      if (!themes.length) return;
+      var html = '<div class="ah-theme-list">';
+      themes.forEach(function (t, i) {
+        var iconCls = THEME_ICONS[i % THEME_ICONS.length];
+        var detail = t.description || '';
+        if (t.example_ideas && t.example_ideas.length) {
+          detail += ' e.g. ' + t.example_ideas.slice(0, 2).join(', ');
+        }
+        html += '<div class="ah-theme-item">'
+          + '<div class="ah-theme-icon ah-theme-icon--' + iconCls + '"><i class="bi bi-flag-fill"></i></div>'
+          + '<div class="ah-theme-body">'
+          + '<div class="ah-theme-name">' + t.theme + '</div>'
+          + '<div class="ah-theme-detail">' + detail + '</div>'
+          + '</div>'
+          + '<span class="ah-theme-freq">' + (t.kill_count || 0) + '</span>'
+          + '</div>';
+      });
+      html += '</div>';
+      el.innerHTML = html;
+    },
+
+    renderSuggestions: function (suggestions) {
+      var el = document.getElementById('screening-suggestions');
+      if (!suggestions.length) return;
+      var html = '<div class="ah-suggestion-list">';
+      suggestions.forEach(function (s) {
+        var typeInfo = SUGGESTION_TYPE_MAP[s.type] || { label: s.type, cls: 'ah-suggestion-type--refine' };
+        html += '<div class="ah-suggestion">'
+          + '<span class="ah-suggestion-type ' + typeInfo.cls + '">' + typeInfo.label + '</span>'
+          + '<div class="ah-suggestion-text">' + (s.title || '') + ': ' + (s.description || '') + '</div>'
+          + '<div class="ah-suggestion-rationale">' + (s.reasoning || '') + '</div>'
+          + '</div>';
+      });
+      html += '</div>';
+      el.innerHTML = html;
     }
-});
+  };
+})();
 </script>
 {% endblock %}
