@@ -31,7 +31,7 @@ from app import db
 from app.models import DestinationCheckpoint, AIInsight
 from app.services.ai import get_ai_service
 from app.services.ai.config import AITaskType
-from app.services.ai.prompt_service import prompt_service
+from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 from app.services.research_data_service import ResearchDataService
 from app.constants import CHECKPOINT_ANALYSIS_WINDOW_DAYS, CHECKPOINT_ANALYSIS_DEDUP_HOURS
 from app.utils.time_utils import now_utc
@@ -146,15 +146,21 @@ class CheckpointAnalysisService:
             'checkpoint', 'checkpoint_analysis', **variables
         )
         prompt = prompt_data['prompt']
+        metadata = prompt_data.get('metadata', {})
         system_context = prompt_data.get('system_context', '')
+        model_enum, provider_enum = resolve_model_provider(
+            metadata, user_id=user.id, prompt_category='checkpoint',
+        )
 
         ai_service = get_ai_service()
 
         result = ai_service.generate_json(
             prompt=prompt,
-            max_tokens=prompt_data['metadata'].get('max_tokens', 1500),
-            temperature=prompt_data['metadata'].get('temperature', 0.4),
+            max_tokens=metadata.get('max_tokens', 1500),
+            temperature=metadata.get('temperature', 0.4),
             task=AITaskType.CHECKPOINT_ANALYSIS,
+            model=model_enum,
+            provider=provider_enum,
             system=system_context,
         )
 

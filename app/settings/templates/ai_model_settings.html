@@ -1,0 +1,197 @@
+{% extends "main/_base.html" %}
+
+{% block title %}AI Model Settings{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="dashboard-header-card">
+        <div class="dashboard-header">
+            <div>
+                <h1><i class="bi bi-cpu me-2"></i>AI Model Settings</h1>
+                <p class="dashboard-header-subtitle">
+                    Choose which AI model to use for each task category
+                </p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('profile.profile_settings') }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i> Back to Settings
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main content -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-sliders me-2"></i>Model Selection by Category
+                    </h5>
+                    {% if override_count > 0 %}
+                    <form method="POST" action="{{ url_for('ai_models.reset_all_model_preferences') }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"
+                            onclick="return confirm('Reset all AI model preferences to defaults?')">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset All ({{ override_count }})
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Override the default AI model for each task category. Your selections take
+                        priority over the built-in defaults. Select "Default" to use automatic routing.
+                    </p>
+
+                    {% for cat in categories %}
+                    <div class="config-item mb-3 p-3 border rounded {% if cat.user_model %}border-primary bg-light{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="mb-2">
+                                <h6 class="mb-1">
+                                    <i class="{{ cat.icon }} me-2"></i>{{ cat.label }}
+                                    {% if cat.user_model %}
+                                    <span class="badge bg-primary ms-2" title="Custom override active">
+                                        <i class="bi bi-pencil-fill me-1"></i>Override
+                                    </span>
+                                    {% endif %}
+                                </h6>
+                                <small class="text-muted">
+                                    {{ cat.prompt_count }} prompt{{ 's' if cat.prompt_count != 1 else '' }}
+                                    {% if cat.default_model %}
+                                     &middot; Default: <code>{{ cat.default_model }}</code>
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+
+                        <form method="POST" action="{{ url_for('ai_models.set_model_preference') }}"
+                              class="d-flex align-items-center gap-2 mt-2">
+                            <input type="hidden" name="category" value="{{ cat.name }}">
+                            <select name="model_id" class="form-select form-select-sm" style="max-width: 320px;">
+                                <option value="default" {% if not cat.user_model %}selected{% endif %}>
+                                    Default (auto-routing)
+                                </option>
+
+                                {% set ns = namespace(current_provider='') %}
+                                {% for model in available_models %}
+                                    {% if model.provider != ns.current_provider %}
+                                        {% if ns.current_provider %}
+                                            </optgroup>
+                                        {% endif %}
+                                        {% set ns.current_provider = model.provider %}
+                                        <optgroup label="{{ model.provider | capitalize }}">
+                                    {% endif %}
+                                    <option value="{{ model.id }}"
+                                        {% if cat.user_model == model.id %}selected{% endif %}>
+                                        {{ model.name }}
+                                    </option>
+                                {% endfor %}
+                                {% if ns.current_provider %}
+                                    </optgroup>
+                                {% endif %}
+                            </select>
+
+                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Save">
+                                <i class="bi bi-check-lg"></i> Save
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Available Providers -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-cloud me-2"></i>Available Providers
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% set config = get_ai_config() if get_ai_config is defined else none %}
+
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-{% if available_models | selectattr('provider', 'equalto', 'gemini') | list %}success{% else %}secondary{% endif %} me-2">
+                            <i class="bi bi-{% if available_models | selectattr('provider', 'equalto', 'gemini') | list %}check{% else %}x{% endif %}"></i>
+                        </span>
+                        <span>Google Gemini</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-{% if available_models | selectattr('provider', 'equalto', 'claude') | list %}success{% else %}secondary{% endif %} me-2">
+                            <i class="bi bi-{% if available_models | selectattr('provider', 'equalto', 'claude') | list %}check{% else %}x{% endif %}"></i>
+                        </span>
+                        <span>Anthropic Claude</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-{% if available_models | selectattr('provider', 'equalto', 'deepseek') | list %}success{% else %}secondary{% endif %} me-2">
+                            <i class="bi bi-{% if available_models | selectattr('provider', 'equalto', 'deepseek') | list %}check{% else %}x{% endif %}"></i>
+                        </span>
+                        <span>DeepSeek</span>
+                    </div>
+
+                    <hr class="my-3">
+                    <p class="small text-muted mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Providers are enabled by setting their API key in environment variables.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Priority Chain Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-sort-numeric-down me-2"></i>How Routing Works
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ol class="small text-muted ps-3 mb-0">
+                        <li class="mb-2">
+                            <strong>Your override</strong> (this page) &mdash; highest priority
+                        </li>
+                        <li class="mb-2">
+                            <strong>Prompt YAML config</strong> &mdash; model set in prompt template
+                        </li>
+                        <li class="mb-2">
+                            <strong>Task routing</strong> &mdash; quality tasks prefer Claude, fast tasks use Flash
+                        </li>
+                        <li class="mb-2">
+                            <strong>Environment default</strong> &mdash; lowest priority
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Current Overrides Summary -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-check me-2"></i>Active Overrides
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% set active_overrides = categories | selectattr('user_model') | list %}
+                    {% if active_overrides %}
+                        {% for cat in active_overrides %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small">
+                                <i class="{{ cat.icon }} me-1"></i>{{ cat.label }}
+                            </span>
+                            <code class="small">{{ cat.user_model }}</code>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small mb-0">
+                            <i class="bi bi-dash-circle me-1"></i>
+                            No overrides set. All categories use automatic routing.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

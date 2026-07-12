@@ -64,6 +64,7 @@ from .config import (
 from .providers.base import AIProvider as AIProviderBase
 from .providers.gemini import GeminiProvider
 from .providers.claude import ClaudeProvider
+from .providers.deepseek import DeepseekProvider
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,15 @@ class AIService:
                 logger.info("Claude provider initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize Claude provider: {e}")
-        
+
+        # Initialize DeepSeek
+        if self._config.is_provider_available(AIProvider.DEEPSEEK):
+            try:
+                self._providers[AIProvider.DEEPSEEK] = DeepseekProvider()
+                logger.info("DeepSeek provider initialized")
+            except Exception as e:
+                logger.error(f"Failed to initialize DeepSeek provider: {e}")
+
         if not self._providers:
             logger.warning("No AI providers available! Check API keys.")
     
@@ -151,6 +160,8 @@ class AIService:
                     return GeminiProvider(model=model)
                 elif provider_type == AIProvider.CLAUDE:
                     return ClaudeProvider(model=model)
+                elif provider_type == AIProvider.DEEPSEEK:
+                    return DeepseekProvider(model=model)
             raise RuntimeError(f"Provider for model {model.model_id} is not available")
         
         # Route based on task type

@@ -36,11 +36,20 @@ logger = logging.getLogger(__name__)
 # Token pricing (as of 2025, in dollars per 1M tokens)
 # Update these as providers change pricing
 TOKEN_PRICING = {
+    # Claude
     'claude-sonnet-4-20250514': {'input': 3.00, 'output': 15.00},
-    'claude-opus-4-20241113': {'input': 15.00, 'output': 75.00},
-    'claude-haiku-4-20250514': {'input': 0.25, 'output': 1.25},
+    'claude-opus-4-20250514': {'input': 15.00, 'output': 75.00},
+    'claude-3-5-haiku-20241022': {'input': 0.80, 'output': 4.00},
+    # Gemini
     'gemini-2.0-flash-exp': {'input': 0.00, 'output': 0.00},  # Free tier
     'gemini-1.5-pro': {'input': 1.25, 'output': 5.00},
+    'gemini-2.5-flash': {'input': 0.15, 'output': 0.60},
+    'gemini-2.5-pro': {'input': 1.25, 'output': 10.00},
+    'gemini-3-flash-preview': {'input': 0.15, 'output': 0.60},
+    'gemini-3-pro-preview': {'input': 1.25, 'output': 10.00},
+    # DeepSeek
+    'deepseek-chat': {'input': 0.27, 'output': 1.10},       # V3 pricing
+    'deepseek-reasoner': {'input': 0.55, 'output': 2.19},   # R1 pricing
 }
 
 

@@ -124,6 +124,8 @@ def create_app(config_class=Config):
     app.register_blueprint(portfolio_bp)
     from app.settings.profile_routes import profile_bp
     app.register_blueprint(profile_bp)
+    from app.settings.ai_model_routes import ai_model_bp
+    app.register_blueprint(ai_model_bp)
 
     # Auto-seed market sweeps from data/market-sweeps/ if any files present
     with app.app_context():

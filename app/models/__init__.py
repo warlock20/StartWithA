@@ -121,6 +121,9 @@ from .market_sweep import (
     MarketSweepCompany,
     MarketSweepDecision,
 )
+from .user_ai_preferences import (
+    UserAIPreference,
+)
 
 
 
@@ -221,4 +224,6 @@ __all__ = [
     'MarketSweep',
     'MarketSweepCompany',
     'MarketSweepDecision',
+    # User AI Preferences
+    'UserAIPreference',
 ]

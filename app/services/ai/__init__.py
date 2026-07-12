@@ -115,6 +115,7 @@ from .ai_service import (
 from .providers import (
     GeminiProvider,
     ClaudeProvider,
+    DeepseekProvider,
 )
 
 # Note: document_processor is NOT imported here to avoid circular imports
@@ -124,6 +125,7 @@ from .providers import (
 from .prompt_service import (
     prompt_service,
     PromptService,
+    resolve_model_provider,
     get_kill_checklist_prompt,
     get_research_journal_prompt,
     get_research_template_prompt,

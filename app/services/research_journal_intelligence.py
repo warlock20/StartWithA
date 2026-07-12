@@ -36,7 +36,7 @@ from app.utils.time_utils import now_utc
 
 # New imports from unified AI service
 from app.services.ai import ai_service, AITaskType
-from app.services.ai.prompt_service import get_research_journal_prompt
+from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +68,9 @@ class ResearchJournalIntelligence:
             if not user_context:
                 user_context = self._build_user_context(entry.user_id, limit=10)
 
-            # Get the prompt from prompt service
-            prompt = get_research_journal_prompt(
-                'entry_analysis',
+            # Get the prompt from prompt service with metadata for model routing
+            prompt_data = prompt_service.get_prompt_with_metadata(
+                'research_journal', 'entry_analysis',
                 entry_title=entry.title or "Untitled Entry",
                 entry_type=entry.entry_type or "general",
                 entry_content=entry.content or "",
@@ -79,9 +79,17 @@ class ResearchJournalIntelligence:
                 existing_tags=self._format_tags(entry),
                 user_journal_context=json.dumps(user_context, default=str)
             )
+            prompt = prompt_data['prompt']
+            metadata = prompt_data.get('metadata', {})
+            model_enum, provider_enum = resolve_model_provider(
+                metadata, user_id=entry.user_id, prompt_category='research_journal',
+            )
 
             # Use AI service for analysis
-            result = self.ai.generate_json(prompt, task=AITaskType.JOURNAL_ANALYSIS)
+            result = self.ai.generate_json(
+                prompt, task=AITaskType.JOURNAL_ANALYSIS,
+                model=model_enum, provider=provider_enum,
+            )
 
             logger.info(f"Successfully analyzed journal entry {entry.id}")
             return result
@@ -129,16 +137,24 @@ class ResearchJournalIntelligence:
                     'confidence': te.confidence_level
                 })
 
-            # Get the prompt
-            prompt = get_research_journal_prompt(
-                'thesis_contradiction_detection',
+            # Get the prompt with metadata for model routing
+            prompt_data = prompt_service.get_prompt_with_metadata(
+                'research_journal', 'thesis_contradiction_detection',
                 entry_content=entry.content or "",
                 entry_date=entry.created_at.isoformat() if entry.created_at else "Unknown",
                 thesis_history=json.dumps(thesis_context, default=str),
                 company_name=entry.company.name if entry.company else "Unknown"
             )
+            prompt = prompt_data['prompt']
+            metadata = prompt_data.get('metadata', {})
+            model_enum, provider_enum = resolve_model_provider(
+                metadata, user_id=entry.user_id, prompt_category='research_journal',
+            )
 
-            result = self.ai.generate_json(prompt, task=AITaskType.THESIS_ANALYSIS)
+            result = self.ai.generate_json(
+                prompt, task=AITaskType.THESIS_ANALYSIS,
+                model=model_enum, provider=provider_enum,
+            )
 
             logger.info(f"Contradiction check completed for entry {entry.id}")
             return result
@@ -186,16 +202,24 @@ class ResearchJournalIntelligence:
                     'created_at': e.created_at.isoformat() if e.created_at else None
                 })
 
-            prompt = get_research_journal_prompt(
-                'related_entries_finder',
+            prompt_data = prompt_service.get_prompt_with_metadata(
+                'research_journal', 'related_entries_finder',
                 current_entry_title=entry.title or "Untitled",
                 current_entry_content=entry.content or "",
                 current_entry_type=entry.entry_type or "general",
                 candidate_entries=json.dumps(entries_context, default=str),
                 max_results=limit
             )
+            prompt = prompt_data['prompt']
+            metadata = prompt_data.get('metadata', {})
+            model_enum, provider_enum = resolve_model_provider(
+                metadata, user_id=entry.user_id, prompt_category='research_journal',
+            )
 
-            result = self.ai.generate_json(prompt, task=AITaskType.JOURNAL_ANALYSIS)
+            result = self.ai.generate_json(
+                prompt, task=AITaskType.JOURNAL_ANALYSIS,
+                model=model_enum, provider=provider_enum,
+            )
 
             logger.info(f"Found related entries for entry {entry.id}")
             return result

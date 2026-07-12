@@ -36,6 +36,7 @@ Environment Variables:
     GEMINI_API_KEY      - Google Gemini API key
     ANTHROPIC_API_KEY   - Anthropic Claude API key  
     OPENAI_API_KEY      - OpenAI API key (optional)
+    DEEPSEEK_API_KEY    - DeepSeek API key (optional)
     
     AI_DEFAULT_MODEL    - Default model (default: gemini-2.5-flash)
     AI_QUALITY_MODEL    - Model for quality tasks (default: gemini-2.5-pro)
@@ -57,6 +58,7 @@ class AIProvider(Enum):
     GEMINI = "gemini"
     CLAUDE = "claude"
     OPENAI = "openai"
+    DEEPSEEK = "deepseek"
 
 class AIModel(Enum):
     """
@@ -84,16 +86,20 @@ class AIModel(Enum):
     GEMINI_PRO = ("gemini-pro", AIProvider.GEMINI)                      # Legacy - deprecated
     GEMINI_FLASH_20 = ("gemini-2.0-flash", AIProvider.GEMINI)           # Deprecated - use 2.5 or 3.x
     
-    # Claude models  
+    # Claude models
     CLAUDE_HAIKU = ("claude-3-5-haiku-20241022", AIProvider.CLAUDE)     # Fast, cost-effective
-    CLAUDE_SONNET = ("claude-sonnet-4-20250514", AIProvider.CLAUDE)       # Good balance
-    CLAUDE_OPUS = ("claude-3-opus-20240229", AIProvider.CLAUDE)         # Best quality
+    CLAUDE_SONNET = ("claude-sonnet-4-20250514", AIProvider.CLAUDE)     # Good balance (Sonnet 4)
+    CLAUDE_OPUS = ("claude-opus-4-20250514", AIProvider.CLAUDE)         # Best quality (Opus 4)
     
     # OpenAI models (for future use)
     GPT4 = ("gpt-4", AIProvider.OPENAI)
     GPT4_TURBO = ("gpt-4-turbo", AIProvider.OPENAI)
     GPT4O = ("gpt-4o", AIProvider.OPENAI)
     GPT35_TURBO = ("gpt-3.5-turbo", AIProvider.OPENAI)
+
+    # DeepSeek models
+    DEEPSEEK_V3 = ("deepseek-chat", AIProvider.DEEPSEEK)          # V3 - general purpose, cost-effective
+    DEEPSEEK_R1 = ("deepseek-reasoner", AIProvider.DEEPSEEK)      # R1 - advanced reasoning, chain-of-thought
     
     def __init__(self, model_id: str, provider: AIProvider):
         self.model_id = model_id
@@ -135,17 +141,27 @@ class AIModel(Enum):
 
             # Claude
             'claude-haiku': cls.CLAUDE_HAIKU,
+            'claude-3-5-haiku': cls.CLAUDE_HAIKU,
             'claude-3-5-haiku-20241022': cls.CLAUDE_HAIKU,
             'claude-sonnet': cls.CLAUDE_SONNET,
+            'claude-sonnet-4': cls.CLAUDE_SONNET,
             'claude-sonnet-4-20250514': cls.CLAUDE_SONNET,
             'claude-opus': cls.CLAUDE_OPUS,
-            'claude-3-opus-20240229': cls.CLAUDE_OPUS,
+            'claude-opus-4': cls.CLAUDE_OPUS,
+            'claude-opus-4-20250514': cls.CLAUDE_OPUS,
 
             # OpenAI
             'gpt-4': cls.GPT4,
             'gpt-4-turbo': cls.GPT4_TURBO,
             'gpt-4o': cls.GPT4O,
             'gpt-3.5-turbo': cls.GPT35_TURBO,
+
+            # DeepSeek
+            'deepseek-chat': cls.DEEPSEEK_V3,
+            'deepseek-v3': cls.DEEPSEEK_V3,
+            'deepseek': cls.DEEPSEEK_V3,  # Alias: default DeepSeek model
+            'deepseek-reasoner': cls.DEEPSEEK_R1,
+            'deepseek-r1': cls.DEEPSEEK_R1,
         }
         
         result = model_map.get(model_name.lower())
@@ -253,6 +269,7 @@ class AIConfig:
     gemini_api_key: Optional[str] = None
     claude_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
+    deepseek_api_key: Optional[str] = None
     
     # Model configuration
     default_model: AIModel = AIModel.GEMINI_PRO_25
@@ -292,6 +309,7 @@ class AIConfig:
         config.gemini_api_key = os.getenv('GEMINI_API_KEY')
         config.claude_api_key = os.getenv('ANTHROPIC_API_KEY')
         config.openai_api_key = os.getenv('OPENAI_API_KEY')
+        config.deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
         
         config.voyage_api_key = os.getenv('VOYAGE_API_KEY')
         config.cohere_api_key = os.getenv('COHERE_API_KEY')
@@ -332,7 +350,8 @@ class AIConfig:
         logger.info(f"AI Config loaded: default={config.default_model.model_id}, "
                    f"quality={config.quality_model.model_id}, "
                    f"gemini={'✓' if config.gemini_api_key else '✗'}, "
-                   f"claude={'✓' if config.claude_api_key else '✗'}")
+                   f"claude={'✓' if config.claude_api_key else '✗'}, "
+                   f"deepseek={'✓' if config.deepseek_api_key else '✗'}")
         
         return config
     
@@ -352,6 +371,8 @@ class AIConfig:
             return bool(self.claude_api_key)
         elif provider == AIProvider.OPENAI:
             return bool(self.openai_api_key)
+        elif provider == AIProvider.DEEPSEEK:
+            return bool(self.deepseek_api_key)
         return False
     
     def get_available_providers(self) -> list[AIProvider]:

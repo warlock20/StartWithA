@@ -33,7 +33,8 @@ from app.models.idea_pipeline import MistakeLog
 from app.models.journal import DecisionJournal, PatternRecognition
 from app.models.research import ResearchProject, FreeResearchQuestion
 from app.models import Company
-from app.services.ai import ai_service, prompt_service
+from app.services.ai import ai_service
+from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 
 logger = logging.getLogger(__name__)
 
@@ -134,10 +135,15 @@ class CompanionMixin:
     def generate_brief(self, context: CompanionContext) -> str:
         """Generate a pre-session research brief."""
         try:
-            prompt = prompt_service.get_prompt(
+            prompt_data = prompt_service.get_prompt_with_metadata(
                 'companion', 'research_brief', **context.to_dict()
             )
-            return ai_service.generate_text(prompt)
+            model_enum, provider_enum = resolve_model_provider(
+                prompt_data.get('metadata', {}), user_id=self.user_id, prompt_category='companion',
+            )
+            return ai_service.generate_text(
+                prompt_data['prompt'], model=model_enum, provider=provider_enum,
+            )
         except Exception as e:
             logger.error(f"Failed to generate research brief: {e}")
             return f"Could not generate brief: {e}"
@@ -155,7 +161,7 @@ class CompanionMixin:
                 for msg in conversation_history[-10:]
             ) or 'No prior conversation'
 
-            prompt = prompt_service.get_prompt(
+            prompt_data = prompt_service.get_prompt_with_metadata(
                 'companion', 'live_companion',
                 company_name=context.company_name,
                 sector_name=context.sector_name,
@@ -167,7 +173,12 @@ class CompanionMixin:
                 conversation_history=history_text,
                 user_question=user_question,
             )
-            return ai_service.generate_text(prompt)
+            model_enum, provider_enum = resolve_model_provider(
+                prompt_data.get('metadata', {}), user_id=self.user_id, prompt_category='companion',
+            )
+            return ai_service.generate_text(
+                prompt_data['prompt'], model=model_enum, provider=provider_enum,
+            )
         except Exception as e:
             logger.error(f"Companion chat failed: {e}")
             return f"Could not process question: {e}"
@@ -181,7 +192,7 @@ class CompanionMixin:
     ) -> str:
         """Generate a session wrap-up summary."""
         try:
-            prompt = prompt_service.get_prompt(
+            prompt_data = prompt_service.get_prompt_with_metadata(
                 'companion', 'session_wrapup',
                 company_name=context.company_name,
                 step_name=context.step_name,
@@ -191,7 +202,12 @@ class CompanionMixin:
                 all_findings=context.prior_findings,
                 counter_evidence='\n'.join(counter_evidence or []) or 'None generated',
             )
-            return ai_service.generate_text(prompt)
+            model_enum, provider_enum = resolve_model_provider(
+                prompt_data.get('metadata', {}), user_id=self.user_id, prompt_category='companion',
+            )
+            return ai_service.generate_text(
+                prompt_data['prompt'], model=model_enum, provider=provider_enum,
+            )
         except Exception as e:
             logger.error(f"Session wrap-up failed: {e}")
             return f"Could not generate wrap-up: {e}"
