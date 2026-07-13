@@ -14,11 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-from flask import render_template, request, redirect, url_for, flash, current_app
+from flask import render_template, request, redirect, url_for, flash, current_app, abort
 from flask_login import login_user, current_user, logout_user, login_required
 from app import db, limiter
 from app.models import User
-from app.auth import auth_bp # Import the blueprint from this package's __init__.py
+from app.auth import auth_bp
 from app.constants import RATELIMIT_AUTH
 from app.utils.audit_logger import log_auth_event
 from app.services.feature_unlock_service import FeatureUnlockService
@@ -79,6 +79,27 @@ def logout():
     logout_user() # Flask-Login function to clear the user session
     flash('You have been logged out.', 'success')
     return redirect(url_for('auth.login')) # Redirect to login page after logout
+
+@auth_bp.route('/demo-login', methods=['POST'])
+@limiter.limit(RATELIMIT_AUTH)
+def demo_login():
+    """One-click demo login — only available when DEMO_MODE is enabled."""
+    if not current_app.config.get('DEMO_MODE'):
+        abort(404)
+
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+
+    user = User.query.filter_by(email='demo@startwithai.local').first()
+    if user and user.check_password('demo'):
+        login_user(user, remember=False)
+        log_auth_event(user.id, 'login_demo')
+        flash('Welcome to the demo! Explore freely.', 'success')
+        return redirect(url_for('dashboard.index'))
+
+    flash('Demo account not found. Please restart the app.', 'error')
+    return redirect(url_for('auth.login'))
+
 
 @auth_bp.route('/account')
 @login_required

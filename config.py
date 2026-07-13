@@ -102,6 +102,15 @@ class Config:
 
     AUTH0_AUDIENCE = os.environ.get('AUTH0_AUDIENCE')
 
+    # 9b. DEMO MODE & AUTH0 DETECTION
+    DEMO_MODE = os.environ.get('DEMO_MODE', 'false').lower() == 'true'
+    AUTH0_CONFIGURED = bool(
+        AUTH0_DOMAIN
+        and AUTH0_CLIENT_ID
+        and AUTH0_CLIENT_SECRET
+        and AUTH0_DOMAIN != 'your-tenant.auth0.com'
+    )
+
     # 10. RATE LIMITING: Protection against brute force and abuse
     # Uses Redis if available, otherwise in-memory storage
     # Specific rate limits are defined in app/constants.py

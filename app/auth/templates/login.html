@@ -21,6 +21,23 @@
                 {% endif %}
                 {% endwith %}
 
+                {% if demo_mode %}
+                <form method="POST" action="{{ url_for('auth.demo_login') }}">
+                    <button type="submit" class="auth-provider-btn auth-demo-btn">
+                        <i class="bi bi-play-circle"></i>
+                        <span>
+                            Try Demo
+                            <small>No account needed</small>
+                        </span>
+                    </button>
+                </form>
+
+                <div class="auth-divider">
+                    <span>or sign in</span>
+                </div>
+                {% endif %}
+
+                {% if auth0_configured %}
                 <a href="{{ url_for('auth.auth0_login') }}" class="auth-provider-btn">
                     <i class="bi bi-shield-lock"></i>
                     <span>
@@ -32,6 +49,14 @@
                 <div class="auth-divider">
                     <span>or sign in with email</span>
                 </div>
+                {% endif %}
+
+                {% if not auth0_configured and not demo_mode %}
+                <div class="auth-alert auth-alert-warning">
+                    Auth0 is not configured. Set up Auth0 credentials in your <code>.env</code> file,
+                    or enable <code>DEMO_MODE=true</code> to try the app.
+                </div>
+                {% endif %}
 
                 <form method="POST" action="{{ url_for('auth.login') }}">
                     <div class="auth-field">
@@ -49,7 +74,9 @@
                             <input type="checkbox" name="remember" value="1">
                             <span>Remember me</span>
                         </label>
+                        {% if auth0_configured %}
                         <a href="#" class="auth-forgot-link">Forgot password?</a>
+                        {% endif %}
                     </div>
 
                     <button type="submit" class="auth-submit">Sign In</button>
@@ -57,8 +84,12 @@
             </div>
 
             <div class="auth-card-footer">
+                {% if auth0_configured %}
                 Don't have an account?
                 <a href="{{ url_for('auth.auth0_login') }}">Sign up with Auth0</a>
+                {% elif demo_mode %}
+                Use the demo button above to explore the app.
+                {% endif %}
             </div>
         </div>
 
