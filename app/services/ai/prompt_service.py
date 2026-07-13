@@ -45,7 +45,8 @@ import re
 import logging
 from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
-from app.services.ai.config import AIModel, AIProvider as AIProviderEnum
+from app.services.ai.config import AIModel, AIProvider as AIProviderEnum, get_ai_config
+from app.models.user_ai_preferences import UserAIPreference
 
 logger = logging.getLogger(__name__)
 
@@ -336,8 +337,6 @@ def resolve_model_provider(
     # Priority 1: User override (UserAIPreference table)
     # ------------------------------------------------------------------
     if user_id and prompt_category:
-        from app.models.user_ai_preferences import UserAIPreference
-
         pref = UserAIPreference.get_preference(user_id, prompt_category)
         if pref and pref.model_override:
             try:
@@ -376,6 +375,76 @@ def resolve_model_provider(
             logger.warning(f"Unknown provider in prompt metadata: {provider_str}")
 
     return model_enum, provider_enum
+
+
+# Display-friendly model names (model_id → label)
+_MODEL_DISPLAY_NAMES = {
+    'gemini-3-flash-preview': 'Gemini 3 Flash',
+    'gemini-3-pro-preview': 'Gemini 3 Pro',
+    'gemini-2.5-flash': 'Gemini 2.5 Flash',
+    'gemini-2.5-pro': 'Gemini 2.5 Pro',
+    'gemini-2.5-flash-lite': 'Gemini 2.5 Flash Lite',
+    'gemini-flash-latest': 'Gemini Flash (Latest)',
+    'gemini-pro-latest': 'Gemini Pro (Latest)',
+    'claude-sonnet-4-20250514': 'Claude Sonnet 4',
+    'claude-opus-4-20250514': 'Claude Opus 4',
+    'claude-3-5-haiku-20241022': 'Claude 3.5 Haiku',
+    'deepseek-chat': 'DeepSeek V3',
+    'deepseek-reasoner': 'DeepSeek R1',
+}
+
+
+def get_effective_model_display(
+    prompt_category: str,
+    user_id: Optional[int] = None,
+) -> str:
+    """
+    Return a display-friendly name for the model that will be used for
+    a given prompt category and user, following the priority chain.
+
+    Useful for showing "AI Model: Claude Sonnet 4" in templates without
+    hardcoding model names.
+
+    Priority:
+        1. User override (``UserAIPreference``)
+        2. YAML prompt config (first prompt in the category)
+        3. Environment default (``AIConfig.default_model``)
+
+    Args:
+        prompt_category: Prompt category, e.g. ``'portfolio'``, ``'screening'``.
+        user_id: Current user's ID (optional).
+
+    Returns:
+        Human-readable model name string.
+    """
+    # Priority 1: user override
+    if user_id:
+        pref = UserAIPreference.get_preference(user_id, prompt_category)
+        if pref and pref.model_override:
+            try:
+                model = AIModel.from_string(pref.model_override)
+                return _MODEL_DISPLAY_NAMES.get(model.model_id, model.model_id)
+            except (ValueError, KeyError):
+                pass
+
+    # Priority 2: YAML prompt metadata (use first prompt in category)
+    if prompt_category in prompt_service._cache:
+        prompts = list(prompt_service._cache[prompt_category].keys())
+        if prompts:
+            try:
+                info = prompt_service.get_prompt_info(prompt_category, prompts[0])
+                model_str = info.get('model')
+                if model_str:
+                    model = AIModel.from_string(model_str)
+                    return _MODEL_DISPLAY_NAMES.get(model.model_id, model.model_id)
+            except (ValueError, KeyError):
+                pass
+
+    # Priority 3: environment default
+    config = get_ai_config()
+    return _MODEL_DISPLAY_NAMES.get(
+        config.default_model.model_id, config.default_model.model_id,
+    )
 
 
 # ============================================================

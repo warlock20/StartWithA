@@ -19,7 +19,7 @@ Auth0 authentication routes for OAuth-based login
 Supports email/password via Auth0 Universal Login and social providers (Google, GitHub, etc.)
 """
 
-from flask import redirect, session, url_for, flash, current_app, request
+from flask import redirect, session, url_for, flash, current_app, request, abort
 from flask_login import login_user, logout_user, current_user
 from authlib.integrations.flask_client import OAuth
 from urllib.parse import urlencode
@@ -57,6 +57,10 @@ def auth0_login():
     if current_user.is_authenticated:
         flash('You are already logged in.', 'info')
         return redirect(url_for('dashboard.index'))
+
+    if not current_app.config.get('AUTH0_CONFIGURED'):
+        flash('Auth0 is not configured. Please use email/password login.', 'warning')
+        return redirect(url_for('auth.login'))
 
     # Generate and store state for CSRF protection
     state = secrets.token_urlsafe(32)
@@ -183,6 +187,11 @@ def auth0_logout():
 
     # Clear Flask session
     session.clear()
+
+    # Local-only logout when Auth0 is not configured
+    if not current_app.config.get('AUTH0_CONFIGURED'):
+        flash('You have been logged out.', 'success')
+        return redirect(url_for('auth.login'))
 
     # Build Auth0 logout URL
     params = {

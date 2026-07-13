@@ -50,6 +50,8 @@ cp .env.example .env
 
 Edit `.env` and fill in the Auth0 and AI keys (see [Environment Variables](#environment-variables) below).
 
+> **Want to skip Auth0 setup?** Set `DEMO_MODE=true` in your `.env` to get a one-click demo account — see [Quick Demo](#5-quick-demo-no-auth0-needed).
+
 > `DATABASE_URL` and `REDIS_URL` are set automatically by Docker Compose — any values in `.env` are overridden.
 
 ### 2. Start
@@ -88,7 +90,21 @@ docker compose down
 docker compose down -v
 ```
 
-### 5. Admin access
+### 5. Quick Demo (no Auth0 needed)
+
+To try the app without configuring Auth0, enable demo mode:
+
+1. In your `.env`, set:
+   ```
+   DEMO_MODE=true
+   ```
+2. Start the app: `docker compose up --build -d`
+3. Click **Try Demo** on the login page
+4. Demo credentials: `demo@startwithai.local` / `demo`
+
+> Demo mode seeds a local demo account on startup. It is **not** intended for production use.
+
+### 6. Admin access
 
 1. Register an account through the UI
 2. Ensure your email is listed in `ADMIN_EMAILS` in `.env`
@@ -140,9 +156,9 @@ Copy `.env.example` to `.env`. Docker Compose sets `DATABASE_URL` and `REDIS_URL
 | Variable | Description |
 |---|---|
 | `SECRET_KEY` | Flask session secret — any random string |
-| `AUTH0_DOMAIN` | Your Auth0 tenant domain (e.g. `your-tenant.auth0.com`) |
-| `AUTH0_CLIENT_ID` | Auth0 application client ID |
-| `AUTH0_CLIENT_SECRET` | Auth0 application client secret |
+| `AUTH0_DOMAIN` | Your Auth0 tenant domain (e.g. `your-tenant.auth0.com`) — not required if `DEMO_MODE=true` |
+| `AUTH0_CLIENT_ID` | Auth0 application client ID — not required if `DEMO_MODE=true` |
+| `AUTH0_CLIENT_SECRET` | Auth0 application client secret — not required if `DEMO_MODE=true` |
 | `AUTH0_CALLBACK_URL` | OAuth callback URL (`http://localhost:8000/auth/callback` for Docker) |
 | `AUTH0_AUDIENCE` | Auth0 API audience (usually `https://<domain>/userinfo`) |
 | `GEMINI_API_KEY` | Google Gemini API key — at least one AI provider is needed |
@@ -151,6 +167,7 @@ Copy `.env.example` to `.env`. Docker Compose sets `DATABASE_URL` and `REDIS_URL
 
 | Variable | Description | Default |
 |---|---|---|
+| `DEMO_MODE` | Enable demo mode with a seeded demo account | `false` |
 | `OPENAI_API_KEY` | OpenAI API key (alternative AI provider) | — |
 | `ANTHROPIC_API_KEY` | Anthropic API key (alternative AI provider) | — |
 | `NEWS_API_KEY` | [NewsAPI](https://newsapi.org/) key for market news | — |

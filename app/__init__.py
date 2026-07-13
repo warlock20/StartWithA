@@ -93,9 +93,12 @@ def create_app(config_class=Config):
     from app.auth import auth_bp
     app.register_blueprint(auth_bp)
 
-    # Initialize Auth0 AFTER blueprint is registered
-    from app.auth.auth0_routes import init_auth0
-    init_auth0(app) 
+    # Initialize Auth0 AFTER blueprint is registered (skip if not configured)
+    if app.config.get('AUTH0_CONFIGURED'):
+        from app.auth.auth0_routes import init_auth0
+        init_auth0(app)
+    else:
+        app.logger.info("Auth0 not configured — skipping OAuth registration")
     from app.checklists import checklists_bp 
     app.register_blueprint(checklists_bp) 
     from app.companies import companies_bp 
@@ -127,13 +130,33 @@ def create_app(config_class=Config):
     from app.settings.ai_model_routes import ai_model_bp
     app.register_blueprint(ai_model_bp)
 
-    # Auto-seed market sweeps from data/market-sweeps/ if any files present
+    # ── Auto-seed on startup ────────────────────────────────────────
+    from app.services.market_sweep_service import seed_market_sweeps
+    from app.models.user import User
+
     with app.app_context():
         try:
-            from app.services.market_sweep_service import seed_market_sweeps
             seed_market_sweeps()
         except Exception as e:
             app.logger.warning("Market sweep auto-seed skipped: %s", e)
+
+        if app.config.get('DEMO_MODE'):
+            try:
+                demo_user = User.query.filter_by(email='demo@startwithai.local').first()
+                if not demo_user:
+                    demo_user = User(
+                        username='demo',
+                        email='demo@startwithai.local',
+                        name='Demo User',
+                        auth_provider='local',
+                        subscription_tier=app.config.get('DEFAULT_USER_TIER', 'amateur'),
+                    )
+                    demo_user.set_password('demo')
+                    db.session.add(demo_user)
+                    db.session.commit()
+                    app.logger.info("Demo user seeded (demo@startwithai.local / demo)")
+            except Exception as e:
+                app.logger.warning("Demo user seed skipped: %s", e)
 
     # Add custom template filters
     @app.template_filter('nl2br')
@@ -178,6 +201,14 @@ def create_app(config_class=Config):
         return dict(
             APP_NAME=app.config['APP_NAME'],
             APP_TAGLINE=app.config.get('APP_TAGLINE', ''),
+        )
+
+    @app.context_processor
+    def inject_auth_config():
+        """Expose auth configuration flags to all templates."""
+        return dict(
+            auth0_configured=app.config.get('AUTH0_CONFIGURED', False),
+            demo_mode=app.config.get('DEMO_MODE', False),
         )
 
     @app.context_processor
