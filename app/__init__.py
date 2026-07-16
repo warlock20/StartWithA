@@ -18,7 +18,7 @@
 import logging
 
 from flask import Flask, g, session, render_template, request, jsonify
-from sqlalchemy import inspect as sa_inspect
+from sqlalchemy import inspect as sa_inspect, text as sa_text
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, current_user
@@ -144,11 +144,23 @@ def create_app(config_class=Config):
             try:
                 # Registering every model must stay lazy: app.models does
                 # `from app import db`, so a top-level import would be circular.
-                import app.models  # noqa: F401 — populate the metadata for create_all
+                # Use importlib rather than `import app.models`: the plain import
+                # statement would rebind the local `app` name to the package and
+                # shadow the Flask instance, breaking `app.logger` (and every other
+                # `app.*` use) below.
+                import importlib
+                importlib.import_module('app.models')  # populate metadata for create_all
                 if not sa_inspect(db.engine).has_table(User.__tablename__):
+                    # create_all bypasses migrations, so the pgvector extension the
+                    # embedding table's Vector column depends on hasn't been created
+                    # yet. Enable it first (Postgres only; SQLite has no extension).
+                    if db.engine.dialect.name == 'postgresql':
+                        db.session.execute(sa_text('CREATE EXTENSION IF NOT EXISTS vector'))
+                        db.session.commit()
                     db.create_all()
                     app.logger.info("Demo mode: initialized database schema (fresh setup)")
             except Exception as e:
+                db.session.rollback()
                 app.logger.warning("Demo schema bootstrap skipped: %s", e)
 
         try:
