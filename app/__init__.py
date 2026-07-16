@@ -18,6 +18,7 @@
 import logging
 
 from flask import Flask, g, session, render_template, request, jsonify
+from sqlalchemy import inspect as sa_inspect
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, current_user
@@ -135,6 +136,21 @@ def create_app(config_class=Config):
     from app.models.user import User
 
     with app.app_context():
+        # Demo mode should work on a fresh clone without a manual `flask db upgrade`.
+        # Self-bootstrap the schema so the seeds below (and /demo-login) don't hit a
+        # missing `user` table and 500. Idempotent + guarded by DEMO_MODE, so
+        # migrated/production databases are untouched.
+        if app.config.get('DEMO_MODE'):
+            try:
+                # Registering every model must stay lazy: app.models does
+                # `from app import db`, so a top-level import would be circular.
+                import app.models  # noqa: F401 — populate the metadata for create_all
+                if not sa_inspect(db.engine).has_table(User.__tablename__):
+                    db.create_all()
+                    app.logger.info("Demo mode: initialized database schema (fresh setup)")
+            except Exception as e:
+                app.logger.warning("Demo schema bootstrap skipped: %s", e)
+
         try:
             seed_market_sweeps()
         except Exception as e:
