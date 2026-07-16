@@ -1,10 +1,14 @@
 #!/bin/bash
 set -e
 
-echo "Running database setup..."
+# Run one-time DB setup only in the web/app container, not in the Celery worker,
+# so two containers don't migrate the same database concurrently. The worker
+# starts with `celery ...`, the web container with `gunicorn ...`.
+if [ "$1" != "celery" ]; then
+    echo "Running database setup..."
 
-# If alembic_version is empty/missing, stamp at head so future migrations work.
-python -c "
+    # If alembic_version is empty/missing, stamp at head so future migrations work.
+    python -c "
 from run import app
 from sqlalchemy import text
 with app.app_context():
@@ -20,15 +24,16 @@ with app.app_context():
         except Exception:
             print('NEEDS_STAMP')
 " 2>&1 | grep -q "NEEDS_STAMP" && {
-    echo "No alembic version found. Stamping at head..."
-    flask db stamp head
-}
+        echo "No alembic version found. Stamping at head..."
+        flask db stamp head
+    }
 
-echo "Running migrations..."
-flask db upgrade
+    echo "Running migrations..."
+    flask db upgrade
+fi
 
-echo "Starting Celery worker..."
-celery -A celery_app worker --loglevel=info --concurrency=1 &
-
-echo "Starting application..."
-exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 --preload run:app
+# Run whatever command the service declared:
+#   web    -> gunicorn (Dockerfile CMD)
+#   worker -> celery ... (docker-compose command)
+echo "Starting: $*"
+exec "$@"
