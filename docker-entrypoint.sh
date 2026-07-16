@@ -35,5 +35,15 @@ fi
 # Run whatever command the service declared:
 #   web    -> gunicorn (Dockerfile CMD)
 #   worker -> celery ... (docker-compose command)
+#
+# Fall back to the web command if invoked with no arguments. This happens when a
+# platform (e.g. a Railway dashboard "Custom Start Command") overrides Docker's
+# CMD with just `./docker-entrypoint.sh` and passes nothing through — without
+# this guard `exec "$@"` would exec nothing and the container would exit.
+if [ "$#" -eq 0 ]; then
+    set -- gunicorn --bind "0.0.0.0:${PORT:-8000}" --workers 2 --threads 4 \
+        --worker-class gthread --timeout 120 --keep-alive 5 --preload run:app
+fi
+
 echo "Starting: $*"
 exec "$@"
