@@ -36,12 +36,22 @@
 }
 
 .topbar-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
     color: var(--text-white);
     font-weight: 700;
     font-size: var(--font-size-sm);
     text-decoration: none;
     white-space: nowrap;
     margin-right: var(--space-lg);
+}
+
+.topbar-brand-icon {
+    width: 26px;
+    height: 26px;
+    display: block;
+    flex-shrink: 0;
 }
 
 .topbar-brand:hover {

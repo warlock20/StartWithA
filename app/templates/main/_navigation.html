@@ -14,10 +14,12 @@
     {# Brand #}
     {% if current_user.is_authenticated %}
     <a class="topbar-brand" href="{{ url_for('dashboard.index') }}">
+        <img class="topbar-brand-icon" src="{{ url_for('static', filename='img/logo-icon.png') }}" alt="" width="26" height="26">
         <span class="topbar-brand-text">{{ APP_NAME }}</span>
     </a>
     {% else %}
     <a class="topbar-brand" href="{{ url_for('main.index') }}">
+        <img class="topbar-brand-icon" src="{{ url_for('static', filename='img/logo-icon.png') }}" alt="" width="26" height="26">
         <span class="topbar-brand-text">{{ APP_NAME }}</span>
     </a>
     {% endif %}
