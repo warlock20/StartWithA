@@ -29,6 +29,14 @@
     margin-bottom: 2rem;
 }
 
+.auth-brand-logo {
+    display: block;
+    width: auto;
+    height: 56px;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
 .auth-brand-name {
     display: block;
     font-size: 1.5rem;
