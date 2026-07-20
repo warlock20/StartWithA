@@ -249,7 +249,19 @@ def edit_entry(entry_id):
        entry.company_id = int(company_id) if company_id else None
 
        # Update tags
-       entry.tags = extract_tags_from_content(entry.content)
+       auto_tags = extract_tags_from_content(entry.content)
+
+       # Parse hashtags
+       hashtags_str = request.form.get('hashtags', '').strip()
+       hashtags = []
+       if hashtags_str:
+           # Split by spaces and commas, remove # prefix (store without #)
+           raw_tags = hashtags_str.replace(',', ' ').split()
+           hashtags = [tag.lstrip('#') for tag in raw_tags if tag.strip()]
+
+       # Merge auto-extracted tags with user-provided hashtags (all without # prefix)
+       all_tags = auto_tags + hashtags
+       entry.tags = list(set(tag.lstrip('#') for tag in all_tags))
 
        # Update action items and questions
        action_items = request.form.get('action_items', '').split('\n')

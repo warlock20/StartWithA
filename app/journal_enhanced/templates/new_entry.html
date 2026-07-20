@@ -177,13 +177,18 @@
 <script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
 <script>
     // Initialize Hashtag Autocomplete React island
-    if (window.initHashtagAutocomplete) {
-        window.initHashtagAutocomplete('hashtag-autocomplete-mount', {
-            name: 'hashtags',
-            placeholder: 'e.g., #accountingtips #cfaprep #financialratios',
-            className: 'form-control'
-        });
-    }
+    // Deferred bundles execute after parsing but before DOMContentLoaded,
+    // so the init must wait for that event or window.initHashtagAutocomplete
+    // is still undefined and the island silently never mounts.
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.initHashtagAutocomplete) {
+            window.initHashtagAutocomplete('hashtag-autocomplete-mount', {
+                name: 'hashtags',
+                placeholder: 'e.g., #accountingtips #cfaprep #financialratios',
+                className: 'form-control'
+            });
+        }
+    });
 
     // Initialize BlockNote Editor
     let journalEditorInstance = null;

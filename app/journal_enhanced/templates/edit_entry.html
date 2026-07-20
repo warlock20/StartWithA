@@ -4,6 +4,8 @@
 {{ super() }}
 <!-- BlockNote Editor -->
 {% include 'components/blocknote_editor_include.html' %}
+<!-- Hashtag Autocomplete -->
+<script defer src="{{ url_for('static', filename='js/dist/hashtag-autocomplete.bundle.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -82,6 +84,13 @@
                         </label>
                         <div id="journalContentEditor" class="blocknote-form-editor"></div>
                         <input type="hidden" id="content" name="content" required>
+                    </div>
+
+                    <!-- Hashtags -->
+                    <div class="mb-3">
+                        <label class="form-label">Hashtags</label>
+                        <div id="hashtag-autocomplete-mount"></div>
+                        <small class="text-muted">Enter hashtags with # for easy searching</small>
                     </div>
 
                     <!-- Advanced Fields (for Observation type) -->
@@ -199,6 +208,21 @@
 {{ super() }}
 <script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
 <script>
+    // Initialize Hashtag Autocomplete React island.
+    // Must wait for DOMContentLoaded — the bundle is deferred, so it has not
+    // executed yet while this inline script runs.
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.initHashtagAutocomplete) {
+            window.initHashtagAutocomplete('hashtag-autocomplete-mount', {
+                name: 'hashtags',
+                // Tags are stored without the leading '#'; re-add it for display.
+                initialValue: {{ ('#' ~ (entry.tags | join(' #')) if entry.tags else '') | tojson | safe }},
+                placeholder: 'e.g., #accountingtips #cfaprep #financialratios',
+                className: 'form-control'
+            });
+        }
+    });
+
     // Initialize BlockNote Editor with existing content
     let journalEditorInstance = null;
 
