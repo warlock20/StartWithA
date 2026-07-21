@@ -74,6 +74,17 @@ class PortfolioImporter:
         if ticker in self.company_cache:
             return self.company_cache[ticker]
 
+        # The cache is loaded once when the importer is constructed, so it goes
+        # stale if anything else creates a company meanwhile. Falling straight
+        # through to a create in that case is how duplicate companies appeared.
+        existing = Company.query.filter(
+            Company.user_id == self.user.id,
+            db.func.upper(Company.ticker_symbol) == ticker
+        ).first()
+        if existing:
+            self.company_cache[ticker] = existing.id
+            return existing.id
+
         # Try to fetch company info from financial data service
         company_name = None
         industry = None
