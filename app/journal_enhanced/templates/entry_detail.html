@@ -669,7 +669,7 @@
             })
                 .then(response => {
                     if (response.ok) {
-                        window.location.href = "{{ url_for('journal_enhanced.knowledge_hub', view='research') }}";
+                        window.location.href = "{{ url_for('journal_enhanced.knowledge_hub', type='research') }}";
                     }
                 });
         }

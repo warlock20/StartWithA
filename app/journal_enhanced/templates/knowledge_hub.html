@@ -26,10 +26,12 @@
                 </div>
             </form>
             <div class="cc-new-actions">
-                <a href="{{ url_for('journal_enhanced.new_entry') }}" class="btn btn-platform-primary btn-platform-sm cc-btn-new">
+                {# Carry the active filter into the form so the matching category is preselected #}
+                <a href="{{ url_for('journal_enhanced.new_entry', category=content_type if content_type in ['research', 'wisdom', 'mistake'] else 'research') }}"
+                   class="btn btn-platform-primary btn-platform-sm cc-btn-new">
                     <i class="bi bi-journal-plus"></i> <span class="cc-btn-label">New Entry</span>
                 </a>
-                <a href="{{ url_for('learning.new_mistake') }}" class="btn btn-platform-outline btn-platform-sm cc-btn-new">
+                <a href="{{ url_for('journal_enhanced.new_entry', category='mistake') }}" class="btn btn-platform-outline btn-platform-sm cc-btn-new">
                     <i class="bi bi-exclamation-triangle"></i> <span class="cc-btn-label">Log Mistake</span>
                 </a>
             </div>
