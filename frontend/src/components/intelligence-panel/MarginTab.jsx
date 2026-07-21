@@ -9,10 +9,14 @@ export function MarginTab({ companyData, growthRate, onGrowthRateChange, price, 
   const eps = companyData?.eps_ttm;
   const ticker = companyData?.ticker;
 
-  const result = useMemo(
+  const rawResult = useMemo(
     () => (eps && price ? calcMarginOfSafety(eps, growthRate, price) : null),
     [eps, growthRate, price],
   );
+
+  // Graham's formula does not apply to a loss-making company
+  const notApplicable = Boolean(rawResult?.notApplicable);
+  const result = notApplicable ? null : rawResult;
 
   // Gauge defaults
   let gaugeWidth = '50%';
@@ -90,7 +94,31 @@ export function MarginTab({ companyData, growthRate, onGrowthRateChange, price, 
           <span>0%</span><span>25%</span><span>50%</span>
         </div>
 
-        {(!eps || !price) ? (
+        {notApplicable ? (
+          <div style={{ marginTop: '1rem' }}>
+            <div className="intel-warn-item intel-warn--high">
+              <i className="bi bi-exclamation-triangle-fill" />
+              <div>
+                <strong>No margin of safety — {ticker || 'this company'} is losing money</strong>
+                <p>
+                  Trailing earnings are {currencySymbol}{Math.abs(rawResult.eps).toFixed(2)} per
+                  share negative, so Graham’s formula cannot produce a fair value. At{' '}
+                  {currencySymbol}{rawResult.currentPrice.toFixed(2)} you are paying for a
+                  turnaround, not for earnings — there is no earnings-based floor under
+                  this price.
+                </p>
+              </div>
+            </div>
+            <div className="calc-insight" style={{ marginTop: '0.75rem' }}>
+              <i className="bi bi-lightbulb-fill" />
+              <span>
+                Graham’s formula applies only to profitable companies. Value an
+                unprofitable one on assets, cash runway, or a credible path to
+                profit instead.
+              </span>
+            </div>
+          </div>
+        ) : (!eps || !price) ? (
           <div className="calc-summary">
             <div className="calc-empty">
               {!eps
