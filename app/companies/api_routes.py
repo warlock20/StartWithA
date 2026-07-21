@@ -24,6 +24,7 @@ from app.services.sector_service import SectorService
 from app.services.financial_data import FinancialDataService
 from app.companies import companies_bp
 from app.utils.ticker_validator import TickerValidator
+from app.utils.company_identity import company_identity_key
 from app.services.currency_service import CurrencyService
 from app.utils.response_utils import json_error, json_not_found
 from app.utils.time_utils import now_utc
@@ -39,6 +40,18 @@ def get_financial_service():
     if _financial_service is None:
         _financial_service = FinancialDataService()
     return _financial_service
+
+def _serialize_user_company(company):
+    """Shape a Company the user owns for the search response."""
+    return {
+        'id': company.id,
+        'name': company.name,
+        'ticker_symbol': company.ticker_symbol,
+        'industry': company.industry,
+        'sector': company.sector.display_name if company.sector else None,
+        'source': 'existing'
+    }
+
 
 @companies_bp.route('/api/companies/search')
 @login_required
@@ -70,34 +83,56 @@ def api_search_companies():
         db.or_(*search_conditions)
     ).order_by(Company.name).limit(10).all()
 
-    user_company_data = []
-    for company in user_companies:
-        user_company_data.append({
-            'id': company.id,
-            'name': company.name,
-            'ticker_symbol': company.ticker_symbol,
-            'industry': company.industry,
-            'sector': company.sector.display_name if company.sector else None,
-            'source': 'existing'
-        })
+    user_company_data = [_serialize_user_company(c) for c in user_companies]
+    listed_company_ids = {c['id'] for c in user_company_data}
+
+    # Identity of every company the user already owns. The ticker saved on the
+    # company is the user's own choice of exchange, so a provider listing of the
+    # same company under any other ticker is a duplicate, not a new company.
+    owned_rows = db.session.query(
+        Company.id, Company.name, Company.ticker_symbol
+    ).filter(Company.user_id == current_user.id).all()
+
+    owned_company_ids = {}
+    for company_id, name, ticker in owned_rows:
+        owned_company_ids.setdefault(company_identity_key(name, ticker), company_id)
+
+    def claim_owned_company(identity):
+        """
+        Resolve a provider listing against the user's own companies.
+
+        Returns True when the company is already owned, in which case it is
+        surfaced under the user's saved ticker rather than offered again. A
+        user who saved Microsoft as MSF.F and then searches "MSFT" must still
+        see their own holding, otherwise the UI offers to create a duplicate.
+        """
+        company_id = owned_company_ids.get(identity)
+        if company_id is None:
+            return False
+
+        if company_id not in listed_company_ids:
+            listed_company_ids.add(company_id)
+            user_company_data.append(
+                _serialize_user_company(db.session.get(Company, company_id))
+            )
+        return True
 
     # Try financial data service lookup - both by ticker AND by company name
     yahoo_suggestions = []
+    suggested_identities = set()
     service = get_financial_service()
 
     # 1. If query is a valid ticker, look it up directly
     if normalized_ticker:
         try:
-            # Check if this ticker already exists for the user
-            existing = Company.query.filter_by(
-                ticker_symbol=normalized_ticker,
-                user_id=current_user.id
-            ).first()
+            info = service.get_ticker_info(normalized_ticker)
 
-            if not existing:
-                info = service.get_ticker_info(normalized_ticker)
+            if info and info.get('name'):
+                identity = company_identity_key(info.get('name'), normalized_ticker)
 
-                if info and info.get('name'):
+                # Skip if the user already owns this company, under any ticker
+                if not claim_owned_company(identity):
+                    suggested_identities.add(identity)
                     yahoo_suggestions.append({
                         'ticker_symbol': normalized_ticker,
                         'name': info.get('name'),
@@ -113,29 +148,26 @@ def api_search_companies():
     # 2. Search by company name (if not a ticker or no results from ticker search)
     if len(query) >= 3 and len(yahoo_suggestions) == 0:
         try:
-            search_results = service.search_companies(query, max_results=5)
+            # The service already collapses cross-listings to one row per company
+            search_results = service.search_companies(query, max_results=3)
 
-            for result in search_results[:3]:
+            for result in search_results:
                 ticker_symbol = result.get('ticker_symbol')
+                name = result.get('name') or ticker_symbol
 
-                if not ticker_symbol:
+                identity = company_identity_key(name, ticker_symbol)
+                if identity in suggested_identities or claim_owned_company(identity):
                     continue
 
-                # Skip if user already has this company
-                existing = Company.query.filter_by(
-                    ticker_symbol=ticker_symbol,
-                    user_id=current_user.id
-                ).first()
-
-                if not existing:
-                    yahoo_suggestions.append({
-                        'ticker_symbol': ticker_symbol,
-                        'name': result.get('name') or ticker_symbol,
-                        'industry': result.get('industry') or '',
-                        'sector': result.get('sector') or '',
-                        'summary': '',
-                        'source': 'financial_data_service'
-                    })
+                suggested_identities.add(identity)
+                yahoo_suggestions.append({
+                    'ticker_symbol': ticker_symbol,
+                    'name': name,
+                    'industry': result.get('industry') or '',
+                    'sector': result.get('sector') or '',
+                    'summary': '',
+                    'source': 'financial_data_service'
+                })
         except Exception as e:
             logger.debug(f'Company search failed: {e}')
             pass

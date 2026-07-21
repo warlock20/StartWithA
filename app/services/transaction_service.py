@@ -201,6 +201,20 @@ class TransactionService:
                     error_message=f'Cannot sell {quantity} shares. You only own {owned_shares} shares of {company.ticker_symbol}'
                 )
 
+        # A dividend can only come from a company the user has held. The form
+        # hides the others, but that is client-side only.
+        if transaction_type == 'DIVIDEND':
+            position = PortfolioPosition.query.filter_by(
+                user_id=user_id,
+                company_id=company_id
+            ).first()
+
+            if not position:
+                return TransactionValidationResult(
+                    is_valid=False,
+                    error_message=f'Cannot record a dividend for {company.ticker_symbol}. You have never held shares in it'
+                )
+
         return TransactionValidationResult(is_valid=True)
 
     @staticmethod

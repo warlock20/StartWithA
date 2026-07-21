@@ -175,6 +175,11 @@ class FinancialDataProvider(ABC):
             query: Search query (company name or partial ticker)
             max_results: Maximum number of results to return
 
+        Returns raw provider results, which routinely include several listings
+        of the same company (cross-listings, depositary receipts) as well as
+        non-equity instruments. Callers should use
+        FinancialDataService.search_companies, which collapses these.
+
         Returns:
             List of company info dicts, each containing:
             - ticker_symbol: Stock ticker
@@ -182,6 +187,8 @@ class FinancialDataProvider(ABC):
             - exchange: Exchange name (optional)
             - sector: Sector (optional)
             - industry: Industry (optional)
+            - quote_type: Instrument type, e.g. 'EQUITY', 'ETF' (optional)
+            - score: Provider relevance score, higher is better (optional)
         """
         pass
 
