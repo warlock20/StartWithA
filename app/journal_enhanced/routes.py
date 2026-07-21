@@ -46,11 +46,148 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+def _build_wisdom_entry():
+    """Build a LearningNote from the unified new-entry form.
+
+    Adds the note to the session and returns None, or returns an error
+    string if validation fails. Wisdom entries are structured rather than
+    tagged, so no hashtag parsing happens here.
+    """
+    title = request.form.get('title')
+    lesson = request.form.get('lesson')
+
+    if not title or not lesson:
+        return 'Title and lesson are required for a Wisdom entry'
+
+    # LearningNote.category is its own sub-category, distinct from the
+    # top-level entry_category selector on the form.
+    note_category = request.form.get('note_category')
+    if note_category == 'custom':
+        custom_category = request.form.get('custom_note_category', '').strip()
+        note_category = custom_category if custom_category else 'other'
+
+    examples = request.form.get('examples', '').split('\n')
+    examples = [ex.strip() for ex in examples if ex.strip()]
+
+    topic_tags_str = request.form.get('topic_tags', '')
+    topic_tags = [tag.strip() for tag in topic_tags_str.split(',') if tag.strip()] if topic_tags_str else None
+
+    # Investor attribution doubles as the investor tag
+    source_author = request.form.get('source_author')
+    investor_tags = [source_author] if source_author else None
+
+    source_date_str = request.form.get('source_date')
+    source_date = parse_date_to_date_object(source_date_str) if source_date_str else None
+
+    company_id = request.form.get('company_id', type=int)
+
+    note = LearningNote(
+        author=current_user,
+        title=title,
+        lesson=lesson,
+        category=note_category,
+        knowledge_type=request.form.get('knowledge_type'),
+        context=request.form.get('context'),
+        how_to_apply=request.form.get('how_to_apply'),
+        importance=request.form.get('importance', type=int) or 5,
+        examples=examples if examples else None,
+        company_id=company_id if company_id else None,
+        source_type=request.form.get('source_type'),
+        source_detail=request.form.get('source_detail'),
+        source_url=request.form.get('source_url'),
+        source_author=source_author,
+        source_date=source_date,
+        topic_tags=topic_tags,
+        investor_tags=investor_tags,
+    )
+    db.session.add(note)
+    return None
+
+
+def _build_mistake_entry():
+    """Build a MistakeLog (plus its companion LearningNote) from the form.
+
+    Adds both records to the session and returns None, or returns an error
+    string if validation fails.
+    """
+    title = request.form.get('title')
+    description = request.form.get('description')
+    lesson_learned = request.form.get('lesson_learned')
+
+    if not title or not description or not lesson_learned:
+        return 'Title, description, and lesson are required for a Mistake entry'
+
+    contributing_factors = request.form.get('contributing_factors', '').split('\n')
+    contributing_factors = [f.strip() for f in contributing_factors if f.strip()]
+
+    prevention_steps = request.form.get('prevention_steps', '').split('\n')
+    prevention_steps = [s.strip() for s in prevention_steps if s.strip()]
+
+    severity = request.form.get('severity', type=int) or 5
+    company_id = request.form.get('company_id', type=int)
+
+    mistake = MistakeLog(
+        user=current_user,
+        title=title,
+        description=description,
+        mistake_type=request.form.get('mistake_type'),
+        severity=severity,
+        cost_estimate=request.form.get('cost_estimate', type=float),
+        company_id=company_id if company_id else None,
+        root_cause=request.form.get('root_cause'),
+        contributing_factors=contributing_factors,
+        lesson_learned=lesson_learned,
+        prevention_steps=prevention_steps,
+        process_changes=request.form.get('process_changes'),
+        occurred_date=parse_date_to_date_object(request.form.get('occurred_date'))
+    )
+    db.session.add(mistake)
+
+    # Mirror the mistake into the wisdom library so lessons surface there too
+    db.session.add(LearningNote(
+        author=current_user,
+        title=f"Mistake: {title}",
+        lesson=lesson_learned,
+        category='mistake',
+        context=description,
+        how_to_apply='; '.join(prevention_steps) if prevention_steps else None,
+        company_id=company_id if company_id else None,
+        source_type='experience',
+        importance=severity,
+    ))
+    return None
+
+
 @journal_enhanced_bp.route('/entry/new', methods=['GET', 'POST'])
 @login_required
 def new_entry():
-    """Create a new journal entry"""
+    """Create a new knowledge entry.
+
+    One form, three destinations selected by entry_category:
+      research -> JournalEntry   (freeform, hashtag-driven)
+      wisdom   -> LearningNote   (structured lesson)
+      mistake  -> MistakeLog     (+ companion LearningNote)
+    """
     if request.method == 'POST':
+        entry_category = request.form.get('entry_category', 'research')
+
+        if entry_category in ('wisdom', 'mistake'):
+            error = _build_wisdom_entry() if entry_category == 'wisdom' else _build_mistake_entry()
+            if error:
+                flash(error, 'error')
+                return redirect(url_for('journal_enhanced.new_entry'))
+            try:
+                db.session.commit()
+                flash('Entry created successfully!', 'success')
+                return_url = request.form.get('return_url') or url_for(
+                    'journal_enhanced.knowledge_hub', type=entry_category)
+                return redirect(return_url)
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error creating entry: {str(e)}', 'error')
+                return redirect(url_for('journal_enhanced.new_entry'))
+
         title = request.form.get('title')
 
         # Handle custom entry type
@@ -61,7 +198,8 @@ def new_entry():
 
         content = request.form.get('content')
         key_insight = request.form.get('key_insight')
-        sentiment = request.form.get('sentiment')
+        # The select's placeholder option posts '', which should store as NULL
+        sentiment = request.form.get('sentiment') or None
         conviction = request.form.get('conviction', type=int)
         company_id = request.form.get('company_id', type=int)
 
@@ -160,7 +298,7 @@ def new_entry():
                 )
 
             flash('Journal entry created successfully!', 'success')
-            return_url = request.form.get('return_url') or url_for('journal_enhanced.knowledge_hub', view='research')
+            return_url = request.form.get('return_url') or url_for('journal_enhanced.knowledge_hub', type='research')
             return redirect(return_url)
             
         except Exception as e:
@@ -192,6 +330,11 @@ def new_entry():
 
     return_url = request.args.get('return_url')
 
+    # Allow deep-linking straight into a category, e.g. ?category=wisdom
+    preset_category = request.args.get('category', 'research')
+    if preset_category not in ('research', 'wisdom', 'mistake'):
+        preset_category = 'research'
+
     return render_template('new_entry.html',
                           title="New Journal Entry",
                           templates=templates,
@@ -199,6 +342,7 @@ def new_entry():
                           selected_template=selected_template,
                           preset_company_id=company_id,
                           preset_company=preset_company,
+                          preset_category=preset_category,
                           return_url=return_url)
 
 @journal_enhanced_bp.route('/entry/<int:entry_id>')
@@ -209,7 +353,7 @@ def entry_detail(entry_id):
     
     if entry.user_id != current_user.id:
         flash('Access denied', 'error')
-        return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
+        return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
 
     # Don't automatically mark as reviewed - let user control this manually
     
@@ -233,7 +377,7 @@ def edit_entry(entry_id):
 
    if entry.user_id != current_user.id:
        flash('Access denied', 'error')
-       return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
+       return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
 
    if request.method == 'POST':
        entry.title = request.form.get('title')
@@ -249,7 +393,19 @@ def edit_entry(entry_id):
        entry.company_id = int(company_id) if company_id else None
 
        # Update tags
-       entry.tags = extract_tags_from_content(entry.content)
+       auto_tags = extract_tags_from_content(entry.content)
+
+       # Parse hashtags
+       hashtags_str = request.form.get('hashtags', '').strip()
+       hashtags = []
+       if hashtags_str:
+           # Split by spaces and commas, remove # prefix (store without #)
+           raw_tags = hashtags_str.replace(',', ' ').split()
+           hashtags = [tag.lstrip('#') for tag in raw_tags if tag.strip()]
+
+       # Merge auto-extracted tags with user-provided hashtags (all without # prefix)
+       all_tags = auto_tags + hashtags
+       entry.tags = list(set(tag.lstrip('#') for tag in all_tags))
 
        # Update action items and questions
        action_items = request.form.get('action_items', '').split('\n')
@@ -301,7 +457,7 @@ def archive_entry(entry_id):
 
    if entry.user_id != current_user.id:
        flash('Access denied', 'error')
-       return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
+       return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
 
    entry.is_archived = True
    
@@ -312,7 +468,7 @@ def archive_entry(entry_id):
        db.session.rollback()
        flash(f'Error archiving entry: {str(e)}', 'error')
 
-   return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
+   return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
 
 @journal_enhanced_bp.route('/thesis-evolution/<int:company_id>')
 @login_required
@@ -516,7 +672,7 @@ def new_learning_note():
        try:
            db.session.commit()
            flash('Learning note created!', 'success')
-           return redirect(url_for('journal_enhanced.knowledge_hub', view='wisdom'))
+           return redirect(url_for('journal_enhanced.knowledge_hub', type='wisdom'))
        except Exception as e:
            db.session.rollback()
            flash(f'Error creating note: {str(e)}', 'error')
@@ -535,7 +691,7 @@ def learning_note_detail(note_id):
 
    if note.user_id != current_user.id:
        flash('Access denied', 'error')
-       return redirect(url_for('journal_enhanced.knowledge_hub', view='wisdom'))
+       return redirect(url_for('journal_enhanced.knowledge_hub', type='wisdom'))
 
    # Auto-track review: Update last_reviewed when user views the insight
    note.last_reviewed = now_utc()
@@ -594,7 +750,7 @@ def edit_learning_note(note_id):
 
    if note.user_id != current_user.id:
        flash('Access denied', 'error')
-       return redirect(url_for('journal_enhanced.knowledge_hub', view='wisdom'))
+       return redirect(url_for('journal_enhanced.knowledge_hub', type='wisdom'))
 
    if request.method == 'POST':
        note.title = request.form.get('title')
@@ -634,7 +790,7 @@ def edit_learning_note(note_id):
        try:
            db.session.commit()
            flash('Learning note updated!', 'success')
-           return redirect(url_for('journal_enhanced.knowledge_hub', view='wisdom'))
+           return redirect(url_for('journal_enhanced.knowledge_hub', type='wisdom'))
        except Exception as e:
            db.session.rollback()
            flash(f'Error updating note: {str(e)}', 'error')
@@ -873,7 +1029,7 @@ def export_journal():
    
    # Could add CSV, Markdown, or other formats
    flash('Export format not supported', 'error')
-   return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
+   return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
 
 @journal_enhanced_bp.route('/attachment/<int:attachment_id>')
 @login_required
@@ -968,7 +1124,7 @@ def delete_entry(entry_id):
         db.session.commit()
 
         flash('Journal entry deleted successfully', 'success')
-        return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
+        return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
 
     except Exception as e:
         db.session.rollback()

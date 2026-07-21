@@ -28,9 +28,35 @@
                     {% if return_url %}
                     <input type="hidden" name="return_url" value="{{ return_url }}">
                     {% endif %}
+
+                    <!-- Category Selector: picks which record type gets created -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Category</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="entry_category" id="cat_research"
+                                   value="research" {% if preset_category != 'wisdom' and preset_category != 'mistake' %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="cat_research">
+                                <i class="bi bi-search"></i> Research
+                            </label>
+
+                            <input type="radio" class="btn-check" name="entry_category" id="cat_wisdom"
+                                   value="wisdom" {% if preset_category == 'wisdom' %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="cat_wisdom">
+                                <i class="bi bi-lightbulb"></i> Wisdom
+                            </label>
+
+                            <input type="radio" class="btn-check" name="entry_category" id="cat_mistake"
+                                   value="mistake" {% if preset_category == 'mistake' %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="cat_mistake">
+                                <i class="bi bi-exclamation-triangle"></i> Mistake
+                            </label>
+                        </div>
+                        <small class="text-muted" id="categoryHint"></small>
+                    </div>
+
                     <!-- Template Selector -->
                     {% if templates %}
-                    <div class="mb-4">
+                    <div class="mb-4 cat-block cat-research">
                         <label class="form-label fw-bold">Use Template (Optional):</label>
                         <div class="d-flex flex-wrap gap-2">
                             {% for template in templates[:4] %}
@@ -49,7 +75,7 @@
                                 <input type="text" class="form-control" id="title" name="title"
                                     placeholder="Optional - summarize your entry">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4 cat-block cat-research">
                                 <label for="entry_type" class="form-label">Entry Type</label>
                                 <select class="form-select" id="entry_type" name="entry_type" onchange="toggleCustomEntryType()">
                                     <option value="observation">Observation</option>
@@ -90,7 +116,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6" id="sourceField">
+                            <div class="col-md-6 cat-block cat-research" id="sourceField">
                                 <label for="source" class="form-label">Source</label>
                                 <input type="text" class="form-control" id="source" name="source"
                                     placeholder="e.g., Q3 Earnings Call, WSJ Article">
@@ -98,7 +124,7 @@
                         </div>
 
                         <!-- Main Content -->
-                        <div class="mb-3">
+                        <div class="mb-3 cat-block cat-research">
                             <label for="content" class="form-label">
                                 Content <span class="text-danger">*</span>
                             </label>
@@ -106,11 +132,30 @@
                             <input type="hidden" id="content" name="content" required>
                         </div>
 
-                        <!-- Hashtags -->
-                        <div class="mb-3">
+                        <!-- Hashtags (Research only - Wisdom/Mistake use structured fields) -->
+                        <div class="mb-3 cat-block cat-research">
                             <label class="form-label">Hashtags</label>
                             <div id="hashtag-autocomplete-mount"></div>
                             <small class="text-muted">Enter hashtags with # for easy searching</small>
+                        </div>
+
+                        <!-- Sentiment and Conviction (shown for all research entry types, as in edit_entry) -->
+                        <div class="row mb-3 cat-block cat-research">
+                            <div class="col-md-6">
+                                <label for="sentiment" class="form-label">Sentiment</label>
+                                <select class="form-select" id="sentiment" name="sentiment">
+                                    <option value="">Select sentiment</option>
+                                    <option value="bullish">Bullish</option>
+                                    <option value="neutral">Neutral</option>
+                                    <option value="bearish">Bearish</option>
+                                    <option value="uncertain">Uncertain</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="conviction" class="form-label">Conviction Level (1-10)</label>
+                                <input type="number" class="form-control" id="conviction" name="conviction"
+                                    min="1" max="10" placeholder="How confident are you?">
+                            </div>
                         </div>
 
                         <!-- Template Prompts (shown when template selected) -->
@@ -122,7 +167,7 @@
                         </div>
 
                         <!-- Advanced Fields (for Observation type only) -->
-                        <div id="advancedFields">
+                        <div id="advancedFields" class="cat-block cat-research">
                             <!-- Key Insight -->
                             <div class="mb-3">
                                 <label for="key_insight" class="form-label">Key Insight</label>
@@ -147,11 +192,191 @@
                         </div>
 
                         <!-- File Attachments -->
-                        <div class="mb-3">
+                        <div class="mb-3 cat-block cat-research">
                             <label for="attachments" class="form-label">Attachments</label>
                             <input type="file" class="form-control" id="attachments" name="attachments" multiple
                                 accept=".png,.jpg,.jpeg,.gif,.pdf,.xlsx,.xls,.doc,.docx">
                             <small class="text-muted">Attach charts, documents, or images</small>
+                        </div>
+
+                        <!-- ============ WISDOM (LearningNote) ============ -->
+                        <div class="cat-block cat-wisdom d-none">
+                            <div class="mb-3">
+                                <label for="lesson" class="form-label">
+                                    Lesson <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" id="lesson" name="lesson" rows="4"
+                                    placeholder="What is the timeless principle or insight?"></textarea>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label for="note_category" class="form-label">Category</label>
+                                    <select class="form-select" id="note_category" name="note_category"
+                                            onchange="toggleCustomNoteCategory()">
+                                        <option value="valuation">Valuation</option>
+                                        <option value="business_quality">Business Quality</option>
+                                        <option value="management">Management</option>
+                                        <option value="psychology">Psychology</option>
+                                        <option value="macro">Macro</option>
+                                        <option value="accounting">Accounting</option>
+                                        <option value="portfolio">Portfolio Management</option>
+                                        <option value="mistake">Mistake</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                    <input type="text" class="form-control mt-2" id="custom_note_category"
+                                           name="custom_note_category" placeholder="Enter custom category"
+                                           style="display: none;">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="knowledge_type" class="form-label">Knowledge Type</label>
+                                    <select class="form-select" id="knowledge_type" name="knowledge_type">
+                                        <option value="principle">Principle</option>
+                                        <option value="framework">Framework</option>
+                                        <option value="heuristic">Heuristic</option>
+                                        <option value="fact">Fact</option>
+                                        <option value="technique">Technique</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="importance" class="form-label">Importance (1-10)</label>
+                                    <input type="number" class="form-control" id="importance" name="importance"
+                                           min="1" max="10" value="5">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="context" class="form-label">Context</label>
+                                <textarea class="form-control" id="context" name="context" rows="2"
+                                    placeholder="When and where does this apply?"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="how_to_apply" class="form-label">How to Apply</label>
+                                <textarea class="form-control" id="how_to_apply" name="how_to_apply" rows="2"
+                                    placeholder="How do you put this into practice?"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="examples" class="form-label">Examples</label>
+                                <textarea class="form-control" id="examples" name="examples" rows="3"
+                                    placeholder="One per line"></textarea>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label for="source_type" class="form-label">Source Type</label>
+                                    <select class="form-select" id="source_type" name="source_type">
+                                        <option value="">-- Select --</option>
+                                        <option value="book">Book</option>
+                                        <option value="article">Article</option>
+                                        <option value="interview">Interview</option>
+                                        <option value="letter">Shareholder Letter</option>
+                                        <option value="podcast">Podcast</option>
+                                        <option value="experience">Personal Experience</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="source_author" class="form-label">Author / Investor</label>
+                                    <input type="text" class="form-control" id="source_author" name="source_author"
+                                           placeholder="e.g., Warren Buffett">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="source_date" class="form-label">Source Date</label>
+                                    <input type="date" class="form-control" id="source_date" name="source_date">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="source_detail" class="form-label">Source Detail</label>
+                                    <input type="text" class="form-control" id="source_detail" name="source_detail"
+                                           placeholder="e.g., The Intelligent Investor, Ch. 8">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="source_url" class="form-label">Source URL</label>
+                                    <input type="url" class="form-control" id="source_url" name="source_url"
+                                           placeholder="https://...">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="topic_tags" class="form-label">Topic Tags</label>
+                                <input type="text" class="form-control" id="topic_tags" name="topic_tags"
+                                       placeholder="Comma-separated, e.g., moats, capital allocation">
+                            </div>
+                        </div>
+
+                        <!-- ============ MISTAKE (MistakeLog) ============ -->
+                        <div class="cat-block cat-mistake d-none">
+                            <div class="mb-3">
+                                <label for="description" class="form-label">
+                                    What Happened <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" id="description" name="description" rows="4"
+                                    placeholder="Describe the mistake and its circumstances"></textarea>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <label for="mistake_type" class="form-label">Mistake Type</label>
+                                    <select class="form-select" id="mistake_type" name="mistake_type">
+                                        <option value="analysis_error">Analysis Error</option>
+                                        <option value="emotional_decision">Emotional Decision</option>
+                                        <option value="process_failure">Process Failure</option>
+                                        <option value="information_gap">Information Gap</option>
+                                        <option value="timing">Timing</option>
+                                        <option value="position_sizing">Position Sizing</option>
+                                        <option value="thesis_drift">Thesis Drift</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="severity" class="form-label">Severity (1-10)</label>
+                                    <input type="number" class="form-control" id="severity" name="severity"
+                                           min="1" max="10" value="5">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="cost_estimate" class="form-label">Estimated Cost</label>
+                                    <input type="number" step="0.01" class="form-control" id="cost_estimate"
+                                           name="cost_estimate" placeholder="$ or %">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="occurred_date" class="form-label">Occurred On</label>
+                                    <input type="date" class="form-control" id="occurred_date" name="occurred_date">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="root_cause" class="form-label">Root Cause</label>
+                                <textarea class="form-control" id="root_cause" name="root_cause" rows="2"
+                                    placeholder="Why did this actually happen?"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="contributing_factors" class="form-label">Contributing Factors</label>
+                                <textarea class="form-control" id="contributing_factors" name="contributing_factors"
+                                    rows="3" placeholder="One per line"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="lesson_learned" class="form-label">
+                                    Lesson Learned <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" id="lesson_learned" name="lesson_learned" rows="3"
+                                    placeholder="What will you do differently?"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="prevention_steps" class="form-label">Prevention Steps</label>
+                                <textarea class="form-control" id="prevention_steps" name="prevention_steps" rows="3"
+                                    placeholder="One per line"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="process_changes" class="form-label">Process Changes</label>
+                                <textarea class="form-control" id="process_changes" name="process_changes" rows="2"
+                                    placeholder="What changes to your investment process?"></textarea>
+                            </div>
                         </div>
                 </form>
             </div>
@@ -160,7 +385,7 @@
             <div class="action-footer">
                 <div class="action-footer-row">
                     <button type="submit" form="journalEntryForm" class="btn btn-primary">Save Entry</button>
-                    <a href="{{ return_url or url_for('journal_enhanced.knowledge_hub', view='research') }}" class="action-cancel-link">Cancel</a>
+                    <a href="{{ return_url or url_for('journal_enhanced.knowledge_hub', type='research') }}" class="action-cancel-link">Cancel</a>
                 </div>
             </div>
         </div>
@@ -177,13 +402,18 @@
 <script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
 <script>
     // Initialize Hashtag Autocomplete React island
-    if (window.initHashtagAutocomplete) {
-        window.initHashtagAutocomplete('hashtag-autocomplete-mount', {
-            name: 'hashtags',
-            placeholder: 'e.g., #accountingtips #cfaprep #financialratios',
-            className: 'form-control'
-        });
-    }
+    // Deferred bundles execute after parsing but before DOMContentLoaded,
+    // so the init must wait for that event or window.initHashtagAutocomplete
+    // is still undefined and the island silently never mounts.
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.initHashtagAutocomplete) {
+            window.initHashtagAutocomplete('hashtag-autocomplete-mount', {
+                name: 'hashtags',
+                placeholder: 'e.g., #accountingtips #cfaprep #financialratios',
+                className: 'form-control'
+            });
+        }
+    });
 
     // Initialize BlockNote Editor
     let journalEditorInstance = null;
@@ -393,6 +623,56 @@
     document.querySelector('form').addEventListener('submit', function () {
         localStorage.removeItem('journal_draft');
     });
+
+    // ---- Category switching (Research / Wisdom / Mistake) ----
+    // Each category maps to a different record type on the server, so we only
+    // reveal the field group that belongs to the selected one. Toggling uses
+    // Bootstrap's .d-none (display:none !important) so it cleanly overrides the
+    // inline display styles that entry-type/template logic sets on these blocks.
+    const CATEGORY_HINTS = {
+        research: 'Freeform research note — supports hashtags, attachments and templates.',
+        wisdom: 'A durable lesson or principle for your wisdom library.',
+        mistake: 'Logs the mistake and automatically files the lesson under Wisdom.'
+    };
+
+    function applyCategory(category) {
+        document.querySelectorAll('.cat-block').forEach(function (block) {
+            block.classList.toggle('d-none', !block.classList.contains('cat-' + category));
+        });
+
+        // Template prompts belong to Research and are shown on demand by
+        // loadTemplate(); make sure they never linger after switching away.
+        if (category !== 'research') {
+            document.getElementById('templatePrompts').style.display = 'none';
+        }
+
+        // Title is optional for Research but required by the other two models.
+        const titleInput = document.getElementById('title');
+        titleInput.placeholder = category === 'research'
+            ? 'Optional - summarize your entry'
+            : 'Required - name this entry';
+
+        document.getElementById('categoryHint').textContent = CATEGORY_HINTS[category];
+    }
+
+    document.querySelectorAll('input[name="entry_category"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            if (this.checked) applyCategory(this.value);
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const checked = document.querySelector('input[name="entry_category"]:checked');
+        applyCategory(checked ? checked.value : 'research');
+    });
+
+    // Handle custom wisdom category toggle
+    function toggleCustomNoteCategory() {
+        const select = document.getElementById('note_category');
+        const customInput = document.getElementById('custom_note_category');
+        customInput.style.display = select.value === 'custom' ? 'block' : 'none';
+        if (select.value !== 'custom') customInput.value = '';
+    }
 
     // Handle custom entry type toggle
     function toggleCustomEntryType() {
