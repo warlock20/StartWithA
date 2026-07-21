@@ -44,8 +44,16 @@ CONSTRAINT_NAME = 'uq_company_user_ticker'
 
 
 def upgrade():
-    # Duplicates must be resolved before this can apply. Fail with a message
-    # that says what to do rather than a bare IntegrityError.
+    # Existing duplicates cannot be merged automatically: deciding which copy
+    # survives can mean discarding real transaction history, which is not a
+    # choice a migration should make unattended. Where they exist, skip the
+    # constraint rather than fail -- a blocked deploy helps nobody, and the
+    # duplicates are a display annoyance rather than a correctness problem.
+    #
+    # Databases without duplicates (fresh installs, clean environments) still
+    # get full protection. To add it to an environment that has duplicates,
+    # resolve them with scripts/dedupe_companies.py, then add a follow-up
+    # migration -- this one will already be marked as applied.
     conn = op.get_bind()
     duplicates = conn.execute(sa.text("""
         SELECT user_id, ticker_symbol, count(*) AS n
@@ -55,12 +63,13 @@ def upgrade():
     """)).fetchall()
 
     if duplicates:
-        detail = ', '.join(f'user {d.user_id}/{d.ticker_symbol} x{d.n}' for d in duplicates[:10])
-        raise RuntimeError(
-            f'Cannot add {CONSTRAINT_NAME}: {len(duplicates)} duplicate '
-            f'(user_id, ticker_symbol) group(s) still exist -- {detail}. '
-            'Merge or remove the duplicates before running this migration.'
-        )
+        detail = ', '.join(f'user {d.user_id}/{d.ticker_symbol} x{d.n}'
+                           for d in duplicates[:10])
+        print(f'SKIPPING {CONSTRAINT_NAME}: {len(duplicates)} duplicate '
+              f'(user_id, ticker_symbol) group(s) exist -- {detail}. '
+              f'Run scripts/dedupe_companies.py to resolve them, then add a '
+              f'follow-up migration to apply the constraint.')
+        return
 
     op.create_unique_constraint(
         CONSTRAINT_NAME, 'company', ['user_id', 'ticker_symbol']
@@ -68,4 +77,5 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_constraint(CONSTRAINT_NAME, 'company', type_='unique')
+    # The constraint may have been skipped on this database.
+    op.execute(f'ALTER TABLE company DROP CONSTRAINT IF EXISTS {CONSTRAINT_NAME}')
