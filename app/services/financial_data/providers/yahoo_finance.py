@@ -491,6 +491,10 @@ class YahooFinanceProvider(FinancialDataProvider):
                         'exchange': result.get('exchange') or result.get('exchDisp'),
                         'sector': result.get('sector') or result.get('sectorDisp'),
                         'industry': result.get('industry') or result.get('industryDisp'),
+                        # Callers need these to tell a company's primary listing
+                        # apart from cross-listings, ETFs and depositary receipts.
+                        'quote_type': result.get('quoteType'),
+                        'score': result.get('score'),
                     })
 
             # Restore logging level

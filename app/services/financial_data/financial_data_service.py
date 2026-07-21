@@ -38,6 +38,7 @@ from .providers import (
     CachedFinancialDataProvider
 )
 from app.services.currency_service import CurrencyService
+from app.utils.company_identity import company_identity_key, is_tradeable_equity
 
 logger = logging.getLogger(__name__)
 
@@ -263,11 +264,17 @@ class FinancialDataService:
 
     def search_companies(self, query: str, max_results: int = 5) -> list[Dict[str, Any]]:
         """
-        Search for companies by name or ticker.
+        Search for companies by name or ticker, one entry per company.
+
+        Providers return every listing they know of, so a search for
+        "Microsoft" comes back as MSFT, MSF.F, MSFT.NE, ZMSF.NE and a tokenized
+        crypto product -- which read as duplicates to a user. This collapses
+        them to the company's primary listing and drops instruments that are
+        not equity in the company itself.
 
         Args:
             query: Search query (company name or partial ticker)
-            max_results: Maximum number of results to return
+            max_results: Maximum number of companies to return
 
         Returns:
             List of company info dicts, each containing:
@@ -276,8 +283,38 @@ class FinancialDataService:
             - exchange: Exchange name (optional)
             - sector: Sector (optional)
             - industry: Industry (optional)
+            - quote_type: Instrument type, e.g. 'EQUITY' (optional)
+            - score: Provider relevance score, higher is better (optional)
         """
-        return self.provider.search_companies(query, max_results)
+        # Over-fetch: collapsing cross-listings can discard most of a page of
+        # results, and we still want max_results distinct companies.
+        raw_results = self.provider.search_companies(query, max_results * 4)
+
+        companies = []
+        seen_identities = set()
+
+        for result in raw_results:
+            if not result.get('ticker_symbol'):
+                continue
+
+            if not is_tradeable_equity(result):
+                continue
+
+            identity = company_identity_key(
+                result.get('name'), result.get('ticker_symbol')
+            )
+            if not identity or identity in seen_identities:
+                continue
+
+            # Providers return results in relevance order, so the first listing
+            # seen for a company is its primary one.
+            seen_identities.add(identity)
+            companies.append(result)
+
+            if len(companies) >= max_results:
+                break
+
+        return companies
 
     def get_batch_current_prices(self, tickers: List[str]) -> Dict[str, Optional[Dict[str, Any]]]:
         """

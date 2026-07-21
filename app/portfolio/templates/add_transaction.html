@@ -97,6 +97,7 @@
                                 endif %} {% if form_data and form_data.company_id|int==company.id %}selected{% endif
                                 %}
                                 data-has-position="{% if company.id in existing_positions %}true{% else %}false{% endif %}"
+                                data-ever-held="{% if company.id in held_company_ids %}true{% else %}false{% endif %}"
                                 data-position-shares="{% if company.id in existing_positions %}{{ existing_positions[company.id].shares }}{% endif %}"
                                 data-position-cost="{% if company.id in existing_positions %}{{ existing_positions[company.id].avg_cost }}{% endif %}"
                                 data-ticker="{{ company.ticker_symbol }}">
@@ -110,6 +111,11 @@
                             Don't see your company? <a href="#"
                                 onclick="event.preventDefault(); openCompanyModal(handleCompanySelection);"
                                 class="text-primary">Add a new company</a>
+                        </div>
+                        {# Kept after the link above: handleCompanySelection targets the
+                           first .form-text in this block to flash its success message. #}
+                        <div class="form-text" id="companyFilterHint" style="display: none;">
+                            <i class="bi bi-funnel me-1"></i><span id="companyFilterHintText"></span>
                         </div>
                     </div>
 
@@ -462,8 +468,14 @@
             option.text = `${company.ticker_symbol} - ${company.name}`;
             option.setAttribute('data-ticker', company.ticker_symbol);
             option.setAttribute('data-has-position', 'false');
+            option.setAttribute('data-ever-held', 'false');
             option.selected = true;
             companySelect.add(option);
+
+            // Keep the filter snapshot in sync, or the next type change drops it
+            if (allCompanyOptions !== null) {
+                allCompanyOptions.push(option);
+            }
         }
 
         // Trigger change event to update currency and other related fields
@@ -587,8 +599,67 @@
     }
 
     // Update labels and field visibility based on transaction type
+    // ============================================================
+    // COMPANY LIST FILTERING BY TRANSACTION TYPE
+    // ============================================================
+    // Only a company you have held can have paid you a dividend, and only one
+    // you currently own can be sold. Watchlist companies are hidden for those
+    // types so the list shows what is actually actionable.
+
+    let allCompanyOptions = null;
+
+    function companyAllowedForType(option, transactionType) {
+        if (!option.value) return true;  // keep the "Select a company..." placeholder
+        if (transactionType === 'DIVIDEND') return option.dataset.everHeld === 'true';
+        if (transactionType === 'SELL') return option.dataset.hasPosition === 'true';
+        return true;
+    }
+
+    function filterCompaniesByType() {
+        const companySelect = document.getElementById('company_id');
+        const checkedType = document.querySelector('input[name="type"]:checked');
+        if (!companySelect || !checkedType) return;
+
+        // Snapshot the full list once, before any filtering removes options
+        if (allCompanyOptions === null) {
+            allCompanyOptions = Array.from(companySelect.options);
+        }
+
+        const transactionType = checkedType.value;
+        const previousValue = companySelect.value;
+        const allowed = allCompanyOptions.filter(o => companyAllowedForType(o, transactionType));
+
+        // Rebuild rather than hide: browsers disagree on whether a hidden
+        // <option> remains selectable.
+        companySelect.replaceChildren(...allowed);
+
+        // Drop a selection the new type does not permit
+        const stillValid = allowed.some(o => o.value === previousValue);
+        companySelect.value = stillValid ? previousValue : '';
+
+        const hint = document.getElementById('companyFilterHint');
+        const hintText = document.getElementById('companyFilterHintText');
+        const hiddenCount = allCompanyOptions.length - allowed.length;
+
+        if (hiddenCount > 0) {
+            const shown = allowed.length - 1;  // exclude the placeholder
+            hintText.textContent = (transactionType === 'DIVIDEND')
+                ? `Showing ${shown} ${shown === 1 ? 'company' : 'companies'} you have held — only these can pay a dividend.`
+                : `Showing ${shown} ${shown === 1 ? 'company' : 'companies'} you currently own — only these can be sold.`;
+            hint.style.display = 'block';
+        } else {
+            hint.style.display = 'none';
+        }
+
+        // Let currency/position handlers react to a cleared selection
+        if (!stillValid && previousValue) {
+            companySelect.dispatchEvent(new Event('change'));
+        }
+    }
+
     function updateLabels() {
         const transactionType = document.querySelector('input[name="type"]:checked').value;
+        filterCompaniesByType();
         const quantityLabel = document.getElementById('quantityLabel');
         const priceLabel = document.getElementById('priceLabel');
         const expectationsSection = document.getElementById('buy_expectations_section');

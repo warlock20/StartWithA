@@ -37,6 +37,12 @@ class Company(db.Model):
     journey_notes = db.Column(db.Text, nullable=True)
     journey_notes_updated_at = db.Column(db.DateTime, nullable=True)
 
+    __table_args__ = (
+        # One company per ticker per user. Application-level guards existed on
+        # every creation path but duplicates still got through.
+        db.UniqueConstraint('user_id', 'ticker_symbol', name='uq_company_user_ticker'),
+    )
+
     # Relationships
     sector = db.relationship("Sector", backref="companies")
 

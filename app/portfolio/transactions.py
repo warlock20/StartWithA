@@ -252,6 +252,52 @@ def force_resync():
         
     return redirect(url_for('portfolio.dashboard'))
 
+def _add_transaction_context():
+    """
+    Build the template context for the add-transaction form.
+
+    Shared by the initial GET and the re-render that follows a validation
+    warning, so the form behaves identically on both paths. Previously the
+    re-render passed only `companies`, which silently disabled the
+    add-to-position UI after a warning.
+    """
+    companies = Company.query.filter_by(
+        user_id=current_user.id
+    ).order_by(Company.name).all()
+
+    # A PortfolioPosition row survives a full exit, so its mere existence means
+    # the user held the company at some point. Only the shares differ.
+    existing_positions = {}
+    held_company_ids = set()
+    positions = PortfolioPosition.query.filter_by(user_id=current_user.id).all()
+    for pos in positions:
+        held_company_ids.add(pos.company_id)
+        if pos.total_shares > 0:
+            existing_positions[pos.company_id] = {
+                'shares': pos.total_shares,
+                'avg_cost': float(pos.average_cost_basis) if pos.average_cost_basis else 0,
+                'ticker': pos.company.ticker_symbol
+            }
+
+    # Check which companies have research
+    companies_with_research = set()
+    research_projects = ResearchProject.query.filter_by(user_id=current_user.id).all()
+    for rp in research_projects:
+        companies_with_research.add(rp.company_id)
+
+    return {
+        'companies': companies,
+        'existing_positions': existing_positions,
+        # Dividends need a company held at some point; sells need shares now.
+        'held_company_ids': held_company_ids,
+        'owned_company_ids': set(existing_positions.keys()),
+        'companies_with_research': companies_with_research,
+        'preselected_company_id': request.args.get('company_id', type=int),
+        'user_currency': current_user.base_currency,
+        'currency_symbol': CurrencyService.get_currency_symbol(current_user.base_currency),
+    }
+
+
 @portfolio_bp.route('/transaction/new', methods=['GET', 'POST'])
 @portfolio_bp.route('/transaction/add', methods=['GET', 'POST'])
 @login_required
@@ -281,52 +327,19 @@ def add_transaction():
             flash(result.error, 'error')
             # Re-render form with warnings if validation failed
             if result.warnings:
-                companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
                 return render_template('add_transaction.html',
-                                      companies=companies,
                                       warnings=result.warnings,
                                       show_warning=True,
                                       form_data=request.form,
-                                      user_currency=current_user.base_currency,
-                                      currency_symbol=CurrencyService.get_currency_symbol(current_user.base_currency))
+                                      **_add_transaction_context())
             return redirect(url_for('portfolio.add_transaction'))
 
     # GET request - show form
-    companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
-
-    # Get existing positions for the user
-    existing_positions = {}
-    positions = PortfolioPosition.query.filter_by(user_id=current_user.id).all()
-    for pos in positions:
-        if pos.total_shares > 0:
-            existing_positions[pos.company_id] = {
-                'shares': pos.total_shares,
-                'avg_cost': float(pos.average_cost_basis) if pos.average_cost_basis else 0,
-                'ticker': pos.company.ticker_symbol
-            }
-
-    # Check which companies have research
-    companies_with_research = set()
-    research_projects = ResearchProject.query.filter_by(user_id=current_user.id).all()
-    for rp in research_projects:
-        companies_with_research.add(rp.company_id)
-
-    # Get company_id from query params if provided
-    preselected_company_id = request.args.get('company_id', type=int)
-
-    user_currency = current_user.base_currency
-    currency_symbol = CurrencyService.get_currency_symbol(user_currency)
-
     return render_template('add_transaction.html',
-                          companies=companies,
                           warnings=warnings,
                           show_warning=False,
                           form_data=None,
-                          existing_positions=existing_positions,
-                          companies_with_research=companies_with_research,
-                          preselected_company_id=preselected_company_id,
-                          user_currency=user_currency,
-                          currency_symbol=currency_symbol)
+                          **_add_transaction_context())
 
 @portfolio_bp.route('/transaction/<int:transaction_id>/edit', methods=['GET', 'POST'])
 @login_required
