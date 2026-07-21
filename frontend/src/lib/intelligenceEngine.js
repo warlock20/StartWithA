@@ -51,13 +51,32 @@ export function findRequiredCAGR(targetPE, n) {
 
 /**
  * Margin of Safety via Graham Formula: V = EPS x (8.5 + 2g).
+ *
+ * The formula presumes a profitable company. With negative EPS it returns a
+ * negative "fair value", and because the margin divides by that value, the
+ * sign flips: a stock trading far ABOVE a negative fair value reports a large
+ * positive margin of safety. A $145 stock against a -$97.50 fair value came
+ * out as "+248.7% margin — significantly undervalued". Losses are reported as
+ * not applicable instead, mirroring how calcEarningsPayback treats a negative
+ * P/E.
+ *
  * @param {number} eps  Trailing 12-month EPS
  * @param {number} growthRate  Expected annual growth (%)
  * @param {number} currentPrice  Current share price
- * @returns {{ intrinsicValue: number, currentPrice: number, margin: number } | null}
+ * @returns {{ intrinsicValue: number, currentPrice: number, margin: number }
+ *          | { notApplicable: true, reason: string, eps: number, currentPrice: number }
+ *          | null}
  */
 export function calcMarginOfSafety(eps, growthRate, currentPrice) {
   if (!eps || !currentPrice) return null;
+
+  // Equity cannot be worth less than nothing, so a negative intrinsic value is
+  // not a valuation -- it is a signal the formula does not apply here. Return
+  // the inputs so callers can explain the risk concretely.
+  if (eps < 0) {
+    return { notApplicable: true, reason: 'negative_eps', eps, currentPrice };
+  }
+
   const intrinsicValue = eps * (8.5 + 2 * growthRate);
   const margin = ((intrinsicValue - currentPrice) / intrinsicValue) * 100;
   return { intrinsicValue, currentPrice, margin };
