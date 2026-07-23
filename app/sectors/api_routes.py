@@ -571,3 +571,54 @@ def get_sector_sections():
         'icon': s.icon,
         'description': s.description
     } for s in sections])
+
+
+# ============================================================================
+# RESEARCH TIME TRACKING
+# ============================================================================
+
+# Upper bound on a single heartbeat increment. The client flushes roughly every
+# 30s, so anything much larger than a couple of minutes indicates a stale or
+# tampered payload and is rejected rather than trusted.
+MAX_TRACK_TIME_SECONDS = 300
+
+
+@sectors_bp.route('/api/sectors/analysis/<int:analysis_id>/track-time', methods=['POST'])
+@login_required
+def track_research_time(analysis_id):
+    """Increment active research time for a sector analysis.
+
+    Called periodically by the client-side heartbeat while the sector research
+    page is open, visible, and the user is active. Each request adds a small
+    number of seconds to ``total_time_spent``.
+    """
+    analysis = SectorAnalysis.query.filter_by(
+        id=analysis_id, user_id=current_user.id
+    ).first()
+
+    if not analysis:
+        return json_unauthorized('Access denied')
+
+    data = request.get_json(silent=True) or {}
+
+    try:
+        seconds = int(data.get('seconds', 0))
+    except (TypeError, ValueError):
+        return json_error('Invalid seconds value')
+
+    if seconds <= 0 or seconds > MAX_TRACK_TIME_SECONDS:
+        return json_error('Invalid seconds value')
+
+    analysis.total_time_spent = (analysis.total_time_spent or 0) + seconds
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return json_error(str(e), status_code=500)
+
+    return jsonify({
+        'success': True,
+        'total_time_spent': analysis.total_time_spent,
+        'time_spent_formatted': analysis.time_spent_formatted,
+    })

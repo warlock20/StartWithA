@@ -185,6 +185,129 @@ export function CompanySidebar({ sectorName }) {
       companiesList.addEventListener('click', handleRemoveClick);
     }
 
+    // ---- detect companies mentioned in the research text ----
+
+    function renderScanResults(companies) {
+      var container = document.getElementById('scanCompaniesResults');
+      if (!container) return;
+
+      if (!companies || companies.length === 0) {
+        container.innerHTML =
+          '<p class="text-muted small mb-0 mt-2">' +
+          'No tracked companies were mentioned in your research text.' +
+          '</p>';
+        return;
+      }
+
+      var rows = companies.map(function (c) {
+        var badges = '';
+        if (c.is_in_portfolio) badges += '<span class="badge bg-info ms-1">Portfolio</span>';
+        else if (c.is_in_watchlist) badges += '<span class="badge bg-warning ms-1">Watchlist</span>';
+
+        var action = c.in_sector
+          ? '<span class="text-success small" title="Already in this sector"><i class="bi bi-check-circle-fill"></i> In sector</span>'
+          : '<button type="button" class="btn btn-sm btn-outline-primary py-0 scan-add-btn" ' +
+              'data-company-id="' + c.id + '">Add</button>';
+
+        return (
+          '<div class="d-flex align-items-center justify-content-between py-1 border-bottom scan-result-row" ' +
+            'data-company-id="' + c.id + '">' +
+            '<div class="me-2">' +
+              '<strong class="small">' + escapeText(c.name) + '</strong>' +
+              (c.ticker ? ' <span class="text-muted small">' + escapeText(c.ticker) + '</span>' : '') +
+              badges +
+            '</div>' +
+            '<div class="scan-result-action">' + action + '</div>' +
+          '</div>'
+        );
+      }).join('');
+
+      var notInSector = companies.filter(function (c) { return !c.in_sector; });
+      var addAll = notInSector.length > 1
+        ? '<button type="button" class="btn btn-sm btn-primary w-100 mt-2" id="scanAddAllBtn">' +
+            'Add all ' + notInSector.length + ' to sector</button>'
+        : '';
+
+      container.innerHTML =
+        '<div class="small text-muted mt-2 mb-1">' +
+          '<i class="bi bi-search"></i> Mentioned in your research:' +
+        '</div>' + rows + addAll;
+    }
+
+    function markScanRowAdded(companyId) {
+      var container = document.getElementById('scanCompaniesResults');
+      if (!container) return;
+      var row = container.querySelector('.scan-result-row[data-company-id="' + companyId + '"]');
+      if (!row) return;
+      var actionCell = row.querySelector('.scan-result-action');
+      if (actionCell) {
+        actionCell.innerHTML =
+          '<span class="text-success small"><i class="bi bi-check-circle-fill"></i> In sector</span>';
+      }
+      var allBtn = container.querySelector('#scanAddAllBtn');
+      if (allBtn && !container.querySelector('.scan-add-btn')) allBtn.remove();
+    }
+
+    var scanBtn = document.getElementById('scanCompaniesBtn');
+    function handleScan() {
+      scanBtn.disabled = true;
+      var original = scanBtn.innerHTML;
+      scanBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Scanning…';
+
+      fetch('/sectors/' + sectorName + '/scan-companies', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) {
+            renderScanResults(data.companies);
+          } else {
+            showToast(data.error || 'Failed to scan research', 'error');
+          }
+        })
+        .catch(function () { showToast('Network error', 'error'); })
+        .finally(function () {
+          scanBtn.disabled = false;
+          scanBtn.innerHTML = original;
+        });
+    }
+    if (scanBtn) {
+      scanBtn.addEventListener('click', handleScan);
+    }
+
+    var scanResults = document.getElementById('scanCompaniesResults');
+    function handleScanAdd(e) {
+      var addBtn = e.target.closest('.scan-add-btn');
+      var addAllBtn = e.target.closest('#scanAddAllBtn');
+
+      if (addBtn) {
+        var companyId = addBtn.dataset.companyId;
+        addBtn.disabled = true;
+        addCompanyToSector(companyId, function (company) {
+          appendCompanyToList(company);
+          removeOptionFromSelect(companyId);
+          markScanRowAdded(companyId);
+          showToast(company.name + ' added to sector', 'success');
+        });
+      } else if (addAllBtn) {
+        var pending = Array.from(scanResults.querySelectorAll('.scan-add-btn'));
+        addAllBtn.disabled = true;
+        pending.forEach(function (btn) {
+          var id = btn.dataset.companyId;
+          addCompanyToSector(id, function (company) {
+            appendCompanyToList(company);
+            removeOptionFromSelect(id);
+            markScanRowAdded(id);
+          });
+        });
+        showToast('Adding ' + pending.length + ' companies to sector', 'success');
+      }
+    }
+    if (scanResults) {
+      scanResults.addEventListener('click', handleScanAdd);
+    }
+
     var newCompanyBtn = document.getElementById('newCompanyBtn');
     function handleNewCompany() {
       if (typeof window.openCompanyModal === 'function') {
@@ -208,6 +331,8 @@ export function CompanySidebar({ sectorName }) {
       if (addForm) addForm.removeEventListener('submit', handleAddSubmit);
       if (companiesList) companiesList.removeEventListener('click', handleRemoveClick);
       if (newCompanyBtn) newCompanyBtn.removeEventListener('click', handleNewCompany);
+      if (scanBtn) scanBtn.removeEventListener('click', handleScan);
+      if (scanResults) scanResults.removeEventListener('click', handleScanAdd);
     };
   }, [sectorName]);
 

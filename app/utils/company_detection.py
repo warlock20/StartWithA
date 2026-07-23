@@ -65,18 +65,21 @@ def detect_company_mentions(text: str, user_id: int) -> List[Dict]:
             continue
 
         # Priority 1: Exact ticker match (highest confidence)
-        ticker = company.ticker_symbol.upper()
-        # Match ticker as standalone word (not part of another word)
-        ticker_pattern = r'\b' + re.escape(ticker) + r'\b'
-        if re.search(ticker_pattern, text_upper):
-            matches.append({
-                'company': company,
-                'confidence': 'high',
-                'matched_text': company.ticker_symbol,
-                'match_type': 'ticker'
-            })
-            seen_company_ids.add(company.id)
-            continue
+        # Companies may not have a ticker (e.g. private/manually added), so guard
+        # against None before matching.
+        ticker = (company.ticker_symbol or '').strip().upper()
+        if ticker:
+            # Match ticker as standalone word (not part of another word)
+            ticker_pattern = r'\b' + re.escape(ticker) + r'\b'
+            if re.search(ticker_pattern, text_upper):
+                matches.append({
+                    'company': company,
+                    'confidence': 'high',
+                    'matched_text': company.ticker_symbol,
+                    'match_type': 'ticker'
+                })
+                seen_company_ids.add(company.id)
+                continue
 
         # Priority 2: Exact company name match (high confidence)
         company_name = company.name

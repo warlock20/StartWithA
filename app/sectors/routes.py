@@ -1268,6 +1268,66 @@ def detect_companies():
     })
 
 
+@sectors_bp.route('/<string:sector_name>/scan-companies', methods=['POST'])
+@login_required
+def scan_document_companies(sector_name):
+    """Scan this sector's research text for mentions of tracked companies.
+
+    Unlike the per-note detection that fires on canvas note save, this scans the
+    full research corpus for the sector — the document view content plus every
+    canvas note — and reports which tracked companies are mentioned, along with
+    whether each is already in the sector, in the portfolio, or on the watchlist.
+    The client uses this to let the user pull mentioned holdings into the sector
+    so watchlist/portfolio metrics capture them.
+    """
+    from app.utils.company_detection import detect_company_mentions
+
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        return json_not_found('Sector')
+
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id, sector_id=sector.id
+    ).first()
+    if not analysis:
+        return json_not_found('Sector research')
+
+    # Gather the full research corpus: document view + all canvas notes.
+    text_parts = []
+    if analysis.document_content:
+        text_parts.append(analysis.document_content)
+    for note in analysis.canvas_notes.all():
+        if note.title:
+            text_parts.append(note.title)
+        if note.content:
+            text_parts.append(note.content)
+    combined_text = '\n'.join(text_parts)
+
+    matches = detect_company_mentions(combined_text, current_user.id)
+
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+
+    companies = []
+    for match in matches:
+        company = match['company']
+        companies.append({
+            'id': company.id,
+            'name': company.name,
+            'ticker': company.ticker_symbol or '',
+            'matched_text': match['matched_text'],
+            'confidence': match['confidence'],
+            'in_sector': company.sector_id == sector.id,
+            'is_in_portfolio': company.is_in_portfolio,
+            'is_in_watchlist': company.id in favorite_ids,
+        })
+
+    return jsonify({
+        'success': True,
+        'companies': companies,
+        'total': len(companies),
+    })
+
+
 @sectors_bp.route('/note/<int:note_id>/link-companies', methods=['POST'])
 @login_required
 def link_companies_to_note(note_id):

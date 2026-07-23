@@ -447,6 +447,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<!-- Active research time tracker (heartbeat) -->
+<span id="sector-time-tracker" data-analysis-id="{{ analysis.id }}" hidden></span>
+<script src="{{ url_for('static', filename='js/sector-time-tracker.js') }}" defer></script>
 {% endblock %}
 
 {% block modals %}
