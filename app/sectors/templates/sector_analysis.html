@@ -101,6 +101,11 @@
             </div>
         </div>
 
+        {# Research Progress bar hidden (issue #304): a 0-100% "completeness" score
+           is misleading — research is never "done". Scoring code (research_progress_score,
+           progress_stage, progress_breakdown) is kept dormant pending a future
+           capital-at-risk signal that replaces it. To revive, un-comment this block
+           and the progressBreakdownModal include below.
         <div class="sector-progress-section">
             <div class="sector-progress-row">
                 <span class="sector-progress-label">Research Progress:</span>
@@ -118,6 +123,7 @@
                 </span>
             </div>
         </div>
+        #}
 
         <div class="sector-metrics-compact">
             <div class="sector-metric-compact">
@@ -494,6 +500,12 @@
                                 <button class="btn btn-outline-primary btn-sm w-100 mt-2" id="newCompanyBtn">
                                     <i class="bi bi-plus-circle"></i> New Company
                                 </button>
+
+                                <button class="btn btn-outline-secondary btn-sm w-100 mt-2" id="scanCompaniesBtn"
+                                        title="Find companies you already track that are mentioned in your research text">
+                                    <i class="bi bi-search"></i> Detect companies in research
+                                </button>
+                                <div id="scanCompaniesResults" class="mt-2"></div>
                             </div>
                         </div>
                     </div>
@@ -566,7 +578,8 @@
 
 {% block modals %}
 <!-- Sector-specific modals -->
-{% include 'components/progress_breakdown_modal.html' %}
+{# Progress breakdown ("How Scoring Works") modal hidden with the progress bar (issue #304) #}
+{# {% include 'components/progress_breakdown_modal.html' %} #}
 {% include 'components/templates_modal.html' %}
 <!-- Tips Modal -->
 {% set tips_title = "Sector Research Tips" %}
@@ -593,6 +606,11 @@
 {% block scripts %}
 {{ super() }}
 {% include 'components/_tabulator_js.html' %}
+
+<!-- Active research time tracker (heartbeat) -->
+<span id="sector-time-tracker" data-analysis-id="{{ analysis.id }}" hidden></span>
+<script src="{{ url_for('static', filename='js/sector-time-tracker.js') }}" defer></script>
+
 <script>
 // Continuous Learning Toggle Handler
 document.getElementById('continuousLearningToggle').addEventListener('change', function() {
