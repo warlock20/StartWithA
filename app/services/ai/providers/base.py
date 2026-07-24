@@ -148,10 +148,40 @@ class AIProvider(ABC):
         """
         pass
 
+    def supports_tools(self) -> bool:
+        """
+        Whether this provider implements agentic tool-calling (`generate_turn`).
+
+        Defaults to False; providers that implement `generate_turn` override to True.
+        """
+        return False
+
+    def generate_turn(self, messages, tools, system=None, max_tokens=1024, temperature=0.3):
+        """
+        Execute ONE turn of a tool-calling conversation.
+
+        Providers that support tools translate the neutral `messages`/`tools`
+        into their SDK format, call the model, and return a
+        `app.services.ai.tool_calling.TurnResult` (either prose text or tool-call
+        requests). The orchestration loop (`run_tool_loop`) owns the iteration.
+
+        Args:
+            messages: neutral transcript (list of dicts with 'role'/'content';
+                assistant tool requests carry 'tool_calls', results carry 'tool_call_id')
+            tools: list[ToolSpec] the model may call (empty to force a prose answer)
+            system: optional system prompt
+            max_tokens/temperature: generation controls
+
+        Raises:
+            NotImplementedError: if the provider does not support tools
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support tool-calling")
+
     def count_tokens(self, text: str) -> int:
         """
         Estimate token count for text.
-        
+
         Default implementation uses rough approximation.
         Override for provider-specific token counting.
 
