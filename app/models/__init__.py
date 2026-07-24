@@ -124,6 +124,9 @@ from .market_sweep import (
 from .user_ai_preferences import (
     UserAIPreference,
 )
+from .knowledge_chunk import (
+    KnowledgeChunk,
+)
 
 
 
@@ -226,4 +229,6 @@ __all__ = [
     'MarketSweepDecision',
     # User AI Preferences
     'UserAIPreference',
+    # Companion knowledge index
+    'KnowledgeChunk',
 ]
