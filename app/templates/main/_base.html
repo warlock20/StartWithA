@@ -79,6 +79,9 @@
         </div>
     </div>
 
+    {# Global research/portfolio companion — renders only when a page opts in via companion_enabled #}
+    {% include 'main/_companion_widget.html' ignore missing %}
+
     <!-- Modal Block - Modals should be direct children of body for proper Bootstrap positioning -->
     {% block modals %}
     {% endblock %}
