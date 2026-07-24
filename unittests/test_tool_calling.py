@@ -18,7 +18,13 @@
 
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from app.services.ai import ai_service
+from app.services.ai.tool_calling import (
+    ToolSpec, ToolCall, ToolResult, TurnResult, ToolLoopResult, run_tool_loop,
+)
 
 
 # --------------------------------------------------------------------------
@@ -26,7 +32,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # --------------------------------------------------------------------------
 
 def test_toolspec_roundtrips():
-    from app.services.ai.tool_calling import ToolSpec, ToolCall, ToolResult
     spec = ToolSpec(name="ping", description="d", parameters={"type": "object", "properties": {}})
     assert spec.name == "ping"
     call = ToolCall(id="1", name="ping", arguments={})
@@ -40,7 +45,6 @@ def test_toolspec_roundtrips():
 
 def _fake_provider(script):
     """A provider whose generate_turn returns scripted TurnResults in order."""
-    from app.services.ai.tool_calling import TurnResult
     state = {'i': 0}
 
     class FakeProvider:
@@ -56,7 +60,6 @@ def _fake_provider(script):
 
 
 def test_loop_executes_tool_then_answers():
-    from app.services.ai.tool_calling import run_tool_loop, ToolSpec, ToolCall, ToolResult
     provider = _fake_provider([
         {'tool_calls': [ToolCall(id='a', name='get', arguments={'x': 1})]},
         {'text': 'final answer'},
@@ -76,7 +79,6 @@ def test_loop_executes_tool_then_answers():
 
 
 def test_loop_stops_at_hop_cap():
-    from app.services.ai.tool_calling import run_tool_loop, ToolSpec, ToolCall, ToolResult
     script = [{'tool_calls': [ToolCall(id=str(i), name='get', arguments={})]} for i in range(10)]
     script.append({'text': 'forced'})
     provider = _fake_provider(script)
@@ -95,8 +97,6 @@ def test_loop_stops_at_hop_cap():
 # --------------------------------------------------------------------------
 
 def test_ai_service_generate_with_tools_routes(monkeypatch):
-    from app.services.ai import ai_service
-    from app.services.ai.tool_calling import ToolSpec, ToolResult
     fake = _fake_provider([{'text': 'ok'}])
     monkeypatch.setattr(ai_service, '_get_provider', lambda *a, **k: fake)
     out = ai_service.generate_with_tools(
@@ -107,8 +107,6 @@ def test_ai_service_generate_with_tools_routes(monkeypatch):
 
 
 def test_ai_service_rejects_provider_without_tools(monkeypatch):
-    from app.services.ai import ai_service
-    from app.services.ai.tool_calling import ToolResult
 
     class NoTools:
         def supports_tools(self):
