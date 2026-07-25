@@ -41,6 +41,8 @@ class Company(db.Model):
         # One company per ticker per user. Application-level guards existed on
         # every creation path but duplicates still got through.
         db.UniqueConstraint('user_id', 'ticker_symbol', name='uq_company_user_ticker'),
+        # Dashboard filter_by(user_id=..., is_in_portfolio=True)
+        db.Index('idx_company_user_portfolio', 'user_id', 'is_in_portfolio'),
     )
 
     # Relationships

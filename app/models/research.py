@@ -159,6 +159,10 @@ class ResearchProject(db.Model):
     __tablename__ = 'research_project'
     __table_args__ = (
         db.UniqueConstraint('user_id', 'company_id', name='uq_research_project_user_company'),
+        # Too-hard service filter_by(user_id=..., decision='pass')
+        db.Index('idx_research_project_user_decision', 'user_id', 'decision'),
+        # Priority service filter_by(user_id=..., status='active')
+        db.Index('idx_research_project_user_status', 'user_id', 'status'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -354,6 +358,10 @@ class WorkSession(db.Model):
     and identify which parts of their process are most time-consuming.
     """
     __tablename__ = 'work_session'
+    __table_args__ = (
+        # Time allocation filter(user_id=..., start_time >= ...)
+        db.Index('idx_work_session_user_start', 'user_id', 'start_time'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=False, index=True)
@@ -491,6 +499,10 @@ class ResearchLog(db.Model):
     This is the raw data that feeds into aggregated metrics.
     """
     __tablename__ = 'research_log'
+    __table_args__ = (
+        # Streak calculation filter(user_id=...) + timestamp
+        db.Index('idx_research_log_user_timestamp', 'user_id', 'timestamp'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)

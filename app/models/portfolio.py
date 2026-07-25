@@ -209,6 +209,8 @@ class PortfolioPosition(db.Model):
     # Ensure one position per user per company
     __table_args__ = (
         db.UniqueConstraint('user_id', 'company_id', name='uq_user_company_position'),
+        # Portfolio dashboard filter_by(user_id=..., is_active=True)
+        db.Index('idx_portfolio_position_user_active', 'user_id', 'is_active'),
     )
 
     # Relationships
