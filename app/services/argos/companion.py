@@ -183,6 +183,38 @@ class CompanionMixin:
             logger.error(f"Companion chat failed: {e}")
             return f"Could not process question: {e}"
 
+    def generate_counter_evidence(
+        self,
+        context: CompanionContext,
+        finding: str,
+        research_question: str = None,
+    ) -> str:
+        """Play devil's advocate against a finding. Disconfirming evidence and questions, no opinions."""
+        try:
+            prompt_data = prompt_service.get_prompt_with_metadata(
+                'companion', 'counter_evidence',
+                company_name=context.company_name,
+                sector_name=context.sector_name,
+                step_name=context.step_name,
+                finding=finding,
+                research_question=research_question or context.research_questions,
+                prior_findings=context.prior_findings,
+                investment_thesis=context.investment_thesis,
+                red_flags=context.red_flags,
+                green_flags=context.green_flags,
+                mistake_summary=context.mistake_summary,
+                pattern_summary=context.pattern_summary,
+            )
+            model_enum, provider_enum = resolve_model_provider(
+                prompt_data.get('metadata', {}), user_id=self.user_id, prompt_category='companion',
+            )
+            return ai_service.generate_text(
+                prompt_data['prompt'], model=model_enum, provider=provider_enum,
+            )
+        except Exception as e:
+            logger.error(f"Counter-evidence generation failed: {e}")
+            return f"Could not generate counter-evidence: {e}"
+
     def wrap_up_session(
         self,
         context: CompanionContext,
