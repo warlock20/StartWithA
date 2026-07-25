@@ -28,7 +28,7 @@ from pgvector.sqlalchemy import Vector
 
 # revision identifiers, used by Alembic.
 revision = 'c85080497f69'
-down_revision = 'unique_company_ticker'
+down_revision = 'reconcile_schema_drift'
 branch_labels = None
 depends_on = None
 
