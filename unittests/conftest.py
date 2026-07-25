@@ -207,6 +207,17 @@ def other_user(app_context):
 
 
 @pytest.fixture
+def seed_two_users(app_context):
+    """Two users; the second owns a company. Returns (u1_id, u2_id, u2_company_id)."""
+    u1 = _make_user(email='u1@example.com')
+    u2 = _make_user(email='u2@example.com')
+    db.session.flush()
+    u2_company = _make_company(u2.id)
+    db.session.commit()
+    return u1.id, u2.id, u2_company.id
+
+
+@pytest.fixture
 def seed_portfolio(app_context):
     """A user with two active positions in European companies. Returns user_id."""
     user = _make_user()
@@ -240,6 +251,32 @@ def seed_portfolio_with_history(app_context):
         user_id=user.id, company_id=company.id, title='Overpaid',
         description='Bought above intrinsic value.', mistake_type='valuation',
         lesson_learned='Anchor to a valuation range before buying.'))
+    db.session.commit()
+    return user.id, company.id
+
+
+@pytest.fixture
+def seed_company_no_project(app_context):
+    """A user + company with NO research project and NO position. Returns (uid, cid)."""
+    user = _make_user()
+    company = _make_company(user.id)
+    db.session.commit()
+    return user.id, company.id
+
+
+@pytest.fixture
+def seed_company_completed_project(app_context):
+    """A user + company with a COMPLETED research project (decision + flags). Returns (uid, cid)."""
+    user = _make_user()
+    company = _make_company(user.id)
+    template = ResearchTemplate(user_id=user.id, name='T', workflow_steps=[])
+    db.session.add(template)
+    db.session.flush()
+    db.session.add(ResearchProject(
+        user_id=user.id, company_id=company.id, template_id=template.id,
+        status='completed', decision='invest',
+        red_flags=['high debt load'], green_flags=['strong cash flow'],
+        investment_thesis='Durable moat with pricing power.'))
     db.session.commit()
     return user.id, company.id
 

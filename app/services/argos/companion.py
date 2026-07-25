@@ -33,6 +33,7 @@ from app.models.idea_pipeline import MistakeLog
 from app.models.journal import DecisionJournal, PatternRecognition
 from app.models.research import ResearchProject, FreeResearchQuestion
 from app.models import Company
+from app.models.portfolio import PortfolioPosition
 from app.services.ai import ai_service
 from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 
@@ -61,6 +62,26 @@ class CompanionContext:
         return asdict(self)
 
 
+@dataclass
+class CompanyContext:
+    """Project-free context about one company. Used on the company dashboard."""
+    company_id: int
+    company_name: str
+    sector_name: str
+    project_state: str
+    red_flags: str
+    green_flags: str
+    investment_thesis: str
+    latest_decision: Optional[str]  # decision from the most recent completed project
+    position: Optional[Dict[str, Any]]  # held-position summary, or None
+    journal_summary: str
+    mistake_summary: str
+    pattern_summary: str
+
+    def to_summary(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
 class CompanionMixin:
     """
     Companion features mixed into ArgosService.
@@ -71,6 +92,83 @@ class CompanionMixin:
     # =========================================================================
     # Companion Features
     # =========================================================================
+
+    def build_company_context(self, company_id: int) -> "CompanyContext":
+        """
+        Assemble project-optional context about one company (for the company dashboard).
+
+        "Project-free" means it works WITHOUT a research project — not that it ignores
+        them. When projects exist it distinguishes active (in-progress) from completed
+        (decided) ones: live flags/thesis come from the active project if there is one,
+        otherwise from the most recent completed project, whose decision is surfaced too.
+        Reuses the journal/mistake/pattern enrichment helpers.
+        """
+        company = Company.query.filter_by(id=company_id, user_id=self.user_id).first()
+        if not company:
+            raise ValueError(f"Company {company_id} not found or access denied")
+
+        sector_name = 'Unknown'
+        if hasattr(company, 'sector') and company.sector:
+            sector_name = company.sector.name if hasattr(company.sector, 'name') else str(company.sector)
+
+        projects = (
+            ResearchProject.query
+            .filter_by(user_id=self.user_id, company_id=company_id)
+            .order_by(ResearchProject.id.desc())
+            .all()
+        )
+        active = [p for p in projects if (p.status or 'active') != 'completed']
+        completed = [p for p in projects if (p.status or 'active') == 'completed']
+
+        # Live flags/thesis: prefer an active project, else the latest completed.
+        primary = active[0] if active else (completed[0] if completed else None)
+        if primary:
+            red_flags = ', '.join(primary.red_flags or []) or 'None identified yet'
+            green_flags = ', '.join(primary.green_flags or []) or 'None identified yet'
+            investment_thesis = primary.investment_thesis or 'Not yet formed'
+        else:
+            red_flags = green_flags = 'None identified yet'
+            investment_thesis = 'Not yet formed'
+
+        # Human-readable state across all projects.
+        state_parts = []
+        if active:
+            a = active[0]
+            step = f" (step {a.current_step_index + 1})" if a.current_step_index is not None else ''
+            state_parts.append(f"{len(active)} active{step}")
+        if completed:
+            decisions = [p.decision for p in completed if p.decision]
+            dec = f" — decisions: {', '.join(decisions)}" if decisions else ''
+            state_parts.append(f"{len(completed)} completed{dec}")
+        project_state = '; '.join(state_parts) or 'No research project yet'
+
+        latest_decision = next((p.decision for p in completed if p.decision), None)
+
+        # Held position summary (or None).
+        pos = PortfolioPosition.query.filter_by(
+            user_id=self.user_id, company_id=company_id, is_active=True).first()
+        position = None
+        if pos:
+            position = {
+                'unrealized_pct': float(pos.unrealized_gain_loss_pct or 0),
+                'days_held': pos.days_held or 0,
+                'current_value': float(pos.current_value or 0),
+            }
+
+        return CompanyContext(
+            company_id=company_id,
+            company_name=company.name,
+            sector_name=sector_name,
+            project_state=project_state,
+            red_flags=red_flags,
+            green_flags=green_flags,
+            investment_thesis=investment_thesis,
+            latest_decision=latest_decision,
+            position=position,
+            journal_summary=self._build_journal_summary(company_id, sector_name),
+            mistake_summary=self._build_mistake_summary(company_id, sector_name),
+            pattern_summary=self._build_pattern_summary(),
+        )
 
     def build_research_context(self, project_id: int, step_index: Optional[int] = None) -> CompanionContext:
         """
