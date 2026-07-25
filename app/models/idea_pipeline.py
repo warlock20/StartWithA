@@ -22,6 +22,10 @@ from app.utils.time_utils import now_utc
 
 class IdeaPipeline(db.Model):
     __tablename__ = 'idea_pipeline'
+    __table_args__ = (
+        # Dashboard + too-hard filter_by(user_id=..., status=...)
+        db.Index('idx_idea_pipeline_user_status', 'user_id', 'status'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     name = db.Column(db.String(200), nullable=False)
@@ -116,6 +120,10 @@ class KillCriterion(db.Model):
 
 class KillSession(db.Model):
     __tablename__ = 'kill_session'
+    __table_args__ = (
+        # Analytics filter_by(user_id=current_user.id)
+        db.Index('idx_kill_session_user', 'user_id'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'), nullable=False, index=True)
