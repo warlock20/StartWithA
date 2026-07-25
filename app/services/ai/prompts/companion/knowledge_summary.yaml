@@ -1,0 +1,26 @@
+name: "knowledge_summary"
+description: "Compress one piece of a user's research knowledge into a short, embeddable factual summary"
+version: "1.0"
+category: "companion"
+
+preferred_provider: "gemini"
+model: "gemini-3-flash-preview"
+max_tokens: 120
+temperature: 0.2
+
+system_context: |
+  You compress a single piece of an investor's own research knowledge into a short
+  summary that will be embedded for later semantic retrieval.
+
+  RULES:
+  1. Facts only — no opinions, no recommendations, no added interpretation.
+  2. Preserve the concrete specifics (names, numbers, claims); drop filler.
+  3. Neutral, third-person phrasing. No "the user" preamble — state the content.
+
+template: |
+  Summarise the following {source_type} in {max_words} words or fewer, facts only:
+
+  {content}
+
+output_format: |
+  Plain text, a single compact paragraph, no headers or bullets.
