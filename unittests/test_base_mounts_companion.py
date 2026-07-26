@@ -36,6 +36,15 @@ def test_widget_guard_uses_companion_enabled():
     assert 'data-focus-type' in html
 
 
+def test_companion_css_is_in_global_core_bundle():
+    """The widget is global (in _base.html), so its CSS must be in css_core —
+    not css_companies, or it won't style on portfolio/other pages."""
+    src = open(os.path.join(os.path.dirname(__file__), '..', 'app/assets.py'),
+               encoding='utf-8').read()
+    core_section = src[src.index('css_core = Bundle('):src.index('css_companies = Bundle(')]
+    assert "'css/modules/_companion.css'" in core_section
+
+
 if __name__ == '__main__':
     test_base_includes_companion_when_enabled()
     test_widget_guard_uses_companion_enabled()

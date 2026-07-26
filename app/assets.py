@@ -72,6 +72,9 @@ css_core = Bundle(
     'css/modules/_toast.css',
     'css/modules/_mental-models.css',
 
+    # Global companion widget (mounted in _base.html on any opted-in page).
+    'css/modules/_companion.css',
+
     filters='rcssmin',
     output='css/gen/core.%(version)s.css',
 )
@@ -105,7 +108,6 @@ css_companies = Bundle(
     'css/modules/_company-resources.css',
     'css/modules/_document-annotations.css',
     'css/modules/_send-to-sector.css',
-    'css/modules/_companion.css',
     'css/modules/_create-template.css',
     'css/modules/_start-research.css',
     'css/modules/_free-research.css',

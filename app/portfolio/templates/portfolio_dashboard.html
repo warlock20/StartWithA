@@ -1,4 +1,7 @@
 {% extends "main/_base_portfolio.html" %}
+{# Opt in to the global companion, focused on the whole portfolio (rendered by _base.html) #}
+{% set companion_enabled = true %}
+{% set companion_focus = {'type': 'portfolio'} %}
 
 {% block title %}Portfolio{% endblock %}
 

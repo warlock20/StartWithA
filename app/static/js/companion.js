@@ -34,6 +34,35 @@
 
   const THREAD_KEY = 'companion.thread';
 
+  // Quick actions per focus type. `prefill` sends a question through the agent;
+  // `action` runs a widget function. "Capture" is universal. Labels stay factual
+  // (the companion surfaces facts, not opinions — e.g. concentration, not "risk").
+  const QUICK_ACTIONS = {
+    company: [
+      { label: 'What did I miss?', icon: 'bi-search',
+        prefill: 'What did I miss on this company — which research steps, flags, or checkpoints are still open?' },
+      { label: 'Past mistakes here?', icon: 'bi-exclamation-triangle',
+        prefill: 'What past mistakes or behavioural patterns of mine are relevant to this company?' },
+      { label: 'Capture', icon: 'bi-bookmark-plus', action: 'capture' },
+    ],
+    portfolio: [
+      { label: 'Where am I concentrated?', icon: 'bi-pie-chart',
+        prefill: 'Where is my portfolio most concentrated — by position and by sector?' },
+      { label: 'Checkpoints due?', icon: 'bi-calendar-check',
+        prefill: 'Which of my holdings have checkpoints or thesis reviews due?' },
+      { label: 'Capture', icon: 'bi-bookmark-plus', action: 'capture' },
+    ],
+    research: [
+      { label: 'Gaps?', icon: 'bi-search',
+        prefill: 'What gaps remain in my research for this step?' },
+      { label: 'Wrap Up', icon: 'bi-flag', action: 'wrapup' },
+      { label: 'Capture', icon: 'bi-bookmark-plus', action: 'capture' },
+    ],
+    default: [
+      { label: 'Capture', icon: 'bi-bookmark-plus', action: 'capture' },
+    ],
+  };
+
   const CompanionChat = {
     endpointBase: cfg.endpointBase,
     researchBase: cfg.researchBase,
@@ -122,17 +151,28 @@
       }
     },
 
-    quickAction(type) {
-      const input = document.getElementById('companionChatInput');
-
-      if (type === 'gaps') {
-        input.value = 'What gaps remain in my research for this step?';
-        this.send();
-      } else if (type === 'capture') {
-        this.openCaptureModal();
-      } else if (type === 'wrapup') {
-        this.runWrapup();
-      }
+    renderQuickActions() {
+      const container = document.getElementById('companionQuickActions');
+      if (!container) return;
+      const actions = QUICK_ACTIONS[this.focus.type] || QUICK_ACTIONS.default;
+      container.innerHTML = '';
+      actions.forEach((a) => {
+        const btn = document.createElement('button');
+        btn.className = 'cqa-btn';
+        btn.type = 'button';
+        btn.innerHTML = `<i class="bi ${a.icon}"></i> ${a.label}`;
+        btn.addEventListener('click', () => {
+          if (a.action === 'capture') {
+            this.openCaptureModal();
+          } else if (a.action === 'wrapup') {
+            this.runWrapup();
+          } else if (a.prefill) {
+            document.getElementById('companionChatInput').value = a.prefill;
+            this.send();
+          }
+        });
+        container.appendChild(btn);
+      });
     },
 
     openCaptureModal() {
@@ -268,6 +308,9 @@
   };
 
   window.CompanionChat = CompanionChat;
+
+  // Render focus-appropriate quick actions.
+  CompanionChat.renderQuickActions();
 
   // Restore the rolling thread for this tab and replay it into the panel.
   CompanionChat.loadThread();

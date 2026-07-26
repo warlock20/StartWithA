@@ -39,6 +39,15 @@ def test_js_persists_thread_in_sessionstorage():
     assert 'sessionStorage' in s
 
 
+def test_js_has_focus_specific_quick_actions():
+    s = _js()
+    assert 'What did I miss' in s          # company focus
+    assert 'Where am I concentrated' in s  # portfolio focus (factual, not a "risk")
+    assert 'Checkpoints due' in s          # portfolio focus
+    assert 'Past mistakes' in s            # company focus
+    assert 'renderQuickActions' in s
+
+
 def test_widget_exposes_focus_dataset():
     html = open(WIDGET, encoding='utf-8').read()
     assert 'data-focus-type' in html

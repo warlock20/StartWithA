@@ -49,18 +49,8 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="companion-quick-actions">
-        <button class="cqa-btn" onclick="CompanionChat.quickAction('gaps')">
-            <i class="bi bi-search"></i> Gaps?
-        </button>
-        <button class="cqa-btn" onclick="CompanionChat.quickAction('capture')">
-            <i class="bi bi-bookmark-plus"></i> Capture
-        </button>
-        <button class="cqa-btn" onclick="CompanionChat.quickAction('wrapup')">
-            <i class="bi bi-flag"></i> Wrap Up
-        </button>
-    </div>
+    <!-- Quick Actions (rendered by companion.js based on focus type) -->
+    <div class="companion-quick-actions" id="companionQuickActions"></div>
 
     <!-- Input -->
     <div class="companion-input">
