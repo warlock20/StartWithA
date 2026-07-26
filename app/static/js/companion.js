@@ -3,10 +3,16 @@
  * Research Companion — Floating Chat Widget (extracted from _companion_widget.html)
  * =============================================================================
  * Config is read from the #companion-root dataset so the widget can be mounted
- * on any page:
- *   data-project-id     — project id (research focus) or 0
- *   data-step-index     — current research step index
- *   data-endpoint-base  — API base (default: /research/workflow/companion)
+ * on any page. Focus is a page hint: {type, company_id?, project_id?, step?}.
+ *   data-endpoint-base       — global companion API base (default: /companion)
+ *   data-focus-type          — 'company' | 'research' | 'portfolio' | ''
+ *   data-focus-company-id    — company id (or empty)
+ *   data-focus-project-id    — research project id (or empty)
+ *   data-focus-step          — research step index (or empty)
+ *
+ * Chat + capture go to the global /companion endpoint; wrap-up stays on the
+ * research route (research-only feature). History is one rolling thread per
+ * browser tab, kept in sessionStorage.
  *
  * Exposes window.CompanionChat with toggle/send/quickAction/saveCapture/runWrapup.
  */
@@ -14,18 +20,42 @@
   const root = document.getElementById('companion-root');
   if (!root) return;
 
+  const toInt = (v) => (v ? parseInt(v, 10) : null);
   const cfg = {
-    projectId: parseInt(root.dataset.projectId || '0', 10),
-    stepIndex: parseInt(root.dataset.stepIndex || '0', 10),
-    endpointBase: root.dataset.endpointBase || '/research/workflow/companion',
+    endpointBase: root.dataset.endpointBase || '/companion',
+    researchBase: '/research/workflow/companion',
+    focus: {
+      type: root.dataset.focusType || '',
+      company_id: toInt(root.dataset.focusCompanyId),
+      project_id: toInt(root.dataset.focusProjectId),
+      step: toInt(root.dataset.focusStep),
+    },
   };
 
+  const THREAD_KEY = 'companion.thread';
+
   const CompanionChat = {
-    projectId: cfg.projectId,
-    stepIndex: cfg.stepIndex,
     endpointBase: cfg.endpointBase,
+    researchBase: cfg.researchBase,
+    focus: cfg.focus,
+    projectId: cfg.focus.project_id,   // research-only helpers (wrap-up)
+    stepIndex: cfg.focus.step || 0,
     isOpen: false,
     conversationHistory: [],
+
+    // One rolling thread per tab.
+    loadThread() {
+      try {
+        this.conversationHistory = JSON.parse(sessionStorage.getItem(THREAD_KEY) || '[]');
+      } catch (e) {
+        this.conversationHistory = [];
+      }
+    },
+    saveThread() {
+      try {
+        sessionStorage.setItem(THREAD_KEY, JSON.stringify(this.conversationHistory));
+      } catch (e) { /* storage full / disabled — non-fatal */ }
+    },
 
     toggle() {
       this.isOpen = !this.isOpen;
@@ -58,19 +88,20 @@
       // Add user message
       this.appendMessage('user', text);
       this.conversationHistory.push({ role: 'user', content: text });
+      this.saveThread();
       input.value = '';
 
       // Show typing indicator
       this.showTyping();
 
       try {
-        const response = await fetch(`${this.endpointBase}/${this.projectId}/ask`, {
+        const response = await fetch(`${this.endpointBase}/ask`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             question: text,
-            conversation_history: this.conversationHistory,
-            step_index: this.stepIndex
+            history: this.conversationHistory,
+            focus: this.focus
           })
         });
 
@@ -81,6 +112,7 @@
           const answer = data.data.answer;
           this.appendMessage('assistant', this.escapeHtml(answer));
           this.conversationHistory.push({ role: 'assistant', content: answer });
+          this.saveThread();
         } else {
           this.appendMessage('assistant', `<span class="text-danger">Error: ${this.escapeHtml(data.error || 'Failed to get answer')}</span>`);
         }
@@ -122,13 +154,14 @@
       }
 
       try {
-        const response = await fetch(`${this.endpointBase}/${this.projectId}/capture`, {
+        const response = await fetch(`${this.endpointBase}/capture`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text: text,
             source_title: sourceTitle,
-            url: url
+            url: url,
+            focus: this.focus
           })
         });
 
@@ -152,11 +185,13 @@
     },
 
     async runWrapup() {
+      // Wrap-up is a research-only feature; keep it on the research route.
+      if (!this.projectId) return;
       this.appendMessage('system', 'Generating session wrap-up...');
       this.showTyping();
 
       try {
-        const response = await fetch(`${this.endpointBase}/${this.projectId}/wrapup`, {
+        const response = await fetch(`${this.researchBase}/${this.projectId}/wrapup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -233,4 +268,13 @@
   };
 
   window.CompanionChat = CompanionChat;
+
+  // Restore the rolling thread for this tab and replay it into the panel.
+  CompanionChat.loadThread();
+  CompanionChat.conversationHistory.forEach((m) => {
+    CompanionChat.appendMessage(
+      m.role === 'user' ? 'user' : 'assistant',
+      CompanionChat.escapeHtml(m.content)
+    );
+  });
 })();

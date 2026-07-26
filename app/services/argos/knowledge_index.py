@@ -82,8 +82,11 @@ def _upsert(user_id, company_id, source_type, source_id, title, raw):
 
     embedding = get_embedding_service().embed(summary)
 
+    # Always scope the lookup by user_id (defence-in-depth; source ids are
+    # globally-unique PKs so cross-user collision can't happen, but we never
+    # query without user_id).
     row = KnowledgeChunk.query.filter_by(
-        source_type=source_type, source_id=source_id).first()
+        user_id=user_id, source_type=source_type, source_id=source_id).first()
     if row is None:
         row = KnowledgeChunk(source_type=source_type, source_id=source_id)
         db.session.add(row)

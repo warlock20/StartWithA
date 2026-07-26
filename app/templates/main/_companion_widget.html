@@ -6,7 +6,7 @@
 
   Rendered globally by main/_base.html. A page opts in by setting:
     {% set companion_enabled = true %}
-    {% set companion_focus = {'type': 'research'|'company'|'portfolio', 'id': ..., 'step': ...} %}
+    {% set companion_focus = {'type': 'research'|'company'|'portfolio', 'company_id': ..., 'project_id': ..., 'step': ...} %}
 
   CSS: modules/_companion.css
 #}
@@ -17,11 +17,10 @@
 <!-- Config for companion.js (read via dataset) -->
 <div id="companion-root"
      data-focus-type="{{ _focus.type | default('') }}"
-     data-focus-id="{{ _focus.id | default('') }}"
+     data-focus-company-id="{{ _focus.company_id | default('') }}"
+     data-focus-project-id="{{ _focus.project_id | default('') }}"
      data-focus-step="{{ _focus.step | default('') }}"
-     data-project-id="{{ _focus.id if _focus.type == 'research' else '' }}"
-     data-step-index="{{ _focus.step | default(0) }}"
-     data-endpoint-base="/research/workflow/companion"
+     data-endpoint-base="/companion"
      style="display:none;"></div>
 
 <!-- Companion FAB -->

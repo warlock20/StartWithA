@@ -347,8 +347,8 @@ class CompanionMixin:
         Get proactive warnings for a company — pattern warnings + journal insights + mistake history.
         Pure DB queries, zero token cost. Works with company_id directly (no project required).
         """
-        company = Company.query.get(company_id)
-        if not company or company.user_id != self.user_id:
+        company = Company.query.filter_by(id=company_id, user_id=self.user_id).first()
+        if not company:
             return []
 
         warnings = []

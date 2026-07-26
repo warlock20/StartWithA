@@ -130,6 +130,8 @@ def create_app(config_class=Config):
     app.register_blueprint(profile_bp)
     from app.settings.ai_model_routes import ai_model_bp
     app.register_blueprint(ai_model_bp)
+    from app.companion import companion_bp
+    app.register_blueprint(companion_bp)
 
     # ── Auto-seed on startup ────────────────────────────────────────
     from app.services.market_sweep_service import seed_market_sweeps

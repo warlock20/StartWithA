@@ -207,6 +207,18 @@ def other_user(app_context):
 
 
 @pytest.fixture
+def client_logged_in(app_context, _app):
+    """A Flask test client with a logged-in user. Returns (client, user_id)."""
+    user = _make_user()
+    db.session.commit()
+    client = _app.test_client()
+    with client.session_transaction() as session:
+        session['_user_id'] = str(user.id)
+        session['_fresh'] = True
+    return client, user.id
+
+
+@pytest.fixture
 def seed_two_users(app_context):
     """Two users; the second owns a company. Returns (u1_id, u2_id, u2_company_id)."""
     u1 = _make_user(email='u1@example.com')

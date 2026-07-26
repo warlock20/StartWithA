@@ -37,6 +37,8 @@ from app.services.argos.knowledge_search import search_my_knowledge, get_resourc
 from app.services.portfolio_intelligence import PortfolioIntelligenceService
 from app.models.company import Company
 from app.models.research import ResearchProject
+from app.models.journal import PatternRecognition
+from app.models.idea_pipeline import MistakeLog
 
 logger = logging.getLogger(__name__)
 
@@ -144,4 +146,21 @@ class ToolExecutor:
         return resource or {'error': 'Not found or access denied'}
 
     def _get_mistakes_and_patterns(self, args):
-        return {'warnings': ArgosService(self.user_id).get_warnings_by_company(0)[:5]}
+        # User-wide mistakes + behavioural patterns (not company-scoped).
+        mistakes = (MistakeLog.query
+                    .filter_by(user_id=self.user_id)
+                    .order_by(MistakeLog.id.desc()).limit(8).all())
+        patterns = (PatternRecognition.query
+                    .filter_by(user_id=self.user_id)
+                    .order_by(PatternRecognition.impact_score.desc()).limit(5).all())
+        return {
+            'mistakes': [
+                {'title': m.title, 'type': m.mistake_type, 'lesson': m.lesson_learned}
+                for m in mistakes
+            ],
+            'patterns': [
+                {'name': p.pattern_name, 'impact': p.impact_score,
+                 'how_to_avoid': p.how_to_avoid}
+                for p in patterns
+            ],
+        }

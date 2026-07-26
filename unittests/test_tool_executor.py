@@ -54,3 +54,11 @@ def test_executor_runs_owned_company(app_context, seed_company_no_project):
         ToolCall(id='1', name='get_company_context', arguments={'company_id': cid}))
     payload = json.loads(result.content)
     assert payload['company_id'] == cid
+
+
+def test_mistakes_tool_returns_user_mistakes(app_context, seed_portfolio_with_history):
+    uid, _cid = seed_portfolio_with_history
+    result = ToolExecutor(user_id=uid)(
+        ToolCall(id='1', name='get_mistakes_and_patterns', arguments={}))
+    payload = json.loads(result.content)
+    assert len(payload['mistakes']) >= 1  # previously always empty (company_id=0 bug)
