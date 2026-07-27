@@ -25,7 +25,7 @@ RUN npm ci --prefer-offline && npm run build && rm -rf node_modules
 ENV FLASK_APP=run.py
 
 # Pre-build CSS bundles (Flask-Assets: 85 files → 1 minified bundle)
-RUN flask assets build
+# RUN flask assets build
 
 # Make entrypoint executable
 RUN chmod +x docker-entrypoint.sh

@@ -3,9 +3,9 @@ services:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: investment_checklist
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=investment_checklist
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -32,10 +32,11 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/investment_checklist
-      REDIS_URL: redis://redis:6379/0
-      PORT: "8000"
-      SESSION_COOKIE_SECURE: "False"
+      - FLASK_APP=app.py
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/investment_checklist
+      - REDIS_URL=redis://redis:6379/0
+      - PORT=8000
+      - SESSION_COOKIE_SECURE=False
     ports:
       - "8000:8000"
     depends_on:
@@ -55,8 +56,9 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/investment_checklist
-      REDIS_URL: redis://redis:6379/0
+      - FLASK_APP=app.py
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/investment_checklist
+      - REDIS_URL=redis://redis:6379/0
     command: celery -A celery_app worker --loglevel=info
     depends_on:
       db:
