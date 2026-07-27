@@ -43,10 +43,18 @@ class ToolSpec:
 
 @dataclass
 class ToolCall:
-    """A model's request to invoke a tool."""
+    """A model's request to invoke a tool.
+
+    `signature` is an opaque, provider-specific token that some models (e.g.
+    Gemini 3's `thought_signature`) attach to a function call and REQUIRE to be
+    echoed back when the call is replayed into the next turn's history. Providers
+    populate it on extraction and restore it when rebuilding the transcript;
+    providers that don't use it leave it None.
+    """
     id: str
     name: str
     arguments: Dict[str, Any]
+    signature: Optional[Any] = None
 
 
 @dataclass

@@ -21,25 +21,52 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+import json
+
 import app.companion.routes as companion_routes
 from app import db
 from app.models.journal import JournalEntry
 from app.models.user import User
 from app.models.company import Company
+from app.models.background_task import BackgroundTask
 
 
-def test_ask_route_returns_agent_answer(monkeypatch, client_logged_in):
+def test_ask_route_returns_task_id(monkeypatch, client_logged_in):
     client, _uid = client_logged_in
     monkeypatch.setattr(
-        companion_routes.CompanionAgent, 'ask',
-        lambda self, question, history, focus: {
-            'answer': 'A', 'hops': 0, 'tool_calls': []})
+        companion_routes.BackgroundTaskService, 'start_companion_ask',
+        staticmethod(lambda user_id, question, history, focus: 'task-123'))
 
     resp = client.post('/companion/ask',
                        json={'question': 'hi', 'history': [], 'focus': {}})
 
     assert resp.status_code == 200
-    assert resp.get_json()['data']['answer'] == 'A'
+    assert resp.get_json()['data']['task_id'] == 'task-123'
+
+
+def test_ask_status_returns_completed_result(client_logged_in):
+    client, uid = client_logged_in
+    db.session.add(BackgroundTask(
+        id='t-done', user_id=uid, task_type='companion_ask', status='completed',
+        result=json.dumps({'answer': 'the answer', 'hops': 1, 'tool_calls': []})))
+    db.session.commit()
+
+    resp = client.get('/companion/ask/status/t-done')
+    assert resp.status_code == 200
+    assert resp.get_json()['data']['result']['answer'] == 'the answer'
+
+
+def test_ask_status_denies_foreign_task(client_logged_in):
+    client, _uid = client_logged_in
+    other = User(email='foreign@example.com')
+    db.session.add(other)
+    db.session.flush()
+    db.session.add(BackgroundTask(
+        id='t-foreign', user_id=other.id, task_type='companion_ask', status='completed'))
+    db.session.commit()
+
+    resp = client.get('/companion/ask/status/t-foreign')
+    assert resp.status_code == 404
 
 
 def test_ask_route_rejects_empty_question(client_logged_in):

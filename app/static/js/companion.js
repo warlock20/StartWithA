@@ -124,6 +124,7 @@
       this.showTyping();
 
       try {
+        // Kick off the background task, then poll for the answer.
         const response = await fetch(`${this.endpointBase}/ask`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -133,22 +134,48 @@
             focus: this.focus
           })
         });
-
-        this.hideTyping();
         const data = await response.json();
-
-        if (data.success) {
-          const answer = data.data.answer;
+        if (!data.success) {
+          this.hideTyping();
+          this.appendMessage('assistant', `<span class="text-danger">Error: ${this.escapeHtml(data.error || 'Failed to start')}</span>`);
+          return;
+        }
+        const answer = await this.pollAnswer(data.data.task_id);
+        this.hideTyping();
+        if (answer !== null) {
           this.appendMessage('assistant', this.escapeHtml(answer));
           this.conversationHistory.push({ role: 'assistant', content: answer });
           this.saveThread();
-        } else {
-          this.appendMessage('assistant', `<span class="text-danger">Error: ${this.escapeHtml(data.error || 'Failed to get answer')}</span>`);
         }
       } catch (err) {
         this.hideTyping();
         this.appendMessage('assistant', `<span class="text-danger">Connection error: ${this.escapeHtml(err.message)}</span>`);
       }
+    },
+
+    // Poll the companion task until completed/failed. Returns the answer or null.
+    async pollAnswer(taskId, intervalMs = 1200, timeoutMs = 90000) {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, intervalMs));
+        let data;
+        try {
+          const resp = await fetch(`${this.endpointBase}/ask/status/${taskId}`);
+          data = await resp.json();
+        } catch (e) {
+          continue; // transient — keep polling
+        }
+        const status = data && data.data ? data.data.status : null;
+        if (status === 'completed') {
+          return (data.data.result && data.data.result.answer) || '(no answer)';
+        }
+        if (status === 'failed') {
+          this.appendMessage('assistant', `<span class="text-danger">Failed: ${this.escapeHtml((data.data && data.data.error) || 'unknown error')}</span>`);
+          return null;
+        }
+      }
+      this.appendMessage('assistant', '<span class="text-danger">Timed out waiting for the companion.</span>');
+      return null;
     },
 
     renderQuickActions() {

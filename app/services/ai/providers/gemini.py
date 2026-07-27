@@ -227,9 +227,15 @@ class GeminiProvider(AIProvider):
                 if msg.content:
                     parts.append(genai_types.Part(text=msg.content))
                 for call in msg.tool_calls or []:
-                    parts.append(genai_types.Part(
-                        function_call=genai_types.FunctionCall(
-                            name=call.name, args=call.arguments)))
+                    part_kwargs = {
+                        'function_call': genai_types.FunctionCall(
+                            name=call.name, args=call.arguments),
+                    }
+                    # Gemini 3 requires the thought_signature to be echoed back
+                    # with the function call it originally produced.
+                    if call.signature is not None:
+                        part_kwargs['thought_signature'] = call.signature
+                    parts.append(genai_types.Part(**part_kwargs))
                 contents.append(genai_types.Content(role='model', parts=parts))
             else:  # 'user' (or anything else) → user turn
                 contents.append(genai_types.Content(
@@ -258,7 +264,10 @@ class GeminiProvider(AIProvider):
             fc = getattr(part, 'function_call', None)
             if fc:
                 # Gemini function calls have no id; use the name as the correlation id.
-                calls.append(ToolCall(id=fc.name, name=fc.name, arguments=dict(fc.args or {})))
+                # Preserve thought_signature — Gemini 3 requires it echoed back.
+                calls.append(ToolCall(
+                    id=fc.name, name=fc.name, arguments=dict(fc.args or {}),
+                    signature=getattr(part, 'thought_signature', None)))
             elif getattr(part, 'text', None):
                 text = (text or '') + part.text
         return TurnResult(text=text, tool_calls=calls)

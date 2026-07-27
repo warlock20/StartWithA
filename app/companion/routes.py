@@ -35,8 +35,9 @@ from app.companion import companion_bp
 from app.models.journal import JournalEntry
 from app.models.research import ResearchProject
 from app.models.company import Company
+from app.models.background_task import BackgroundTask
 from app.services.argos import ArgosService
-from app.services.argos.agent import CompanionAgent
+from app.services.background_tasks import BackgroundTaskService
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_validation_error
 from app.utils.db_utils import safe_add_and_commit
@@ -73,7 +74,11 @@ def _capture_link(focus):
 @companion_bp.route('/ask', methods=['POST'])
 @login_required
 def ask():
-    """Answer a question using the agentic companion (account map + tools + loop)."""
+    """Kick off the agentic companion in the background. Returns a task_id to poll.
+
+    The agent runs a multi-hop tool-calling loop + local embedding, so it runs in a
+    Celery worker (like every other AI op) rather than blocking the web request.
+    """
     data = request.get_json(silent=True) or {}
     question = (data.get('question') or '').strip()
     if not question:
@@ -83,11 +88,24 @@ def ask():
     focus = data.get('focus') or {}
 
     try:
-        result = CompanionAgent(current_user.id).ask(question, history, focus)
-        return json_success('Answer generated', data=result)
+        task_id = BackgroundTaskService.start_companion_ask(
+            current_user.id, question, history, focus)
+        return json_success('Companion working', data={'task_id': task_id})
     except Exception as e:
-        logger.error(f"Companion ask failed: {e}")
+        logger.error(f"Companion ask kickoff failed: {e}")
         return json_error(str(e), status_code=500)
+
+
+@companion_bp.route('/ask/status/<task_id>', methods=['GET'])
+@login_required
+def ask_status(task_id):
+    """Poll a companion task. Returns {status, result?/error?}. Ownership-checked."""
+    task = BackgroundTask.query.filter_by(id=task_id, user_id=current_user.id).first()
+    if not task:
+        return json_error('Task not found', status_code=404)
+
+    status = BackgroundTaskService.get_task_status(task_id)
+    return json_success('Task status', data=status)
 
 
 @companion_bp.route('/capture', methods=['POST'])

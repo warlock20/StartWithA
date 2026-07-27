@@ -15,14 +15,21 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-Research Companion Routes
+Research Companion Routes (project-scoped, legacy).
 
-API endpoints for companion features:
-- POST /companion/<project_id>/brief — generate research brief
-- POST /companion/<project_id>/ask — live companion chat
-- POST /companion/<project_id>/counter-evidence — counter-evidence for a finding
-- POST /companion/<project_id>/wrapup — session wrap-up
-- POST /companion/<project_id>/capture — quick-capture (creates JournalEntry)
+The global agentic companion now lives at the `/companion` blueprint
+(`app/companion/`): chat via POST /companion/ask (async, Celery + poll) and
+quick-capture via POST /companion/capture. The widget uses those everywhere.
+
+These project-scoped routes remain for research-only features still wired to them:
+- POST /companion/<project_id>/brief   — pre-session research brief
+- POST /companion/<project_id>/wrapup  — session wrap-up (still used by the widget)
+- GET  /companion/<project_id>/warnings — zero-token warnings
+
+DEPRECATED (superseded by /companion/ask and /companion/capture; kept for any
+legacy callers, no longer used by the widget):
+- POST /companion/<project_id>/ask
+- POST /companion/<project_id>/capture
 """
 
 import logging

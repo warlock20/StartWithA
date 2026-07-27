@@ -65,6 +65,10 @@ from app.celery_tasks.tasks_screening import (
     screening_analysis_task,
 )
 
+from app.celery_tasks.tasks_companion import (
+    companion_ask_task,
+)
+
 __all__ = [
     # Portfolio tasks
     'portfolio_ai_analysis_task',
@@ -90,4 +94,7 @@ __all__ = [
 
     # Screening analysis tasks
     'screening_analysis_task',
+
+    # Companion tasks
+    'companion_ask_task',
 ]
