@@ -1,0 +1,373 @@
+# StartWithA
+# Copyright (C) 2024-2026 Kiran Mathews
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+# In app/__init__.py
+import logging
+
+from flask import Flask, g, session, render_template, request, jsonify
+from sqlalchemy import inspect as sa_inspect, text as sa_text
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_login import LoginManager, current_user
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_caching import Cache
+
+from config import Config
+from celery_app import celery
+from app.assets import init_assets
+from app.features import user_has_feature
+
+db = SQLAlchemy()
+migrate = Migrate()
+login_manager = LoginManager()
+login_manager.login_view = 'auth.login'
+login_manager.login_message_category = 'info'
+cache = Cache()
+# Limiter initialized without storage - will be configured via init_app with app.config
+limiter = Limiter(key_func=get_remote_address)
+
+def create_app(config_class=Config):
+    app = Flask(__name__)
+    app.config.from_object(config_class)
+
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    app.logger.setLevel(logging.INFO)
+
+    # Dedicated audit logger (GDPR Art. 5(2) accountability)
+    audit = logging.getLogger('audit')
+    audit.setLevel(logging.INFO)
+    if not audit.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter(
+            '%(asctime)s - AUDIT - %(message)s'
+        ))
+        audit.addHandler(handler)
+
+    # Suppress noisy third-party loggers
+    logging.getLogger('yfinance').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('peewee').setLevel(logging.WARNING)
+
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
+    cache.init_app(app)
+
+    # Initialize rate limiter with storage from config
+    # Uses Redis if REDIS_URL is set, otherwise in-memory (for local dev)
+    limiter.init_app(app)
+
+    # Initialize Flask-Assets for CSS bundling
+    init_assets(app)
+    storage_uri = app.config.get('RATELIMIT_STORAGE_URI', 'memory://')
+    app.logger.info(f"Rate limiter initialized with storage: {storage_uri.split('://')[0]}")
+
+    # Configure Celery with Flask app config
+    celery.conf.update(
+        broker_url=app.config['CELERY_BROKER_URL'],
+        result_backend=app.config['CELERY_RESULT_BACKEND'],
+    )
+
+    # Initialize Flask-Admin
+    from app.admin import init_admin
+    init_admin(app)
+
+    # (Blueprint registrations remain the same)
+    from app.auth import auth_bp
+    app.register_blueprint(auth_bp)
+
+    # Initialize Auth0 AFTER blueprint is registered (skip if not configured)
+    if app.config.get('AUTH0_CONFIGURED'):
+        from app.auth.auth0_routes import init_auth0
+        init_auth0(app)
+    else:
+        app.logger.info("Auth0 not configured — skipping OAuth registration")
+    from app.checklists import checklists_bp 
+    app.register_blueprint(checklists_bp) 
+    from app.companies import companies_bp 
+    app.register_blueprint(companies_bp)
+    from app.main import bp as main_bp
+    app.register_blueprint(main_bp)
+    from app.dashboard import dashboard_bp
+    app.register_blueprint(dashboard_bp)
+    from app.learning import learning_bp
+    app.register_blueprint(learning_bp)
+    from app.question_bank import question_bank_bp
+    app.register_blueprint(question_bank_bp)
+    from app.sectors import sectors_bp
+    app.register_blueprint(sectors_bp)
+    from app.ideas import ideas_bp
+    app.register_blueprint(ideas_bp)
+    from app.research_workflow import research_workflow_bp
+    app.register_blueprint(research_workflow_bp)
+    from app.analytics import analytics_bp
+    app.register_blueprint(analytics_bp)
+    from app.journal_enhanced import journal_enhanced_bp
+    app.register_blueprint(journal_enhanced_bp)
+    from app.api import api_bp
+    app.register_blueprint(api_bp)
+    from app.portfolio import portfolio_bp
+    app.register_blueprint(portfolio_bp)
+    from app.settings.profile_routes import profile_bp
+    app.register_blueprint(profile_bp)
+    from app.settings.ai_model_routes import ai_model_bp
+    app.register_blueprint(ai_model_bp)
+
+    # ── Auto-seed on startup ────────────────────────────────────────
+    from app.services.market_sweep_service import seed_market_sweeps
+    from app.models.user import User
+
+    with app.app_context():
+        # Demo mode should work on a fresh clone without a manual `flask db upgrade`.
+        # Self-bootstrap the schema so the seeds below (and /demo-login) don't hit a
+        # missing `user` table and 500. Idempotent + guarded by DEMO_MODE, so
+        # migrated/production databases are untouched.
+        if app.config.get('DEMO_MODE'):
+            try:
+                # Registering every model must stay lazy: app.models does
+                # `from app import db`, so a top-level import would be circular.
+                # Use importlib rather than `import app.models`: the plain import
+                # statement would rebind the local `app` name to the package and
+                # shadow the Flask instance, breaking `app.logger` (and every other
+                # `app.*` use) below.
+                import importlib
+                importlib.import_module('app.models')  # populate metadata for create_all
+                if not sa_inspect(db.engine).has_table(User.__tablename__):
+                    # create_all bypasses migrations, so the pgvector extension the
+                    # embedding table's Vector column depends on hasn't been created
+                    # yet. Enable it first (Postgres only; SQLite has no extension).
+                    if db.engine.dialect.name == 'postgresql':
+                        db.session.execute(sa_text('CREATE EXTENSION IF NOT EXISTS vector'))
+                        db.session.commit()
+                    db.create_all()
+                    app.logger.info("Demo mode: initialized database schema (fresh setup)")
+            except Exception as e:
+                db.session.rollback()
+                app.logger.warning("Demo schema bootstrap skipped: %s", e)
+
+        try:
+            seed_market_sweeps()
+        except Exception as e:
+            app.logger.warning("Market sweep auto-seed skipped: %s", e)
+
+        if app.config.get('DEMO_MODE'):
+            try:
+                demo_user = User.query.filter_by(email='demo@startwithai.local').first()
+                if not demo_user:
+                    demo_user = User(
+                        username='demo',
+                        email='demo@startwithai.local',
+                        name='Demo User',
+                        auth_provider='local',
+                        subscription_tier=app.config.get('DEFAULT_USER_TIER', 'amateur'),
+                    )
+                    demo_user.set_password('demo')
+                    db.session.add(demo_user)
+                    db.session.commit()
+                    app.logger.info("Demo user seeded (demo@startwithai.local / demo)")
+            except Exception as e:
+                app.logger.warning("Demo user seed skipped: %s", e)
+
+    # Add custom template filters
+    @app.template_filter('nl2br')
+    def nl2br_filter(text):
+        """Convert newlines to HTML line breaks"""
+        if text is None:
+            return ''
+        return text.replace('\n', '<br>\n')
+
+    @app.template_filter('markdown')
+    def markdown_filter(text):
+        """Convert markdown-like formatting to HTML"""
+        if text is None:
+            return ''
+
+        # Convert markdown bold (**text**) to HTML bold
+        import re
+        text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+
+        # Convert newlines to HTML line breaks
+        text = text.replace('\n', '<br>\n')
+
+        return text
+
+    @app.template_filter('blocknote_preview')
+    def blocknote_preview_filter(content, max_length=120):
+        """Convert BlockNote JSON content to preview text"""
+        from app.utils.blocknote_utils import blocknote_preview
+        return blocknote_preview(content, max_length)
+
+    @app.template_filter('blocknote_to_html')
+    def blocknote_to_html_filter(content):
+        """Convert BlockNote JSON content to HTML"""
+        from app.utils.blocknote_utils import blocknote_to_html
+        return blocknote_to_html(content)
+
+    from app.utils.quotes import get_session_quote
+
+    @app.context_processor
+    def inject_brand():
+        """Expose the brand name/tagline to all templates (single source: config)."""
+        return dict(
+            APP_NAME=app.config['APP_NAME'],
+            APP_TAGLINE=app.config.get('APP_TAGLINE', ''),
+        )
+
+    @app.context_processor
+    def inject_auth_config():
+        """Expose auth configuration flags to all templates."""
+        return dict(
+            auth0_configured=app.config.get('AUTH0_CONFIGURED', False),
+            demo_mode=app.config.get('DEMO_MODE', False),
+        )
+
+    @app.context_processor
+    def inject_investor_quote():
+        """Inject the current session's investor quote into all templates"""
+        quote_data = get_session_quote()
+
+        # Check if user has dismissed the banner in this session
+        show_banner = not session.get('quote_banner_dismissed', False)
+
+        return dict(
+            investor_quote=quote_data,
+            show_quote_banner=show_banner
+        )
+
+    @app.context_processor
+    def inject_smart_navigation():
+        """Inject smart navigation URLs into all templates"""
+        from app.utils.navigation_utils import get_smart_return_url
+        return_url, context_label = get_smart_return_url()
+        return dict(
+            return_url=return_url,
+            context_label=context_label
+        )
+
+    @app.context_processor
+    def inject_feature_access():
+        """Make has_feature() and is_newly_unlocked() available in all templates"""
+        from app.features import FEATURE_TO_GROUP
+
+        def has_feature(feature_name):
+            if not current_user.is_authenticated:
+                return False
+            cache = getattr(g, '_feature_cache', None)
+            if cache is None:
+                cache = {}
+                g._feature_cache = cache
+            if feature_name not in cache:
+                cache[feature_name] = user_has_feature(current_user, feature_name)
+            return cache[feature_name]
+
+        def is_newly_unlocked(feature_name):
+            if not current_user.is_authenticated:
+                return False
+            newly = getattr(current_user, 'newly_unlocked_features', None) or {}
+            group = FEATURE_TO_GROUP.get(feature_name)
+            return group is not None and group in newly
+
+        def get_tier_info():
+            if not current_user.is_authenticated:
+                return None
+            tier = current_user.subscription_tier or 'amateur'
+            if tier != 'amateur' or current_user.show_advanced_features:
+                return None
+            cache = getattr(g, '_tier_info_cache', None)
+            if cache is not None:
+                return cache
+            from app.services.feature_unlock_service import FeatureUnlockService
+            progress = FeatureUnlockService.get_unlock_progress(current_user)
+            total_groups = 4
+            unlocked_count = total_groups - len(progress)
+            info = {
+                'tier': 'amateur',
+                'progress': progress,
+                'unlocked_count': unlocked_count,
+                'total_groups': total_groups,
+                'remaining': len(progress),
+            }
+            g._tier_info_cache = info
+            return info
+
+        return dict(has_feature=has_feature, is_newly_unlocked=is_newly_unlocked, get_tier_info=get_tier_info)
+
+    # ── Security headers ──────────────────────────────────────────────
+    @app.after_request
+    def set_security_headers(response):
+        # HTTPS enforcement (Railway terminates TLS at the proxy)
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+
+        # Prevent clickjacking
+        response.headers['X-Frame-Options'] = 'DENY'
+
+        # Prevent MIME-type sniffing
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        # Referrer policy — send origin only to external sites
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
+        # Permissions policy — disable features we don't use
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+
+        # Content Security Policy
+        csp = "; ".join([
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' blob: https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com",
+            "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
+            "img-src 'self' data: https:",
+            "connect-src 'self'",
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+        ])
+        response.headers['Content-Security-Policy'] = csp
+
+        return response
+
+    # Custom error handlers
+    @app.errorhandler(404)
+    def not_found_error(error):
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        db.session.rollback()  # Rollback any failed database transactions
+        app.logger.error(f'Server Error: {error}')
+        return render_template('errors/500.html'), 500
+
+    @app.errorhandler(403)
+    def forbidden_error(error):
+        return render_template('errors/403.html'), 403
+
+    @app.errorhandler(429)
+    def ratelimit_error(error):
+        # Return JSON for API requests, HTML for browser requests
+        if request.path.startswith('/api/') or request.accept_mimetypes.best == 'application/json':
+            return jsonify({
+                'success': False,
+                'error': 'Rate limit exceeded. Please slow down.',
+                'retry_after': error.description
+            }), 429
+        return render_template('errors/429.html'), 429
+
+    return app

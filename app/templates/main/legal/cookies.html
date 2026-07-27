@@ -1,0 +1,117 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 800px;">
+    <h1 class="mb-2">Cookie Policy</h1>
+    <p class="text-muted mb-4">Last updated: March 2026</p>
+
+    <!-- What are cookies -->
+    <section class="mb-5">
+        <h2 class="h4">What Are Cookies?</h2>
+        <p>
+            Cookies are small text files that are stored on your device when you visit a website.
+            They are used to make websites function properly, provide security features, and
+            remember your preferences.
+        </p>
+    </section>
+
+    <!-- What we use -->
+    <section class="mb-5">
+        <h2 class="h4">Cookies We Use</h2>
+        <p>
+            We only use <strong>strictly necessary cookies</strong> that are essential for the
+            Platform to function. We do <strong>not</strong> use any analytics, tracking,
+            advertising, or third-party marketing cookies.
+        </p>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>Cookie Name</th>
+                        <th>Purpose</th>
+                        <th>Duration</th>
+                        <th>Provider</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>session</code></td>
+                        <td>
+                            Maintains your authenticated session after login. Contains an
+                            encrypted session identifier — no personal data is stored in the
+                            cookie itself.
+                        </td>
+                        <td>1 hour (or until browser is closed)</td>
+                        <td>This Platform</td>
+                    </tr>
+                    <tr>
+                        <td><code>remember_token</code></td>
+                        <td>
+                            Keeps you signed in across browser sessions when you select
+                            "Remember me" at login. Only set if you explicitly opt in.
+                        </td>
+                        <td>30 days</td>
+                        <td>This Platform</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3 class="h6 mt-4">Cookie Security Settings</h3>
+        <ul>
+            <li><strong>Secure:</strong> Cookies are only transmitted over HTTPS</li>
+            <li><strong>HttpOnly:</strong> Cookies cannot be accessed by JavaScript (prevents XSS attacks)</li>
+            <li><strong>SameSite=Lax:</strong> Cookies are not sent with cross-site requests (prevents CSRF attacks)</li>
+        </ul>
+    </section>
+
+    <!-- Auth0 cookies -->
+    <section class="mb-5">
+        <h2 class="h4">Third-Party Authentication Cookies</h2>
+        <p>
+            When you log in via Auth0 (our authentication provider), Auth0 may set its own
+            cookies on the <code>auth0.com</code> domain during the login process. These cookies
+            are necessary for the authentication flow and are governed by
+            <a href="https://auth0.com/privacy" target="_blank" rel="noopener">Auth0's Privacy Policy</a>.
+        </p>
+    </section>
+
+    <!-- Legal basis -->
+    <section class="mb-5">
+        <h2 class="h4">Legal Basis</h2>
+        <p>
+            All cookies used by this Platform are <strong>strictly necessary</strong> for its
+            operation. Under § 25(2) TDDDG (German Telecommunications Digital Services Data
+            Protection Act) and Art. 5(3) of the ePrivacy Directive, strictly necessary cookies
+            are exempt from the consent requirement.
+        </p>
+        <p>
+            This means we do not need to show a cookie consent banner for these cookies. However,
+            we provide this policy for full transparency about what is stored on your device.
+        </p>
+    </section>
+
+    <!-- Managing cookies -->
+    <section class="mb-5">
+        <h2 class="h4">Managing Cookies</h2>
+        <p>
+            You can control and delete cookies through your browser settings. Note that disabling
+            the session cookie will prevent you from logging in to the Platform.
+        </p>
+        <p>
+            For more information about cookies and how to manage them, visit
+            <a href="https://www.allaboutcookies.org/" target="_blank" rel="noopener">allaboutcookies.org</a>.
+        </p>
+    </section>
+
+    <!-- Link to privacy policy -->
+    <section class="mb-5">
+        <h2 class="h4">Further Information</h2>
+        <p>
+            For complete details about how we process your personal data, see our
+            <a href="{{ url_for('main.privacy') }}">Privacy Policy</a>.
+        </p>
+    </section>
+</div>
+{% endblock %}

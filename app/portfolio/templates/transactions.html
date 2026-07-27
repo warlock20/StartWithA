@@ -1,0 +1,258 @@
+{% extends "main/_base_portfolio.html" %}
+
+{% block title %}Transaction History{% endblock %}
+
+{% block head %}
+{% include 'components/_tabulator.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="portfolio-dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Transaction History</h1>
+                <p class="dashboard-subtitle">{{ transactions|length }} transaction{{ 's' if transactions|length != 1 else '' }} recorded</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.dashboard') }}" class="action-btn">
+                    <i class="bi bi-briefcase"></i> Portfolio
+                </a>
+                <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn primary">
+                    <i class="bi bi-plus"></i> Add Transaction
+                </a>
+            </div>
+        </header>
+    </div>
+
+    {% if transactions %}
+    <div class="rcl-panel">
+        <div class="rcl-panel-controls">
+            <div class="rcl-search">
+                <i class="bi bi-search"></i>
+                <input type="text" id="txn-search" placeholder="Search ticker or company...">
+            </div>
+            <select id="txn-type-filter" class="rcl-filter-select">
+                <option value="all">All Types</option>
+                <option value="BUY">Buy</option>
+                <option value="SELL">Sell</option>
+                <option value="DIVIDEND">Dividend</option>
+            </select>
+        </div>
+        <div id="transactions-table"></div>
+    </div>
+
+    {% else %}
+    <div class="rcl-empty-state">
+        <i class="bi bi-receipt"></i>
+        <h5>No transactions yet</h5>
+        <p>Add your first transaction to start tracking your portfolio.</p>
+        <div class="rcl-empty-actions">
+            <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
+                <i class="bi bi-plus"></i> Add Transaction
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this transaction?</p>
+                <div class="alert alert-warning">
+                    <strong id="deleteDetails"></strong>
+                    <p class="mb-0 mt-2">This will recalculate your portfolio position using FIFO method.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Delete Transaction</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% include 'components/_tabulator_js.html' %}
+{% if transactions %}
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    const currencySymbol = "{{ currency_symbol }}";
+    const transactionsData = {{ transactions_json|safe }};
+    let txnTable = null;
+    let deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    if (transactionsData.length > 0) {
+        txnTable = createDataTable('#transactions-table', {
+            data: transactionsData,
+            columns: [
+                {
+                    title: "Date",
+                    field: "date",
+                    sorter: "date",
+                    sorterParams: { format: "yyyy-MM-dd" },
+                    minWidth: 100,
+                    formatter: function(cell) {
+                        return '<span class="rcl-cell-mono">' + cell.getValue() + '</span>';
+                    }
+                },
+                {
+                    title: "Type",
+                    field: "type",
+                    sorter: "string",
+                    minWidth: 90,
+                    formatter: function(cell) {
+                        var type = cell.getValue();
+                        var data = cell.getRow().getData();
+                        var cls = 'rcl-cell-badge ';
+                        if (type === 'BUY') cls += 'rcl-cell-badge--research';
+                        else if (type === 'SELL') cls += 'rcl-cell-badge--kill';
+                        else if (type === 'DIVIDEND') cls += 'rcl-cell-badge--active';
+                        else cls += 'rcl-cell-badge--default';
+
+                        var html = '<span class="' + cls + '">' + type + '</span>';
+                        if (data.bought_without_research) {
+                            html += ' <i class="bi bi-exclamation-triangle" style="color: var(--warning-500);" title="Bought without research"></i>';
+                        }
+                        return html;
+                    }
+                },
+                {
+                    title: "Company",
+                    field: "ticker",
+                    sorter: "string",
+                    minWidth: 160,
+                    widthGrow: 2,
+                    formatter: function(cell) {
+                        var row = cell.getRow().getData();
+                        return '<strong>' + row.ticker + '</strong><br><span class="rcl-cell-ticker">' + row.company_name + '</span>';
+                    }
+                },
+                {
+                    title: "Shares",
+                    field: "shares",
+                    sorter: "number",
+                    hozAlign: "right",
+                    minWidth: 80,
+                    formatter: function(cell) {
+                        return '<span class="rcl-cell-mono">' + cell.getValue().toLocaleString() + '</span>';
+                    }
+                },
+                {
+                    title: "Price",
+                    field: "price",
+                    sorter: "number",
+                    hozAlign: "right",
+                    minWidth: 90,
+                    formatter: function(cell) {
+                        return currencySymbol + cell.getValue().toFixed(2);
+                    }
+                },
+                {
+                    title: "Fees",
+                    field: "fees",
+                    sorter: "number",
+                    hozAlign: "right",
+                    minWidth: 70,
+                    formatter: function(cell) {
+                        var val = cell.getValue();
+                        if (val === 0) return '<span class="table-cell-muted">--</span>';
+                        return currencySymbol + val.toFixed(2);
+                    }
+                },
+                {
+                    title: "Total",
+                    field: "total",
+                    sorter: "number",
+                    hozAlign: "right",
+                    minWidth: 100,
+                    formatter: function(cell) {
+                        return '<strong>' + currencySymbol + cell.getValue().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong>';
+                    }
+                },
+                {
+                    title: "Notes",
+                    field: "notes",
+                    sorter: "string",
+                    minWidth: 120,
+                    widthGrow: 2,
+                    formatter: function(cell) {
+                        var notes = cell.getValue();
+                        if (!notes) return '<span class="table-cell-muted">--</span>';
+                        if (notes.length > 40) {
+                            return '<span title="' + notes.replace(/"/g, '&quot;') + '">' + notes.substring(0, 40) + '...</span>';
+                        }
+                        return notes;
+                    }
+                },
+                {
+                    title: "",
+                    field: "id",
+                    headerSort: false,
+                    hozAlign: "right",
+                    minWidth: 120,
+                    formatter: function(cell) {
+                        var row = cell.getRow().getData();
+                        return '<a href="' + row.edit_url + '" class="rcl-action" title="Edit"><i class="bi bi-pencil"></i> Edit</a>' +
+                               ' <button onclick="confirmDelete(\'' + row.delete_url + '\', \'' + row.ticker + '\', \'' + row.type + '\', \'' + row.date + '\')" class="rcl-action" title="Delete" style="border: none; background: none; cursor: pointer; color: var(--danger-500);"><i class="bi bi-trash"></i></button>';
+                    }
+                }
+            ],
+            customConfig: {
+                layout: "fitColumns",
+                initialSort: [{ column: "date", dir: "desc" }],
+                pagination: transactionsData.length > 25,
+            }
+        });
+
+        // Search
+        document.getElementById('txn-search').addEventListener('input', function() {
+            applyFilters();
+        });
+
+        // Type filter
+        document.getElementById('txn-type-filter').addEventListener('change', function() {
+            applyFilters();
+        });
+
+        function applyFilters() {
+            var searchVal = document.getElementById('txn-search').value.toLowerCase().trim();
+            var typeVal = document.getElementById('txn-type-filter').value;
+
+            txnTable.setFilter(function(data) {
+                var searchMatch = !searchVal ||
+                    data.ticker.toLowerCase().indexOf(searchVal) !== -1 ||
+                    data.company_name.toLowerCase().indexOf(searchVal) !== -1;
+
+                var typeMatch = typeVal === 'all' || data.type === typeVal;
+
+                return searchMatch && typeMatch;
+            });
+        }
+    }
+
+    // Make confirmDelete available globally
+    window.confirmDelete = function(deleteUrl, ticker, type, date) {
+        var details = type + ' transaction for ' + ticker + ' on ' + date;
+        document.getElementById('deleteDetails').textContent = details;
+        document.getElementById('deleteForm').action = deleteUrl;
+        deleteModal.show();
+    };
+});
+</script>
+{% endif %}
+{% endblock %}

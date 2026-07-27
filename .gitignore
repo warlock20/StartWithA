@@ -1,0 +1,52 @@
+# ── Python ──
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ── Environment ──
+.env
+.env_local
+
+# ── Flask / App data ──
+instance/
+app/static/uploads/
+*.sqlite3
+app.db
+my_research_app.db
+
+# ── Flask-Assets generated bundles ──
+app/static/css/gen/
+app/static/.webassets-cache/
+
+# ── Node / Webpack ──
+node_modules/
+npm-debug.log*
+app/static/js/dist/
+
+# ── Database backups ──
+*.sql
+railway_backup_*
+local_backup_*
+
+# ── Documents / Large files ──
+*.pdf
+*.woff
+*.woff2
+#docs/
+mockups/
+
+# ── Local utilities ──
+config_backup.py
+sync_db.py
+
+# ── Misc ──
+*.bak
+TODOs/
+scripts/*
+
+# ── Files with local overrides (tracked but ignored locally) ──
+app/portfolio/routes.py
+stratergy.md

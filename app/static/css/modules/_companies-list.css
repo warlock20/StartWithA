@@ -1,0 +1,33 @@
+/* =============================================================================
+   COMPANIES LIST — Dropdown fix for card grid
+   ============================================================================= */
+/*
+   Card layout uses .completed-project-card from _research-projects.css.
+   Table layout uses .rcl-panel from _research-command-center.css.
+   This file only contains the z-index fix for dropdown menus
+   overlapping cards in the grid view.
+*/
+
+/* Elevate card when dropdown is open */
+.completed-project-card {
+    position: relative;
+    z-index: 1;
+    transition: z-index 0s;
+}
+
+.completed-project-card:has(.dropdown-menu.show) {
+    z-index: 1000;
+}
+
+.completed-project-card .dropdown-menu {
+    z-index: 1050 !important;
+    position: absolute !important;
+}
+
+/* ── VIEW TOGGLE INSIDE rcl-panel-controls ────────── */
+
+.rcl-view-toggle {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: auto;
+}

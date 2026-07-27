@@ -1,0 +1,96 @@
+<!-- Unified Results View (All mode - mixed research and wisdom) -->
+{% set combined_results = [] %}
+{% for entry in research_results %}
+    {% set _ = combined_results.append({'type': 'research', 'item': entry, 'date': entry.created_at}) %}
+{% endfor %}
+{% for note in wisdom_results %}
+    {% set _ = combined_results.append({'type': 'wisdom', 'item': note, 'date': note.created_at}) %}
+{% endfor %}
+
+{% if combined_results %}
+<div class="unified-results-list">
+    {% for result in combined_results|sort(attribute='date', reverse=True) %}
+        {% if result.type == 'research' %}
+            <!-- Research Entry -->
+            <div class="unified-result-item research-item">
+                <div class="result-type-badge">
+                    <i class="bi bi-journal-text"></i> Research Note
+                </div>
+                <div class="result-content">
+                    <div class="result-header">
+                        <h5 class="result-title">
+                            {% if result.item.is_starred %}<i class="bi bi-star-fill text-warning me-2"></i>{% endif %}
+                            {{ result.item.title or 'Untitled Entry' }}
+                        </h5>
+                        <span class="result-date">{{ result.item.created_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    <p class="result-preview">{{ result.item.content|truncate(200) }}</p>
+                    <div class="result-meta">
+                        <span class="badge bg-secondary">{{ result.item.entry_type|replace('_', ' ')|title }}</span>
+                        {% if result.item.company %}
+                        <span class="badge bg-primary">{{ result.item.company.name }}</span>
+                        {% endif %}
+                        {% if result.item.sentiment %}
+                        <span class="badge {% if result.item.sentiment == 'bullish' %}bg-success{% elif result.item.sentiment == 'bearish' %}bg-danger{% else %}bg-secondary{% endif %}">
+                            {{ result.item.sentiment|title }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=result.item.id) }}" class="result-link">
+                        View Details <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        {% else %}
+            <!-- Curated Wisdom -->
+            <div class="unified-result-item wisdom-item">
+                <div class="result-type-badge wisdom-badge">
+                    <i class="bi bi-lightbulb"></i> Curated Insight
+                </div>
+                <div class="result-content">
+                    <div class="result-header">
+                        <h5 class="result-title">
+                            {% if result.item.is_favorite %}<i class="bi bi-star-fill text-warning me-2"></i>{% endif %}
+                            {{ result.item.title }}
+                        </h5>
+                        <span class="result-date">{{ result.item.created_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    {% if result.item.source_author %}
+                    <p class="result-source">
+                        <strong>{{ result.item.source_author }}</strong>
+                        {% if result.item.source_detail %} - {{ result.item.source_detail }}{% endif %}
+                    </p>
+                    {% endif %}
+                    <p class="result-preview">{{ result.item.lesson|truncate(200) }}</p>
+                    <div class="result-meta">
+                        {% if result.item.knowledge_type %}
+                        <span class="badge bg-success">{{ result.item.knowledge_type|replace('_', ' ')|title }}</span>
+                        {% endif %}
+                        {% if result.item.source_type %}
+                        <span class="badge bg-info">{{ result.item.source_type|title }}</span>
+                        {% endif %}
+                        {% if result.item.topic_tags %}
+                        {% for topic in result.item.topic_tags[:2] %}
+                        <span class="badge bg-secondary">#{{ topic }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    <a href="{{ url_for('journal_enhanced.learning_note_detail', note_id=result.item.id) }}" class="result-link">
+                        View Details <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
+{% else %}
+<div class="knowledge-empty-state">
+    <div class="knowledge-empty-icon">
+        <i class="bi bi-search"></i>
+    </div>
+    <h3 class="knowledge-empty-title">No data to show</h3>
+    <p class="knowledge-empty-description">
+        Try adjusting your search or filters
+    </p>
+</div>
+{% endif %}

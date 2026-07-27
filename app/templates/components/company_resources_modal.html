@@ -1,0 +1,144 @@
+<!-- Company Resources Modal -->
+<!-- Reusable component: include on any page where company resources can be managed -->
+<!-- Requires: company-resources.js script and _company-resources.css -->
+<!-- All operations are AJAX-based - no page refreshes -->
+<div class="modal fade" id="companyResourcesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-folder2-open me-2"></i>
+                    <span id="cr-modal-title">Company Resources</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs mb-3" id="cr-tabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="cr-tab-list" data-bs-toggle="tab"
+                                data-bs-target="#cr-list-pane" type="button">
+                            <i class="bi bi-list-ul me-1"></i>Resources
+                            <span class="badge bg-secondary ms-1" id="cr-count">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="cr-tab-upload" data-bs-toggle="tab"
+                                data-bs-target="#cr-upload-pane" type="button">
+                            <i class="bi bi-cloud-upload me-1"></i>Upload File
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="cr-tab-link" data-bs-toggle="tab"
+                                data-bs-target="#cr-link-pane" type="button">
+                            <i class="bi bi-link-45deg me-1"></i>Save Link
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <!-- Resources List Tab -->
+                    <div class="tab-pane fade show active" id="cr-list-pane">
+                        <!-- Filter bar -->
+                        <div class="d-flex gap-2 mb-3">
+                            <select class="form-select form-select-sm" id="cr-filter-type" style="max-width: 140px;">
+                                <option value="">All types</option>
+                                <option value="file">Files</option>
+                                <option value="link">Links</option>
+                            </select>
+                            <select class="form-select form-select-sm" id="cr-filter-category" style="max-width: 200px;">
+                                <option value="">All categories</option>
+                            </select>
+                        </div>
+                        <!-- Loading state -->
+                        <div class="text-center text-muted py-4 d-none" id="cr-loading">
+                            <span class="spinner-border spinner-border-sm me-1"></span> Loading...
+                        </div>
+                        <!-- Resource list container -->
+                        <div id="cr-resource-list"></div>
+                        <!-- Empty state -->
+                        <div class="text-center text-muted py-4 d-none" id="cr-empty-state">
+                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-0">No resources yet. Upload a file or save a link.</p>
+                        </div>
+                    </div>
+
+                    <!-- Upload File Tab -->
+                    <div class="tab-pane fade" id="cr-upload-pane">
+                        <div class="mb-3">
+                            <label class="form-label">File <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" id="cr-upload-file" accept=".pdf,.txt">
+                            <div class="form-text">PDF and TXT files supported</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="cr-upload-title"
+                                   placeholder="e.g., 2024 Annual Report">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Category</label>
+                                <input type="text" class="form-control" id="cr-upload-category"
+                                       list="cr-category-datalist" placeholder="e.g., Annual Reports">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Date</label>
+                                <input type="date" class="form-control" id="cr-upload-date">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="cr-upload-description" rows="2"
+                                      placeholder="Optional notes..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100" id="cr-upload-btn">
+                            <i class="bi bi-upload me-1"></i>Upload
+                        </button>
+                        <div class="alert alert-danger d-none mt-2" id="cr-upload-error"></div>
+                        <div class="alert alert-success d-none mt-2" id="cr-upload-success"></div>
+                    </div>
+
+                    <!-- Save Link Tab -->
+                    <div class="tab-pane fade" id="cr-link-pane">
+                        <div class="mb-3">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="cr-link-title"
+                                   placeholder="e.g., Q4 Earnings Analysis">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">URL <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" id="cr-link-url"
+                                   placeholder="https://...">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Source</label>
+                                <input type="text" class="form-control" id="cr-link-source"
+                                       placeholder="e.g., Reuters">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Category</label>
+                                <input type="text" class="form-control" id="cr-link-category"
+                                       list="cr-category-datalist" placeholder="e.g., Earnings">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="cr-link-description" rows="2"
+                                      placeholder="Optional notes..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100" id="cr-link-btn">
+                            <i class="bi bi-link-45deg me-1"></i>Save Link
+                        </button>
+                        <div class="alert alert-danger d-none mt-2" id="cr-link-error"></div>
+                        <div class="alert alert-success d-none mt-2" id="cr-link-success"></div>
+                    </div>
+                </div>
+
+                <!-- Shared datalist for category autocomplete -->
+                <datalist id="cr-category-datalist"></datalist>
+            </div>
+        </div>
+    </div>
+</div>

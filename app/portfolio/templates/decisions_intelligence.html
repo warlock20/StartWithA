@@ -1,0 +1,575 @@
+{% extends "main/_base_portfolio.html" %}
+
+{% block title %}Decision Intelligence{% endblock %}
+
+{% block content %}
+<div class="portfolio-dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Decision Intelligence Dashboard</h1>
+                <p class="dashboard-subtitle">Learning from patterns, decision quality, and behavioral insights</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Intelligence Hub
+                </a>
+            </div>
+        </header>
+    </div>
+
+    <!-- KPI Summary Strip -->
+    {% set research_edge = research_avg_return - non_research_avg_return %}
+    {% set process_win_rate = (good_process_good_outcome / (good_process_good_outcome + good_process_bad_outcome) * 100) if (good_process_good_outcome + good_process_bad_outcome) > 0 else 0 %}
+    {% set confidence_calibrated = confidence_stats.high.avg_return > confidence_stats.medium.avg_return %}
+    <div class="di-kpi-strip">
+        <div class="di-kpi-card">
+            <div class="di-kpi-icon" style="background: rgba(16,185,129,0.07); color: #10b981;">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div>
+                <div class="di-kpi-label">Research Edge</div>
+                <div class="di-kpi-value" style="color: {% if research_edge >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+                    {% if research_edge >= 0 %}+{% endif %}{{ "%.1f"|format(research_edge) }}pp
+                </div>
+                <div class="di-kpi-desc">vs non-research</div>
+            </div>
+        </div>
+        <div class="di-kpi-card">
+            <div class="di-kpi-icon" style="background: rgba(37,99,235,0.07); color: #2563eb;">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div>
+                <div class="di-kpi-label">Process Win Rate</div>
+                <div class="di-kpi-value" style="color: #2563eb;">{{ "%.0f"|format(process_win_rate) }}%</div>
+                <div class="di-kpi-desc">{{ good_process_good_outcome }} of {{ good_process_good_outcome + good_process_bad_outcome }} researched</div>
+            </div>
+        </div>
+        <div class="di-kpi-card">
+            <div class="di-kpi-icon" style="background: rgba({% if confidence_calibrated %}16,185,129{% else %}245,158,11{% endif %},0.07); color: {% if confidence_calibrated %}#10b981{% else %}#f59e0b{% endif %};">
+                <i class="bi bi-speedometer2"></i>
+            </div>
+            <div>
+                <div class="di-kpi-label">Confidence Calibrated</div>
+                <div class="di-kpi-value" style="color: {% if confidence_calibrated %}#10b981{% else %}#f59e0b{% endif %};">
+                    {% if confidence_calibrated %}Yes{% else %}Review{% endif %}
+                </div>
+                <div class="di-kpi-desc">High: {% if confidence_stats.high.avg_return >= 0 %}+{% endif %}{{ confidence_stats.high.avg_return }}%</div>
+            </div>
+        </div>
+        <div class="di-kpi-card">
+            <div class="di-kpi-icon" style="background: rgba({% if expectations_met_pct >= 50 %}16,185,129{% else %}245,158,11{% endif %},0.07); color: {% if expectations_met_pct >= 50 %}#10b981{% else %}#f59e0b{% endif %};">
+                <i class="bi bi-bullseye"></i>
+            </div>
+            <div>
+                <div class="di-kpi-label">Expectations Met</div>
+                <div class="di-kpi-value" style="color: {% if expectations_met_pct >= 50 %}#10b981{% else %}#f59e0b{% endif %};">
+                    {{ "%.0f"|format(expectations_met_pct) }}%
+                </div>
+                <div class="di-kpi-desc">{{ expectations_met_count }} of {{ expectations_total_count }} positions</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Grid -->
+    <div class="di-dashboard-grid">
+
+        <!-- Row 1: Research Comparison + Decision Matrix + Confidence Calibration -->
+        <div class="di-row di-row-1-1-1">
+
+            <!-- Research vs Non-Research Comparison -->
+            <div class="di-section-card">
+                <div class="di-section-header">
+                    <div>
+                        <h3 class="di-section-title">
+                            <i class="bi bi-clipboard-data"></i>
+                            Research vs Non-Research
+                        </h3>
+                    </div>
+                </div>
+                <div class="di-section-body">
+                    <div class="di-comparison-wrapper">
+                        <div class="di-comparison-side with-research">
+                            {% if research_avg_return > non_research_avg_return %}
+                            <div class="di-comparison-winner-badge">Winner</div>
+                            {% endif %}
+                            <div class="di-comparison-label">
+                                <i class="bi bi-check-circle-fill" style="color: #10b981; font-size: 16px;"></i>
+                                <span>With Research</span>
+                            </div>
+                            <div class="di-comparison-return {% if research_avg_return >= 0 %}positive{% else %}negative{% endif %}">
+                                {% if research_avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(research_avg_return) }}%
+                            </div>
+                            <div class="di-comparison-meta">avg return &middot; {{ research_backed_count }} positions</div>
+                            <div class="di-comparison-stats">
+                                <div>
+                                    <div class="di-comparison-stat-value">{{ "%.0f"|format(research_win_rate) }}%</div>
+                                    <div class="di-comparison-stat-label">Win Rate</div>
+                                </div>
+                                <div>
+                                    <div class="di-comparison-stat-value">{{ "%.0f"|format(research_avg_hold) }}d</div>
+                                    <div class="di-comparison-stat-label">Avg Hold</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="di-comparison-divider">
+                            <span class="di-comparison-vs">VS</span>
+                        </div>
+                        <div class="di-comparison-side without-research">
+                            {% if non_research_avg_return > research_avg_return %}
+                            <div class="di-comparison-winner-badge">Winner</div>
+                            {% endif %}
+                            <div class="di-comparison-label">
+                                <i class="bi bi-x-circle-fill" style="color: #ef4444; font-size: 16px;"></i>
+                                <span>Without Research</span>
+                            </div>
+                            <div class="di-comparison-return {% if non_research_avg_return >= 0 %}positive{% else %}negative{% endif %}">
+                                {% if non_research_avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(non_research_avg_return) }}%
+                            </div>
+                            <div class="di-comparison-meta">avg return &middot; {{ non_research_count }} positions</div>
+                            <div class="di-comparison-stats">
+                                <div>
+                                    <div class="di-comparison-stat-value">{{ "%.0f"|format(non_research_win_rate) }}%</div>
+                                    <div class="di-comparison-stat-label">Win Rate</div>
+                                </div>
+                                <div>
+                                    <div class="di-comparison-stat-value">{{ "%.0f"|format(non_research_avg_hold) }}d</div>
+                                    <div class="di-comparison-stat-label">Avg Hold</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if research_backed_count > 0 and non_research_count > 0 %}
+                    <div class="di-insight-card learning">
+                        <div class="di-insight-title">
+                            <i class="bi bi-lightbulb-fill"></i>
+                            Key Insight
+                        </div>
+                        <div>
+                            Research-backed positions {% if research_edge > 0 %}outperform{% else %}underperform{% endif %} impulse buys by
+                            <span class="di-highlight">+{{ "%.1f"|format(research_edge|abs) }} percentage points</span>
+                            {% if research_win_rate > non_research_win_rate and non_research_win_rate > 0 %}
+                            with a {{ "%.1f"|format(research_win_rate / non_research_win_rate) }}&times; better win rate.
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Decision Quality Matrix -->
+            <div class="di-section-card">
+                <div class="di-section-header">
+                    <div>
+                        <h3 class="di-section-title">
+                            <i class="bi bi-grid-3x3-gap-fill"></i>
+                            Decision Quality Matrix
+                        </h3>
+                    </div>
+                    <span class="di-badge info">Process Check</span>
+                </div>
+                <div class="di-section-body">
+                    <div class="di-matrix-axis-labels">
+                        <div class="di-matrix-axis-label">Good Outcome</div>
+                        <div class="di-matrix-axis-label">Bad Outcome</div>
+                    </div>
+                    <div class="di-matrix-grid">
+                        <div class="di-matrix-cell deserved-wins">
+                            <i class="bi bi-check-circle-fill" style="color: #10b981;"></i>
+                            <div class="di-matrix-value" style="color: #10b981;">{{ good_process_good_outcome }}</div>
+                            <div class="di-matrix-label" style="color: #10b981;">Deserved Wins</div>
+                            <div class="di-matrix-desc">Researched &amp; won</div>
+                        </div>
+                        <div class="di-matrix-cell bad-luck">
+                            <i class="bi bi-cloud-rain" style="color: #3b82f6;"></i>
+                            <div class="di-matrix-value" style="color: #3b82f6;">{{ good_process_bad_outcome }}</div>
+                            <div class="di-matrix-label" style="color: #3b82f6;">Bad Luck</div>
+                            <div class="di-matrix-desc">Researched but lost</div>
+                        </div>
+                        <div class="di-matrix-cell lucky-wins">
+                            <i class="bi bi-lightning-fill" style="color: #f59e0b;"></i>
+                            <div class="di-matrix-value" style="color: #f59e0b;">{{ bad_process_good_outcome }}</div>
+                            <div class="di-matrix-label" style="color: #f59e0b;">Lucky Wins</div>
+                            <div class="di-matrix-desc">No research but won</div>
+                        </div>
+                        <div class="di-matrix-cell expected-losses">
+                            <i class="bi bi-x-circle-fill" style="color: #ef4444;"></i>
+                            <div class="di-matrix-value" style="color: #ef4444;">{{ bad_process_bad_outcome }}</div>
+                            <div class="di-matrix-label" style="color: #ef4444;">Expected Losses</div>
+                            <div class="di-matrix-desc">No research &amp; lost</div>
+                        </div>
+                    </div>
+                    <div class="di-insight-card learning">
+                        <div class="di-insight-title">
+                            <i class="bi bi-lightbulb-fill"></i>
+                            Key Insight
+                        </div>
+                        <div>
+                            <span class="di-highlight">{{ good_process_good_outcome }} deserved wins</span> vs {{ bad_process_good_outcome }} lucky wins.
+                            Research process yields a <span class="di-highlight">{{ "%.0f"|format(process_win_rate) }}% win rate</span> &mdash; focus on process, not outcomes.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confidence Calibration -->
+            {% if confidence_stats.high.count > 0 or confidence_stats.medium.count > 0 or confidence_stats.low.count > 0 %}
+            <div class="di-section-card">
+                <div class="di-section-header">
+                    <div>
+                        <h3 class="di-section-title">
+                            <i class="bi bi-speedometer2"></i>
+                            Confidence Calibration
+                        </h3>
+                        <p class="di-section-subtitle">Are your high-confidence picks actually performing better?</p>
+                    </div>
+                    <span class="di-badge info">Self-Awareness</span>
+                </div>
+                <div class="di-section-body">
+                    {% set max_return = [confidence_stats.high.avg_return|abs, confidence_stats.medium.avg_return|abs, confidence_stats.low.avg_return|abs, 1]|max %}
+                    <div class="di-confidence-rows">
+                        <!-- High -->
+                        <div class="di-confidence-row">
+                            <div class="di-confidence-label">
+                                <i class="bi bi-star-fill" style="color: #10b981; font-size: 14px;"></i>
+                                <span>High (8-10)</span>
+                            </div>
+                            <div class="di-confidence-bar-wrapper">
+                                <div class="di-confidence-bar-fill" style="width: {{ [8, (confidence_stats.high.avg_return|abs / max_return * 100)]|max }}%; background: #10b981;"></div>
+                                <div class="di-confidence-bar-value" style="color: #10b981;">
+                                    {% if confidence_stats.high.avg_return >= 0 %}+{% endif %}{{ confidence_stats.high.avg_return }}%
+                                </div>
+                            </div>
+                            <div class="di-confidence-count">{{ confidence_stats.high.count }} pos</div>
+                        </div>
+                        <!-- Medium -->
+                        <div class="di-confidence-row">
+                            <div class="di-confidence-label">
+                                <i class="bi bi-star-half" style="color: #f59e0b; font-size: 14px;"></i>
+                                <span>Medium (5-7)</span>
+                            </div>
+                            <div class="di-confidence-bar-wrapper">
+                                <div class="di-confidence-bar-fill" style="width: {{ [8, (confidence_stats.medium.avg_return|abs / max_return * 100)]|max }}%; background: #f59e0b;"></div>
+                                <div class="di-confidence-bar-value" style="color: #f59e0b;">
+                                    {% if confidence_stats.medium.avg_return >= 0 %}+{% endif %}{{ confidence_stats.medium.avg_return }}%
+                                </div>
+                            </div>
+                            <div class="di-confidence-count">{{ confidence_stats.medium.count }} pos</div>
+                        </div>
+                        <!-- Low -->
+                        <div class="di-confidence-row">
+                            <div class="di-confidence-label">
+                                <i class="bi bi-star" style="color: #94a3b8; font-size: 14px;"></i>
+                                <span>Low (1-4)</span>
+                            </div>
+                            <div class="di-confidence-bar-wrapper">
+                                <div class="di-confidence-bar-fill" style="width: {{ [8, (confidence_stats.low.avg_return|abs / max_return * 100)]|max }}%; background: #94a3b8;"></div>
+                                <div class="di-confidence-bar-value" style="color: #94a3b8;">
+                                    {% if confidence_stats.low.avg_return >= 0 %}+{% endif %}{{ confidence_stats.low.avg_return }}%
+                                </div>
+                            </div>
+                            <div class="di-confidence-count">{{ confidence_stats.low.count }} pos</div>
+                        </div>
+                    </div>
+                    {% if confidence_stats.high.count > 0 and confidence_stats.medium.count > 0 %}
+                    {% set conf_diff = confidence_stats.high.avg_return - confidence_stats.medium.avg_return %}
+                    <div class="di-insight-card {% if conf_diff > 5 %}learning{% else %}warning{% endif %}">
+                        <div class="di-insight-title">
+                            <i class="bi bi-{% if conf_diff > 5 %}lightbulb-fill{% else %}exclamation-triangle-fill{% endif %}"></i>
+                            Key Insight
+                        </div>
+                        <div>
+                            {% if conf_diff > 5 %}
+                            Your confidence is well-calibrated. High confidence picks outperform medium by <span class="di-highlight">+{{ "%.1f"|format(conf_diff) }}pp</span>. Trust your conviction.
+                            {% else %}
+                            Confidence may need recalibration. High confidence picks {% if conf_diff >= 0 %}only slightly outperform{% else %}underperform{% endif %} medium by <span class="di-highlight">{{ "%.1f"|format(conf_diff|abs) }}pp</span>. Be more selective with high ratings.
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Row 2: Expectations Table (full width) -->
+        {% if expectations_total_count > 0 %}
+        <div class="di-section-card">
+            <div class="di-section-header">
+                <div>
+                    <h3 class="di-section-title">
+                        <i class="bi bi-bullseye"></i>
+                        Performance vs Expectations
+                    </h3>
+                    <p class="di-section-subtitle">Actual returns vs your initial projections</p>
+                </div>
+                <span class="di-badge {% if expectations_met_pct >= 50 %}success{% else %}warning{% endif %}">{{ "%.0f"|format(expectations_met_pct) }}% Met</span>
+            </div>
+            <div class="di-section-body">
+                <div class="di-table-wrapper">
+                    <table class="di-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">Company</th>
+                                <th>Expected</th>
+                                <th>Actual</th>
+                                <th>Diff</th>
+                                <th style="text-align: center;">Met?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in expectations_analysis|sort(attribute='diff', reverse=true) %}
+                            <tr>
+                                <td style="text-align: left;">
+                                    <span class="di-mono" style="color: #374151;">{{ item.company.ticker_symbol }}</span>
+                                    <span class="checkpoints-company-name"> &middot; {{ item.company.name }}</span>
+                                </td>
+                                <td style="text-align: right; font-family: var(--font-mono); font-weight: 600; color: #6b7280;">{{ "%.1f"|format(item.expected) }}%</td>
+                                <td style="text-align: right; font-family: var(--font-mono); font-weight: 700; color: {% if item.actual >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+                                    {% if item.actual >= 0 %}+{% endif %}{{ "%.1f"|format(item.actual) }}%
+                                </td>
+                                <td style="text-align: right; font-family: var(--font-mono); font-weight: 700; color: {% if item.diff >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+                                    {% if item.diff >= 0 %}+{% endif %}{{ "%.1f"|format(item.diff) }}pp
+                                </td>
+                                <td style="text-align: center;">
+                                    <i class="bi bi-{% if item.met %}check-circle-fill{% else %}x-circle-fill{% endif %}"
+                                       style="color: {% if item.met %}#10b981{% else %}#ef4444{% endif %}; font-size: 16px;"></i>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="di-insight-card learning">
+                    <div class="di-insight-title">
+                        <i class="bi bi-lightbulb-fill"></i>
+                        Key Insight
+                    </div>
+                    <div>
+                        You've met expectations in <span class="di-highlight">{{ expectations_met_count }} of {{ expectations_total_count }} positions</span> ({{ "%.0f"|format(expectations_met_pct) }}%).
+                        {% if expectations_met_pct >= 60 %}
+                        Strong forecasting &mdash; you know your picks.
+                        {% else %}
+                        Review missed targets to calibrate future projections.
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Row 3: Holding Period Chart + Recent Decisions + Winning Patterns -->
+        <div class="di-row di-row-1-1-1">
+
+            <!-- Performance by Holding Period -->
+            <div class="di-section-card">
+                <div class="di-section-header">
+                    <h3 class="di-section-title">
+                        <i class="bi bi-hourglass-split"></i>
+                        Performance by Holding Period
+                    </h3>
+                </div>
+                <div class="di-section-body">
+                    <canvas id="holdingPeriodChart" height="180"></canvas>
+                    <div class="di-insight-card learning">
+                        <div class="di-insight-title">
+                            <i class="bi bi-lightbulb-fill"></i>
+                            Key Insight
+                        </div>
+                        <div>
+                            {% set longest_period_return = hold_period_stats.get('365+', 0) %}
+                            {% if longest_period_return > 0 %}
+                            Best returns come from positions held 365+ days (<span class="di-highlight">+{{ "%.1f"|format(longest_period_return) }}%</span>).
+                            Consider a minimum 180-day hold rule for research-backed positions.
+                            {% else %}
+                            Track your holding periods to identify patterns in your best-performing investments.
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Decision History -->
+            {% if recent_decisions %}
+            <div class="di-section-card">
+                <div class="di-section-header">
+                    <h3 class="di-section-title">
+                        <i class="bi bi-clock-history"></i>
+                        Recent Decision History
+                    </h3>
+                </div>
+                <div class="di-section-body">
+                    <div class="di-timeline-list">
+                        {% for txn in recent_decisions %}
+                        <div class="di-timeline-item">
+                            <div class="di-timeline-dot-col">
+                                <div class="di-timeline-dot {% if txn.type == 'SELL' %}sell{% elif txn.decision_journal and txn.decision_journal.linked_research_id %}researched{% elif txn.type == 'BUY' %}no-research{% else %}unknown{% endif %}"></div>
+                                {% if not loop.last %}
+                                <div class="di-timeline-line"></div>
+                                {% endif %}
+                            </div>
+                            <div class="di-timeline-content">
+                                <div class="di-timeline-title">
+                                    {{ txn.type }} <span class="di-mono" style="color: #374151;">{{ txn.company.ticker_symbol }}</span> &middot; ${{ "%.2f"|format(txn.price_per_share) }}
+                                    {% if txn.type == 'BUY' and txn.decision_journal and txn.decision_journal.linked_research_id %}
+                                    <span class="di-inline-badge success">WITH RESEARCH</span>
+                                    {% elif txn.type == 'BUY' %}
+                                    <span class="di-inline-badge danger">NO RESEARCH</span>
+                                    {% endif %}
+                                </div>
+                                <div class="di-timeline-detail">
+                                    {{ txn.quantity }} shares &middot; {{ txn.company.name }}
+                                    {% if txn.notes %}
+                                    <span class="note"> &mdash; {{ txn.notes }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="di-timeline-date">{{ txn.date.strftime('%b %d, %Y') }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Winning Patterns -->
+            <div class="di-section-card">
+                <div class="di-section-header">
+                    <div>
+                        <h3 class="di-section-title">
+                            <i class="bi bi-trophy-fill"></i>
+                            Winning Patterns
+                        </h3>
+                    </div>
+                    <span class="di-badge success">Replicate</span>
+                </div>
+                <div class="di-section-body">
+                    <div class="di-pattern-list">
+                        <div class="di-pattern-item">
+                            <div class="di-pattern-icon success">
+                                <i class="bi bi-graph-up"></i>
+                            </div>
+                            <div>
+                                <div class="di-pattern-title">Research-Backed Decisions</div>
+                                <div class="di-pattern-desc">Positions with proper research analysis significantly outperform</div>
+                                <div class="di-pattern-stat">{{ research_backed_count }} positions tracked</div>
+                            </div>
+                        </div>
+                        <div class="di-pattern-item">
+                            <div class="di-pattern-icon success">
+                                <i class="bi bi-calendar-check"></i>
+                            </div>
+                            <div>
+                                <div class="di-pattern-title">Long-Term Holdings</div>
+                                <div class="di-pattern-desc">Positions held longer tend to perform better than short-term trades</div>
+                                <div class="di-pattern-stat">Track holding periods for insights</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 4: Losing Patterns (full width, single card) -->
+        <div class="di-section-card">
+            <div class="di-section-header">
+                <div>
+                    <h3 class="di-section-title">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        Losing Patterns
+                    </h3>
+                </div>
+                <span class="di-badge warning">Avoid</span>
+            </div>
+            <div class="di-section-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div class="di-pattern-item">
+                        <div class="di-pattern-icon danger">
+                            <i class="bi bi-lightning-fill"></i>
+                        </div>
+                        <div>
+                            <div class="di-pattern-title">Impulsive Entry Without Research</div>
+                            <div class="di-pattern-desc">Buying without proper research leads to lower win rates and returns</div>
+                            <div class="di-pattern-stat">{{ non_research_count }} positions tracked</div>
+                        </div>
+                    </div>
+                    <div class="di-pattern-item">
+                        <div class="di-pattern-icon warning">
+                            <i class="bi bi-arrow-down-up"></i>
+                        </div>
+                        <div>
+                            <div class="di-pattern-title">Early Exits</div>
+                            <div class="di-pattern-desc">Selling positions too quickly may prevent gains from materializing</div>
+                            <div class="di-pattern-stat">Monitor hold periods vs returns</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /di-dashboard-grid -->
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% include 'components/_chart_js.html' %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const holdingCtx = document.getElementById('holdingPeriodChart').getContext('2d');
+    const holdPeriodData = {{ hold_period_stats|tojson }};
+
+    new Chart(holdingCtx, {
+        type: 'bar',
+        data: {
+            labels: ['0\u201330d', '31\u201390d', '91\u2013180d', '181\u2013365d', '365+d'],
+            datasets: [{
+                data: [
+                    holdPeriodData['0-30'] || 0,
+                    holdPeriodData['31-90'] || 0,
+                    holdPeriodData['91-180'] || 0,
+                    holdPeriodData['181-365'] || 0,
+                    holdPeriodData['365+'] || 0
+                ],
+                backgroundColor: function(context) {
+                    const value = context.raw;
+                    return value >= 0 ? '#10b981' : '#ef4444';
+                },
+                borderRadius: 4,
+                maxBarThickness: 48
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) { return ctx.raw + '%'; }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return value + '%'; },
+                        font: { family: "'JetBrains Mono', monospace" }
+                    },
+                    grid: { color: '#f1f5f9' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { family: "'Inter', sans-serif", size: 11 }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

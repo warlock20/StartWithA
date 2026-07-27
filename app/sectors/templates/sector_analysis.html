@@ -1,0 +1,666 @@
+{% extends "main/_base_companies.html" %}
+
+{% block head %}
+{% include 'components/_tabulator.html' %}
+<!-- BlockNote Editor (React) -->
+{% include 'components/blocknote_editor_include.html' %}
+
+<!-- Highlight.js for code syntax highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+<!-- Sector Research Modules -->
+<script>
+    // Global URL configuration for JavaScript modules
+    window.sectorUrls = {
+        // Section endpoints
+        createSection: '{{ url_for("sectors.create_section", sector_name=analysis.sector.slug) }}',
+        updateSection: '{{ url_for("sectors.update_section", section_id=0) }}',
+        deleteSection: '{{ url_for("sectors.delete_section", section_id=0) }}',
+
+        // Note endpoints
+        createNote: '{{ url_for("sectors.create_note", sector_name=analysis.sector.slug) }}',
+        updateNote: '{{ url_for("sectors.update_note", note_id=0) }}',
+        deleteNote: '{{ url_for("sectors.delete_note", note_id=0) }}',
+
+        // Document endpoints
+        getResearchNotes: '{{ url_for("sectors.get_research_notes", sector_name=analysis.sector.slug) }}',
+        saveResearchNotes: '{{ url_for("sectors.save_research_notes", sector_name=analysis.sector.slug) }}',
+        generateDocument: '{{ url_for("sectors.generate_document_from_canvas", sector_name=analysis.sector.slug) }}',
+
+        // Source endpoints
+        addSource: '{{ url_for("sectors.add_source", sector_name=analysis.sector.slug) }}'
+    };
+</script>
+
+<script defer src="{{ url_for('static', filename='js/dist/sector-canvas.bundle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sector-document-init.js') }}"></script>
+
+<!-- Company Search Component (React Island) -->
+<script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
+
+<!-- Company Tagging Module (React Island) -->
+<script defer src="{{ url_for('static', filename='js/dist/company-tagging.bundle.js') }}"></script>
+
+<!-- Generate Document Module -->
+<script src="{{ url_for('static', filename='js/generate-document.js') }}"></script>
+
+<!-- AI-Powered Features -->
+<script src="{{ url_for('static', filename='js/ai-summary.js') }}"></script>
+
+<!-- Data Table Component -->
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sector-sources-table.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="research-workspace-dashboard-container">
+    <!-- Sector Snapshot Bar -->
+    <div class="sector-snapshot-bar">
+        <div class="sector-snapshot-header">
+            <div class="sector-snapshot-title">
+                <h2>📊 {{ analysis.sector_name }}</h2>
+                <span class="sector-status-badge {{ analysis.status }}">
+                    {% if analysis.status == 'active' %}
+                        <i class="bi bi-play-fill"></i> Active
+                    {% else %}
+                        <i class="bi bi-archive-fill"></i> Archived
+                    {% endif %}
+                </span>
+            </div>
+            <div class="sector-snapshot-actions">
+                <div class="form-check form-switch d-inline-flex align-items-center me-3">
+                    <input class="form-check-input me-2" type="checkbox" role="switch"
+                           id="continuousLearningToggle"
+                           {% if analysis.continuous_learning_enabled %}checked{% endif %}
+                           data-analysis-id="{{ analysis.id }}">
+                    <label class="form-check-label small text-muted" for="continuousLearningToggle">
+                        Track in Learning Center
+                    </label>
+                </div>
+                <a href="{{ url_for('sectors.sector_analysis_focus', sector_name=analysis.sector_name) }}" class="btn btn-primary btn-sm" title="Distraction-free writing mode">
+                    <i class="bi bi-aspect-ratio"></i> Focus Mode
+                </a>
+                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                {% if analysis.status == 'active' %}
+                <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#archiveModal">
+                    <i class="bi bi-archive"></i> Archive Research
+                </button>
+                {% else %}
+                <form method="POST" action="{{ url_for('sectors.unarchive_sector', sector_name=analysis.sector_name) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="bi bi-arrow-counterclockwise"></i> Unarchive
+                    </button>
+                </form>
+                {% endif %}
+                <a href="{{ url_for('sectors.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> All Sectors
+                </a>
+            </div>
+        </div>
+
+        {# Research Progress bar hidden (issue #304): a 0-100% "completeness" score
+           is misleading — research is never "done". Scoring code (research_progress_score,
+           progress_stage, progress_breakdown) is kept dormant pending a future
+           capital-at-risk signal that replaces it. To revive, un-comment this block
+           and the progressBreakdownModal include below.
+        <div class="sector-progress-section">
+            <div class="sector-progress-row">
+                <span class="sector-progress-label">Research Progress:</span>
+                <div class="sector-progress-bar-container progress-clickable"
+                     data-bs-toggle="modal"
+                     data-bs-target="#progressBreakdownModal"
+                     title="Click for detailed breakdown">
+                    <div class="sector-progress-bar-fill {{ analysis.progress_stage.label|lower|replace(' ', '-') }}"
+                         style="width: {{ analysis.research_progress_score }}%">
+                        <span class="sector-progress-percent">{{ analysis.research_progress_score }}%</span>
+                    </div>
+                </div>
+                <span class="sector-progress-stage">
+                    {{ analysis.progress_stage.emoji }} {{ analysis.progress_stage.label }}
+                </span>
+            </div>
+        </div>
+        #}
+
+        <div class="sector-metrics-compact">
+            <div class="sector-metric-compact">
+                <i class="bi bi-clock-history"></i>
+                <span><strong>{{ analysis.time_spent_formatted }}</strong> active research</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-building"></i>
+                <span><strong>{{ sector_metrics.total }}</strong> companies tracked</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-check-circle"></i>
+                <span><strong>{{ sector_metrics.researched }}</strong> researched</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-star"></i>
+                <span><strong>{{ sector_metrics.watchlist }}</strong> watchlist</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-briefcase"></i>
+                <span><strong>{{ sector_metrics.portfolio }}</strong> portfolio</span>
+            </div>
+            {% if sector_stats.success_rate is defined and sector_stats.success_rate is not none %}
+            <div class="sector-metric-compact">
+                <i class="bi bi-graph-up"></i>
+                <span><strong>{{ sector_stats.success_rate|round(1) }}%</strong> success rate</span>
+            </div>
+            {% endif %}
+            {% if sector_stats.coc_confidence is defined and sector_stats.coc_confidence is not none %}
+            <div class="sector-metric-compact">
+                <i class="bi bi-bullseye"></i>
+                <span><strong>{{ sector_stats.coc_confidence|round(1) }}%</strong> CoC confidence</span>
+            </div>
+            {% endif %}
+            <div class="sector-metric-compact">
+                <i class="bi bi-file-text"></i>
+                <span><strong>{{ analysis.word_count }}</strong> words</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-link-45deg"></i>
+                <span><strong>{{ analysis.sources_count }}</strong> sources</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-question-circle"></i>
+                <span><strong>{{ analysis.questions_count }}</strong> questions</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Research Area with Tabs -->
+        <div class="col-lg-10">
+            <div class="research-tabs-container">
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs research-tabs" id="researchTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
+                            <i class="bi bi-journal-text"></i> Documentation
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="canvas-tab" data-bs-toggle="tab" data-bs-target="#canvas" type="button" role="tab">
+                            <i class="bi bi-kanban"></i> Research Canvas
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="sources-tab" data-bs-toggle="tab" data-bs-target="#sources-view" type="button" role="tab">
+                            <i class="bi bi-link-45deg"></i> Sources
+                            <span class="badge bg-secondary ms-1">{{ sources|length }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="takeaways-tab" data-bs-toggle="tab" data-bs-target="#takeaways" type="button" role="tab">
+                            <i class="bi bi-lightbulb"></i> Key Takeaways
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content research-tab-content" id="researchTabContent">
+                    <!-- Documentation Tab -->
+                    <div class="tab-pane fade" id="notes" role="tabpanel">
+                        <div class="sector-editor-container">
+                            <div class="sector-editor-header">
+                                <div class="editor-header-actions">
+                                    <button class="btn btn-outline-success btn-sm" onclick="openGenerateDocumentModal()">
+                                        <i class="bi bi-arrow-down-circle"></i> Generate from Canvas
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
+                                        <i class="bi bi-file-earmark-text"></i> Insert Template
+                                    </button>
+                                    <div class="editor-status saved" id="editorStatus">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        <span id="statusText">Saved</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="sectorEditor">{# Content will be loaded from backend #}</div>
+                        </div>
+                    </div>
+
+
+                    <!-- Atomic Notes Canvas Tab (React Island) -->
+                    <div class="tab-pane fade show active" id="canvas" role="tabpanel">
+                        <div id="sector-canvas-mount"></div>
+                    </div>
+
+                    <!-- Sources Tab -->
+                    <div class="tab-pane fade" id="sources-view" role="tabpanel">
+                        <div class="sources-tab-container">
+                            {% from 'components/data_table.html' import data_table %}
+
+                            <div class="data-table-wrapper">
+                                {# Table Header #}
+                                <div class="data-table-header">
+                                    <h2 class="data-table-title">
+                                        <i class="bi bi-link-45deg"></i>
+                                        Research Sources
+                                        <span class="data-table-badge">{{ sources|length }}</span>
+                                    </h2>
+
+                                    <div class="data-table-controls">
+                                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                                            <i class="bi bi-plus-circle"></i> Add Source
+                                        </button>
+                                        <div id="sources-table-export-buttons"></div>
+                                    </div>
+                                </div>
+
+                                {# Table container - Tabulator will be initialized here #}
+                                <div id="sources-table"></div>
+
+                                {# Empty state (shown by Tabulator when no data) #}
+                                <template id="sources-table-empty-template">
+                                    <div class="portfolio-empty-state">
+                                        <div class="portfolio-empty-state-icon">
+                                            <i class="bi bi-link-45deg"></i>
+                                        </div>
+                                        <h3 class="portfolio-empty-state-title">No sources yet</h3>
+                                        <div>
+                                            <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                                                <i class="bi bi-plus-circle-fill"></i> Add Source
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Key Takeaways Tab -->
+                    <div class="tab-pane fade" id="takeaways" role="tabpanel">
+                        <div class="takeaways-container">
+                            <div class="takeaways-header">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <p class="text-muted mb-2">Summarize your most important findings in bullet points</p>
+                                        <small class="text-muted">
+                                            <i class="bi bi-lightbulb"></i> Use AI to generate a summary, or write your own takeaways
+                                        </small>
+                                    </div>
+                                    <button class="btn btn-primary" id="generateAISummaryBtn" onclick="generateAISummary()">
+                                        <i class="bi bi-stars"></i> Generate AI Summary
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="takeawaysEditor">{# BlockNote editor will be initialized here #}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sources Data for JavaScript -->
+        <script>
+            // Pass sources data to JavaScript
+            window.sourcesData = [
+                {% for source in sources %}
+                {
+                    id: {{ source.id }},
+                    title: {{ source.title|tojson|safe }},
+                    url: {{ source.url|tojson|safe }},
+                    source_type: {{ source.source_type|tojson|safe }},
+                    description: {{ source.description|tojson|safe }},
+                    created_at: {{ source.created_at.isoformat()|tojson|safe if source.created_at else 'null' }},
+                    accessed_at: {{ source.accessed_at.isoformat()|tojson|safe if source.accessed_at else 'null' }}
+                }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+        </script>
+
+        <!-- Sector Canvas Data for React Island -->
+        <script>
+            window.sectorCanvasData = {
+                sections: [
+                    {% for section in canvas_sections %}
+                    {
+                        id: {{ section.id }},
+                        title: {{ section.title|tojson }},
+                        description: {{ (section.description or '')|tojson }},
+                        icon: {{ (section.icon or '')|tojson }},
+                        notes: [
+                            {% for note in section.section_notes.order_by('sort_order').all() %}
+                            {
+                                id: {{ note.id }},
+                                title: {{ note.title|tojson }},
+                                content: {{ (note.content or '')|tojson }},
+                                contentHtml: {{ (note.content|blocknote_to_html or '')|tojson }},
+                                sourceUrl: {{ (note.source_reference or '')|tojson }},
+                                sourceTitle: {{ (note.source_title or '')|tojson }},
+                                tags: {{ (note.tags or '')|tojson }},
+                                noteType: {{ (note.note_type or 'note')|tojson }},
+                                sectionId: {{ note.section_id|tojson }}
+                            }{% if not loop.last %},{% endif %}
+                            {% endfor %}
+                        ]
+                    }{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                inboxNotes: [
+                    {% for note in collector_notes %}
+                    {
+                        id: {{ note.id }},
+                        title: {{ note.title|tojson }},
+                        content: {{ (note.content or '')|tojson }},
+                        contentHtml: {{ (note.content|blocknote_to_html or '')|tojson }},
+                        sourceUrl: {{ (note.source_reference or '')|tojson }},
+                        sourceTitle: {{ (note.source_title or '')|tojson }},
+                        tags: {{ (note.tags or '')|tojson }},
+                        noteType: {{ (note.note_type or 'note')|tojson }},
+                        sectionId: null
+                    }{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            };
+        </script>
+
+        <!-- Tab Persistence Script -->
+        <script>
+            // Save active tab to URL hash when user clicks a tab
+            document.addEventListener('DOMContentLoaded', function() {
+                const tabButtons = document.querySelectorAll('#researchTabs button[data-bs-toggle="tab"]');
+
+                // Add click listeners to save hash
+                tabButtons.forEach(button => {
+                    button.addEventListener('shown.bs.tab', function(event) {
+                        const targetId = event.target.getAttribute('data-bs-target');
+                        if (targetId) {
+                            // Remove '#' from target and set as hash
+                            window.location.hash = targetId.substring(1);
+                        }
+                    });
+                });
+
+                // Restore active tab from URL hash on page load
+                const hash = window.location.hash;
+                if (hash) {
+                    const tabButton = document.querySelector(`#researchTabs button[data-bs-target="${hash}"]`);
+                    if (tabButton) {
+                        const tab = new bootstrap.Tab(tabButton);
+                        tab.show();
+                    }
+                }
+            });
+        </script>
+
+        <!-- Quick Tools Sidebar -->
+        <div class="col-lg-2">
+            <div class="research-tools-sidebar">
+                <div class="sidebar-header">
+                    <h6><i class="bi bi-tools"></i> Quick Tools</h6>
+                </div>
+
+                <div class="accordion accordion-flush" id="sidebarAccordion">
+                    <!-- Questions Tool -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#questionsCollapse">
+                                <i class="bi bi-question-circle me-2"></i>
+                                Questions
+                                <span class="badge bg-secondary ms-auto me-2">{{ question_bank_items|length }}</span>
+                            </button>
+                        </h2>
+                        <div id="questionsCollapse" class="accordion-collapse collapse" data-bs-parent="#sidebarAccordion">
+                            <div class="accordion-body">
+                                <form method="POST" action="{{ url_for('sectors.add_question_to_bank', sector_name=analysis.sector_name) }}" class="mb-2">
+                                    <textarea name="text" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a question..." required></textarea>
+                                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                                        <i class="bi bi-plus-circle"></i> Add
+                                    </button>
+                                </form>
+
+                                <div class="tool-items-list">
+                                    {% if question_bank_items %}
+                                    {% for q in question_bank_items %}
+                                    <div class="tool-item">
+                                        <div class="tool-item-text">{{ q.text }}</div>
+                                        <div class="tool-item-actions">
+                                            <a href="{{ url_for('question_bank.edit_question', item_id=q.id) }}" class="btn btn-sm btn-link p-0">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('sectors.delete_question_from_bank', item_id=q.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Delete?');">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-muted small text-center mb-0">No questions yet</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Companies Tool -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#companiesCollapse">
+                                <i class="bi bi-building me-2"></i>
+                                Companies
+                                <span class="badge bg-secondary ms-auto me-2">{{ companies_data|length }}</span>
+                            </button>
+                        </h2>
+                        <div id="companiesCollapse" class="accordion-collapse collapse" data-bs-parent="#sidebarAccordion">
+                            <div class="accordion-body">
+                                {% if other_companies %}
+                                <form class="mb-2" id="addCompanyForm">
+                                    <div class="input-group input-group-sm">
+                                        <select class="form-select form-select-sm" id="companySelect" name="company_id" required>
+                                            <option value="">Select...</option>
+                                            {% for company in other_companies %}
+                                            <option value="{{ company.id }}">{{ company.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    </div>
+                                </form>
+                                {% endif %}
+
+                                <div class="tool-items-list" id="companiesList">
+                                    {% if companies_data %}
+                                    {% for data in companies_data %}
+                                    {% set company = data.company %}
+                                    <div class="tool-item" data-company-id="{{ company.id }}">
+                                        <div class="tool-item-text">
+                                            <strong><a href="{{ url_for('companies.company_detail', company_id=company.id) }}" class="text-decoration-none" style="color: inherit">{{ company.name }}</a></strong>
+                                            <small class="d-block text-muted">{{ company.ticker_symbol }}</small>
+                                            {% if data.is_in_portfolio %}
+                                            <span class="badge bg-info">Portfolio</span>
+                                            {% elif data.is_in_watchlist %}
+                                            <span class="badge bg-warning">Watchlist</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="tool-item-actions">
+                                            <a href="{{ url_for('companies.company_detail', company_id=company.id) }}" class="btn btn-sm btn-link p-0" title="View company">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-link p-0 text-danger btn-remove-company" data-company-id="{{ company.id }}" data-company-name="{{ company.name }}" title="Remove from sector">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-muted small text-center mb-0">No companies tracked</p>
+                                    {% endif %}
+                                </div>
+
+                                <button class="btn btn-outline-primary btn-sm w-100 mt-2" id="newCompanyBtn">
+                                    <i class="bi bi-plus-circle"></i> New Company
+                                </button>
+
+                                <button class="btn btn-outline-secondary btn-sm w-100 mt-2" id="scanCompaniesBtn"
+                                        title="Find companies you already track that are mentioned in your research text">
+                                    <i class="bi bi-search"></i> Detect companies in research
+                                </button>
+                                <div id="scanCompaniesResults" class="mt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Passed Companies Tool -->
+                    {% if passed_companies %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#passedCompaniesCollapse">
+                                <i class="bi bi-x-octagon me-2"></i>
+                                Passed Companies
+                                <span class="badge bg-secondary ms-auto me-2">{{ passed_companies|length }}</span>
+                            </button>
+                        </h2>
+                        <div id="passedCompaniesCollapse" class="accordion-collapse collapse" data-bs-parent="#sidebarAccordion">
+                            <div class="accordion-body">
+                                <div class="alert alert-info alert-sm mb-3">
+                                    Companies analyzed but passed on. Useful for learning patterns in this sector.
+                                </div>
+
+                                <div class="tool-items-list">
+                                    {% for item in passed_companies %}
+                                    <div class="tool-item">
+                                        <div class="tool-item-text">
+                                            <strong>{{ item.company_name }}</strong>
+                                            {% if item.ticker %}
+                                            <small class="d-block text-muted">{{ item.ticker }}</small>
+                                            {% endif %}
+                                            {% if item.rejection_stage == 'kill_checklist' %}
+                                            <span class="badge bg-secondary">Early Kill</span>
+                                            {% elif item.rejection_stage == 'mid_research' %}
+                                            <span class="badge bg-warning">Passed</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">Full Analysis Pass</span>
+                                            {% endif %}
+                                            {% if item.within_coc == 'yes' %}
+                                            <span class="badge bg-success">Within CoC</span>
+                                            {% elif item.within_coc == 'no' %}
+                                            <span class="badge bg-danger">Outside CoC</span>
+                                            {% endif %}
+                                            {% if item.time_invested_hours %}
+                                            <small class="d-block text-muted mt-1">{{ item.time_invested_hours|round(1) }} hours</small>
+                                            {% endif %}
+                                        </div>
+                                        <div class="tool-item-actions">
+                                            {% if item.company_id %}
+                                            <a href="{{ url_for('companies.company_detail', company_id=item.company_id) }}" class="btn btn-sm btn-link p-0" title="View details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary btn-sm w-100 mt-2">
+                                    <i class="bi bi-box-arrow-up-right"></i> View All Passes
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block modals %}
+<!-- Sector-specific modals -->
+{# Progress breakdown ("How Scoring Works") modal hidden with the progress bar (issue #304) #}
+{# {% include 'components/progress_breakdown_modal.html' %} #}
+{% include 'components/templates_modal.html' %}
+<!-- Tips Modal -->
+{% set tips_title = "Sector Research Tips" %}
+{% set tips_intro = "Best practices for systematic sector analysis:" %}
+{% set tips = [
+    "Start with sector overview to understand the big picture",
+    "Use templates to ensure consistent research across sectors",
+    "Build a question bank specific to this sector's dynamics",
+    "Track multiple companies to identify patterns and outliers",
+    "Focus on what makes winners vs. losers in this specific industry"
+] %}
+{% include 'main/_tips_modal.html' %}
+<div id="company-search-mount"></div>
+{% include 'components/paste_ai_modal.html' %}
+{% include 'components/add_source_modal.html' %}
+{% include 'components/archive_modal.html' %}
+
+{# Section/note/view-note modals now rendered by React SectorCanvas component #}
+<div id="company-tagging-mount"></div>
+<div id="company-sidebar-mount" style="display:none;"></div>
+{% include 'components/modals/generate_document_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% include 'components/_tabulator_js.html' %}
+
+<!-- Active research time tracker (heartbeat) -->
+<span id="sector-time-tracker" data-analysis-id="{{ analysis.id }}" hidden></span>
+<script src="{{ url_for('static', filename='js/sector-time-tracker.js') }}" defer></script>
+
+<script>
+// Continuous Learning Toggle Handler
+document.getElementById('continuousLearningToggle').addEventListener('change', function() {
+    const analysisId = this.dataset.analysisId;
+    const enabled = this.checked;
+
+    fetch(`/sectors/analysis/${analysisId}/toggle-learning`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ enabled: enabled })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const message = enabled ? 'Sector added to Learning Center tracking' : 'Sector removed from Learning Center tracking';
+            console.log(message);
+        } else {
+            console.error('Failed to update learning tracking');
+            this.checked = !enabled;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        this.checked = !enabled;
+    });
+});
+
+// Initialize Sector Canvas React Island
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.initSectorCanvas && window.sectorCanvasData) {
+        window.initSectorCanvas('sector-canvas-mount', {
+            sections: window.sectorCanvasData.sections,
+            inboxNotes: window.sectorCanvasData.inboxNotes,
+            urls: window.sectorUrls
+        });
+    }
+
+    // Initialize Company Sidebar bridge
+    if (window.initCompanySidebar) {
+        window.initCompanySidebar('company-sidebar-mount', {
+            sectorName: {{ analysis.sector.slug|tojson }}
+        });
+    }
+
+    // Initialize scroll fade effects
+    if (window.initScrollFadeEffects) {
+        window.initScrollFadeEffects();
+    }
+});
+</script>
+{% endblock %}

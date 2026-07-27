@@ -1,0 +1,107 @@
+{#
+  AI Feature Consent Modal (GDPR Art. 6(1)(a))
+
+  Shown once before a user's first AI feature use.
+  Consent is stored server-side on the User model.
+  JS checks consent status before any AI API call.
+
+  Usage: included in _base.html for authenticated users.
+  JS API: window.checkAIConsent() — returns a Promise<boolean>
+#}
+{% if current_user.is_authenticated %}
+<div class="modal fade" id="aiConsentModal" tabindex="-1" aria-labelledby="aiConsentModalLabel" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="aiConsentModalLabel">
+                    <i class="bi bi-robot me-2"></i>AI Research Assistant — Data Processing Consent
+                </h5>
+            </div>
+            <div class="modal-body">
+                <p>
+                    The AI Research Assistant uses third-party AI providers to help challenge
+                    your thinking, elaborate on your research, and fact-check your analysis.
+                </p>
+                <p><strong>When you use AI features, the following data is sent to external providers:</strong></p>
+                <ul>
+                    <li>Your research questions and answers</li>
+                    <li>Company names and context from your checklists</li>
+                    <li>Relevant research session data</li>
+                </ul>
+                <p><strong>AI Providers:</strong></p>
+                <ul>
+                    <li><strong>Google Gemini</strong> — primary provider (EU-US Data Privacy Framework)</li>
+                    <li><strong>Anthropic Claude</strong> — alternative provider</li>
+                </ul>
+                <p class="small text-muted mb-0">
+                    Your data is processed only to generate responses and is not used to train AI models.
+                    You can revoke consent at any time in your
+                    <a href="{{ url_for('auth.account_settings') }}">Account Settings</a>.
+                    See our <a href="{{ url_for('main.privacy') }}#ai">Privacy Policy</a> for full details.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="aiConsentDecline">
+                    No thanks
+                </button>
+                <button type="button" class="btn btn-primary" id="aiConsentAccept">
+                    <i class="bi bi-check-circle me-1"></i>I agree — enable AI features
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // Cache consent status to avoid repeated API calls
+    var consentStatus = {{ 'true' if current_user.ai_consent_given else 'false' }};
+    var consentPending = null;  // Stores the pending Promise resolve/reject
+
+    /**
+     * Check if user has given AI consent.
+     * If not, shows the consent modal and returns a Promise.
+     * Usage: const allowed = await checkAIConsent();
+     */
+    window.checkAIConsent = function() {
+        if (consentStatus) {
+            return Promise.resolve(true);
+        }
+
+        return new Promise(function(resolve) {
+            consentPending = resolve;
+            var modal = new bootstrap.Modal(document.getElementById('aiConsentModal'));
+            modal.show();
+        });
+    };
+
+    // Handle accept
+    document.getElementById('aiConsentAccept').addEventListener('click', function() {
+        fetch('{{ url_for("auth.grant_ai_consent") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        }).then(function(resp) {
+            return resp.json();
+        }).then(function(data) {
+            if (data.success) {
+                consentStatus = true;
+                bootstrap.Modal.getInstance(document.getElementById('aiConsentModal')).hide();
+                if (consentPending) {
+                    consentPending(true);
+                    consentPending = null;
+                }
+            }
+        });
+    });
+
+    // Handle decline
+    document.getElementById('aiConsentDecline').addEventListener('click', function() {
+        if (consentPending) {
+            consentPending(false);
+            consentPending = null;
+        }
+    });
+})();
+</script>
+{% endif %}

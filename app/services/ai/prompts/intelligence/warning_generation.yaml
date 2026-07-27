@@ -1,0 +1,64 @@
+# AI Intelligence - Warning Generation
+# Generate contextual investment warnings based on detected patterns
+
+name: "warning_generation"
+description: "Create helpful, non-judgmental warnings based on behavioral patterns and historical data"
+version: "1.0"
+category: "intelligence"
+
+# AI Provider Configuration
+preferred_provider: "claude"
+model: "claude-sonnet-4-20250514"
+max_tokens: 800
+temperature: 0.5
+
+last_modified: "2026-01-02"
+
+system_context: |
+  You are a thoughtful investment advisor helping an investor avoid repeating past mistakes.
+  Your warnings should be supportive and actionable, not judgmental.
+  Focus on specific evidence and concrete suggestions.
+
+template: |
+  CURRENT SITUATION:
+  {situation_description}
+  Company: {company_name}
+  Action being considered: {action}
+
+  DETECTED PATTERN:
+  {pattern_description}
+
+  USER'S HISTORICAL PATTERNS:
+  - Past similar situations: {similar_situations}
+  - Outcomes in similar cases: {outcomes}
+  - Common mistakes: {common_mistakes}
+
+  Generate a helpful, non-judgmental warning as JSON with:
+  {{
+      "title": "<Clear, concise title>",
+      "warning_text": "<Explanation of the concern in 2-3 sentences>",
+      "severity": "<low|medium|high>",
+      "evidence": ["<specific evidence point 1>", "<evidence 2>", ...],
+      "suggested_action": "<One concrete action to take>",
+      "related_past_mistakes": ["<relevant past mistake 1>", ...]
+  }}
+
+examples:
+  - "Pattern: You've sold 3 similar growth stocks after 15% gains, all went on to 50%+ gains"
+  - "Pattern: 4 of 5 purchases in this sector resulted in losses averaging -18%"
+  - "Pattern: Adding to losing positions - 3 times in 6 months, average outcome -25%"
+
+output_format: |
+  JSON object with:
+  - title: string
+  - warning_text: string (2-3 sentences)
+  - severity: "low" | "medium" | "high"
+  - evidence: array of strings
+  - suggested_action: string
+  - related_past_mistakes: array of strings
+
+tuning_notes: |
+  - Be specific with evidence - reference actual numbers and outcomes
+  - Suggested actions should be concrete and actionable
+  - Tone should be collaborative ("we noticed", "consider") not critical
+  - Severity mapping: low = FYI, medium = worth pausing, high = strong caution

@@ -1,0 +1,109 @@
+/* =============================================================================
+   PORTFOLIO DASHBOARD REDESIGN
+   Two-column layout, tab controls, filter chips, chart sidebar
+   ============================================================================= */
+
+/* ── Two-column grid: table (left) + charts sidebar (right) ──────────────── */
+.portfolio-redesign-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 20px;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .portfolio-redesign-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Charts sidebar ──────────────────────────────────────────────────────── */
+.portfolio-charts-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.portfolio-chart-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── Table controls bar (tabs + filters + search) ────────────────────────── */
+.portfolio-table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--gray-100, #f3f4f6);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* ── Tab buttons ─────────────────────────────────────────────────────────── */
+.portfolio-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--gray-500);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.portfolio-tab-btn:hover {
+    background: var(--gray-50, #f7f8fc);
+    color: var(--gray-700);
+}
+
+.portfolio-tab-btn.active {
+    border-color: var(--accent-color);
+    background: var(--accent-50, #f0fdf4);
+    color: var(--accent-color);
+}
+
+/* ── Filter chips ────────────────────────────────────────────────────────── */
+.portfolio-filter-chip {
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-light);
+    background: var(--background-white);
+    color: var(--gray-500);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.portfolio-filter-chip:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-300);
+}
+
+.portfolio-filter-chip.active {
+    border-color: var(--accent-color);
+    background: var(--accent-50, #ecfdf5);
+    color: var(--accent-color);
+}
+
+/* ── Table footer ────────────────────────────────────────────────────────── */
+.portfolio-table-footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--gray-100, #f3f4f6);
+    font-size: 14px;
+    color: var(--gray-400);
+    display: flex;
+    justify-content: space-between;
+}

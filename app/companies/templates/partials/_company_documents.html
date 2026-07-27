@@ -1,0 +1,122 @@
+{# Documents Tab — Automation Row (Jinja2) + Company Resources (React island) #}
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     AUTOMATION ROW — SEC Filings + Quantitative Analysis side-by-side
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="docs-automation-row">
+
+    <!-- SEC Filings -->
+    <div class="docs-section-card">
+        <div class="docs-section-card-header">
+            <div class="docs-section-card-header-left">
+                <div class="docs-icon-circle docs-icon-circle--info">
+                    <i class="bi bi-cloud-download"></i>
+                </div>
+                <h6 class="docs-card-title">SEC Filings</h6>
+                {% if '.' not in company.ticker_symbol %}
+                <span class="docs-badge-pill docs-badge-pill--success">US Listed</span>
+                {% else %}
+                <span class="docs-badge-pill docs-badge-pill--warning">Non-US</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="docs-section-card-body">
+            {% if '.' not in company.ticker_symbol %}
+            <p class="docs-description">
+                Pulls recent <strong>SEC EDGAR</strong> filings for US-listed companies.
+                Already cached locally won't be re-downloaded.
+            </p>
+            <div class="docs-form-grid--3col">
+                <div>
+                    <label class="docs-form-label">Filing type</label>
+                    <select id="sec-filing-type" class="form-select form-select-sm">
+                        <option value="10-K" selected>10-K (Annual)</option>
+                        <option value="10-Q" disabled>10-Q (Quarterly)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="docs-form-label">Recent years</label>
+                    <select id="sec-filing-years" class="form-select form-select-sm">
+                        <option value="1">1 year</option>
+                        <option value="3">3 years</option>
+                        <option value="5" selected>5 years</option>
+                        <option value="10">10 years</option>
+                    </select>
+                </div>
+                <div style="padding-top: 22px;">
+                    <button type="button" id="fetch-sec-btn" class="btn btn-sm btn-primary"
+                            data-company-id="{{ company.id }}">
+                        <i class="bi bi-cloud-download me-1"></i>Fetch
+                    </button>
+                </div>
+            </div>
+            <div id="sec-fetch-status" class="d-none docs-status-bar"></div>
+            <div id="sec-filings-fetcher-mount" style="display:none;"></div>
+            {% else %}
+            <p class="docs-description" style="margin-bottom: 0;">
+                Available for US-listed companies only.
+                <strong>{{ company.ticker_symbol }}</strong> appears to be non-US.
+            </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quantitative Analysis (disabled — future work) -->
+    <div class="docs-section-card docs-section-card--disabled">
+        <div class="docs-section-card-header">
+            <div class="docs-section-card-header-left">
+                <div class="docs-icon-circle docs-icon-circle--accent">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <h6 class="docs-card-title">Quantitative Analysis</h6>
+                <span class="docs-badge-pill" style="background: var(--gray-100); color: var(--gray-500);">Coming soon</span>
+            </div>
+        </div>
+        <div class="docs-section-card-body">
+            <p class="docs-description" style="margin-bottom: 0;">
+                Historical series of <strong>Revenue, Net Income</strong>,
+                and key ratios charted over time. Currently under development.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     COMPANY RESOURCES — React Island
+     ═══════════════════════════════════════════════════════════════════════════ -->
+{% include 'components/company_resources_manager_include.html' %}
+
+<div id="company-resources-manager"></div>
+
+<script>
+(function() {
+    var companyId = {{ company.id }};
+    var companyName = {{ company.name|tojson }};
+
+    function tryInit() {
+        if (window.initCompanyResourcesManager) {
+            window.initCompanyResourcesManager('company-resources-manager', {
+                companyId: companyId,
+                companyName: companyName,
+                openUploadModal: function() {
+                    CompanyResources.open({
+                        companyId: companyId,
+                        companyName: companyName,
+                        defaultTab: 'upload'
+                    });
+                },
+                openLinkModal: function() {
+                    CompanyResources.open({
+                        companyId: companyId,
+                        companyName: companyName,
+                        defaultTab: 'link'
+                    });
+                }
+            });
+        } else {
+            setTimeout(tryInit, 100);
+        }
+    }
+    tryInit();
+})();
+</script>

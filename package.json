@@ -1,0 +1,10 @@
+{
+  "name": "startwitha",
+  "version": "1.0.0",
+  "description": "Investment checklist and screening pipeline",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'No build step required'"
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,657 @@
+/* =============================================================================
+   PUBLIC HOME PAGE STYLES — "Start with A" Landing
+   ============================================================================= */
+
+/* ---------- Shared Section Tokens ---------- */
+.landing-hero,
+.landing-philosophy,
+.landing-preview,
+.landing-method,
+.landing-quotes,
+.landing-cta {
+    padding-left: 2rem;
+    padding-right: 2rem;
+}
+
+.landing-section-inner {
+    max-width: 920px;
+    margin: 0 auto;
+}
+
+.landing-section-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.landing-eyebrow {
+    display: block;
+    font-size: 0.88rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--public-accent);
+    margin-bottom: 0.6rem;
+}
+
+.landing-section-header h2 {
+    font-size: clamp(1.54rem, 3.3vw, 2.2rem);
+    font-weight: 700;
+    color: var(--public-text);
+    line-height: 1.2;
+    margin: 0 0 0.3rem;
+}
+
+.landing-section-subtitle {
+    font-size: 1.05rem;
+    color: var(--public-text-muted);
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+/* ---------- Hero ---------- */
+.landing-hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--public-bg);
+    padding-top: 6rem;
+    padding-bottom: 5rem;
+}
+
+.landing-hero-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.landing-hero-title {
+    font-size: clamp(2.2rem, 5vw, 3.58rem);
+    font-weight: 800;
+    line-height: 1.08;
+    color: var(--public-text);
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.03em;
+}
+
+.landing-hero-body {
+    font-size: 1.24rem;
+    line-height: 1.7;
+    color: var(--public-text-muted);
+    margin-bottom: 1.75rem;
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Hero CTAs */
+.landing-hero-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+}
+
+.btn-accent {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem 2rem;
+    background: var(--public-accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 1.1rem;
+    border-radius: 10px;
+    text-decoration: none;
+    border: none;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 16px rgba(45, 106, 79, 0.3);
+}
+
+.btn-accent:hover {
+    background: var(--accent-light);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(45, 106, 79, 0.35);
+}
+
+.btn-subtle {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.8rem 1.5rem;
+    color: var(--public-text-muted);
+    font-weight: 500;
+    font-size: 1.1rem;
+    text-decoration: none;
+    border-radius: 10px;
+    border: 1px solid var(--public-border);
+    transition: all 0.2s ease;
+}
+
+.btn-subtle:hover {
+    color: var(--public-text);
+    background: rgba(0, 0, 0, 0.03);
+    border-color: var(--gray-300);
+}
+
+/* CTA section light button variant */
+.btn-subtle-light {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.8rem 1.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    font-size: 1.1rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-subtle-light:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Hero Blockquote */
+.landing-hero-quote {
+    max-width: 540px;
+    margin: 0 auto;
+    padding: 1.125rem 1.5rem;
+    border-left: 3px solid var(--public-accent);
+    background: rgba(45, 106, 79, 0.03);
+    border-radius: 0 10px 10px 0;
+    text-align: left;
+}
+
+.landing-hero-quote p {
+    font-size: 0.99rem;
+    font-style: italic;
+    color: var(--public-text-muted);
+    line-height: 1.7;
+    margin: 0;
+}
+
+/* ---------- Philosophy Strip ---------- */
+.landing-philosophy {
+    background: var(--primary-900);
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.landing-philosophy-inner {
+    max-width: 860px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    text-align: center;
+}
+
+.landing-philosophy-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.landing-philosophy-item i {
+    font-size: 1.21rem;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.landing-philosophy-item span {
+    font-size: 0.99rem;
+    font-weight: 500;
+}
+
+/* ---------- Product Preview ---------- */
+.landing-preview {
+    background: var(--public-bg);
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+    overflow: hidden;
+}
+
+/* ---------- Method (Timeline) ---------- */
+.landing-method {
+    background: var(--public-bg-alt, #f7f9f8);
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+}
+
+.landing-method-inner {
+    max-width: 620px;
+}
+
+/* Method path toggle */
+.method-toggle {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.method-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 1.75rem;
+    border-radius: 10px;
+    border: 1px solid var(--public-border);
+    background: var(--public-surface, #fff);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+}
+
+.method-toggle-btn i {
+    font-size: 0.99rem;
+    color: var(--public-text-muted);
+    flex-shrink: 0;
+}
+
+.method-toggle-text {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.method-toggle-label {
+    font-weight: 600;
+    font-size: 0.99rem;
+    color: var(--public-text);
+    line-height: 1.2;
+}
+
+.method-toggle-sub {
+    font-size: 0.79rem;
+    color: var(--public-text-muted);
+    line-height: 1.3;
+}
+
+.method-toggle-btn.active {
+    background: var(--public-accent);
+    border-color: var(--public-accent);
+}
+
+.method-toggle-btn.active i,
+.method-toggle-btn.active .method-toggle-label,
+.method-toggle-btn.active .method-toggle-sub {
+    color: #fff;
+}
+
+.method-toggle-btn:not(.active):hover {
+    border-color: var(--gray-300);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+/* Method panels (show/hide) */
+.method-panel {
+    display: none;
+}
+
+.method-panel.active {
+    display: block;
+}
+
+/* Convergence note */
+.method-convergence {
+    max-width: 620px;
+    margin: 2rem auto 0;
+    padding: 1rem 1.5rem;
+    background: rgba(45, 106, 79, 0.06);
+    border-radius: 10px;
+    text-align: center;
+}
+
+.method-convergence p {
+    font-size: 0.96rem;
+    color: var(--public-text-muted);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.method-convergence strong {
+    color: var(--public-accent);
+}
+
+.landing-method-steps {
+    max-width: 620px;
+    margin: 0 auto;
+}
+
+.landing-step {
+    display: flex;
+    gap: 1.25rem;
+    position: relative;
+}
+
+.landing-step-marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.landing-step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(45, 106, 79, 0.08);
+    border: 2px solid var(--public-accent);
+    color: var(--public-accent);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.96rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.landing-step-line {
+    width: 2px;
+    flex: 1;
+    background: var(--public-border);
+    margin: 0.25rem 0;
+    min-height: 1.25rem;
+}
+
+.landing-step-content {
+    padding-bottom: 1.75rem;
+}
+
+.landing-step-content h3 {
+    font-family: var(--font-display);
+    font-size: 1.17rem;
+    font-weight: 700;
+    color: var(--public-text);
+    margin-bottom: 0.3rem;
+}
+
+.landing-step-content p {
+    font-size: 0.99rem;
+    color: var(--public-text-muted);
+    line-height: 1.65;
+    margin: 0;
+}
+
+/* ---------- Quotes Section ---------- */
+.landing-quotes {
+    background: var(--public-bg);
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+}
+
+.landing-quotes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+.landing-quote-card {
+    background: var(--public-surface);
+    border: 1px solid var(--public-border);
+    border-radius: 14px;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.landing-origin-card .landing-eyebrow {
+    margin-bottom: 0.75rem;
+}
+
+.landing-origin-text {
+    font-size: 1.05rem;
+    color: var(--public-text);
+    line-height: 1.75;
+    margin: 0;
+    flex: 1;
+}
+
+.landing-origin-subtext {
+    font-size: 0.94rem;
+    color: var(--public-text-muted);
+    line-height: 1.65;
+    margin: 1rem 0 0;
+}
+
+.landing-munger-card {
+    background: rgba(45, 106, 79, 0.03);
+    border-left: 3px solid var(--public-accent);
+    justify-content: center;
+}
+
+.landing-munger-card p {
+    font-size: 1.17rem;
+    font-style: italic;
+    color: var(--public-text);
+    line-height: 1.7;
+    margin: 0;
+}
+
+.landing-munger-card footer {
+    font-size: 0.88rem;
+    color: var(--public-accent);
+    font-weight: 600;
+    font-style: normal;
+    margin-top: 1rem;
+}
+
+/* ---------- Final CTA ---------- */
+.landing-cta {
+    background: var(--primary-900);
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+    text-align: center;
+}
+
+.landing-cta-inner {
+    max-width: 560px;
+    margin: 0 auto;
+}
+
+.landing-cta h2 {
+    font-size: clamp(1.65rem, 3.3vw, 2.48rem);
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.6rem;
+}
+
+.landing-cta p {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.landing-cta-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+    .landing-philosophy-inner {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+
+    .landing-quotes-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-hero {
+        min-height: auto;
+        padding-top: 4rem;
+        padding-bottom: 4rem;
+    }
+
+    .landing-preview,
+    .landing-method,
+    .landing-quotes,
+    .landing-cta {
+        padding-top: 3.5rem;
+        padding-bottom: 3.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .landing-hero-cta,
+    .landing-cta-buttons {
+        flex-direction: column;
+    }
+
+    .btn-accent,
+    .btn-subtle,
+    .btn-subtle-light {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .landing-step {
+        gap: 1rem;
+    }
+
+    .landing-step-number {
+        width: 32px;
+        height: 32px;
+        font-size: 0.89rem;
+    }
+
+    .method-toggle {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .method-toggle-btn {
+        width: 100%;
+        max-width: 280px;
+        padding: 0.6rem 1.25rem;
+    }
+
+    .method-toggle-sub {
+        display: none;
+    }
+}
+
+/* ---------- Legacy Component Styles ---------- */
+/* Keep these for backward compatibility with other pages */
+
+/* Loading Spinner */
+.loader {
+    border: 4px solid #f3f2f2;
+    border-top: 4px solid var(--accent-color);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* AI Analysis Result Boxes */
+.ai-error {
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    padding: 1rem;
+    background-color: #f8d7da;
+    border-radius: 0.25rem;
+}
+
+.ai-warning {
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 1rem;
+    background-color: #fff3cd;
+    border-radius: 0.25rem;
+}
+
+/* Destination Analysis Timeline */
+.timeline {
+    position: relative;
+    padding: 20px 0;
+    list-style: none;
+}
+
+.timeline:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20px;
+    height: 100%;
+    width: 4px;
+    background: #e9ecef;
+}
+
+.timeline-item {
+    margin-bottom: 20px;
+    position: relative;
+    padding-left: 50px;
+}
+
+.timeline-icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 40px;
+    font-size: 1.2rem;
+    border: 2px solid #e9ecef;
+    background-color: #fff;
+    color: #fff;
+}
+
+.timeline-content {
+    position: relative;
+}
+
+/* Checklist Inspector Layout */
+.checklist-tree-container {
+    max-height: 80vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.checklist-tree-item a {
+    display: block;
+    padding: 0.5rem 1rem;
+    color: var(--text-dark);
+    text-decoration: none;
+    border-radius: 0.25rem;
+    border: 1px solid transparent;
+}
+
+.checklist-tree-item a:hover {
+    background-color: #e9ecef;
+}
+
+.checklist-tree-item a.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.checklist-tree ul {
+    list-style-type: none;
+    padding-left: 1.5rem;
+}

@@ -1,0 +1,74 @@
+<!-- Curated Wisdom Filters -->
+<div class="knowledge-filter-card">
+    <div class="card-body">
+        <form method="GET" id="wisdomFilters">
+            <input type="hidden" name="view" value="wisdom">
+
+            <div class="knowledge-filter-grid">
+                <div>
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search insights...">
+                </div>
+
+                <div>
+                    <label class="form-label">Investor</label>
+                    <select class="form-select filter-select" name="investor">
+                        <option value="">All Investors</option>
+                        {% for investor in all_investors %}
+                        <option value="{{ investor }}" {{ 'selected' if request.args.get('investor') == investor }}>{{ investor }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label">Source Type</label>
+                    <select class="form-select filter-select" name="source_type">
+                        <option value="">All Sources</option>
+                        <option value="podcast" {{ 'selected' if request.args.get('source_type') == 'podcast' }}>Podcast</option>
+                        <option value="book" {{ 'selected' if request.args.get('source_type') == 'book' }}>Book</option>
+                        <option value="letter" {{ 'selected' if request.args.get('source_type') == 'letter' }}>Letter</option>
+                        <option value="article" {{ 'selected' if request.args.get('source_type') == 'article' }}>Article</option>
+                        <option value="video" {{ 'selected' if request.args.get('source_type') == 'video' }}>Video</option>
+                        <option value="conference" {{ 'selected' if request.args.get('source_type') == 'conference' }}>Conference</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label">Knowledge Type</label>
+                    <select class="form-select filter-select" name="knowledge_type">
+                        <option value="">All Types</option>
+                        <option value="insight" {{ 'selected' if request.args.get('knowledge_type') == 'insight' }}>Insight</option>
+                        <option value="framework" {{ 'selected' if request.args.get('knowledge_type') == 'framework' }}>Framework</option>
+                        <option value="mental_model" {{ 'selected' if request.args.get('knowledge_type') == 'mental_model' }}>Mental Model</option>
+                        <option value="quote" {{ 'selected' if request.args.get('knowledge_type') == 'quote' }}>Quote</option>
+                        <option value="lesson_learned" {{ 'selected' if request.args.get('knowledge_type') == 'lesson_learned' }}>Lesson</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label">Topic</label>
+                    <select class="form-select filter-select" name="topic">
+                        <option value="">All Topics</option>
+                        {% for topic in all_topics %}
+                        <option value="{{ topic }}" {{ 'selected' if request.args.get('topic') == topic }}>{{ topic }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="knowledge-filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+                <a href="?view=wisdom" class="btn btn-outline-secondary btn-sm">Clear Filters</a>
+
+                <div class="filter-checkbox-wrapper ms-auto">
+                    <input class="form-check-input" type="checkbox" name="favorites_only" id="favoritesOnly"
+                           value="1" {{ 'checked' if request.args.get('favorites_only') }}
+                           onchange="document.getElementById('wisdomFilters').submit()">
+                    <label class="form-check-label" for="favoritesOnly">
+                        Favorites Only
+                    </label>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,115 @@
+{% extends "main/_base_companies.html" %}
+
+{% block content %}
+<div class="research-workspace-dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-plus-circle-fill text-success me-3"></i>Create New Checklist
+                </h1>
+                <p class="dashboard-subtitle">Set up your checklist basics, then build the content in edit mode</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Checklists
+                </a>
+            </div>
+        </header>
+    </div>
+
+    <!-- Main Form Card -->
+    <div class="row justify-content-center mt-4">
+        <div class="col-lg-8">
+            <div class="card framework-card">
+                <div class="card-body p-4">
+                    <div class="mb-4">
+                        <h5 class="generate-document-section-title font-poppins mb-1">
+                            <i class="bi bi-gear me-2"></i>Checklist Settings
+                        </h5>
+                        <p class="text-muted small mb-0">Configure your checklist details</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('checklists.new_checklist') }}">
+                        <div class="mb-4">
+                            <label for="name" class="form-label fw-semibold">Checklist Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-lg" id="name" name="name"
+                                   placeholder="e.g., Tech Stock Analysis, REIT Investment Checklist" required>
+                            <small class="text-muted">Choose a descriptive name for your investment analysis framework</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="description" class="form-label fw-semibold">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"
+                                      placeholder="Brief description of this checklist's purpose and scope..."></textarea>
+                            <small class="text-muted">Optional: Explain what this checklist covers and when to use it</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="starter_template" class="form-label fw-semibold">Starter Template</label>
+                            <select class="form-select form-select-lg" id="starter_template" name="starter_template">
+                                <option value="">Start with empty checklist</option>
+                                <option value="basic_analysis">Basic Company Analysis (5 main areas)</option>
+                                <option value="financial_deep_dive">Financial Deep Dive (Income, Balance, Cash Flow)</option>
+                                <option value="competitive_analysis">Competitive Analysis (Market position & moats)</option>
+                                <option value="risk_assessment">Risk Assessment (Business & investment risks)</option>
+                                <option value="value_investing">Value Investing (Warren Buffett style)</option>
+                                <option value="growth_investing">Growth Investing (High-growth companies)</option>
+                            </select>
+                            <small class="text-muted">Choose a template to pre-populate with common questions, or start empty</small>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-arrow-right-circle-fill"></i> Create & Start Building
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tips Modal -->
+{% set tips_title = "Create Checklist Guide" %}
+{% set tips_intro = "Get started with your investment checklist:" %}
+{% set tips = [
+    "<strong>What Happens Next:</strong><br>1. <strong>Create checklist:</strong> We'll create your checklist with the basic settings<br>2. <strong>Edit mode:</strong> You'll be taken to the powerful edit interface<br>3. <strong>Build content:</strong> Add questions and items using the tree view<br>4. <strong>Use checklist:</strong> Start analyzing companies with your custom framework",
+    "<strong>Template Previews:</strong><br><strong>Basic Company Analysis:</strong> Business Model & Strategy, Financial Performance, Management Quality, Competitive Position, Valuation Assessment<br><br><strong>Value Investing:</strong> Economic Moat Analysis, Financial Strength Check, Management Track Record, Intrinsic Value Calculation, Margin of Safety Assessment<br><br><strong>Financial Deep Dive:</strong> Income Statement, Balance Sheet, Cash Flow, Ratios, Historical Trends",
+    "<strong>Starter Templates:</strong> Templates provide a starting structure that you can customize in edit mode - perfect for getting started quickly",
+    "<strong>Naming Best Practice:</strong> Choose clear, specific names like 'Tech Stock Deep Dive' or 'Small Cap Value Screen' rather than generic names",
+    "<strong>Empty vs Template:</strong> Start empty if you have a unique framework in mind, or use a template to save time and learn from proven structures"
+] %}
+{% include 'main/_tips_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus the name field
+    document.getElementById('name').focus();
+
+    // Template preview functionality
+    const templateSelect = document.getElementById('starter_template');
+    templateSelect.addEventListener('change', function() {
+        const submitBtn = document.querySelector('button[type="submit"]');
+        if (this.value) {
+            submitBtn.innerHTML = '<i class="bi bi-arrow-right-circle"></i> Create with ' + this.options[this.selectedIndex].text.split('(')[0];
+        } else {
+            submitBtn.innerHTML = '<i class="bi bi-arrow-right-circle"></i> Create & Start Building';
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,204 @@
+/* =============================================================================
+   ACTION PAGE - Centered Editorial Layout for Create/Edit Forms
+   =============================================================================
+   Single-task focus with centered card layout, editorial hero, and smart cancel.
+   Used by: add_idea, promote_idea, kill_room, add_transaction,
+            add_thesis_version, new_entry, new_mistake, weekly_review
+*/
+
+/* Page Container */
+.action-page {
+    min-height: calc(100vh - 200px);
+    padding: 2rem 0;
+}
+
+/* =============================================================================
+   CENTERED CONTAINER WITH WIDTH MODIFIERS
+   ============================================================================= */
+.action-container {
+    width: min(92%, var(--action-max-width, 1020px));
+    margin: 0 auto;
+}
+.action-container--sm  { --action-max-width: 640px; }
+.action-container--md  { --action-max-width: 840px; }
+.action-container--lg  { --action-max-width: 1020px; }
+.action-container--xl  { --action-max-width: 1200px; }
+
+/* =============================================================================
+   EDITORIAL HERO HEADER
+   ============================================================================= */
+.action-hero {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    position: relative;
+}
+
+.action-hero::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 4px;
+    background: linear-gradient(90deg,
+        var(--action-accent-from, var(--primary-600)),
+        var(--action-accent-to, var(--sage-teal)));
+    border-radius: 2px;
+}
+
+.action-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--gray-100);
+    border-radius: var(--radius-pill);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+}
+
+.action-hero-badge i {
+    color: var(--primary-600);
+}
+
+.action-hero-badge img {
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-sm);
+}
+
+.action-hero h1 {
+    font-family: 'Poppins', sans-serif;
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 0.75rem;
+    line-height: 1.1;
+}
+
+.action-hero-subtitle {
+    font-size: 1.125rem;
+    color: var(--gray-500);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* =============================================================================
+   ELEVATED CARD (matches capture-card pattern)
+   ============================================================================= */
+.action-card {
+    background: white;
+    border-radius: var(--radius-2xl);
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.03),
+        0 2px 4px rgba(0, 0, 0, 0.02),
+        0 12px 40px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    position: relative;
+}
+
+/* Subtle top accent */
+.action-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+        var(--action-accent-from, var(--primary-600)) 0%,
+        var(--action-accent-to, var(--sage-teal)) 50%,
+        var(--action-accent-from, var(--primary-600)) 100%);
+}
+
+.action-card-body {
+    padding: 2.5rem;
+}
+
+/* =============================================================================
+   FOOTER WITH SUBMIT + CANCEL
+   ============================================================================= */
+.action-footer {
+    background: var(--gray-50);
+    border-top: 1px solid var(--gray-100);
+    padding: 1.5rem 2.5rem;
+}
+
+.action-footer-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.action-cancel-link {
+    color: var(--gray-500);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 0.75rem 1rem;
+    transition: color var(--transition-fast);
+}
+
+.action-cancel-link:hover {
+    color: var(--gray-700);
+}
+
+/* Utility button (e.g., "Copy Current" below hero) */
+.action-utility-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--border-medium);
+    background: var(--background-white);
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-bottom: 1.5rem;
+}
+
+.action-utility-btn:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-400);
+    color: var(--text-primary);
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
+@media (max-width: 768px) {
+    .action-card-body {
+        padding: 1.5rem;
+    }
+
+    .action-footer {
+        padding: 1.25rem 1.5rem;
+    }
+
+    .action-footer-row {
+        flex-direction: column;
+    }
+
+    .action-footer-row .btn,
+    .action-footer-row button[type="submit"] {
+        width: 100%;
+    }
+
+    .action-cancel-link {
+        order: 1;
+    }
+
+    .action-hero h1 {
+        font-size: 1.5rem;
+    }
+}

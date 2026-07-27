@@ -1,0 +1,113 @@
+<!-- Command Center - Unified Card (research / wisdom / mistake) -->
+{% set type_info = {
+    'research': {'color': '#2563eb', 'bg': '#eff6ff', 'icon': 'bi-journal-text', 'label': 'Research'},
+    'wisdom':   {'color': '#d97706', 'bg': '#fffbeb', 'icon': 'bi-lightbulb-fill', 'label': 'Wisdom'},
+    'mistake':  {'color': '#dc2626', 'bg': '#fef2f2', 'icon': 'bi-exclamation-triangle-fill', 'label': 'Mistake'},
+} %}
+{% set info = type_info.get(result.type, type_info.research) %}
+
+<div class="cc-card"
+     data-item-id="{{ result.type }}-{{ result.item.id }}"
+     data-title="{{ result.title|e }}"
+     data-type="{{ result.type }}"
+     data-date="{{ result.date.strftime('%b %d, %Y') }}"
+     data-company="{{ result.company or '' }}"
+     data-preview="{{ result.preview|striptags|truncate(500)|e }}"
+     data-author="{{ result.get('author', '')|e }}"
+     data-severity="{{ result.get('severity', '')|e }}"
+     data-tags="{{ result.tags|join(',') }}"
+     onclick="showDetail('{{ result.type }}', {{ result.item.id }})">
+
+    {# Color bar at top #}
+    <div class="cc-card-bar" style="background: {{ info.color }}"></div>
+
+    <div class="cc-card-body">
+        {# Row 1: Type badge + starred + date #}
+        <div class="cc-card-topline">
+            <span class="cc-type-badge" style="color: {{ info.color }}; background: {{ info.bg }}">
+                <i class="bi {{ info.icon }}"></i> {{ info.label }}
+            </span>
+            <div class="cc-card-topline-right">
+                {% if result.starred %}
+                <i class="bi bi-star-fill cc-card-star"></i>
+                {% endif %}
+                <span class="cc-card-date">{{ result.date.strftime('%b %d') }}</span>
+            </div>
+        </div>
+
+        {# Title #}
+        <h4 class="cc-card-title">{{ result.title }}</h4>
+
+        {# Company / Author line #}
+        {% if result.company or result.get('author') %}
+        <div class="cc-card-meta">
+            <i class="bi {{ 'bi-building' if result.company else 'bi-person' }}"></i>
+            {{ result.company or result.get('author', '') }}
+        </div>
+        {% endif %}
+
+        {# Severity bar for mistakes #}
+        {% if result.type == 'mistake' and result.get('severity') %}
+        <div class="cc-card-severity">
+            {% for i in range(10) %}
+            <div class="cc-severity-pip {{ 'filled' if i < result.severity }}"
+                 style="{% if i < result.severity %}background: {{ '#dc2626' if result.severity >= 7 else '#d97706' if result.severity >= 4 else '#16a34a' }}{% endif %}"></div>
+            {% endfor %}
+            <span class="cc-severity-label">{{ result.severity }}/10</span>
+        </div>
+        {% endif %}
+
+        {# Content preview #}
+        <p class="cc-card-preview">{{ result.preview|striptags|truncate(200) }}</p>
+
+        {# Tags #}
+        {% if result.tags %}
+        <div class="cc-card-tags">
+            {% for tag in result.tags[:3] %}
+            <span class="cc-card-tag">{{ tag }}</span>
+            {% endfor %}
+            {% if result.tags|length > 3 %}
+            <span class="cc-card-tag-more">+{{ result.tags|length - 3 }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    {# Action menu #}
+    <div class="cc-card-actions" onclick="event.stopPropagation()">
+        <div class="dropdown">
+            <button class="cc-card-action-btn" type="button"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% if result.type == 'research' %}
+                <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.edit_entry', entry_id=result.item.id) }}">
+                    <i class="bi bi-pencil"></i> Edit
+                </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.entry_detail', entry_id=result.item.id) }}">
+                    <i class="bi bi-eye"></i> View
+                </a></li>
+                {% elif result.type == 'wisdom' %}
+                <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.edit_learning_note', note_id=result.item.id) }}">
+                    <i class="bi bi-pencil"></i> Edit
+                </a></li>
+                <li><a class="dropdown-item" href="#"
+                       onclick="toggleFavorite('wisdom', {{ result.item.id }}, event); return false;">
+                    <i class="bi bi-star"></i>
+                    {% if result.starred %}Remove from{% else %}Add to{% endif %} Favorites
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="#"
+                       onclick="deleteNote('wisdom', {{ result.item.id }}, event); return false;">
+                    <i class="bi bi-trash"></i> Delete
+                </a></li>
+                {% elif result.type == 'mistake' %}
+                <li><a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
+                    <i class="bi bi-list-ul"></i> View All Mistakes
+                </a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,441 @@
+{% extends "main/_base_portfolio.html" %}
+
+{% block head %}
+<script defer src="{{ url_for('static', filename='js/dist/vendors-recharts.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/analytics-charts.bundle.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="portfolio-dashboard-container">
+
+  {# ── Header + Tabs ── #}
+  <div class="dashboard-header-card">
+    <header class="dashboard-header" style="margin-bottom: 0;">
+      <div>
+        <h1 class="dashboard-title font-poppins">Analytics</h1>
+        <p class="dashboard-subtitle">Research patterns, decision quality, and competence tracking</p>
+      </div>
+    </header>
+    <nav class="ah-tabs" role="tablist" aria-label="Analytics sections">
+      <button class="ah-tab ah-tab--active" data-tab="insights" role="tab" aria-selected="true" aria-controls="panel-insights">
+        <i class="bi bi-graph-up"></i> Insights
+      </button>
+      <button class="ah-tab" data-tab="screening" role="tab" aria-selected="false" aria-controls="panel-screening">
+        <i class="bi bi-funnel"></i> Initial Screening
+      </button>
+      <button class="ah-tab" data-tab="competence" role="tab" aria-selected="false" aria-controls="panel-competence">
+        <i class="bi bi-bullseye"></i> Circle of Competence
+      </button>
+    </nav>
+  </div>
+
+  {# ════════════════════════════════════════════════
+     PANEL: INSIGHTS
+     ════════════════════════════════════════════════ #}
+  <section class="ah-panel ah-panel--active" id="panel-insights" role="tabpanel">
+    <div class="ah-bento">
+
+      {# ── Research Velocity (2 col) ── #}
+      <div class="ah-card ah-card--2col">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-activity"></i> Research Velocity</h3>
+          <span class="ah-card-meta">Last 12 months</span>
+        </div>
+        <div class="ah-chart-wrap" id="velocity-chart-mount"></div>
+      </div>
+
+      {# ── Kill Patterns (1 col) ── #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-x-octagon"></i> Kill Patterns</h3>
+          <span class="ah-card-meta">{{ total_kills }} rejection{{ 's' if total_kills != 1 else '' }}</span>
+        </div>
+        {% if top_kill_reasons %}
+        <div class="ah-kill-list">
+          {% for reason, count in top_kill_reasons[:6] %}
+          <div class="ah-kill-row">
+            <span class="ah-kill-reason" title="{{ reason }}">{{ reason }}</span>
+            <span class="ah-kill-count">{{ count }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% if kill_stages %}
+        <div class="ah-kill-stages">
+          {% for stage in kill_stages %}
+          <span class="ah-kill-stage"><strong>{{ stage.count }}</strong> {{ stage.name }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="ah-empty">
+          <i class="bi bi-shield-check"></i>
+          <p>No kills yet</p>
+        </div>
+        {% endif %}
+      </div>
+
+      {# ── Idea Sources (2 col) ── #}
+      <div class="ah-card ah-card--2col">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-signpost-split"></i> Idea Sources</h3>
+          <span class="ah-card-meta">{{ sources_total }} idea{{ 's' if sources_total != 1 else '' }}</span>
+        </div>
+        <div id="sources-chart-mount" style="padding: 4px 0;"></div>
+      </div>
+
+      {# ── Research Efficiency (1 col) ── #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-speedometer2"></i> Research Efficiency</h3>
+        </div>
+        <div class="ah-stat-grid">
+          <div class="ah-stat">
+            <span class="ah-stat-val">{{ completion_rate }}%</span>
+            <span class="ah-stat-lbl">Completion</span>
+          </div>
+          <div class="ah-stat">
+            <span class="ah-stat-val">{{ avg_days }}d</span>
+            <span class="ah-stat-lbl">Avg to Decision</span>
+          </div>
+          <div class="ah-stat">
+            <span class="ah-stat-val">{{ selectivity }}%</span>
+            <span class="ah-stat-lbl">Selectivity</span>
+          </div>
+        </div>
+        <p class="ah-eff-detail">{{ efficiency_detail }}</p>
+      </div>
+
+    </div>
+  </section>
+
+  {# ════════════════════════════════════════════════
+     PANEL: INITIAL SCREENING  (backend deferred)
+     ════════════════════════════════════════════════ #}
+  <section class="ah-panel" id="panel-screening" role="tabpanel">
+    <div class="ah-screening-header">
+      <p class="ah-screening-desc">
+        <strong>AI-powered analysis</strong> of your kill checklists — surfaces the most common dealbreaker
+        questions, red-flag themes, and refinement suggestions.
+      </p>
+      <div class="ah-screening-meta">
+        <span class="ah-screening-ts" id="screening-timestamp" style="display:none;">
+          <i class="bi bi-clock"></i> <span id="screening-ts-text"></span>
+        </span>
+        <button class="ah-refresh-btn" id="screening-refresh-btn" onclick="ScreeningAnalysis.run()">
+          <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+      </div>
+    </div>
+
+    <div id="screening-error" style="display:none;"></div>
+
+    <div class="ah-bento ah-bento--screening">
+      {# Dealbreaker questions #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-exclamation-triangle"></i> Top Dealbreaker Questions</h3>
+          <span class="ah-card-meta ah-card-meta--ai"><i class="bi bi-stars"></i></span>
+        </div>
+        <div id="screening-dealbreakers">
+          <div class="ah-empty">
+            <i class="bi bi-robot"></i>
+            <p>Run your first screening analysis<br>to surface dealbreaker patterns</p>
+          </div>
+        </div>
+      </div>
+
+      {# Red flag themes #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-flag"></i> Red Flag Themes</h3>
+          <span class="ah-card-meta ah-card-meta--ai"><i class="bi bi-stars"></i></span>
+        </div>
+        <div id="screening-themes">
+          <div class="ah-empty">
+            <i class="bi bi-robot"></i>
+            <p>Themes will appear after<br>the first analysis run</p>
+          </div>
+        </div>
+      </div>
+
+      {# Checklist refinement suggestions (full width) #}
+      <div class="ah-card" style="grid-column: 1 / -1;">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-lightbulb"></i> Checklist Refinement Suggestions</h3>
+          <span class="ah-card-meta ah-card-meta--ai"><i class="bi bi-stars"></i></span>
+        </div>
+        <div id="screening-suggestions">
+          <div class="ah-empty">
+            <i class="bi bi-robot"></i>
+            <p>Actionable suggestions to improve your kill checklist<br>will appear after running the analysis</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ════════════════════════════════════════════════
+     PANEL: CIRCLE OF COMPETENCE
+     ════════════════════════════════════════════════ #}
+  <section class="ah-panel" id="panel-competence" role="tabpanel">
+    <div class="ah-bento ah-bento--2col">
+
+      {# ── Sector Distribution (doughnut) ── #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-pie-chart"></i> Sector Distribution</h3>
+          <span class="ah-card-meta">{{ sectors_total }} sector{{ 's' if sectors_total != 1 else '' }}</span>
+        </div>
+        <div class="ah-chart-wrap ah-chart-wrap--donut" id="sector-donut-mount"></div>
+      </div>
+
+      {# ── Competence Ranking ── #}
+      <div class="ah-card">
+        <div class="ah-card-head">
+          <h3><i class="bi bi-bar-chart-steps"></i> Competence Ranking</h3>
+          <span class="ah-card-meta">{{ sectors_assessed }} assessed</span>
+        </div>
+        {% if coc_sectors_ranked %}
+        <div class="coc-rank-list">
+          {% for sector in coc_sectors_ranked %}
+          <div class="coc-rank-row">
+            <span class="coc-rank-name" title="{{ sector.name }}">{{ sector.name }}</span>
+            <span class="coc-rank-count">{{ sector.count }}</span>
+            <div class="coc-rank-bar-bg">
+              <div class="coc-rank-bar-fill" style="width: {{ (sector.confidence / 10 * 100)|round }}%"></div>
+            </div>
+            <span class="coc-rank-score {{ 'coc-rank-score--high' if sector.confidence >= 7 else ('coc-rank-score--mid' if sector.confidence >= 4 else '') }}">
+              {{ sector.confidence if sector.confidence > 0 else '—' }}
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="ah-empty">
+          <i class="bi bi-bullseye"></i>
+          <p>No sector assessments yet.<br>Research companies to build your competence map.</p>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </section>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+  /* ── Tab switching ── */
+  var tabs = document.querySelectorAll('.ah-tab');
+  tabs.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      tabs.forEach(function (b) {
+        b.classList.remove('ah-tab--active');
+        b.setAttribute('aria-selected', 'false');
+      });
+      document.querySelectorAll('.ah-panel').forEach(function (p) {
+        p.classList.remove('ah-panel--active');
+      });
+      btn.classList.add('ah-tab--active');
+      btn.setAttribute('aria-selected', 'true');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('ah-panel--active');
+    });
+  });
+
+  /* ── Mount React islands on DOMContentLoaded ── */
+  var velocityData  = {{ velocity_data|safe }};
+  var sourcesData   = {{ sources_simple|safe }};
+  var sectorData    = {{ sector_donut_data|safe }};
+
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.initInsightsVelocityChart) {
+      window.initInsightsVelocityChart('velocity-chart-mount', { data: velocityData });
+    }
+    if (window.initInsightsSourcesChart) {
+      window.initInsightsSourcesChart('sources-chart-mount', { data: sourcesData });
+    }
+    if (window.initSectorDonutChart) {
+      window.initSectorDonutChart('sector-donut-mount', { data: sectorData });
+    }
+    ScreeningAnalysis.init();
+  });
+
+  /* ── Screening Analysis ── */
+  var THEME_ICONS = ['red', 'amber', 'blue', 'slate', 'red', 'amber'];
+  var SUGGESTION_TYPE_MAP = {
+    add_criterion: { label: 'Add', cls: 'ah-suggestion-type--add' },
+    modify:        { label: 'Refine', cls: 'ah-suggestion-type--refine' },
+    reorder:       { label: 'Refine', cls: 'ah-suggestion-type--refine' },
+    remove_criterion: { label: 'Remove', cls: 'ah-suggestion-type--remove' }
+  };
+
+  window.ScreeningAnalysis = {
+    pollTimer: null,
+
+    init: function () {
+      this.loadLatest();
+    },
+
+    loadLatest: function () {
+      var self = this;
+      fetch('/analytics/api/screening-analysis/latest')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.has_result) {
+            self.displayResult(data.result, data.analyzed_at);
+          }
+        })
+        .catch(function () { /* silent — empty state stays visible */ });
+    },
+
+    run: function () {
+      var self = this;
+      var btn = document.getElementById('screening-refresh-btn');
+      btn.disabled = true;
+      btn.classList.add('ah-refresh-btn--loading');
+      this.hideError();
+
+      fetch('/analytics/api/screening-analysis', { method: 'POST' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) {
+            self.startPolling(data.task_id);
+          } else {
+            self.showError(data.error || 'Failed to start analysis');
+            self.resetButton();
+          }
+        })
+        .catch(function () {
+          self.showError('Network error — please try again');
+          self.resetButton();
+        });
+    },
+
+    startPolling: function (taskId) {
+      var self = this;
+      this.stopPolling();
+      this.pollTimer = setInterval(function () {
+        fetch('/analytics/api/screening-analysis/status/' + taskId)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.state === 'COMPLETED' && data.result) {
+              self.stopPolling();
+              self.displayResult(data.result, new Date().toISOString());
+              self.resetButton();
+            } else if (data.state === 'FAILED') {
+              self.stopPolling();
+              self.showError(data.error || 'Analysis failed');
+              self.resetButton();
+            }
+          })
+          .catch(function () {
+            self.stopPolling();
+            self.showError('Lost connection while polling');
+            self.resetButton();
+          });
+      }, 3000);
+    },
+
+    stopPolling: function () {
+      if (this.pollTimer) {
+        clearInterval(this.pollTimer);
+        this.pollTimer = null;
+      }
+    },
+
+    resetButton: function () {
+      var btn = document.getElementById('screening-refresh-btn');
+      btn.disabled = false;
+      btn.classList.remove('ah-refresh-btn--loading');
+    },
+
+    showError: function (msg) {
+      var el = document.getElementById('screening-error');
+      el.style.display = 'block';
+      el.innerHTML = '<div class="ah-empty"><i class="bi bi-exclamation-circle"></i><p>' + msg + '</p></div>';
+    },
+
+    hideError: function () {
+      var el = document.getElementById('screening-error');
+      el.style.display = 'none';
+    },
+
+    displayResult: function (result, analyzedAt) {
+      this.hideError();
+      if (analyzedAt) {
+        var tsEl = document.getElementById('screening-timestamp');
+        var d = new Date(analyzedAt);
+        document.getElementById('screening-ts-text').textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        tsEl.style.display = '';
+      }
+      this.renderDealbreakers(result.dealbreaker_questions || []);
+      this.renderThemes(result.red_flag_themes || []);
+      this.renderSuggestions(result.refinement_suggestions || []);
+    },
+
+    renderDealbreakers: function (questions) {
+      var el = document.getElementById('screening-dealbreakers');
+      if (!questions.length) return;
+      var maxKill = Math.max.apply(null, questions.map(function (q) { return q.kill_percentage || 0; }));
+      var html = '<div class="ah-dealbreaker-list">';
+      questions.forEach(function (q, i) {
+        var pct = Math.round(q.kill_percentage || 0);
+        var barW = maxKill > 0 ? Math.round((q.kill_percentage / maxKill) * 100) : 0;
+        html += '<div class="ah-dealbreaker-row">'
+          + '<span class="ah-dealbreaker-rank">' + (i + 1) + '</span>'
+          + '<span class="ah-dealbreaker-text" title="' + (q.insight || '') + '">' + q.question + '</span>'
+          + '<div class="ah-dealbreaker-bar">'
+          + '<div class="ah-dealbreaker-bar-bg"><div class="ah-dealbreaker-bar-fill" style="width:' + barW + '%"></div></div>'
+          + '<span class="ah-dealbreaker-pct">' + pct + '%</span>'
+          + '</div>'
+          + '</div>';
+      });
+      html += '</div>';
+      el.innerHTML = html;
+    },
+
+    renderThemes: function (themes) {
+      var el = document.getElementById('screening-themes');
+      if (!themes.length) return;
+      var html = '<div class="ah-theme-list">';
+      themes.forEach(function (t, i) {
+        var iconCls = THEME_ICONS[i % THEME_ICONS.length];
+        var detail = t.description || '';
+        if (t.example_ideas && t.example_ideas.length) {
+          detail += ' e.g. ' + t.example_ideas.slice(0, 2).join(', ');
+        }
+        html += '<div class="ah-theme-item">'
+          + '<div class="ah-theme-icon ah-theme-icon--' + iconCls + '"><i class="bi bi-flag-fill"></i></div>'
+          + '<div class="ah-theme-body">'
+          + '<div class="ah-theme-name">' + t.theme + '</div>'
+          + '<div class="ah-theme-detail">' + detail + '</div>'
+          + '</div>'
+          + '<span class="ah-theme-freq">' + (t.kill_count || 0) + '</span>'
+          + '</div>';
+      });
+      html += '</div>';
+      el.innerHTML = html;
+    },
+
+    renderSuggestions: function (suggestions) {
+      var el = document.getElementById('screening-suggestions');
+      if (!suggestions.length) return;
+      var html = '<div class="ah-suggestion-list">';
+      suggestions.forEach(function (s) {
+        var typeInfo = SUGGESTION_TYPE_MAP[s.type] || { label: s.type, cls: 'ah-suggestion-type--refine' };
+        html += '<div class="ah-suggestion">'
+          + '<span class="ah-suggestion-type ' + typeInfo.cls + '">' + typeInfo.label + '</span>'
+          + '<div class="ah-suggestion-text">' + (s.title || '') + ': ' + (s.description || '') + '</div>'
+          + '<div class="ah-suggestion-rationale">' + (s.reasoning || '') + '</div>'
+          + '</div>';
+      });
+      html += '</div>';
+      el.innerHTML = html;
+    }
+  };
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,590 @@
+/* =============================================================================
+   DESTINATION ANALYSIS - Checkpoint Tracking
+   Investment thesis tracking with checkpoints and milestones
+   ============================================================================= */
+
+/* =============================================================================
+   HEADER
+   ============================================================================= */
+.destination-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.destination-identity {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.destination-logo {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--primary-600), var(--info-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+}
+
+.destination-title-group h1 {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.destination-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-xs);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.destination-ticker {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    background: var(--primary-50);
+    color: var(--primary-600);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+}
+
+.destination-header-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* Buttons */
+.destination-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--border-medium);
+    background: var(--background-white);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.destination-btn:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-400);
+    color: var(--text-primary);
+}
+
+.destination-btn.primary {
+    background: var(--primary-600);
+    border-color: var(--primary-600);
+    color: white;
+}
+
+.destination-btn.primary:hover {
+    background: var(--primary-700);
+    border-color: var(--primary-700);
+}
+
+.destination-btn.sm {
+    padding: 0.35rem 0.75rem;
+    font-size: var(--font-size-xs);
+}
+
+/* =============================================================================
+   STATS STRIP
+   ============================================================================= */
+.destination-stats-strip {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    margin-bottom: var(--space-xl);
+}
+
+.destination-stat {
+    flex: 1;
+    text-align: center;
+    padding: var(--space-sm);
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+}
+
+.destination-stat.success {
+    background: var(--success-50);
+}
+
+.destination-stat.warning {
+    background: var(--warning-50);
+}
+
+.destination-stat.danger {
+    background: var(--danger-50);
+}
+
+.destination-stat-value {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.destination-stat.success .destination-stat-value {
+    color: var(--success-600);
+}
+
+.destination-stat.warning .destination-stat-value {
+    color: var(--warning-600);
+}
+
+.destination-stat.danger .destination-stat-value {
+    color: var(--danger-600);
+}
+
+.destination-stat-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: var(--space-xs);
+}
+
+/* =============================================================================
+   ADD CHECKPOINT CARD
+   ============================================================================= */
+.destination-add-card {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--primary-200);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-xl);
+}
+
+.destination-add-header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.destination-add-header > i {
+    font-size: 1.5rem;
+    color: var(--primary-600);
+    margin-top: 0.15rem;
+}
+
+.destination-add-header h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.destination-add-header p {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin: var(--space-xs) 0 0 0;
+}
+
+.destination-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.destination-form-row {
+    display: flex;
+    gap: var(--space-md);
+    align-items: flex-end;
+}
+
+.destination-form-group {
+    flex: 1;
+}
+
+.destination-form-group.full {
+    flex: 1 1 100%;
+}
+
+.destination-form-group.small {
+    flex: 0 0 150px;
+}
+
+.destination-form-group.action {
+    flex: 0 0 auto;
+}
+
+.destination-form-group label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--space-xs);
+}
+
+.destination-form-hint-label {
+    font-weight: 400;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+/* =============================================================================
+   SECTION HEADER
+   ============================================================================= */
+.destination-section-header {
+    margin-bottom: var(--space-lg);
+}
+
+.destination-section-header h2 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.destination-section-header h2 i {
+    color: var(--primary-600);
+}
+
+/* =============================================================================
+   CHECKPOINTS LIST
+   ============================================================================= */
+.destination-checkpoints {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.destination-checkpoint {
+    display: flex;
+    gap: var(--space-lg);
+}
+
+.destination-checkpoint-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-shrink: 0;
+    width: 100px;
+}
+
+.destination-checkpoint-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--warning-100);
+    border: 3px solid var(--warning-500);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--warning-600);
+}
+
+.destination-checkpoint-dot.met {
+    background: var(--success-500);
+    border-color: var(--success-500);
+    color: white;
+}
+
+.destination-checkpoint-dot.not-met {
+    background: var(--danger-500);
+    border-color: var(--danger-500);
+    color: white;
+}
+
+.destination-checkpoint-dot.active {
+    animation: pulse-checkpoint 2s infinite;
+}
+
+@keyframes pulse-checkpoint {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+    }
+}
+
+.destination-checkpoint-date {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.destination-checkpoint-card {
+    flex: 1;
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    padding: var(--space-lg);
+    transition: all var(--transition-fast);
+}
+
+.destination-checkpoint.met .destination-checkpoint-card {
+    border-color: var(--success-200);
+    background: linear-gradient(to right, var(--success-50), var(--background-white));
+}
+
+.destination-checkpoint.not-met .destination-checkpoint-card {
+    border-color: var(--danger-200);
+    background: linear-gradient(to right, var(--danger-50), var(--background-white));
+}
+
+.destination-checkpoint.active .destination-checkpoint-card {
+    border-color: var(--warning-200);
+}
+
+.destination-checkpoint-card:hover {
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-2px);
+}
+
+.destination-checkpoint-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-md);
+}
+
+.destination-checkpoint-header h4 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.destination-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+}
+
+.destination-status-badge.met {
+    background: var(--success-100);
+    color: var(--success-700);
+}
+
+.destination-status-badge.not-met {
+    background: var(--danger-100);
+    color: var(--danger-700);
+}
+
+.destination-status-badge.active {
+    background: var(--warning-100);
+    color: var(--warning-700);
+}
+
+.destination-checkpoint-body {
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.destination-checkpoint-detail {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-sm) 0;
+}
+
+.destination-checkpoint-detail:not(:last-child) {
+    border-bottom: 1px dashed var(--border-light);
+}
+
+.destination-checkpoint-detail .label {
+    flex: 0 0 100px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.destination-checkpoint-detail .value {
+    flex: 1;
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+}
+
+/* Update Form */
+.destination-checkpoint-update {
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-light);
+    margin-bottom: var(--space-md);
+}
+
+.destination-update-row {
+    display: flex;
+    gap: var(--space-md);
+    align-items: flex-end;
+}
+
+.destination-update-field {
+    flex: 1;
+}
+
+.destination-update-field.small {
+    flex: 0 0 120px;
+}
+
+.destination-update-field.action {
+    flex: 0 0 auto;
+}
+
+/* Actions */
+.destination-checkpoint-actions {
+    display: flex;
+    gap: var(--space-sm);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border-light);
+}
+
+.destination-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.destination-action-btn:hover {
+    background: var(--gray-100);
+    border-color: var(--gray-300);
+    color: var(--text-primary);
+}
+
+.destination-action-btn.danger {
+    color: var(--danger-600);
+}
+
+.destination-action-btn.danger:hover {
+    background: var(--danger-50);
+    border-color: var(--danger-200);
+}
+
+/* =============================================================================
+   EMPTY STATE
+   ============================================================================= */
+.destination-empty-state {
+    text-align: center;
+    padding: var(--space-3xl) var(--space-xl);
+    background: var(--gray-50);
+    border-radius: var(--radius-xl);
+    border: 2px dashed var(--border-light);
+}
+
+.destination-empty-state i {
+    font-size: 3rem;
+    color: var(--gray-300);
+    margin-bottom: var(--space-md);
+}
+
+.destination-empty-state h4 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-sm) 0;
+}
+
+.destination-empty-state p {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.destination-empty-state p.hint {
+    margin-top: var(--space-xs);
+    font-size: var(--font-size-xs);
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
+@media (max-width: 768px) {
+    .destination-header {
+        flex-direction: column;
+        gap: var(--space-md);
+    }
+
+    .destination-header-actions {
+        width: 100%;
+    }
+
+    .destination-header-actions .destination-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .destination-stats-strip {
+        flex-wrap: wrap;
+    }
+
+    .destination-stat {
+        flex: 1 1 45%;
+    }
+
+    .destination-form-row {
+        flex-direction: column;
+    }
+
+    .destination-form-group,
+    .destination-form-group.small {
+        flex: 1;
+        width: 100%;
+    }
+
+    .destination-checkpoint {
+        flex-direction: column;
+    }
+
+    .destination-checkpoint-indicator {
+        flex-direction: row;
+        width: auto;
+    }
+
+    .destination-update-row {
+        flex-direction: column;
+    }
+
+    .destination-update-field,
+    .destination-update-field.small {
+        width: 100%;
+    }
+}

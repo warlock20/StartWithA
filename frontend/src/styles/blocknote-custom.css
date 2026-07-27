@@ -1,0 +1,189 @@
+/**
+ * Custom BlockNote Editor Styles
+ * Beautiful styling for slash menu, blocks, and editor
+ */
+
+/* ===== Slash Menu Styling ===== */
+.bn-slash-menu-item:hover {
+  background-color: #f1f5f9 !important;
+  transform: translateX(2px);
+}
+
+.bn-suggestion-menu {
+  border-radius: 12px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 8px !important;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  background: white !important;
+}
+
+.bn-suggestion-menu-item {
+  border-radius: 8px !important;
+  margin-bottom: 4px !important;
+  transition: all 0.2s ease !important;
+}
+
+.bn-suggestion-menu-item[data-selected="true"] {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}
+
+.bn-suggestion-menu-item[data-selected="true"] .bn-slash-menu-item {
+  color: white !important;
+}
+
+/* ===== Editor Wrapper ===== */
+.blocknote-editor-wrapper {
+  position: relative;
+  min-height: 500px;
+  /* No fixed height - let BlockNote grow naturally */
+  border: none; /* Remove border, using parent's border */
+  border-radius: 12px;
+  background: white;
+  transition: border-color 0.3s ease;
+}
+
+.blocknote-editor-wrapper:focus-within {
+  /* Optional: Add focus styling if needed */
+}
+
+/* ===== Custom Block Animations ===== */
+.bn-citation-block,
+.bn-company-mention-block,
+.bn-highlight-block,
+.bn-financial-metrics-block,
+.bn-thesis-block,
+.bn-embed-block {
+  animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Hover Effects for Interactive Blocks ===== */
+.bn-financial-metrics-block:hover,
+.bn-thesis-block:hover,
+.bn-embed-block:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+  transform: translateY(-2px);
+  transition: all 0.2s ease;
+}
+
+/* ===== Scrollbar Styling ===== */
+.bn-suggestion-menu::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bn-suggestion-menu::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.bn-suggestion-menu::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.bn-suggestion-menu::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ===== Placeholder Text ===== */
+.bn-block-content[data-content-type="heading"]::before,
+.bn-block-content[data-content-type="paragraph"]::before {
+  color: #94a3b8 !important;
+  font-style: italic;
+}
+
+/* ===== Selection Highlight ===== */
+.ProseMirror-selectednode {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ===== Block Handles ===== */
+.bn-block-outer:hover .bn-drag-handle {
+  opacity: 1;
+}
+
+.bn-drag-handle {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* ===== Focus Ring ===== */
+.ProseMirror:focus {
+  outline: none !important;
+}
+
+/* ===== Group Headers in Slash Menu ===== */
+.bn-suggestion-menu-group-header {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+}
+
+.bn-suggestion-menu-group-header:first-child {
+  margin-top: 0;
+}
+
+/* ===== Loading State ===== */
+.editor-status.saving {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* ===== Responsive Adjustments ===== */
+@media (max-width: 768px) {
+  .blocknote-editor-wrapper {
+    padding: 12px;
+  }
+
+  .bn-suggestion-menu {
+    max-width: calc(100vw - 40px);
+  }
+
+  .bn-financial-metrics-block {
+    font-size: 12px;
+  }
+}
+
+/* ===== Dark Mode Support (Future) ===== */
+@media (prefers-color-scheme: dark) {
+  .blocknote-editor-wrapper {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .bn-suggestion-menu {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+  }
+
+  .bn-slash-menu-item:hover {
+    background-color: #334155 !important;
+  }
+}

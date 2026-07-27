@@ -1,0 +1,61 @@
+# Git
+.git
+.gitignore
+
+# Python
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Environment / Secrets
+.env
+.env_local
+config_backup.py
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb
+
+# Node (keep package.json & webpack.config.js for Docker build)
+node_modules/
+frontend/node_modules/
+
+# App Data
+instance/
+*.db
+*.sqlite3
+
+# Large Documents
+*.pdf
+*.docx
+*.csv
+*.xlsx
+data/
+docs/
+mockups/
+
+# Allow market sweep seed data
+!data/market-sweeps/
+!data/market-sweeps/*.xlsx
+!data/market-sweeps/*.csv
+
+# Tests
+unittests/
+tests/
+
+# Database backups
+*.sql
+railway_backup_*
+local_backup_*
+
+# Misc
+*.bak
+TODOs/
+scripts/

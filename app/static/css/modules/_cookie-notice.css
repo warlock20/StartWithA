@@ -1,0 +1,72 @@
+/* =============================================================================
+   Cookie Notice Banner
+   Non-blocking informational notice for strictly necessary cookies.
+   ============================================================================= */
+
+.cookie-notice {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: var(--color-surface-900, #1a1a2e);
+    color: var(--color-text-inverse, #e0e0e0);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.cookie-notice-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+}
+
+.cookie-notice-text {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    flex: 1;
+}
+
+.cookie-notice-link {
+    color: #7ec8e3;
+    text-decoration: underline;
+    margin-left: 0.25rem;
+}
+
+.cookie-notice-link:hover {
+    color: #a8dcf0;
+}
+
+.cookie-notice-btn {
+    background: #7ec8e3;
+    color: #1a1a2e;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.cookie-notice-btn:hover {
+    background: #a8dcf0;
+}
+
+@media (max-width: 576px) {
+    .cookie-notice-inner {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+
+    .cookie-notice-btn {
+        width: 100%;
+    }
+}

@@ -1,0 +1,140 @@
+{#
+    Intelligence Warnings Widget
+    
+    Displays warnings from the Intelligence Engine.
+    
+    Usage in templates:
+        {% include 'portfolio/_warnings_widget.html' %}
+    
+    Required context:
+        warnings: List of Warning objects from IntelligenceEngine
+    
+    Optional context:
+        show_title: Boolean (default True)
+        collapsible: Boolean (default False)
+#}
+
+{% set show_title = show_title | default(True) %}
+{% set collapsible = collapsible | default(False) %}
+
+{% if warnings and warnings|length > 0 %}
+<div class="warnings-widget" id="warnings-widget">
+    
+    {% if show_title %}
+    <div class="warnings-header {% if collapsible %}collapsible{% endif %}" 
+         {% if collapsible %}data-bs-toggle="collapse" data-bs-target="#warnings-content" aria-expanded="true"{% endif %}>
+        <div class="warnings-title">
+            <i class="bi bi-shield-exclamation"></i>
+            <span>Intelligence Warnings</span>
+            <span class="warnings-count">{{ warnings|length }}</span>
+        </div>
+        {% if collapsible %}
+        <i class="bi bi-chevron-down collapse-icon"></i>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <div class="warnings-content {% if collapsible %}collapse show{% endif %}" id="warnings-content">
+        {% for warning in warnings %}
+        <div class="warning-item warning-{{ warning.severity }}"
+             data-warning-code="{{ warning.code }}"
+             data-warning-category="{{ warning.category }}"
+             data-warning-severity="{{ warning.severity }}">
+            <div class="warning-icon">
+                {% if warning.severity == 'high' %}
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                {% elif warning.severity == 'medium' %}
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                {% elif warning.severity == 'low' %}
+                    <i class="bi bi-info-circle-fill"></i>
+                {% else %}
+                    <i class="bi bi-lightbulb-fill"></i>
+                {% endif %}
+            </div>
+            <div class="warning-body">
+                <div class="warning-title-row">
+                    <span class="warning-title">{{ warning.title }}</span>
+                    <span class="warning-badge warning-badge-{{ warning.severity }}">{{ warning.severity }}</span>
+                </div>
+                <div class="warning-message">{{ warning.message }}</div>
+
+                {% if warning.data %}
+                <div class="warning-data">
+                    {% if warning.data.current_pct is defined and warning.data.new_pct is defined %}
+                        <span class="data-item">
+                            <i class="bi bi-arrow-right"></i>
+                            {{ "%.1f"|format(warning.data.current_pct) }}% → {{ "%.1f"|format(warning.data.new_pct) }}%
+                        </span>
+                    {% endif %}
+                    {% if warning.data.threshold is defined %}
+                        <span class="data-item">
+                            <i class="bi bi-flag"></i>
+                            Threshold: {{ "%.0f"|format(warning.data.threshold) }}%
+                        </span>
+                    {% endif %}
+                    {% if warning.data.correlated_tickers is defined %}
+                        <span class="data-item">
+                            <i class="bi bi-link-45deg"></i>
+                            Similar: {{ warning.data.correlated_tickers|join(', ') }}
+                        </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if warning.action_url %}
+                <div class="warning-actions">
+                    <a href="{{ warning.action_url }}" class="btn btn-sm btn-outline-primary">
+                        View Details
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if warning.dismissible %}
+            <button type="button"
+                    class="warning-dismiss"
+                    onclick="dismissWarning('{{ warning.code }}')"
+                    aria-label="Dismiss warning"
+                    title="Dismiss">
+                <i class="bi bi-x"></i>
+            </button>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="warnings-footer">
+            <small class="text-muted">
+                <i class="bi bi-info-circle me-1"></i>
+                These are suggestions based on your portfolio. You can still proceed.
+            </small>
+        </div>
+    </div>
+</div>
+
+<script>
+function dismissWarning(code) {
+    const item = document.querySelector(`[data-warning-code="${code}"]`);
+    if (item) {
+        item.classList.add('dismissing');
+        setTimeout(() => {
+            item.remove();
+            
+            // Update count
+            const remaining = document.querySelectorAll('.warning-item:not(.dismissing)').length;
+            const countBadge = document.querySelector('.warnings-count');
+            if (countBadge) {
+                countBadge.textContent = remaining;
+            }
+            
+            // Hide widget if no warnings left
+            if (remaining === 0) {
+                const widget = document.getElementById('warnings-widget');
+                if (widget) {
+                    widget.style.display = 'none';
+                }
+            }
+        }, 300);
+    }
+}
+</script>
+{% endif %}

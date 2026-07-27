@@ -1,0 +1,80 @@
+# Value Investing Checklist Template
+# Based on principles from Benjamin Graham and Warren Buffett
+
+name: Value Investing Framework
+description: Based on principles from Benjamin Graham and Warren Buffett
+category: investing_style
+difficulty: intermediate
+estimated_time: 4-6 hours
+icon: 💎
+
+items:
+  - text: Economic Moat Analysis
+    llm_prompt: Evaluate the company's sustainable competitive advantages
+    subitems:
+      - text: Brand strength and customer loyalty
+        llm_prompt: Assess the power of the brand and customer switching costs
+      - text: Network effects
+        llm_prompt: Determine if the product/service becomes more valuable with more users
+      - text: Cost advantages
+        llm_prompt: Analyze unique cost structure advantages over competitors
+      - text: Regulatory or patent protection
+        llm_prompt: Identify legal barriers that protect the business
+      - text: High switching costs
+        llm_prompt: Evaluate how difficult and expensive it is for customers to switch
+
+  - text: Financial Strength Check
+    llm_prompt: Assess the company's financial stability and margin of safety
+    subitems:
+      - text: Debt-to-equity ratio < 0.5
+        llm_prompt: Calculate debt-to-equity and assess financial leverage risk
+      - text: Current ratio > 2.0
+        llm_prompt: Evaluate short-term liquidity position
+      - text: Interest coverage ratio > 3x
+        llm_prompt: Determine ability to service debt obligations
+      - text: Positive free cash flow for 5+ years
+        llm_prompt: Verify consistent cash generation over economic cycles
+      - text: Return on equity > 15%
+        llm_prompt: Calculate ROE and assess capital efficiency
+
+  - text: Management Track Record
+    llm_prompt: Evaluate management's capital allocation and shareholder focus
+    subitems:
+      - text: Long-term CEO tenure (5+ years)
+        llm_prompt: Research management stability and experience
+      - text: Share buyback history during undervaluation
+        llm_prompt: Assess if management buys back stock opportunistically
+      - text: Dividend consistency and growth
+        llm_prompt: Evaluate dividend payment track record and growth rate
+      - text: Insider ownership and alignment
+        llm_prompt: Determine if management has meaningful "skin in the game"
+      - text: Capital allocation decisions review
+        llm_prompt: Analyze M&A track record and ROIC of past investments
+
+  - text: Intrinsic Value Calculation
+    llm_prompt: Calculate the company's fair value using multiple methods
+    subitems:
+      - text: Discounted Cash Flow (DCF) analysis
+        llm_prompt: Project 10-year cash flows and calculate present value
+      - text: Earnings power value
+        llm_prompt: Calculate normalized earnings capacity without growth assumptions
+      - text: Asset-based valuation
+        llm_prompt: Determine liquidation value and book value per share
+      - text: Comparable company analysis
+        llm_prompt: Compare valuation multiples to similar high-quality companies
+      - text: Historical valuation ranges
+        llm_prompt: Analyze where current valuation sits relative to historical ranges
+
+  - text: Margin of Safety Assessment
+    llm_prompt: Determine if the current price offers sufficient downside protection
+    subitems:
+      - text: Calculate intrinsic value range
+        llm_prompt: Establish conservative, base, and optimistic value estimates
+      - text: Current price vs. intrinsic value
+        llm_prompt: Calculate the discount to your estimated fair value
+      - text: Minimum 30% discount required?
+        llm_prompt: Verify that margin of safety meets value investing threshold
+      - text: Downside scenario analysis
+        llm_prompt: Model pessimistic scenarios and assess potential losses
+      - text: Catalyst identification
+        llm_prompt: Identify what could close the valuation gap (mean reversion triggers)

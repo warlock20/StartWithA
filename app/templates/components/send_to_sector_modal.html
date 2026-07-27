@@ -1,0 +1,94 @@
+<!-- Send to Sector Modal -->
+<!-- Reusable component: include on any page where company research can be sent to a sector notebook -->
+<!-- Requires: send-to-sector.js script -->
+<div class="modal fade" id="sendToSectorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <!-- Default State: Form -->
+            <div id="sts-form-state">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-arrow-up-right"></i> Send to Sector Notebook</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Sector Input with Autocomplete -->
+                    <div class="mb-3">
+                        <label class="form-label" for="sts-sector-name">Sector Notebook *</label>
+                        <div class="position-relative">
+                            <input type="text" class="form-control" id="sts-sector-name"
+                                   placeholder="Type sector name..." autocomplete="off">
+                            <div class="sts-autocomplete-dropdown" id="sts-autocomplete-list"></div>
+                        </div>
+                        <small class="text-muted">Select existing sector or type a new name to create one</small>
+                    </div>
+
+                    <!-- Section Picker -->
+                    <div class="mb-3">
+                        <label class="form-label" for="sts-section">Canvas Section</label>
+                        <select class="form-select" id="sts-section">
+                            <option value="">Inbox (unsorted)</option>
+                        </select>
+                        <small class="text-muted">Which canvas section to file this under</small>
+                    </div>
+
+                    <!-- Title -->
+                    <div class="mb-3">
+                        <label class="form-label" for="sts-title">Title *</label>
+                        <input type="text" class="form-control" id="sts-title"
+                               placeholder="Brief title for this insight...">
+                    </div>
+
+                    <!-- Content -->
+                    <div class="mb-3">
+                        <label class="form-label" for="sts-content">Content *</label>
+                        <textarea class="form-control" id="sts-content" rows="4"
+                                  placeholder="Type or paste the insight..."></textarea>
+                    </div>
+
+                    <!-- Context Note -->
+                    <div class="mb-3">
+                        <label class="form-label" for="sts-context">Context <span class="text-muted">(optional)</span></label>
+                        <input type="text" class="form-control" id="sts-context"
+                               placeholder="Why is this relevant to the sector?">
+                    </div>
+
+                    <!-- Hidden fields -->
+                    <input type="hidden" id="sts-company-id">
+                    <input type="hidden" id="sts-source-page">
+                    <input type="hidden" id="sts-source-detail">
+
+                    <!-- Error display -->
+                    <div class="alert alert-danger d-none" id="sts-error"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="sts-submit-btn" onclick="SendToSector.submit()">
+                        <i class="bi bi-arrow-up-right"></i> Send
+                    </button>
+                </div>
+            </div>
+
+            <!-- Success State -->
+            <div id="sts-success-state" class="d-none">
+                <div class="modal-header border-0">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div class="sts-success-icon mb-3">
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="mb-2">Sent to Sector Notebook</h5>
+                    <p class="text-muted mb-3">
+                        Your insight has been added to the <strong id="sts-success-sector-name"></strong> research canvas.
+                    </p>
+                    <a href="#" id="sts-success-link" class="btn btn-outline-primary btn-sm" target="_blank">
+                        <i class="bi bi-arrow-up-right"></i> Open Notebook
+                    </a>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,406 @@
+{% extends "main/_base_companies.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="dashboard-header-card">
+        <div class="dashboard-header">
+            <div>
+                <h1><i class="bi bi-play-circle me-2"></i>{{title}}</h1>
+                <p class="dashboard-header-subtitle">Project: {{ project.project_name }} |
+                    Step {{ step_index + 1 }} of {{ project.step_count }}</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Step Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Step Type:</dt>
+                        <dd class="col-sm-9">{{ step.type|replace('_', ' ')|title }}</dd>
+
+                        <dt class="col-sm-3">Estimated Time:</dt>
+                        <dd class="col-sm-9">{{ step.estimated_minutes }} minutes</dd>
+
+                        {% if step.config %}
+                        <dt class="col-sm-3">Configuration:</dt>
+                        <dd class="col-sm-9">{{ step.config }}</dd>
+                        {% endif %}
+                    </dl>
+
+                    <!-- Step-specific content based on type -->
+                    {% if step.type == 'document_review' %}
+                    <div class="alert alert-info">
+                        <h6>Document Review Guidelines</h6>
+                        <p>Review the company's documents focusing on:</p>
+                        <ul>
+                            <li>Key financial metrics and trends</li>
+                            <li>Management discussion of strategy</li>
+                            <li>Risk factors and challenges</li>
+                            <li>Competitive positioning</li>
+                        </ul>
+                    </div>
+                    {% if project.company_id %}
+                    <a href="{{ url_for('companies.company_detail', company_id=project.company_id) }}"
+                        class="btn btn-primary" target="_blank">Open Company Documents</a>
+                    {% endif %}
+
+                    {% elif step.type == 'valuation' %}
+                    <div class="alert alert-info">
+                        <h6>Valuation Work</h6>
+                        <p>Perform your valuation analysis using your preferred method:</p>
+                        <ul>
+                            <li>DCF Model</li>
+                            <li>Comparable Company Analysis</li>
+                            <li>Asset-based Valuation</li>
+                            <li>Earnings Multiple Analysis</li>
+                        </ul>
+                    </div>
+
+                    {% elif step.type == 'competitor_analysis' %}
+                    <div class="alert alert-info">
+                        <h6>Competitor Analysis</h6>
+                        <p>Analyze the competitive landscape:</p>
+                        <ul>
+                            <li>Identify main competitors</li>
+                            <li>Compare business models</li>
+                            <li>Assess relative strengths/weaknesses</li>
+                            <li>Evaluate competitive moat</li>
+                        </ul>
+                    </div>
+
+                    {% elif step.type == 'thesis_writing' %}
+                    <div class="alert alert-info">
+                        <h6>Investment Thesis</h6>
+                        <p>Synthesize your research into a clear investment thesis covering:</p>
+                        <ul>
+                            <li>Investment case summary</li>
+                            <li>Key value drivers</li>
+                            <li>Major risks and mitigants</li>
+                            <li>Expected return scenario</li>
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- Notes form -->
+                    <hr>
+                    <form method="POST"
+                        action="{{ url_for('research_workflow.complete_step', project_id=project.id) }}">
+                        <input type="hidden" name="step_index" value="{{ step_index }}">
+                        <input type="hidden" name="session_id" value="{{ session.id }}">
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">
+                                <strong>Your Notes & Findings</strong>
+                            </label>
+                            <!-- BlockNote Editor Container -->
+                            <div id="notesEditor" class="blocknote-editor-wrapper border rounded"></div>
+                            <textarea class="form-control d-none" id="notes" name="notes" rows="10"
+                                placeholder="Document your findings, observations, and conclusions from this step..."></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            {% include 'partials/_argos_check.html' %}
+                            <button type="submit" class="btn btn-success btn-lg">
+                                Complete Step & Continue
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Timer -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">⏱️ Session Timer</h6>
+                </div>
+                <div class="card-body text-center">
+                    <h2 id="timer">00:00:00</h2>
+                    <small class="text-muted" id="start-time-display">Started: <span id="start-time">{{ session.start_time.strftime('%H:%M') }}</span></small>
+                </div>
+            </div>
+
+            <!-- Must Exit Criteria Quick Add -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-exclamation-triangle text-warning"></i> Must Exit Criteria</h6>
+                </div>
+                <div class="card-body">
+                    <div id="mustExitList" class="mb-2">
+                        {% if project.must_exit_criteria %}
+                        {% for criterion in project.must_exit_criteria %}
+                        <div class="d-flex align-items-start mb-1">
+                            <i class="bi bi-exclamation-triangle-fill text-warning me-2 mt-1" style="font-size: 0.75rem;"></i>
+                            <small>{{ criterion }}</small>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <small class="text-muted">No exit criteria yet.</small>
+                        {% endif %}
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" id="mustExitInput" placeholder="e.g., Revenue drops below $2B">
+                        <button class="btn btn-warning btn-sm" type="button" onclick="addMustExitCriterion()">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Previous steps notes -->
+            {% if project.step_notes %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Previous Step Notes</h6>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="previousNotesAccordion">
+                        {% for note_index, note_text in project.step_notes.items() %}
+                        {% set note_step = project.get_step(note_index|int) %}
+                        {% if note_step %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#note-{{ note_index }}">
+                                    {{ note_step.name }}
+                                </button>
+                            </h2>
+                            <div id="note-{{ note_index }}" class="accordion-collapse collapse"
+                                data-bs-parent="#previousNotesAccordion">
+                                <div class="accordion-body">
+                                    <div class="step-notes-content">
+                                        {{ note_text|markdown|safe }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+{% include 'partials/_companion_widget.html' %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+<!-- BlockNote Editor -->
+{% include 'components/blocknote_editor_include.html' %}
+
+<script>
+    // Timer functionality with timezone-aware synchronization
+    // Use server-provided timezone-aware start time
+    const startTimeUTC = new Date('{{ session_start_js }}');
+
+    function updateTimer() {
+        const now = new Date();
+
+        // Convert both times to UTC timestamps for accurate comparison
+        const nowUTC = now.getTime(); // milliseconds since epoch
+        const startUTC = startTimeUTC.getTime(); // milliseconds since epoch
+
+        // Calculate elapsed time in seconds using UTC timestamps
+        const elapsed = Math.floor((nowUTC - startUTC) / 1000);
+
+        // Ensure elapsed time is never negative
+        const positiveElapsed = Math.max(0, elapsed);
+
+        const hours = Math.floor(positiveElapsed / 3600);
+        const minutes = Math.floor((positiveElapsed % 3600) / 60);
+        const seconds = positiveElapsed % 60;
+
+        const timerElement = document.getElementById('timer');
+        if (timerElement) {
+            timerElement.textContent =
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+    }
+
+    // No server sync needed - use local browser time
+
+    // Initialize timer (simplified - no server sync)
+    function initializeTimer() {
+        // Update the displayed start time to match the timer calculation
+        const startTimeDisplay = document.getElementById('start-time');
+        if (startTimeDisplay) {
+            const hours = startTimeUTC.getHours();
+            const minutes = startTimeUTC.getMinutes();
+            startTimeDisplay.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        }
+
+        updateTimer(); // Initial update
+        setInterval(updateTimer, 1000); // Update every second
+    }
+
+    // Must Exit Criteria quick-add
+    async function addMustExitCriterion() {
+        const input = document.getElementById('mustExitInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        try {
+            const response = await fetch('{{ url_for("research_workflow.add_finding", project_id=project.id) }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'must_exit', text: text })
+            });
+            const result = await response.json();
+            if (result.success) {
+                input.value = '';
+                const list = document.getElementById('mustExitList');
+                const emptyMsg = list.querySelector('.text-muted');
+                if (emptyMsg) emptyMsg.remove();
+                list.insertAdjacentHTML('beforeend', `
+                    <div class="d-flex align-items-start mb-1">
+                        <i class="bi bi-exclamation-triangle-fill text-warning me-2 mt-1" style="font-size: 0.75rem;"></i>
+                        <small>${text}</small>
+                    </div>
+                `);
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (err) {
+            console.error('Error adding must-exit criterion:', err);
+        }
+    }
+
+    // Allow Enter key to submit must-exit input
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('mustExitInput');
+        if (input) {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addMustExitCriterion();
+                }
+            });
+        }
+    });
+
+    // Initialize timer when page loads
+    document.addEventListener('DOMContentLoaded', function () {
+        initializeTimer();
+    });
+
+    // Initialize BlockNote editor
+    let notesEditorRoot = null;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        try {
+            // Check if BlockNote is loaded
+            if (!window.initBlockNoteEditor) {
+                throw new Error('BlockNote library not loaded');
+            }
+
+            // Get existing notes content if available
+            const existingContent = {{ existing_notes|tojson|safe }} || '';
+
+            // Initialize BlockNote editor with existing content
+            notesEditorRoot = window.initBlockNoteEditor('notesEditor', {
+                initialContent: existingContent,
+                placeholder: 'Document your findings, observations, and conclusions from this step... Type "/" for commands',
+                onSave: null // We handle save via form submission
+            });
+
+            console.log('BlockNote editor initialized successfully');
+
+        } catch (error) {
+            console.error('Error initializing BlockNote editor:', error);
+
+            // Show the fallback textarea if BlockNote fails
+            const editorElement = document.getElementById('notesEditor');
+            const textareaElement = document.getElementById('notes');
+            if (editorElement && textareaElement) {
+                editorElement.style.display = 'none';
+                textareaElement.classList.remove('d-none');
+            }
+
+            showToast('Rich editor failed to load, using simple text editor', 'warning');
+        }
+
+        // Handle form submission to sync BlockNote content to textarea
+        // MUST be inside DOMContentLoaded to ensure form exists
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                console.log('Form submitting, syncing BlockNote content...');
+
+                // Check if BlockNote editor instance exists
+                if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+                    try {
+                        // Get JSON content from BlockNote
+                        const blocks = window.blockNoteEditorInstance.editor.document;
+                        const notesField = document.getElementById('notes');
+                        if (notesField) {
+                            notesField.value = JSON.stringify(blocks);
+                            console.log('BlockNote content synced to form field:', blocks.length, 'blocks');
+                        } else {
+                            console.error('Notes textarea field not found!');
+                        }
+                    } catch (error) {
+                        console.error('Error syncing BlockNote content:', error);
+                    }
+                } else {
+                    console.warn('BlockNote editor instance not available, checking fallback textarea...');
+                    // If BlockNote didn't load, the fallback textarea should be visible and contain the content
+                    const fallbackTextarea = document.getElementById('notes');
+                    if (fallbackTextarea && !fallbackTextarea.classList.contains('d-none')) {
+                        console.log('Using fallback textarea content');
+                    } else {
+                        console.error('No editor content available - neither BlockNote nor fallback textarea!');
+                    }
+                }
+            });
+        } else {
+            console.error('Form not found in DOM!');
+        }
+    });
+
+    function showToast(message, type = 'info') {
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '1055';
+            document.body.appendChild(toastContainer);
+        }
+
+        const toastId = 'toast-' + Date.now();
+        const toastHTML = `
+        <div id="${toastId}" class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+        const toast = new bootstrap.Toast(document.getElementById(toastId));
+        toast.show();
+
+        document.getElementById(toastId).addEventListener('hidden.bs.toast', function () {
+            this.remove();
+        });
+    }
+</script>
+{% endblock %}

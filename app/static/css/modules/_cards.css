@@ -1,0 +1,52 @@
+/* =============================================================================
+   CARD COMPONENTS
+   ============================================================================= */
+
+.card {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    z-index: auto !important;
+    position: relative !important;
+}
+
+.pro-card {
+    background: var(--background-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-light);
+    transition: all var(--transition-normal);
+}
+
+.pro-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-heavy);
+}
+
+.pro-card-body {
+    padding: var(--space-lg);
+}
+
+.framework-card {
+    background: var(--background-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-light);
+    transition: all var(--transition-normal);
+}
+
+.framework-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-heavy);
+}
+
+.framework-header {
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    background: linear-gradient(135deg, var(--background-light) 0%, var(--background-white) 100%);
+}

@@ -1,0 +1,18 @@
+{% if show_quote_banner and investor_quote %}
+<div id="quote-banner" class="quote-banner">
+    <div class="container">
+        <div class="quote-banner-content">
+            <div class="quote-icon">
+                <i class="bi bi-quote"></i>
+            </div>
+            <div class="quote-text">
+                <p class="quote-message">"{{ investor_quote.quote }}"</p>
+                <p class="quote-author">— {{ investor_quote.author }}</p>
+            </div>
+            <button type="button" class="quote-banner-close" aria-label="Dismiss quote banner" data-action="dismiss-quote-banner">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}

@@ -1,0 +1,442 @@
+{% extends "main/_base_companies.html" %}
+{% from "_macros.html" import display_items_for_edit_tree as display_items %}
+
+{% block content %}
+<div class="research-workspace-dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-pencil-square text-warning me-3"></i>{{ checklist.name }}
+                </h1>
+                <p class="dashboard-subtitle">{{ checklist.description if checklist.description else 'Investment analysis checklist' }}</p>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <span class="badge bg-warning text-dark">Edit Mode</span>
+                    </small>
+                </div>
+            </div>
+            <div class="dashboard-header-actions">
+                {% if research_context %}
+                    <a href="{{ url_for('research_workflow.return_from_checklist', project_id=research_context.project_id, step_index=research_context.step_index) }}" class="btn btn-success me-2">
+                        <i class="bi bi-arrow-left"></i> Return to Research
+                    </a>
+                {% endif %}
+                <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn btn-info me-2">
+                    <i class="bi bi-eye"></i> View Mode
+                </a>
+                <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Checklists
+                </a>
+            </div>
+        </header>
+
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ total_items_count }}</div>
+                <div class="portfolio-metric-label">Total Items</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ items|length }}</div>
+                <div class="portfolio-metric-label">Main Items</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ total_questions }}</div>
+                <div class="portfolio-metric-label">Question Bank</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ companies|length }}</div>
+                <div class="portfolio-metric-label">Companies</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="checklist-edit-card h-100">
+                <div class="checklist-edit-header">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-list-check text-primary me-3" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <h3 class="mb-0 font-poppins">Checklist Structure</h3>
+                            <p class="text-muted mb-0 small">Navigate and manage your items</p>
+                        </div>
+                    </div>
+                    {% if items %}
+                    <div>
+                        <span class="badge bg-success">{{ items|length }} main items</span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="checklist-edit-body">
+                    <div class="checklist-view-tree-container">
+                        <div class="checklist-tree">
+                        {% if items %}
+                            {{ display_items(items, ChecklistItem) }}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="bi bi-list-check"></i>
+                                <h3>No items yet</h3>
+                                <p>This checklist is empty. Your structure will appear here as you add items.</p>
+                                <div class="alert alert-info border-0 tip-pointer-right">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-arrow-right text-primary me-2 pulse-arrow"></i>
+                                        <span class="small">
+                                            <strong>Tip:</strong> Use the <strong>Item Editor</strong> on the right to add your first item
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div id="inspector-panel"
+                 data-edit-url-template="{{ url_for('checklists.edit_checklist_item', item_id=0) }}"
+                 data-delete-url-template="{{ url_for('checklists.delete_checklist_item', item_id=0) }}"
+                 data-move-url-template="{{ url_for('checklists.move_checklist_item', item_id=0, direction='__DIRECTION__') }}">
+
+                <div id="inspector-overview" class="checklist-edit-card">
+                    <div class="checklist-edit-header">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-gear text-primary me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h3 class="mb-0 font-poppins">Item Editor</h3>
+                                <p class="text-muted mb-0 small">Add new items or select one to edit</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="checklist-edit-body">
+                    <div class="mb-4">
+                        <p class="text-muted">Select an item from the tree on the left to see its specific details and actions.</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Add New Top-Level Item</h5>
+
+                        <!-- Question Bank Integration -->
+                        {% if total_questions > 0 %}
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-bank text-warning me-3" style="font-size: 1.5rem;"></i>
+                                        <div>
+                                            <h5 class="mb-0 font-poppins">Question Bank</h5>
+                                            <p class="text-muted mb-0 small">{{ total_questions }} questions available</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse"
+                                            data-bs-target="#editQuestionBankCollapse" aria-expanded="false">
+                                        <i class="bi bi-search"></i> Browse
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="collapse mb-4" id="editQuestionBankCollapse">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body">
+                                    <p class="text-muted mb-3">
+                                        <i class="bi bi-info-circle"></i> Click on a question to load it into the form below.
+                                    </p>
+
+                                    <div class="accordion" id="editQuestionBankAccordion">
+                                        {% for sector, questions in questions_by_sector.items() %}
+                                        <div class="accordion-item">
+                                            <h6 class="accordion-header" id="editHeading{{ loop.index }}">
+                                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                                        data-bs-target="#editCollapse{{ loop.index }}" aria-expanded="false">
+                                                    {{ sector }} <span class="badge bg-secondary ms-2">{{ questions|length }}</span>
+                                                </button>
+                                            </h6>
+                                            <div id="editCollapse{{ loop.index }}" class="accordion-collapse collapse"
+                                                 data-bs-parent="#editQuestionBankAccordion">
+                                                <div class="accordion-body">
+                                                    {% for question in questions %}
+                                                    <div class="checklist-view-pro-list-item" style="cursor: pointer;"
+                                                         data-question-text="{{ question.text|replace('"', '&quot;') }}"
+                                                         data-question-prompt="{{ question.llm_prompt|default('', true)|replace('"', '&quot;') }}"
+                                                         onclick="addQuestionToEditForm(this.getAttribute('data-question-text'), this.getAttribute('data-question-prompt'))">
+                                                        <div class="list-item-content">
+                                                            <div class="list-item-title">{{ question.text }}</div>
+                                                            {% if question.llm_prompt %}
+                                                            <div class="list-item-subtitle">
+                                                                <i class="bi bi-robot"></i> Has LLM prompt
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="list-item-action">
+                                                            <i class="bi bi-plus"></i>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}" class="form-pro">
+                            <div class="mb-3">
+                                <label for="item_text_top" class="form-label fw-bold">Item Text <span class="text-danger">*</span></label>
+                                <input type="text" id="item_text_top" name="item_text" class="form-control"
+                                       placeholder="Enter checklist item text" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="description_top" class="form-label fw-bold">Description</label>
+                                <textarea id="description_top" name="description" rows="2" class="form-control"
+                                          placeholder="Add detailed context or guidance for this item (optional)"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="llm_prompt_top" class="form-label fw-bold">Optional LLM Prompt</label>
+                                <textarea id="llm_prompt_top" name="llm_prompt" rows="2" class="form-control"
+                                          placeholder="E.g., What are the key revenue drivers?"></textarea>
+                            </div>
+                            <div class="action-grid">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-plus-circle"></i> Add Item
+                                </button>
+                                {% if total_questions > 0 %}
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse"
+                                        data-bs-target="#editQuestionBankCollapse">
+                                    <i class="bi bi-bank"></i> Use Question Bank
+                                </button>
+                                {% endif %}
+                            </div>
+                        </form>
+                        </div>
+                    </div>
+                </div>
+
+            <div id="inspector-content" class="d-none">
+                <div class="checklist-edit-card">
+                    <div class="checklist-edit-header">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-pencil-square text-warning me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h3 class="mb-0 font-poppins" id="inspector-item-text">Selected Item</h3>
+                                <p class="text-muted mb-0 small">Edit, move, or manage this item</p>
+                            </div>
+                        </div>
+                        <button type="button" id="inspector-close-btn" class="btn btn-outline-secondary btn-sm" title="Deselect Item">
+                            <i class="bi bi-x"></i> Close
+                        </button>
+                    </div>
+                    <div class="checklist-edit-body">
+                        <div id="inspector-llm-prompt-display" class="alert alert-info" style="display:none;">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="bi bi-robot"></i>
+                                <div>
+                                    <strong>LLM Prompt:</strong>
+                                    <div class="mt-1"><em id="inspector-llm-prompt"></em></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>Item Actions</h5>
+                            <div class="action-grid">
+                                <a id="inspector-edit-btn" href="#" class="btn btn-warning">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                                <form id="inspector-delete-form" method="POST" action="#" style="display: inline;">
+                                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure? This will delete the item and ALL its sub-items.');">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>Reorder Item</h5>
+                            <div class="d-flex gap-2">
+                                <form id="inspector-move-up-form" method="POST" action="#" class="flex-fill">
+                                    <button id="inspector-move-up-btn" type="submit" class="btn btn-outline-secondary w-100">
+                                        <i class="bi bi-arrow-up"></i> Move Up
+                                    </button>
+                                </form>
+                                <form id="inspector-move-down-form" method="POST" action="#" class="flex-fill">
+                                    <button id="inspector-move-down-btn" type="submit" class="btn btn-outline-secondary w-100">
+                                        <i class="bi bi-arrow-down"></i> Move Down
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h5>Add Sub-item</h5>
+                            <form id="inspector-add-subitem-form" method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}" class="form-pro">
+                                <input type="hidden" id="inspector-parent-id" name="parent_id" value="">
+                                <div class="mb-3">
+                                    <label for="inspector-subitem-text" class="form-label fw-bold">Sub-item Text <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="item_text" id="inspector-subitem-text"
+                                           placeholder="Enter sub-item text" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="inspector-subitem-description" class="form-label fw-bold">Description</label>
+                                    <textarea name="description" class="form-control" id="inspector-subitem-description" rows="2"
+                                              placeholder="Add detailed context or guidance (optional)"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="inspector-subitem-llm" class="form-label fw-bold">Optional LLM Prompt</label>
+                                    <textarea name="llm_prompt" class="form-control" id="inspector-subitem-llm" rows="2"
+                                              placeholder="Optional AI prompt for this sub-item"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus"></i> Add Sub-item
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    {% include 'components/_sortable_js.html' %}
+    <script defer src="{{ url_for('static', filename='js/dist/checklist-inspector.bundle.js') }}"></script>
+    <div id="checklist-inspector-mount" style="display:none;"></div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.initChecklistInspector) window.initChecklistInspector('checklist-inspector-mount');
+    });
+    </script>
+
+    <script>
+    // Function to add a question from Question Bank to the edit form
+    function addQuestionToEditForm(questionText, llmPrompt) {
+        // Fill in the form fields
+        document.getElementById('item_text_top').value = questionText;
+        document.getElementById('llm_prompt_top').value = llmPrompt || '';
+
+        // Close the question bank collapse
+        const questionBankCollapse = document.getElementById('editQuestionBankCollapse');
+        if (questionBankCollapse) {
+            const bsCollapse = bootstrap.Collapse.getInstance(questionBankCollapse);
+            if (bsCollapse) {
+                bsCollapse.hide();
+            }
+        }
+
+        // Focus on the submit button to indicate the form is ready
+        const submitButton = document.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.focus();
+            // Add visual feedback
+            submitButton.classList.add('btn-success');
+            submitButton.classList.remove('btn-primary');
+            submitButton.textContent = 'Add This Question';
+
+            // Reset button after a moment
+            setTimeout(() => {
+                submitButton.classList.remove('btn-success');
+                submitButton.classList.add('btn-primary');
+                submitButton.textContent = 'Add Top-Level Item';
+            }, 2000);
+        }
+
+        // Show success message
+        showTemporaryMessage('Question loaded into form!', 'success');
+    }
+
+    // Helper function to show temporary messages (same as in new_checklist.html)
+    function showTemporaryMessage(message, type = 'success') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        document.body.appendChild(alertDiv);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
+    }
+
+    // Initialize drag-and-drop functionality with SortableJS
+    document.addEventListener('DOMContentLoaded', function() {
+        const sortableLists = document.querySelectorAll('.sortable-list');
+
+        sortableLists.forEach(function(list) {
+            new Sortable(list, {
+                animation: 150,
+                handle: '.drag-handle',
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                fallbackOnBody: true,
+                swapThreshold: 0.65,
+
+                onEnd: function(evt) {
+                    // Get the checklist ID and parent ID
+                    const checklistId = list.dataset.checklistId;
+                    const parentId = list.dataset.parentId === 'null' ? null : parseInt(list.dataset.parentId);
+
+                    // Get new order of items
+                    const items = Array.from(list.children).map(li => {
+                        return parseInt(li.dataset.itemId);
+                    });
+
+                    // Send to server
+                    fetch(`/checklists/checklist/${checklistId}/reorder`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            items: items,
+                            parent_id: parentId
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update numbering
+                            updateItemNumbering(list);
+                            showTemporaryMessage('Order saved successfully!', 'success');
+                        } else {
+                            showTemporaryMessage('Failed to save order: ' + data.error, 'danger');
+                            // Optionally reload the page to restore original order
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showTemporaryMessage('Network error while saving order', 'danger');
+                    });
+                }
+            });
+        });
+
+        // Function to update item numbering after reorder
+        function updateItemNumbering(list) {
+            const items = list.querySelectorAll(':scope > .checklist-tree-item > .drag-handle > .item-link > .item-number');
+            items.forEach((numberSpan, index) => {
+                numberSpan.textContent = (index + 1) + '.';
+            });
+        }
+    });
+    </script>
+
+{% endblock %}

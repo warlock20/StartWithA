@@ -1,0 +1,497 @@
+{% extends "main/_base_companies.html" %}
+
+{% block content %}
+<div class="action-page idea-capture-page">
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="capture-hero">
+            <div class="capture-hero-badge">
+                <i class="bi bi-plus-circle-fill"></i>
+                <span>New Opportunity</span>
+            </div>
+            <h1>Capture Investment Idea</h1>
+            <p class="capture-hero-subtitle">
+                Track a new opportunity. Save it for later evaluation or dive straight into research.
+            </p>
+        </div>
+
+        <!-- Main Form -->
+        <div class="capture-form-container">
+            <form method="POST" action="{{ url_for('ideas.add_idea') }}" id="captureForm" data-entity="idea">
+                <div class="capture-card">
+                    <div class="capture-card-body">
+                        <!-- Duplicate Detection Alerts -->
+                        <div id="duplicate-alerts" class="capture-alerts"></div>
+
+                        <!-- Section 1: Idea Identity -->
+                        <div class="capture-section">
+                            <div class="capture-section-header">
+                                <span class="capture-section-number">1</span>
+                                <span class="capture-section-title">Idea Details</span>
+                            </div>
+
+                            <!-- Idea Name -->
+                            <div class="capture-input-group">
+                                <label class="capture-label" for="idea-name">
+                                    What's the idea?<span class="required">*</span>
+                                </label>
+                                <input type="text"
+                                       class="capture-input capture-input-lg"
+                                       id="idea-name"
+                                       name="name"
+                                       placeholder="e.g., Tesla, Indian IT sector, Battery technology..."
+                                       required
+                                       autocomplete="off"
+                                       autofocus>
+                                <p class="capture-input-help">Company name, sector, or investment theme</p>
+                            </div>
+
+                            <!-- Purpose and Type Row -->
+                            <div class="capture-row">
+                                <div class="capture-input-group">
+                                    <label class="capture-label" for="idea_purpose">
+                                        Purpose<span class="required">*</span>
+                                    </label>
+                                    <select class="capture-select" id="idea_purpose" name="idea_purpose" required>
+                                        <option value="investment" selected>🎯 Investment Screening</option>
+                                        <option value="learning">📚 Learning & Understanding</option>
+                                        <option value="research">🔍 Research & Analysis</option>
+                                    </select>
+                                </div>
+                                <div class="capture-input-group">
+                                    <label class="capture-label" for="idea_type">Subject Type</label>
+                                    <select class="capture-select {% if from_start == 'true' %}highlight-field{% endif %}" id="idea_type" name="idea_type">
+                                        <option value="company" {% if prefill_type == 'company' or not prefill_type %}selected{% endif %}>Company</option>
+                                        <option value="sector" {% if prefill_type == 'sector' %}selected{% endif %}>Sector / Industry</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Company Selection (shown for company + investment) -->
+                            <div id="company-selection-field" class="capture-input-group" style="display: none;">
+                                <label class="capture-label">
+                                    Company Selection<span class="required" id="company-required">*</span>
+                                </label>
+
+                                <!-- Not Selected State -->
+                                <div id="company-select-trigger" class="company-select-box" onclick="openCompanyModal(handleCompanySelection)">
+                                    <i class="bi bi-building"></i>
+                                    <div class="company-select-box-text">Search & Select Company</div>
+                                    <div class="company-select-box-hint">Click to find or create a company</div>
+                                </div>
+
+                                <!-- Selected State -->
+                                <div id="company-selected-display" class="company-selected" style="display: none;">
+                                    <div class="company-selected-info">
+                                        <div class="company-selected-icon">
+                                            <i class="bi bi-check-lg"></i>
+                                        </div>
+                                        <div>
+                                            <div class="company-selected-name" id="selected-company-name">-</div>
+                                            <div class="company-selected-ticker" id="selected-company-ticker">-</div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="company-clear-btn" onclick="clearSelectedCompany()" title="Clear selection">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+
+                                <input type="hidden" id="company_id" name="company_id" value="">
+                                <input type="hidden" id="idea-ticker" name="ticker_symbol" value="">
+                            </div>
+
+                            <!-- Sector Notebook Option -->
+                            <div id="notebook-option" class="notebook-option">
+                                <label class="notebook-option-checkbox">
+                                    <input type="checkbox" id="add_to_notebook" name="add_to_notebook" value="true">
+                                    <div>
+                                        <div class="notebook-option-label">Add directly to Sector Notebook</div>
+                                        <div class="notebook-option-hint">Skip the inbox and start researching immediately</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="capture-divider"></div>
+
+                        <!-- Section 2: Context -->
+                        <div class="capture-section">
+                            <div class="capture-section-header">
+                                <span class="capture-section-number">2</span>
+                                <span class="capture-section-title">Context & Source</span>
+                            </div>
+
+                            <!-- Source -->
+                            <div class="capture-input-group">
+                                <label class="capture-label" for="source">
+                                    Where did this idea come from?<span class="required">*</span>
+                                </label>
+                                <div class="source-input-wrapper">
+                                    <input type="text"
+                                           class="capture-input"
+                                           id="source"
+                                           name="source"
+                                           placeholder="Buffett letter, friend's recommendation, noticed while shopping..."
+                                           autocomplete="off"
+                                           required>
+                                    <div id="source-suggestions" class="source-suggestions"></div>
+                                </div>
+                                <p class="capture-input-help">Tracking sources helps identify your best idea generators</p>
+                            </div>
+
+                            <!-- Thesis Summary -->
+                            <div class="capture-input-group">
+                                <label class="capture-label" for="thesis_summary">
+                                    One-sentence thesis <span style="color: var(--gray-400); font-weight: 400;">(optional)</span>
+                                </label>
+                                <textarea class="capture-textarea"
+                                          id="thesis_summary"
+                                          name="thesis_summary"
+                                          rows="2"
+                                          placeholder="Why might this be interesting? What's the opportunity?"></textarea>
+                            </div>
+
+                            <!-- Additional Notes (Expandable) -->
+                            <div class="capture-expandable" id="notes-expandable">
+                                <div class="capture-expandable-header" onclick="toggleExpandable('notes-expandable')">
+                                    <div class="capture-expandable-title">
+                                        <i class="bi bi-pencil-square"></i>
+                                        <span>Additional Notes</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="capture-expandable-badge">Optional</span>
+                                        <i class="bi bi-chevron-down capture-expandable-chevron"></i>
+                                    </div>
+                                </div>
+                                <div class="capture-expandable-content">
+                                    <textarea class="capture-textarea"
+                                              name="initial_notes"
+                                              rows="3"
+                                              placeholder="Any other context, thoughts, or reminders..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="capture-divider"></div>
+
+                        <!-- Section 3: Workflow Decision -->
+                        <div class="capture-section workflow-decision">
+                            <div class="capture-section-header">
+                                <span class="capture-section-number">3</span>
+                                <span class="capture-section-title">Next Step</span>
+                            </div>
+
+                            <input type="hidden" name="submit_action" id="submit_action" value="inbox">
+
+                            <div class="workflow-options">
+                                <!-- Option 1: Add to Inbox -->
+                                <label class="workflow-option option-inbox selected" data-action="inbox">
+                                    <input type="radio" name="workflow_choice" value="inbox" checked>
+                                    <div class="workflow-header">
+                                        <div class="workflow-icon">
+                                            <i class="bi bi-inbox-fill"></i>
+                                        </div>
+                                        <div>
+                                            <div class="workflow-title">Add to Inbox</div>
+                                            <div class="workflow-subtitle">Save for later evaluation through the kill checklist</div>
+                                        </div>
+                                    </div>
+                                    <div class="workflow-flow-tag">
+                                        <i class="bi bi-arrow-right"></i>
+                                        <span>Inbox → Evaluate → Research</span>
+                                    </div>
+                                    <div class="workflow-check">
+                                        <i class="bi bi-check"></i>
+                                    </div>
+                                </label>
+
+                                <!-- Option 2: Start Research -->
+                                <label class="workflow-option option-research" data-action="start_research">
+                                    <input type="radio" name="workflow_choice" value="start_research">
+                                    <div class="workflow-header">
+                                        <div class="workflow-icon">
+                                            <i class="bi bi-rocket-takeoff-fill"></i>
+                                        </div>
+                                        <div>
+                                            <div class="workflow-title">Start Research</div>
+                                            <div class="workflow-subtitle">Skip the inbox and dive into deep analysis immediately</div>
+                                        </div>
+                                    </div>
+                                    <div class="workflow-flow-tag">
+                                        <i class="bi bi-lightning-fill"></i>
+                                        <span>Direct → Research Template</span>
+                                    </div>
+                                    <div class="workflow-check">
+                                        <i class="bi bi-check"></i>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Section -->
+                    <div class="capture-submit-section">
+                        <div class="capture-submit-row">
+                            <button type="submit" class="capture-submit-btn btn-primary-submit" id="submit-btn">
+                                <i class="bi bi-inbox-fill" id="submit-icon"></i>
+                                <span id="submit-text">Add to Inbox</span>
+                            </button>
+                            <a href="{{ return_url or url_for('ideas.inbox') }}" class="capture-cancel-link">Cancel</a>
+                        </div>
+                        <p class="capture-submit-hint">
+                            Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit
+                        </p>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Company Search Modal (React Island) -->
+<div id="company-search-mount"></div>
+
+<!-- Scripts -->
+<script defer src="{{ url_for('static', filename='js/dist/duplicate-detector.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize duplicate detector React island
+    if (window.initDuplicateDetector) {
+        window.initDuplicateDetector('duplicate-alerts', {
+            entityType: 'idea',
+            nameInputId: 'idea-name',
+            tickerInputId: 'idea-ticker',
+            submitSelector: 'form[data-entity="idea"] button[type="submit"]'
+        });
+    }
+
+    const form = document.getElementById('captureForm');
+    const ideaTypeSelect = document.getElementById('idea_type');
+    const ideaPurposeSelect = document.getElementById('idea_purpose');
+    const sourceInput = document.getElementById('source');
+    const sourceSuggestions = document.getElementById('source-suggestions');
+    const submitBtn = document.getElementById('submit-btn');
+    const submitIcon = document.getElementById('submit-icon');
+    const submitText = document.getElementById('submit-text');
+    const submitActionInput = document.getElementById('submit_action');
+    const workflowOptions = document.querySelectorAll('.workflow-option');
+
+    let debounceTimer;
+    let currentHighlight = -1;
+
+    // =========================================================================
+    // Workflow Option Selection
+    // =========================================================================
+    workflowOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            const action = this.dataset.action;
+            const radio = this.querySelector('input[type="radio"]');
+
+            // Update selection state
+            workflowOptions.forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+            radio.checked = true;
+
+            // Update hidden input
+            submitActionInput.value = action;
+
+            // Update submit button
+            updateSubmitButton(action);
+        });
+    });
+
+    function updateSubmitButton(action) {
+        if (action === 'start_research') {
+            submitBtn.classList.remove('btn-primary-submit');
+            submitBtn.classList.add('btn-research-submit');
+            submitIcon.className = 'bi bi-rocket-takeoff-fill';
+            submitText.textContent = 'Start Research';
+        } else {
+            submitBtn.classList.remove('btn-research-submit');
+            submitBtn.classList.add('btn-primary-submit');
+            submitIcon.className = 'bi bi-inbox-fill';
+            submitText.textContent = 'Add to Inbox';
+        }
+    }
+
+    // =========================================================================
+    // Company Selection Visibility
+    // =========================================================================
+    function updateCompanyRequirement() {
+        const isCompany = ideaTypeSelect.value === 'company';
+        const isSector = ideaTypeSelect.value === 'sector';
+        const isInvestment = ideaPurposeSelect.value === 'investment';
+        const showCompanySelection = isCompany && isInvestment;
+
+        const companyField = document.getElementById('company-selection-field');
+        const companyIdInput = document.getElementById('company_id');
+        const companyRequired = document.getElementById('company-required');
+        const notebookOption = document.getElementById('notebook-option');
+
+        // Show/hide company selection
+        if (showCompanySelection) {
+            companyField.style.display = 'block';
+            companyIdInput.required = true;
+            companyRequired.style.display = 'inline';
+        } else {
+            companyField.style.display = 'none';
+            companyIdInput.required = false;
+            companyRequired.style.display = 'none';
+            clearSelectedCompany();
+        }
+
+        // Show/hide notebook option for sectors
+        if (isSector) {
+            notebookOption.classList.add('visible');
+        } else {
+            notebookOption.classList.remove('visible');
+            document.getElementById('add_to_notebook').checked = false;
+        }
+    }
+
+    ideaTypeSelect.addEventListener('change', updateCompanyRequirement);
+    ideaPurposeSelect.addEventListener('change', updateCompanyRequirement);
+    updateCompanyRequirement();
+
+    // =========================================================================
+    // Source Autocomplete
+    // =========================================================================
+    function searchSources(query) {
+        if (query.length < 2) {
+            sourceSuggestions.classList.remove('visible');
+            return;
+        }
+
+        fetch(`{{ url_for('ideas.search_sources') }}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                sourceSuggestions.innerHTML = '';
+                currentHighlight = -1;
+
+                if (data.length === 0) {
+                    sourceSuggestions.classList.remove('visible');
+                    return;
+                }
+
+                data.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'source-suggestion';
+                    const firstLetter = item.source.charAt(0).toUpperCase();
+
+                    div.innerHTML = `
+                        <div class="source-suggestion-left">
+                            <div class="source-suggestion-avatar">${firstLetter}</div>
+                            <span class="source-suggestion-name">${item.source}</span>
+                        </div>
+                        <span class="source-suggestion-count">${item.count}</span>
+                    `;
+
+                    div.addEventListener('click', function() {
+                        sourceInput.value = item.source;
+                        sourceSuggestions.classList.remove('visible');
+                        sourceInput.focus();
+                    });
+
+                    sourceSuggestions.appendChild(div);
+                });
+
+                sourceSuggestions.classList.add('visible');
+            })
+            .catch(error => {
+                console.error('Error searching sources:', error);
+                sourceSuggestions.classList.remove('visible');
+            });
+    }
+
+    sourceInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            searchSources(this.value.trim());
+        }, 300);
+    });
+
+    sourceInput.addEventListener('keydown', function(e) {
+        const suggestions = sourceSuggestions.querySelectorAll('.source-suggestion');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentHighlight = Math.min(currentHighlight + 1, suggestions.length - 1);
+            updateHighlight(suggestions);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentHighlight = Math.max(currentHighlight - 1, -1);
+            updateHighlight(suggestions);
+        } else if (e.key === 'Enter' && currentHighlight >= 0) {
+            e.preventDefault();
+            suggestions[currentHighlight].click();
+        } else if (e.key === 'Escape') {
+            sourceSuggestions.classList.remove('visible');
+        }
+    });
+
+    function updateHighlight(suggestions) {
+        suggestions.forEach((suggestion, index) => {
+            suggestion.classList.toggle('highlighted', index === currentHighlight);
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!sourceInput.contains(e.target) && !sourceSuggestions.contains(e.target)) {
+            sourceSuggestions.classList.remove('visible');
+        }
+    });
+
+    // =========================================================================
+    // Expandable Sections
+    // =========================================================================
+    window.toggleExpandable = function(id) {
+        const el = document.getElementById(id);
+        el.classList.toggle('open');
+    };
+
+    // =========================================================================
+    // Keyboard Shortcut
+    // =========================================================================
+    form.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            form.submit();
+        }
+    });
+
+    // =========================================================================
+    // Form Submit Loading State
+    // =========================================================================
+    form.addEventListener('submit', function() {
+        submitBtn.classList.add('loading');
+    });
+});
+
+// =========================================================================
+// Company Selection Handlers
+// =========================================================================
+function handleCompanySelection(company) {
+    console.log('Company selected:', company);
+
+    document.getElementById('company_id').value = company.id;
+    if (company.ticker_symbol) {
+        document.getElementById('idea-ticker').value = company.ticker_symbol;
+    }
+
+    document.getElementById('selected-company-name').textContent = company.name;
+    document.getElementById('selected-company-ticker').textContent = company.ticker_symbol || 'No ticker';
+
+    document.getElementById('company-select-trigger').style.display = 'none';
+    document.getElementById('company-selected-display').style.display = 'flex';
+}
+
+function clearSelectedCompany() {
+    document.getElementById('company_id').value = '';
+    document.getElementById('idea-ticker').value = '';
+
+    document.getElementById('company-select-trigger').style.display = 'block';
+    document.getElementById('company-selected-display').style.display = 'none';
+}
+</script>
+{% endblock %}

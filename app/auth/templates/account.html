@@ -1,0 +1,275 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4 profile-page">
+    <div class="dashboard-header-card">
+        <div class="dashboard-header">
+            <div>
+                <h1><i class="bi bi-gear me-2"></i>Account Settings</h1>
+                <p class="dashboard-header-subtitle">Manage your account and preferences</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <button class="action-btn" disabled>
+                    Edit Profile (Coming Soon)
+                </button>
+            </div>
+        </div>
+    </div>
+
+<!-- Account Information Row -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3 text-center mb-3 mb-md-0">
+                        <!-- Avatar -->
+                        <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center"
+                             style="width: 100px; height: 100px;">
+                            <span class="text-white" style="font-size: 2.5rem;">{{ user.username[0].upper() }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-9">
+                        <h3 class="mb-2">{{ user.username }}</h3>
+                        <p class="text-muted mb-3">{{ user.email }}</p>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <span class="text-muted">Subscription:</span>
+                                <span class="badge bg-{{ 'success' if user.subscription_tier == 'premium' else 'secondary' }} ms-2">
+                                    {{ user.subscription_tier|title }}
+                                </span>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <span class="text-muted">User ID:</span>
+                                <span class="ms-2">{{ user.id }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Cards Row -->
+<div class="row">
+    <!-- Currency Settings -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0">💱 Currency Settings</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.update_settings') }}">
+                    <div class="mb-3">
+                        <label for="base_currency" class="form-label fw-semibold">Base Currency</label>
+                        <select class="form-select" id="base_currency" name="base_currency" required>
+                            <option value="USD" {% if user.base_currency == 'USD' %}selected{% endif %}>🇺🇸 USD - US Dollar</option>
+                            <option value="EUR" {% if user.base_currency == 'EUR' %}selected{% endif %}>🇪🇺 EUR - Euro</option>
+                            <option value="GBP" {% if user.base_currency == 'GBP' %}selected{% endif %}>🇬🇧 GBP - British Pound</option>
+                            <option value="CAD" {% if user.base_currency == 'CAD' %}selected{% endif %}>🇨🇦 CAD - Canadian Dollar</option>
+                            <option value="AUD" {% if user.base_currency == 'AUD' %}selected{% endif %}>🇦🇺 AUD - Australian Dollar</option>
+                            <option value="JPY" {% if user.base_currency == 'JPY' %}selected{% endif %}>🇯🇵 JPY - Japanese Yen</option>
+                            <option value="CHF" {% if user.base_currency == 'CHF' %}selected{% endif %}>🇨🇭 CHF - Swiss Franc</option>
+                            <option value="CNY" {% if user.base_currency == 'CNY' %}selected{% endif %}>🇨🇳 CNY - Chinese Yuan</option>
+                            <option value="HKD" {% if user.base_currency == 'HKD' %}selected{% endif %}>🇭🇰 HKD - Hong Kong Dollar</option>
+                            <option value="INR" {% if user.base_currency == 'INR' %}selected{% endif %}>🇮🇳 INR - Indian Rupee</option>
+                            <option value="KRW" {% if user.base_currency == 'KRW' %}selected{% endif %}>🇰🇷 KRW - South Korean Won</option>
+                            <option value="SEK" {% if user.base_currency == 'SEK' %}selected{% endif %}>🇸🇪 SEK - Swedish Krona</option>
+                            <option value="NOK" {% if user.base_currency == 'NOK' %}selected{% endif %}>🇳🇴 NOK - Norwegian Krone</option>
+                            <option value="DKK" {% if user.base_currency == 'DKK' %}selected{% endif %}>🇩🇰 DKK - Danish Krone</option>
+                        </select>
+                        <small class="form-text text-muted">
+                            All portfolio values and analytics will be shown in this currency
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="show_original_currency"
+                                   name="show_original_currency" {% if user.show_original_currency %}checked{% endif %}>
+                            <label class="form-check-label" for="show_original_currency">
+                                Show original currency alongside base
+                            </label>
+                            <br>
+                            <small class="text-muted">Example: €65.00 (~$70.20)</small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning" style="font-size: 0.875rem;">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Note:</strong> Changing your base currency will recalculate all portfolio values using current exchange rates.
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-circle me-2"></i>Save Currency Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Investment Profile Settings -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>Investment Profile</h6>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <p class="mb-3 flex-grow-1">
+                    Customize your investor profile to personalize research thresholds, portfolio warnings, and behavioral pattern detection.
+                </p>
+                <a href="{{ url_for('profile.profile_settings') }}" class="btn btn-primary w-100 mt-auto">
+                    <i class="fas fa-user-cog me-2"></i>Configure Profile
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Preferences -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-sliders me-2"></i>Feature Preferences</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.update_feature_preferences') }}">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="show_advanced"
+                               name="show_advanced_features" {% if user.show_advanced_features %}checked{% endif %}>
+                        <label class="form-check-label" for="show_advanced">
+                            <strong>Show all features</strong>
+                        </label>
+                        <div class="small text-muted mt-1">
+                            Enable to see all platform features immediately, even those not yet unlocked through usage.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-circle me-2"></i>Save Preferences
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data & Privacy (GDPR) -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Data & Privacy</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">
+                    Your data rights under GDPR. See our
+                    <a href="{{ url_for('main.privacy') }}">Privacy Policy</a>.
+                </p>
+
+                <!-- AI Consent Toggle (Art. 6(1)(a) / Art. 7(3)) -->
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong class="small"><i class="bi bi-robot me-1"></i>AI Features</strong>
+                            <div class="small text-muted">
+                                Send data to Gemini/Claude for research assistance
+                            </div>
+                        </div>
+                        {% if user.ai_consent_given %}
+                            <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Disabled</span>
+                        {% endif %}
+                    </div>
+                    {% if user.ai_consent_given %}
+                        <div class="small text-muted mt-1">
+                            Consented: {{ user.ai_consent_date.strftime('%d %b %Y') if user.ai_consent_date else 'N/A' }}
+                        </div>
+                        <form method="POST" action="{{ url_for('auth.revoke_ai_consent') }}" class="mt-2">
+                            <button type="submit" class="btn btn-outline-warning btn-sm w-100"
+                                    onclick="return confirm('This will disable all AI features. You can re-enable them anytime.')">
+                                <i class="bi bi-toggle2-off me-1"></i>Revoke AI Consent
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="small text-muted mt-1">
+                            AI features will ask for consent on first use.
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="d-grid gap-2">
+                    <!-- Data Export (Art. 15 / Art. 20) -->
+                    <form method="POST" action="{{ url_for('auth.export_data') }}">
+                        <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="bi bi-download me-2"></i>Export My Data (JSON)
+                        </button>
+                    </form>
+
+                    <!-- Account Deletion (Art. 17) -->
+                    <button type="button" class="btn btn-outline-danger btn-sm"
+                            data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                        <i class="bi bi-trash me-2"></i>Delete Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block modals %}
+<!-- Delete Account Confirmation Modal -->
+<div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteAccountModalLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Delete Account
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('auth.delete_account') }}">
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <strong>This action is permanent and cannot be undone.</strong>
+                    </div>
+                    <p>Deleting your account will permanently remove:</p>
+                    <ul>
+                        <li>Your profile and login credentials</li>
+                        <li>All companies, checklists, and research data</li>
+                        <li>All journal entries, learning notes, and patterns</li>
+                        <li>All portfolio positions and transactions</li>
+                        <li>All AI interaction history</li>
+                    </ul>
+                    <p class="mb-2">
+                        <strong>We recommend exporting your data first</strong> using the
+                        "Export My Data" button on the account page.
+                    </p>
+                    <hr>
+                    <label for="confirm_delete" class="form-label">
+                        Type <strong>DELETE</strong> to confirm:
+                    </label>
+                    <input type="text" class="form-control" id="confirm_delete" name="confirm_delete"
+                           placeholder="Type DELETE here" autocomplete="off" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger" id="deleteAccountBtn" disabled>
+                        <i class="bi bi-trash me-2"></i>Permanently Delete Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Enable delete button only when user types DELETE
+    document.getElementById('confirm_delete').addEventListener('input', function() {
+        document.getElementById('deleteAccountBtn').disabled = this.value.trim() !== 'DELETE';
+    });
+</script>
+{% endblock %}

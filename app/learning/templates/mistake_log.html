@@ -1,0 +1,239 @@
+{% extends "main/_base_learning.html" %}
+
+{% block content %}
+<div class="knowledge-hub-dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Mistake Log</h1>
+                <p class="dashboard-subtitle">Learn from failures to improve your investment process</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('journal_enhanced.new_entry', category='mistake') }}" class="action-btn primary">
+                    <i class="bi bi-plus-circle-fill"></i> Log New Mistake
+                </a>
+            </div>
+        </header>
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-journal-x"></i></div>
+                <div class="portfolio-metric-label">Total Mistakes</div>
+                <div class="portfolio-metric-value">{{ mistakes|length }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-currency-dollar"></i></div>
+                <div class="portfolio-metric-label">Estimated Cost</div>
+                <div class="portfolio-metric-value loss">${{ "{:,.0f}".format(total_cost) if total_cost else 0 }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon purple"><i class="bi bi-arrow-repeat"></i></div>
+                <div class="portfolio-metric-label">Most Common</div>
+                <div class="portfolio-metric-value">{{ most_common_count }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green"><i class="bi bi-shield-check"></i></div>
+                <div class="portfolio-metric-label">Prevented</div>
+                <div class="portfolio-metric-value gain">{{ mistakes|selectattr('prevented_similar', 'gt', 0)|list|length }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mistakes by Category -->
+    <div class="mistakes-content-card">
+        <div class="mistakes-tabs-header">
+            <ul class="nav mistakes-nav-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#all">All Mistakes</a>
+                </li>
+                {% for type_name, type_mistakes in by_type.items() %}
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#{{ type_name }}">
+                        {{ type_name|replace('_', ' ')|title }} ({{ type_mistakes|length }})
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="mistakes-tab-content">
+            <div class="tab-content">
+                <!-- All Mistakes Tab -->
+                <div class="tab-pane fade show active" id="all">
+                    {% if mistakes %}
+                    <div class="mistakes-accordion">
+                        {% for mistake in mistakes %}
+                        <div class="mistake-accordion-item">
+                            <h2 class="mistake-accordion-header">
+                                <button class="mistake-accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#mistake-{{ mistake.id }}">
+                                    <div class="mistake-title-section">
+                                        <div class="mistake-title-row">
+                                            <h3 class="mistake-title-text">{{ mistake.title }}</h3>
+                                            <div class="mistake-badges">
+                                                <span class="mistake-severity-badge">
+                                                    Severity: {{ mistake.severity }}/10
+                                                </span>
+                                                {% if mistake.cost_estimate %}
+                                                <span class="mistake-cost-badge">
+                                                    ${{ "{:,.0f}".format(mistake.cost_estimate) }}
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <small class="mistake-date">
+                                            {{ mistake.occurred_date.strftime('%b %d, %Y') if mistake.occurred_date else 'Date unknown' }}
+                                        </small>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="mistake-{{ mistake.id }}" class="accordion-collapse collapse mistake-collapse"
+                                data-bs-parent=".mistakes-accordion">
+                                <div class="mistake-accordion-body">
+                                    <div class="mistake-details-grid">
+                                        <div class="mistake-detail-section">
+                                            <h6 class="mistake-detail-heading">Description</h6>
+                                            <p class="mistake-detail-content">{{ mistake.description }}</p>
+
+                                            {% if mistake.root_cause %}
+                                            <h6 class="mistake-detail-heading">Root Cause</h6>
+                                            <p class="mistake-detail-content">{{ mistake.root_cause }}</p>
+                                            {% endif %}
+
+                                            {% if mistake.contributing_factors %}
+                                            <h6 class="mistake-detail-heading">Contributing Factors</h6>
+                                            <ul class="mistake-factors-list">
+                                                {% for factor in mistake.contributing_factors %}
+                                                <li>{{ factor }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                            {% endif %}
+                                        </div>
+                                        <div class="mistake-detail-section">
+                                            <div class="mistake-lesson-highlight">
+                                                <h6 class="mistake-detail-heading">Lesson Learned</h6>
+                                                <p class="mistake-detail-content">{{ mistake.lesson_learned }}</p>
+                                            </div>
+
+                                            {% if mistake.prevention_steps %}
+                                            <h6 class="mistake-detail-heading">Prevention Steps</h6>
+                                            <ul class="mistake-prevention-list">
+                                                {% for step in mistake.prevention_steps %}
+                                                <li>{{ step }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                            {% endif %}
+
+                                            {% if mistake.process_changes %}
+                                            <h6 class="mistake-detail-heading">Process Changes</h6>
+                                            <p class="mistake-detail-content">{{ mistake.process_changes }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="mistake-footer">
+                                        <div class="mistake-meta-info">
+                                            Reviewed {{ mistake.times_reviewed }} times
+                                            {% if mistake.last_reviewed %}
+                                            | Last: {{ mistake.last_reviewed.strftime('%b %d') }}
+                                            {% endif %}
+                                            {% if mistake.prevented_similar > 0 %}
+                                            | <span class="text-success">Prevented {{ mistake.prevented_similar }} similar mistakes</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="mistake-actions">
+                                            <button class="btn btn-review"
+                                                onclick="reviewMistake({{ mistake.id }}, false)">
+                                                <i class="bi bi-eye"></i> Mark Reviewed
+                                            </button>
+                                            <button class="btn btn-prevented"
+                                                onclick="reviewMistake({{ mistake.id }}, true)">
+                                                <i class="bi bi-shield-check"></i> Prevented Similar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="mistakes-empty-state">
+                        <i class="bi bi-check-circle"></i>
+                        <h3>No mistakes logged yet</h3>
+                        <p>Start logging mistakes to learn and improve your process</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Category-specific tabs -->
+                {% for type_name, type_mistakes in by_type.items() %}
+                <div class="tab-pane fade" id="{{ type_name }}">
+                    <!-- Similar structure as above but filtered for specific type -->
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Learning Insights -->
+    <div class="learning-mistakes-learning-insights-card">
+        <div class="insights-card-header">
+            <h5 class="insights-card-title">Key Insights from Your Mistakes</h5>
+        </div>
+        <div class="insights-card-body">
+            <div class="learning-mistakes-insights-grid">
+                <div class="learning-mistakes-insight-section">
+                    <h6 class="learning-mistakes-insight-section-title">Most Expensive Mistakes</h6>
+                    <ul class="learning-mistakes-insight-list">
+                        {% for mistake in (mistakes|sort(attribute='cost_estimate', reverse=true))[:3] %}
+                        {% if mistake.cost_estimate %}
+                        <li class="insight-list-item">
+                            <div class="insight-item-title">{{ mistake.title }}</div>
+                            <div class="insight-item-meta">Cost: ${{ "{:,.0f}".format(mistake.cost_estimate) }}</div>
+                            <p class="insight-item-lesson">Lesson: {{ mistake.lesson_learned|truncate(100) }}</p>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="learning-mistakes-insight-section">
+                    <h6 class="learning-mistakes-insight-section-title">Most Reviewed Mistakes</h6>
+                    <ul class="learning-mistakes-insight-list">
+                        {% for mistake in (mistakes|sort(attribute='times_reviewed', reverse=true))[:3] %}
+                        {% if mistake.times_reviewed > 0 %}
+                        <li class="insight-list-item">
+                            <div class="insight-item-title">{{ mistake.title }}</div>
+                            <div class="insight-item-meta">Reviewed {{ mistake.times_reviewed }}x | Type: {{ mistake.mistake_type|replace('_', ' ')|title }}</div>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    function reviewMistake(mistakeId, preventedSimilar) {
+        fetch(`/learning/mistakes/${mistakeId}/review`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prevented_similar: preventedSimilar
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            });
+    }
+</script>
+{% endblock %}

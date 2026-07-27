@@ -1,0 +1,48 @@
+# Web Framework & Extensions
+Flask==3.1.1
+flask_login==0.6.3
+flask_sqlalchemy==3.1.1
+Flask-Migrate
+Flask-Caching
+Flask-WTF
+Flask-Limiter
+python-dotenv
+Werkzeug
+flask-admin
+
+# Machine Learning (LOCAL embeddings - optional, heavy ~1.5GB)
+# Only needed for offline embeddings. Railway uses Gemini embeddings instead.
+# Install locally with: pip install -r requirements-local.txt
+
+# Data Processing
+pandas
+scikit-learn
+matplotlib
+yfinance
+PyMuPDF
+python-docx
+openpyxl
+beautifulsoup4
+weasyprint
+
+# APIs & Integrations
+google-genai
+openai
+anthropic>=0.40.0
+requests
+secedgar
+PyYAML
+
+# Infrastructure
+redis
+celery
+authlib>=1.2.0
+python-jose[cryptography]>=3.3.0
+pgvector>=0.4.0
+gunicorn==23.0.0
+psycopg2-binary==2.9.10
+
+# Static File Optimization
+whitenoise
+Flask-Assets
+rcssmin

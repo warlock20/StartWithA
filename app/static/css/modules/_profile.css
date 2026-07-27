@@ -1,0 +1,17 @@
+/* =============================================================================
+   PROFILE PAGE STYLES
+   User profile and settings page styling
+   ============================================================================= */
+
+/* Profile page card hover effects */
+.profile-page .card {
+    transition: all 0.2s ease;
+}
+
+.profile-page .card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.profile-page .bg-light .card-body:hover {
+    background-color: #f8f9fa !important;
+}

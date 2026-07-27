@@ -1,0 +1,6 @@
+# Local ML dependencies (not needed on Railway - uses Gemini embeddings instead)
+# Install with: pip install -r requirements-local.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.5.1
+transformers
+sentence-transformers

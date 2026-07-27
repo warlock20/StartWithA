@@ -1,0 +1,256 @@
+{% extends "main/_base_companies.html" %}
+
+{% block head %}
+{% if resource.file_type == 'pdf' %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/web/pdf_viewer.min.css">
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div id="document-viewer-root"
+     data-resource-id="{{ resource.id }}"
+     data-resource-type="{{ resource.file_type }}"
+     data-view-url="{{ url_for('companies.api_view_resource', resource_id=resource.id) }}"
+     data-download-url="{{ url_for('companies.api_download_resource', resource_id=resource.id) }}"
+     data-company-id="{{ company.id }}"
+     data-company-name="{{ company.name }}"
+     data-annotations-url="{{ url_for('companies.api_list_annotations', resource_id=resource.id) }}">
+
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="d-flex align-items-center gap-2 min-width-0">
+            <a href="{{ url_for('companies.company_detail', company_id=company.id) }}"
+               class="btn btn-sm btn-outline-secondary flex-shrink-0"
+               title="Back to {{ company.name }}">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div class="min-width-0">
+                <h5 class="mb-0 text-truncate">
+                    <i class="bi {{ 'bi-file-earmark-pdf-fill text-danger' if resource.file_type == 'pdf' else ('bi-file-earmark-code-fill text-warning' if resource.file_type == 'html' else 'bi-file-earmark-text-fill text-primary') }} me-1"></i>
+                    {{ resource.title }}
+                </h5>
+                <small class="text-muted">
+                    {{ resource.original_filename }}
+                    {% if resource.file_size %}
+                        &middot; {{ "%.1f"|format(resource.file_size / 1024) }} KB
+                    {% endif %}
+                    {% if resource.category %}
+                        &middot; <span class="badge bg-light text-dark border">{{ resource.category }}</span>
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+        <a href="{{ url_for('companies.api_download_resource', resource_id=resource.id) }}"
+           class="btn btn-sm btn-outline-primary flex-shrink-0">
+            <i class="bi bi-download me-1"></i>Download
+        </a>
+    </div>
+
+    <!-- Viewer -->
+    {% if resource.file_type == 'pdf' %}
+        <!-- Annotation Toolbar -->
+        <div class="annotation-toolbar">
+            <small class="text-muted me-1">Select text to highlight, or</small>
+            <button id="btn-add-annotation" class="btn btn-sm btn-outline-warning" title="Drop a pin anywhere on the page">
+                <i class="bi bi-pin-angle me-1"></i>Drop Pin
+            </button>
+            <button id="btn-toggle-sidebar" class="btn btn-sm btn-outline-secondary" title="Toggle notes sidebar">
+                <i class="bi bi-layout-sidebar-reverse me-1"></i>Notes
+                <span id="annotation-count-badge" class="badge bg-secondary ms-1" style="display:none;">0</span>
+            </button>
+        </div>
+
+        <div id="annotations-mount"></div>
+        <div id="pdf-viewer-container">
+            <div id="pdf-viewer" class="resource-viewer-pdf">
+                <div id="pdf-loading" class="text-center text-muted py-5">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Loading PDF...
+                </div>
+            </div>
+            <div id="annotation-sidebar" class="annotation-sidebar">
+                <div class="annotation-sidebar-header">
+                    <strong>Document Notes</strong>
+                    <button class="btn btn-sm btn-outline-secondary border-0" onclick="DocumentAnnotations.toggleSidebar()">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div id="annotation-sidebar-list"></div>
+            </div>
+        </div>
+    {% elif resource.file_type == 'html' %}
+        <div class="resource-viewer-html">
+            <div class="alert alert-info small mb-2">
+                <i class="bi bi-info-circle me-1"></i>
+                This is a legacy HTML filing. New SEC fetches save as PDF for full annotation support.
+                You can delete this and re-fetch to get a PDF version.
+            </div>
+            <iframe id="html-viewer"
+                    src="{{ url_for('companies.api_view_resource', resource_id=resource.id) }}"
+                    style="width:100%; height:80vh; border:1px solid var(--border-light, #e2e8f0); border-radius:8px; background:#fff;">
+            </iframe>
+        </div>
+    {% elif resource.file_type == 'txt' %}
+        <div class="resource-viewer-text" id="txt-viewer">
+            <div class="text-center text-muted py-5">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading document...
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if resource.file_type == 'pdf' %}
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script defer src="{{ url_for('static', filename='js/dist/document-annotations.bundle.js') }}"></script>
+<script>
+(function() {
+    var pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+    var root = document.getElementById('document-viewer-root');
+    var viewUrl = root.dataset.viewUrl;
+    var container = document.getElementById('pdf-viewer');
+
+    pdfjsLib.getDocument(viewUrl).promise.then(function(pdf) {
+        container.innerHTML = '';
+
+        var pageElements = []; // { canvas, textLayerDiv, pageNum }
+        for (var i = 0; i < pdf.numPages; i++) {
+            var pageNum = i + 1;
+
+            // Wrapper for canvas + text layer
+            var wrapper = document.createElement('div');
+            wrapper.className = 'pdf-page-canvas-wrapper';
+            wrapper.dataset.pageNumber = pageNum;
+
+            var canvas = document.createElement('canvas');
+            canvas.className = 'pdf-page-canvas';
+            canvas.dataset.pageNumber = pageNum;
+            wrapper.appendChild(canvas);
+
+            // Text layer sits on top of canvas for selection
+            var textLayerDiv = document.createElement('div');
+            textLayerDiv.className = 'textLayer';
+            wrapper.appendChild(textLayerDiv);
+
+            container.appendChild(wrapper);
+            pageElements.push({ canvas: canvas, textLayerDiv: textLayerDiv, pageNum: pageNum });
+        }
+
+        var rendered = 0;
+        pageElements.forEach(function(pe) {
+            renderPage(pdf, pe.pageNum, pe.canvas, pe.textLayerDiv, function() {
+                rendered++;
+                if (rendered === pdf.numPages) {
+                    try {
+                        if (window.initDocumentAnnotations) {
+                            window.initDocumentAnnotations('annotations-mount', {
+                                resourceId: parseInt(root.dataset.resourceId),
+                                companyId: parseInt(root.dataset.companyId),
+                                companyName: root.dataset.companyName,
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Annotation init error:', e);
+                    }
+                }
+            });
+        });
+    }).catch(function(err) {
+        console.error('PDF load error:', err);
+        container.innerHTML = '<div class="text-danger text-center py-5">' +
+            '<i class="bi bi-exclamation-triangle me-2"></i>Failed to load PDF.<br>' +
+            '<small class="text-muted">' + (err && err.message ? err.message : '') + '</small></div>';
+    });
+
+    function renderPage(pdf, pageNum, canvas, textLayerDiv, onComplete) {
+        pdf.getPage(pageNum).then(function(page) {
+            var containerWidth = container.clientWidth - 32;
+            var baseViewport = page.getViewport({ scale: 1 });
+            var scale = containerWidth / baseViewport.width;
+            var viewport = page.getViewport({ scale: scale });
+            var dpr = window.devicePixelRatio || 1;
+
+            canvas.width = Math.floor(viewport.width * dpr);
+            canvas.height = Math.floor(viewport.height * dpr);
+            canvas.style.width = Math.floor(viewport.width) + 'px';
+            canvas.style.height = Math.floor(viewport.height) + 'px';
+
+            var ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+
+            // Render canvas
+            var renderPromise = page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+            // Render text layer for selection.
+            // pdfjs-dist 3.6+ requires --scale-factor CSS variable for
+            // renderTextLayer to compute correct layer dimensions.
+            textLayerDiv.style.setProperty('--scale-factor', scale);
+
+            var textPromise = page.getTextContent().then(function(textContent) {
+                if (typeof pdfjsLib.renderTextLayer === 'function') {
+                    var textTask = pdfjsLib.renderTextLayer({
+                        textContentSource: textContent,
+                        container: textLayerDiv,
+                        viewport: viewport,
+                        textDivs: [],
+                    });
+                    return textTask.promise || textTask;
+                } else {
+                    // Manual fallback (no renderTextLayer in build)
+                    textLayerDiv.style.width = Math.floor(viewport.width) + 'px';
+                    textLayerDiv.style.height = Math.floor(viewport.height) + 'px';
+                    textContent.items.forEach(function(item) {
+                        if (!item.str) return;
+                        var tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+                        var fontSize = Math.abs(tx[3]);
+                        var span = document.createElement('span');
+                        span.textContent = item.str;
+                        span.style.left = tx[4] + 'px';
+                        span.style.top = (tx[5] - fontSize) + 'px';
+                        span.style.fontSize = fontSize + 'px';
+                        span.style.fontFamily = item.fontName || 'sans-serif';
+                        span.style.transformOrigin = '0% 0%';
+                        textLayerDiv.appendChild(span);
+                    });
+                }
+            });
+
+            Promise.all([renderPromise, textPromise]).then(function() {
+                if (onComplete) onComplete();
+            });
+        });
+    }
+})();
+</script>
+{% elif resource.file_type == 'txt' %}
+<script>
+(function() {
+    var viewer = document.getElementById('txt-viewer');
+    var viewUrl = document.getElementById('document-viewer-root').dataset.viewUrl;
+
+    fetch(viewUrl)
+        .then(function(resp) {
+            if (!resp.ok) throw new Error('Failed to load file');
+            return resp.text();
+        })
+        .then(function(text) {
+            var pre = document.createElement('pre');
+            pre.className = 'resource-viewer-text-content';
+            pre.textContent = text;
+            viewer.innerHTML = '';
+            viewer.appendChild(pre);
+        })
+        .catch(function() {
+            viewer.innerHTML = '<div class="text-danger text-center py-5">' +
+                '<i class="bi bi-exclamation-triangle me-2"></i>Failed to load document.</div>';
+        });
+})();
+</script>
+{% endif %}
+{% endblock %}

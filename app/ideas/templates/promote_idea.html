@@ -1,0 +1,277 @@
+{% extends "main/_base_companies.html" %}
+
+{% block content %}
+<div class="action-page idea-promote-page">
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="promote-hero">
+            <div class="promote-hero-badge">
+                <i class="bi bi-check-circle-fill"></i>
+                <span>Ready for Research</span>
+            </div>
+            <h1>Start Research</h1>
+            <p class="promote-hero-subtitle">
+                {% if idea.status == 'survived' %}
+                    This idea passed your screening. Select a template to begin systematic analysis.
+                {% else %}
+                    Select a research template to dive into this opportunity.
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Main Form -->
+        <div class="promote-form-container">
+            <div class="promote-card">
+                <div class="promote-card-body">
+                    <!-- Idea Summary Banner -->
+                    <div class="idea-summary-banner">
+                        <div class="idea-summary-icon">
+                            {% if idea.idea_type == 'sector' %}
+                                <i class="bi bi-pie-chart-fill"></i>
+                            {% else %}
+                                <i class="bi bi-building"></i>
+                            {% endif %}
+                        </div>
+                        <div class="idea-summary-content">
+                            <div class="idea-summary-name">
+                                {{ idea.name }}
+                                {% if idea.ticker_symbol %}
+                                    <span class="idea-summary-ticker">{{ idea.ticker_symbol }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="idea-summary-meta">
+                                <span class="idea-summary-tag">
+                                    <i class="bi bi-tag"></i>
+                                    {% if idea.idea_purpose == 'learning' %}Learning
+                                    {% elif idea.idea_purpose == 'research' %}Research
+                                    {% else %}Investment{% endif %}
+                                </span>
+                                {% if idea.source %}
+                                <span class="idea-summary-tag">
+                                    <i class="bi bi-link-45deg"></i>
+                                    {{ idea.source|truncate(30) }}
+                                </span>
+                                {% endif %}
+                                <span class="idea-summary-tag">
+                                    <i class="bi bi-calendar3"></i>
+                                    {{ idea.created_at.strftime('%b %d, %Y') }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if idea.idea_type == 'sector' %}
+                    <!-- Sector: Open Notebook Option -->
+                    <form method="POST" action="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" id="promoteForm">
+                        <input type="hidden" name="action" value="start_sector_research">
+
+                        <div class="sector-notebook-option">
+                            <div class="sector-notebook-icon">
+                                <i class="bi bi-journal-richtext"></i>
+                            </div>
+                            <div class="sector-notebook-title">Sector Research Notebook</div>
+                            <p class="sector-notebook-desc">
+                                Start exploring this sector with a flexible, free-form research notebook.
+                                Track companies, trends, and build expertise over time.
+                            </p>
+                            <button type="submit" class="sector-notebook-btn">
+                                <i class="bi bi-journal-plus"></i>
+                                Open Sector Notebook
+                            </button>
+                        </div>
+                    </form>
+
+                    {% else %}
+                    <!-- Company: Template Selection -->
+                    <form method="POST" action="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" id="promoteForm">
+                        <input type="hidden" name="action" value="create_research_project">
+                        <input type="hidden" name="template_id" id="selected_template_id" value="">
+
+                        <div class="promote-section">
+                            <div class="promote-section-header">
+                                <span class="promote-section-number">1</span>
+                                <span class="promote-section-title">Select Research Template</span>
+                                {% if templates|length > 6 %}
+                                <span class="template-count">{{ templates|length }} templates</span>
+                                {% endif %}
+                            </div>
+
+                            {% if templates %}
+                            {% if templates|length > 6 %}
+                            <div class="template-search-wrapper">
+                                <input type="text"
+                                       class="template-search-input"
+                                       id="template-search"
+                                       placeholder="Search templates..."
+                                       autocomplete="off">
+                            </div>
+                            {% endif %}
+
+                            <div class="template-grid-wrapper">
+                                <div class="template-grid" id="template-grid">
+                                    {% for template in templates %}
+                                <label class="idea-promote-template-card" data-template-id="{{ template.id }}">
+                                    <input type="radio" name="template_choice" value="{{ template.id }}">
+                                    <div class="idea-promote-template-card-header">
+                                        <div class="template-card-icon">
+                                            <i class="bi bi-clipboard-check"></i>
+                                        </div>
+                                        <div class="template-card-check">
+                                            <i class="bi bi-check"></i>
+                                        </div>
+                                    </div>
+                                    <div class="template-card-name">{{ template.name }}</div>
+                                    {% if template.description %}
+                                    <div class="template-card-desc">{{ template.description|truncate(80) }}</div>
+                                    {% endif %}
+                                    <div class="template-card-meta">
+                                        <span class="template-meta-tag steps">
+                                            <i class="bi bi-list-ol"></i> {{ template.step_count }} steps
+                                        </span>
+                                        {% if template.investment_style %}
+                                        <span class="template-meta-tag style">
+                                            {{ template.investment_style|capitalize }}
+                                        </span>
+                                        {% endif %}
+                                        {% if template.times_used > 0 %}
+                                        <span class="template-meta-tag">
+                                            Used {{ template.times_used }}x
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </label>
+                                {% endfor %}
+                                </div>
+                                <div class="template-no-results" id="template-no-results">
+                                    <i class="bi bi-search"></i>
+                                    No templates match your search
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="templates-empty">
+                                <div class="templates-empty-icon">
+                                    <i class="bi bi-clipboard-x"></i>
+                                </div>
+                                <div class="templates-empty-title">No Research Templates</div>
+                                <p class="templates-empty-text">
+                                    Create your first research template to start systematic analysis.
+                                </p>
+                                {% if has_feature('research_templates') %}
+                                <a href="{{ url_for('research_workflow.create_template') }}" class="templates-empty-btn">
+                                    <i class="bi bi-plus-lg"></i>
+                                    Create Template
+                                </a>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
+
+                {% if idea.idea_type == 'company' and templates %}
+                <!-- Submit Section (only for company ideas with templates) -->
+                <div class="promote-submit-section">
+                    <div class="promote-submit-row">
+                        <button type="submit" form="promoteForm" class="promote-submit-btn btn-start-research" id="submit-btn" disabled>
+                            <i class="bi bi-rocket-takeoff-fill"></i>
+                            <span>Start Research</span>
+                        </button>
+                        <a href="{{ return_url or url_for('ideas.inbox') }}" class="promote-secondary-link">Cancel</a>
+                    </div>
+                </div>
+                {% elif idea.idea_type == 'sector' %}
+                <div class="promote-submit-section">
+                    <div class="promote-submit-row" style="justify-content: center;">
+                        <a href="{{ return_url or url_for('ideas.inbox') }}" class="promote-secondary-link">Cancel</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const templateCards = document.querySelectorAll('.idea-promote-template-card');
+    const templateIdInput = document.getElementById('selected_template_id');
+    const submitBtn = document.getElementById('submit-btn');
+    const form = document.getElementById('promoteForm');
+    const searchInput = document.getElementById('template-search');
+    const noResults = document.getElementById('template-no-results');
+
+    // Template selection
+    templateCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const templateId = this.dataset.templateId;
+            const radio = this.querySelector('input[type="radio"]');
+
+            // Update selection
+            templateCards.forEach(c => c.classList.remove('selected'));
+            this.classList.add('selected');
+            radio.checked = true;
+
+            // Update hidden input
+            if (templateIdInput) {
+                templateIdInput.value = templateId;
+            }
+
+            // Enable submit button
+            if (submitBtn) {
+                submitBtn.disabled = false;
+            }
+        });
+    });
+
+    // Template search/filter
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            let visibleCount = 0;
+
+            templateCards.forEach(card => {
+                const name = card.querySelector('.template-card-name').textContent.toLowerCase();
+                const desc = card.querySelector('.template-card-desc')?.textContent.toLowerCase() || '';
+
+                if (name.includes(query) || desc.includes(query)) {
+                    card.style.display = '';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            // Show/hide no results message
+            if (noResults) {
+                noResults.classList.toggle('visible', visibleCount === 0 && query.length > 0);
+            }
+
+            // If filtered card was selected but now hidden, deselect it
+            const selectedCard = document.querySelector('.idea-promote-template-card.selected');
+            if (selectedCard && selectedCard.style.display === 'none') {
+                selectedCard.classList.remove('selected');
+                if (templateIdInput) templateIdInput.value = '';
+                if (submitBtn) submitBtn.disabled = true;
+            }
+        });
+    }
+
+    // Form submit loading state
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Check if template is selected for company ideas
+            if (templateIdInput && !templateIdInput.value) {
+                e.preventDefault();
+                alert('Please select a research template');
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.classList.add('loading');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

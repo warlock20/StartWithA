@@ -1,0 +1,109 @@
+/*
+=============================================================================
+Intelligent Investment Platform - UNIFIED DESIGN SYSTEM
+=============================================================================
+Professional design system with modular CSS architecture.
+All base styles, components, and utilities are imported from the modules/ directory.
+
+This file serves as the main entry point for all CSS styling.
+All complex components have been fully modularized.
+*/
+
+/* =============================================================================
+   CORE MODULES - Base Styles & Design Tokens
+   ============================================================================= */
+@import url('modules/_variables.css');      /* CSS custom properties */
+@import url('modules/_base.css');           /* Global base styles */
+
+/* =============================================================================
+   COMPONENT MODULES - Reusable UI Components
+   ============================================================================= */
+@import url('modules/_buttons.css');        /* Base button styles */
+@import url('modules/_button-system.css');  /* Advanced button variants */
+@import url('modules/_forms.css');          /* Form controls */
+@import url('modules/_form-validation.css'); /* Form validation styling */
+@import url('modules/_tables.css');         /* Table styling */
+@import url('modules/_data-table.css');     /* Reusable data table component (Tabulator) */
+@import url('modules/_alerts.css');         /* Alerts & messages */
+@import url('modules/_cards.css');          /* Basic card components */
+@import url('modules/_card-system.css');    /* Professional card system */
+@import url('modules/_navigation.css');     /* Navbar & dropdowns */
+@import url('modules/_sidebar.css');        /* Sidebar & topbar navigation */
+@import url('modules/_quote-banner.css');   /* Investor quote banner */
+
+/* =============================================================================
+   UTILITY & HELPER MODULES
+   ============================================================================= */
+@import url('modules/_utilities.css');      /* Utility classes, loader, timeline */
+@import url('modules/_sort-controls.css');  /* Sort and filter controls */
+@import url('modules/_drag-and-drop.css');  /* Drag-and-drop reordering functionality */
+
+/* =============================================================================
+   PAGE-SPECIFIC MODULES
+   ============================================================================= */
+@import url('modules/_auth.css');                  /* Auth pages (login, register) */
+@import url('modules/_public-home.css');          /* Public homepage */
+@import url('modules/_idea-capture.css');         /* Idea capture page */
+@import url('modules/_idea-promote.css');         /* Idea promote page */
+@import url('modules/_action-page.css');          /* Action/create/edit pages - centered editorial layout */
+@import url('modules/_page-layout.css');            /* Dashboard components */
+@import url('modules/_pipeline-flow.css');        /* Investment pipeline flow visualization */
+@import url('modules/_idea-pipeline.css');        /* Idea pipeline & graveyard */
+@import url('modules/_sector-analysis.css');      /* Sector analysis & notebooks */
+@import url('modules/_sector-research.css');      /* Simplified sector research page */
+@import url('modules/_research-sources.css');     /* Research sources component */
+@import url('modules/_research-checklist.css');   /* Research checklist/step pages */
+@import url('modules/_ai-research-assistant.css'); /* AI Research Assistant component */
+@import url('modules/_research-tabs.css');        /* Research tabbed interface */
+@import url('modules/_atomic-canvas.css');        /* Atomic notes canvas */
+@import url('modules/_research-workspace.css');   /* Research workspace layout */
+@import url('modules/_focus-mode.css');           /* Focus mode - distraction-free interface */
+@import url('modules/_page-selector.css');        /* Page selector dropdown */
+@import url('modules/_floating-quick-tools.css'); /* Floating quick tools panel */
+@import url('modules/_company-tags.css');         /* Company tagging feature */
+@import url('modules/_generate-document.css');    /* Generate document from canvas */
+@import url('modules/_research-projects.css');    /* Research projects pages */
+@import url('modules/_destination-analysis.css'); /* Destination analysis timeline */
+@import url('modules/_checkpoint-edit.css');      /* Checkpoint edit page */
+@import url('modules/_investment-journey.css');   /* Investment journey timeline (thesis + checkpoints) */
+@import url('modules/_thesis-update.css');        /* Thesis update form with sidebar reference */
+@import url('modules/_companies-list.css');       /* Companies list page */
+@import url('modules/_project-dashboard.css');    /* Project dashboard page */
+@import url('modules/_project-summary.css');      /* Project summary page */
+@import url('modules/_create-template.css');      /* Create/Edit template page */
+@import url('modules/_start-research.css');       /* Start new research page */
+@import url('modules/_kill-room.css');            /* Kill room page */
+@import url('modules/_checklist-view.css');       /* Checklist view pages */
+@import url('modules/_analytics-hub.css');        /* Analytics dashboard */
+@import url('modules/_journal-home.css');         /* Journal - Home & review queue pages */
+@import url('modules/_journal-search.css');       /* Journal - Knowledge hub search page */
+@import url('modules/_learning-mistakes.css');    /* Learning - Mistake log page */
+@import url('modules/_knowledge-library.css');    /* Knowledge Library - Insights & wisdom capture */
+@import url('modules/_knowledge-hub.css');        /* Knowledge Hub - Command Center */
+@import url('modules/_mental-models.css');        /* Mental models analysis (SWOT, Porter's 5 Forces) */
+@import url('modules/_mark-too-hard.css');        /* Mark company as too hard page */
+@import url('modules/_company-dashboard.css');    /* Company dashboard page */
+@import url('modules/_metrics-buttons.css');            /* Portfolio & transaction management */
+@import url('modules/_portfolio-analytics.css');  /* Portfolio analytics dashboards */
+@import url('modules/_position-detail.css');      /* Position detail page */
+@import url('modules/_recommendations.css');      /* Sector recommendations & insights */
+@import url('learning-insights.css');             /* Learning insights from portfolio */
+@import url('intelligence-hub.css');              /* Investment intelligence hub */
+@import url('thesis-reality.css');                /* Thesis vs Reality tracker */
+@import url('checkpoints.css');                   /* Checkpoint reminders and tracking */
+@import url('modules/_coc-analytics.css');        /* Circle of Competence analytics page */
+@import url('modules/_profile.css');              /* User profile page */
+@import url('modules/_investment-profile.css');   /* Investment profile settings page */
+@import url('modules/_hashtag-autocomplete.css'); /* Hashtag autocomplete component */
+@import url('modules/_warnings-widget.css');      /* Intelligence warnings widget */
+@import url('modules/_free-research.css');        /* Free research step */
+@import url('modules/_checklist-verification.css'); /* Checklist verification cockpit */
+@import url('modules/_research-command-center.css'); /* Research command center - unified Company Research page */
+@import url('modules/_idea-inbox.css');             /* Idea inbox - table view with state filters */
+@import url('modules/_research-focus.css');          /* Research focus card - dashboard priority recommendation */
+@import url('modules/_companion.css');                 /* Research companion floating chat widget */
+@import url('modules/_cookie-notice.css');             /* Cookie information notice banner */
+@import url('modules/_market-sweep.css');              /* Market sweep — Start with A's screening */
+@import url('modules/_send-to-sector.css');            /* Send to Sector - company→sector bridge */
+@import url('modules/_company-resources.css');          /* Company Resources - unified file & link management */
+@import url('modules/_intelligence-panel.css');          /* Intelligence Panel - transaction page calculators */

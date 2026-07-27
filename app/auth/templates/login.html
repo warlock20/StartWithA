@@ -1,0 +1,108 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-container">
+        <div class="auth-brand">
+            <img class="auth-brand-logo" src="{{ url_for('static', filename='img/logo-lockup-light.png') }}"
+                 alt="{{ APP_NAME }}" width="198" height="64">
+            <span class="auth-brand-tagline">Systematic research for serious investors</span>
+        </div>
+
+        <div class="auth-card">
+            <div class="auth-card-body">
+                <h2 class="auth-title">Welcome back</h2>
+                <p class="auth-subtitle">Sign in to continue your research</p>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="auth-alert auth-alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                {% if demo_mode %}
+                <form method="POST" action="{{ url_for('auth.demo_login') }}">
+                    <button type="submit" class="auth-provider-btn auth-demo-btn">
+                        <i class="bi bi-play-circle"></i>
+                        <span>
+                            Try Demo
+                            <small>No account needed</small>
+                        </span>
+                    </button>
+                </form>
+
+                <div class="auth-divider">
+                    <span>or sign in</span>
+                </div>
+                {% endif %}
+
+                {% if auth0_configured %}
+                <a href="{{ url_for('auth.auth0_login') }}" class="auth-provider-btn">
+                    <i class="bi bi-shield-lock"></i>
+                    <span>
+                        Continue with Auth0
+                        <small>Google, GitHub, Microsoft</small>
+                    </span>
+                </a>
+
+                <div class="auth-divider">
+                    <span>or sign in with email</span>
+                </div>
+                {% endif %}
+
+                {% if not auth0_configured and not demo_mode %}
+                <div class="auth-alert auth-alert-warning">
+                    Auth0 is not configured. Set up Auth0 credentials in your <code>.env</code> file,
+                    or enable <code>DEMO_MODE=true</code> to try the app.
+                </div>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div class="auth-field">
+                        <label for="identifier">Email or Username</label>
+                        <input type="text" id="identifier" name="identifier" value="{{ request.form.identifier if request.form else '' }}" required autocomplete="username" placeholder="you@example.com">
+                    </div>
+
+                    <div class="auth-field">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="Your password">
+                    </div>
+
+                    <div class="auth-row">
+                        <label class="auth-checkbox">
+                            <input type="checkbox" name="remember" value="1">
+                            <span>Remember me</span>
+                        </label>
+                        {% if auth0_configured %}
+                        <a href="#" class="auth-forgot-link">Forgot password?</a>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="auth-submit">Sign In</button>
+                </form>
+            </div>
+
+            <div class="auth-card-footer">
+                {% if auth0_configured %}
+                Don't have an account?
+                <a href="{{ url_for('auth.auth0_login') }}">Sign up with Auth0</a>
+                {% elif demo_mode %}
+                Use the demo button above to explore the app.
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="auth-footer-text">
+            <a href="{{ url_for('main.index') }}">Back to home</a>
+            <span class="auth-footer-sep">&middot;</span>
+            <a href="{{ url_for('main.privacy') }}">Privacy Policy</a>
+            <span class="auth-footer-sep">&middot;</span>
+            <a href="{{ url_for('main.terms') }}">Terms of Use</a>
+            <span class="auth-footer-sep">&middot;</span>
+            <a href="{{ url_for('main.imprint') }}">Imprint</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

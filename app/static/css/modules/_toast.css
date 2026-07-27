@@ -1,0 +1,39 @@
+/* ── Global Toast Notifications ──────────────────────────────── */
+.app-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: toastSlideIn 0.2s ease-out;
+    color: #fff;
+}
+
+.app-toast--success { background: var(--success-600, #059669); }
+.app-toast--danger  { background: var(--danger-600, #dc2626); }
+.app-toast--info    { background: var(--gray-700, #374151); }
+.app-toast--loading { background: var(--gray-700, #374151); }
+
+.app-toast__spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: toastSpin 0.6s linear infinite;
+}
+
+@keyframes toastSlideIn {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastSpin {
+    to { transform: rotate(360deg); }
+}

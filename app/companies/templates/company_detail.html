@@ -1,0 +1,610 @@
+{% extends "main/_base_companies.html" %}
+
+{% block title %}{{ company.name }} — Company Hub{% endblock %}
+
+{% block head %}
+{{ super() }}
+{% include 'components/blocknote_editor_include.html' %}
+{% if company_state == 'portfolio' %}
+{% include 'components/_tabulator.html' %}
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="research-workspace-dashboard-container">
+
+    <!-- ============ HEADER ============ -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div class="dashboard-header-identity">
+                <div class="dashboard-header-logo">
+                    {{ (company.name)[:2]|upper }}
+                </div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                        <h1 class="dashboard-title font-poppins">{{ company.name }}</h1>
+                        <span class="company-state-badge {{ company_state }}">
+                            {% if company_state == 'portfolio' %}
+                            <i class="bi bi-briefcase-fill"></i> Portfolio
+                            {% elif company_state == 'watchlist' %}
+                            <i class="bi bi-eye-fill"></i> Watchlist
+                            {% else %}
+                            <i class="bi bi-inbox"></i> New
+                            {% endif %}
+                        </span>
+                    </div>
+                    <p class="dashboard-subtitle">
+                        <span class="journey-ticker">{{ company.ticker_symbol }}</span>
+                        {% if company.sector %} &middot; {{ company.sector.name }}{% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="dashboard-header-actions">
+                {% with btn_class='action-btn' %}{% include 'components/smart_back_button.html' %}{% endwith %}
+                <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}"
+                    class="action-btn primary">
+                    <i class="bi bi-lightbulb"></i> Update Thesis
+                </a>
+                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="action-btn">
+                    <i class="bi bi-flag"></i> Checkpoints
+                </a>
+                <button type="button" class="action-btn"
+                    onclick="document.getElementById('exportModal').classList.add('show'); document.body.style.overflow='hidden';">
+                    <i class="bi bi-download"></i> Export
+                </button>
+                {% if research_project and research_project.status == 'active' %}
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_project.id) }}"
+                    class="action-btn primary">
+                    <i class="bi bi-arrow-right"></i> Continue Research
+                </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <!-- Position Metrics Strip (portfolio companies only) -->
+        {% if company_state == 'portfolio' and position %}
+        <div class="dashboard-metrics-strip">
+            <div class="position-metric">
+                <div class="position-metric-label">Shares</div>
+                <div class="position-metric-value">{{ position.total_shares }}</div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Avg Cost</div>
+                <div class="position-metric-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis_base or position.average_cost_basis) }}
+                </div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Current Price</div>
+                <div class="position-metric-value" id="posPrice">
+                    {% if position.current_price_base %}
+                    {{ currency_symbol }}{{ "%.2f"|format(position.current_price_base) }}
+                    {% elif position.current_price %}
+                    {{ currency_symbol }}{{ "%.2f"|format(position.current_price) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
+                    {% endif %}
+                </div>
+                <div class="position-metric-subtext" id="posPriceSub">
+                    {% if position.last_price_update %}
+                    Updated {{ position.last_price_update.strftime('%H:%M') }}
+                    {% endif %}
+                    {% if price_stale %}<span class="mini-spinner"
+                        style="display:inline-block;width:12px;height:12px;vertical-align:middle;margin-left:4px;border-width:2px;"></span>{%
+                    endif %}
+                </div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Market Value</div>
+                <div class="position-metric-value" id="posValue">
+                    {% if position.current_value %}
+                    {{ currency_symbol }}{{ "{:,.0f}".format(position.current_value) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
+                    {% endif %}
+                </div>
+                <div class="position-metric-subtext">Cost: {{ currency_symbol }}{{ "{:,.0f}".format(position.total_cost_base or position.total_cost)
+                    }}</div>
+            </div>
+            <div id="posPLCard"
+                class="position-metric highlight {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
+                <div class="position-metric-label">Unrealized P&L</div>
+                <div id="posPLValue"
+                    class="position-metric-value {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
+                    {% if position.unrealized_gain_loss %}
+                    {% if position.unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{
+                    "{:,.0f}".format(position.unrealized_gain_loss) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
+                    {% endif %}
+                </div>
+                <div class="position-metric-subtext" id="posPLPct">
+                    {% if position.unrealized_gain_loss_pct %}
+                    {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{
+                    "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                    {% endif %}
+                </div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Realized P&L</div>
+                <div
+                    class="position-metric-value {% if position.realized_gain_loss >= 0 %}gain{% else %}loss{% endif %}">
+                    {% if position.realized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{
+                    "{:,.0f}".format(position.realized_gain_loss) }}
+                </div>
+            </div>
+            <div
+                class="journey-stat {% if journey_stats.total_return > 0 %}gain{% elif journey_stats.total_return < 0 %}loss{% endif %}">
+                <div class="journey-stat-value">
+                    {% if journey_stats.days_held >= 365 and journey_stats.total_return %}
+                    {% set years = journey_stats.days_held / 365.25 %}
+                    {% set tr = journey_stats.total_return|float %}
+                    {% set cagr = ((1 + tr / 100) ** (1 / years) - 1) * 100 %}
+                    {% if cagr > 0 %}+{% endif %}{{ "%.1f"|format(cagr) }}%
+                    {% else %}
+                    {% if journey_stats.total_return > 0 %}+{% endif %}{{ "%.1f"|format(journey_stats.total_return) }}%
+                    {% endif %}
+                </div>
+                <div class="journey-stat-label">{% if journey_stats.days_held >= 365 %}CAGR{% else %}Total Return{%
+                    endif %}</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">{{ journey_stats.days_held }}</div>
+                <div class="journey-stat-label">Days Held</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">
+                    {{ journey_stats.checkpoints_met }}/{{ journey_stats.total_checkpoints }}
+                </div>
+                <div class="journey-stat-label">Checkpoints Met</div>
+            </div>
+        </div>
+
+        <!-- Performance vs Expectations (conditional) -->
+        {% if portfolio_decision_journal and portfolio_decision_journal.expected_return and
+        position.unrealized_gain_loss_pct %}
+        <div
+            class="position-expectation-bar {% if position.unrealized_gain_loss_pct < portfolio_decision_journal.expected_return %}below{% endif %}">
+            <div class="position-expectation-icon">
+                {% if position.unrealized_gain_loss_pct >= portfolio_decision_journal.expected_return %}
+                <i class="bi bi-check-lg"></i>
+                {% else %}
+                <i class="bi bi-exclamation"></i>
+                {% endif %}
+            </div>
+            <div class="position-expectation-content">
+                <div class="position-expectation-title">Performance vs Expectations</div>
+                <div class="position-expectation-details">
+                    <span>Expected: <strong>+{{ "%.0f"|format(portfolio_decision_journal.expected_return)
+                            }}%</strong></span>
+                    <span>Actual: <strong
+                            class="{% if position.unrealized_gain_loss_pct >= 0 %}gain{% else %}loss{% endif %}"
+                            style="color: {% if position.unrealized_gain_loss_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %}">
+                            {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{
+                            "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                        </strong></span>
+                    <span>Difference: <strong
+                            style="color: {% if position.unrealized_gain_loss_pct|float >= portfolio_decision_journal.expected_return %}var(--success-500){% else %}var(--warning-500){% endif %}">
+                            {% if position.unrealized_gain_loss_pct|float >= portfolio_decision_journal.expected_return
+                            %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct|float -
+                            portfolio_decision_journal.expected_return) }}pp
+                        </strong></span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- ============ PILL TAB BAR (React Island) ============ -->
+    <div id="tab-router-mount"></div>
+
+    <!-- ============ TAB PANELS ============ -->
+    <div class="unified-tab-panels">
+
+        <!-- Overview -->
+        <div class="unified-tab-panel active" id="panel-overview">
+            {% include 'partials/_company_overview.html' %}
+        </div>
+
+        <!-- Timeline -->
+        <div class="unified-tab-panel" id="panel-timeline">
+            {% include 'partials/_company_timeline.html' %}
+        </div>
+
+        <!-- Research -->
+        <div class="unified-tab-panel" id="panel-research">
+            {% include 'partials/_company_research.html' %}
+        </div>
+
+        <!-- Library (Documents + Notes + Journal) -->
+        <div class="unified-tab-panel" id="panel-library">
+            {% include 'partials/_company_library.html' %}
+        </div>
+
+        <!-- Transactions (portfolio only) -->
+        {% if company_state == 'portfolio' %}
+        <div class="unified-tab-panel" id="panel-transactions">
+            {% include 'partials/_company_transactions.html' %}
+        </div>
+        {% endif %}
+
+        <!-- Settings -->
+        <div class="unified-tab-panel" id="panel-settings">
+            {% include 'partials/_company_settings.html' %}
+        </div>
+
+    </div>
+</div>
+
+<!-- ============ VALUATION EDIT MODAL ============ -->
+<div class="thesis-detail-modal" id="valuationEditModal" onclick="hideValuationModal(event)">
+    <div class="thesis-modal-content" onclick="event.stopPropagation()" style="max-width: 520px;">
+        <div class="thesis-modal-header">
+            <div>
+                <h3>Edit Valuation</h3>
+                <p>Set your calculated intrinsic value for {{ company.name }}</p>
+            </div>
+            <button type="button" class="thesis-modal-close" onclick="hideValuationModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form method="POST" action="{{ url_for('companies.set_intrinsic_value', company_id=company.id) }}">
+            <div class="thesis-modal-body">
+                <label for="valuationValue" class="form-label fw-semibold">
+                    Intrinsic Value (as Market Cap) in {{ user_currency }}
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text">{{ currency_symbol }}</span>
+                    <input type="text" class="form-control" id="valuationValue" name="value"
+                        value="{{ intrinsic_display_value if intrinsic_display_value else '' }}"
+                        placeholder="e.g., 1.5">
+                    <select class="form-select" name="unit_multiplier" style="max-width: 130px;">
+                        <option value="1" {% if intrinsic_unit==1 %}selected{% endif %}>Number</option>
+                        <option value="1000000" {% if intrinsic_unit==1000000 %}selected{% endif %}>Million</option>
+                        <option value="1000000000" {% if intrinsic_unit==1000000000 %}selected{% endif %}>Billion
+                        </option>
+                        <option value="1000000000000" {% if intrinsic_unit==1000000000000 %}selected{% endif %}>Trillion
+                        </option>
+                    </select>
+                </div>
+                <div class="form-text mt-2">
+                    Enter the total market cap intrinsic value, not per-share price.
+                </div>
+            </div>
+            <div class="thesis-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" class="action-btn" onclick="hideValuationModal()">Cancel</button>
+                <button type="submit" class="action-btn primary">
+                    <i class="bi bi-save"></i> Save Intrinsic Value
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============ EXPORT MODAL ============ -->
+<div class="thesis-detail-modal" id="exportModal" onclick="hideExportModal(event)">
+    <div class="thesis-modal-content" onclick="event.stopPropagation()" style="max-width: 480px;">
+        <div class="thesis-modal-header">
+            <div>
+                <h3>Export Company Journey</h3>
+                <p>Select components to include in your export</p>
+            </div>
+            <button type="button" class="thesis-modal-close" onclick="hideExportModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form method="POST" action="{{ url_for('companies.export_company_journey_route', company_id=company.id) }}">
+            <div class="thesis-modal-body">
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% if thesis_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_thesis" value="1" checked>
+                        <span><i class="bi bi-lightbulb"></i> Thesis Evolution ({{ thesis_count }} version{{ 's' if
+                            thesis_count != 1 }})</span>
+                    </label>
+                    {% endif %}
+                    {% if checkpoint_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_checkpoints" value="1" checked>
+                        <span><i class="bi bi-flag"></i> Checkpoints ({{ checkpoint_count }})</span>
+                    </label>
+                    {% endif %}
+                    {% if company_state == 'portfolio' and transaction_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_transactions" value="1" checked>
+                        <span><i class="bi bi-arrow-left-right"></i> Transactions ({{ transaction_count }})</span>
+                    </label>
+                    {% endif %}
+                    {% if decision_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_decisions" value="1" checked>
+                        <span><i class="bi bi-signpost"></i> Decisions ({{ decision_count }})</span>
+                    </label>
+                    {% endif %}
+                    {% if journal_entries_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_journal" value="1" checked>
+                        <span><i class="bi bi-journal-bookmark"></i> Journal Entries ({{ journal_entries_count
+                            }})</span>
+                    </label>
+                    {% endif %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_notes" value="1" checked>
+                        <span><i class="bi bi-file-earmark-text"></i> Company Notes</span>
+                    </label>
+                    {% if research_project %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_research" value="1" checked>
+                        <span><i class="bi bi-microscope"></i> Research Project</span>
+                    </label>
+                    {% endif %}
+                </div>
+                <div
+                    style="margin-top: 1rem; padding: 0.75rem; background: var(--gray-50); border-radius: 8px; font-size: 0.8125rem; color: var(--gray-600);">
+                    <i class="bi bi-info-circle"></i> Export generates a ZIP file with markdown files for each selected
+                    component.
+                </div>
+            </div>
+            <div class="thesis-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" class="action-btn" onclick="hideExportModal()">Cancel</button>
+                <button type="submit" class="action-btn primary">
+                    <i class="bi bi-download"></i> Download ZIP
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% include 'components/company_resources_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/company-resources.js') }}"></script>
+{% if company_state == 'portfolio' %}
+{% include 'components/_tabulator_js.html' %}
+{% endif %}
+{# ---- Data bridge: pass template variables to JS ---- #}
+<script>
+window.companyConfig = {
+    companyId: {{ company.id }},
+    companyName: {{ company.name|tojson }},
+    currencySymbol: "{{ currency_symbol }}",
+    priceStale: {{ 'true' if price_stale else 'false' }},
+    isPortfolio: {{ 'true' if company_state == 'portfolio' else 'false' }},
+    notesGetUrl: "{{ url_for('companies.get_journey_notes', company_id=company.id) }}",
+    notesSaveUrl: "{{ url_for('companies.save_journey_notes', company_id=company.id) }}",
+    transactions: [
+        {% if company_state == 'portfolio' %}
+        {% for txn in transactions %}
+        {
+            id: {{ txn.id }},
+            date: "{{ txn.date.strftime('%Y-%m-%d') }}",
+            type: "{{ txn.type }}",
+            shares: {{ txn.quantity }},
+            price: {{ txn.price_per_share }},
+            total: {{ txn.total_value }},
+            notes: {{ txn.notes | tojson | safe if txn.notes else 'null' }}
+        }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+        {% endif %}
+    ]
+};
+</script>
+{# ---- External scripts (vanilla, still needed) ---- #}
+<script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}" defer></script>
+{# ---- React island bundles ---- #}
+<script defer src="{{ url_for('static', filename='js/dist/company-dashboard-tabs.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/standalone-qa.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/journal-entries.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/company-annotations-panel.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/settings-form.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/sec-filings-fetcher.bundle.js') }}"></script>
+{% if company_state == 'portfolio' %}
+<script defer src="{{ url_for('static', filename='js/dist/transactions-table.bundle.js') }}"></script>
+{% endif %}
+{# ---- Hidden mount points for behaviour-only islands ---- #}
+<div id="settings-form-mount" style="display:none;"></div>
+{# ---- Dashboard orchestration (replaces company-dashboard.js) ---- #}
+<script>
+(function() {
+    'use strict';
+    var cfg = window.companyConfig || {};
+    var companyId = cfg.companyId;
+    var companyName = cfg.companyName || '';
+    var currencySymbol = cfg.currencySymbol || '$';
+
+    // Lazy-init flags
+    var notesInitialized = false;
+    var journalInitialized = false;
+    var transactionsInitialized = false;
+    var qaInitialized = false;
+    var annotationsInitialized = false;
+
+    // ---- Global helpers (used by onclick in templates) ----
+
+    window.toggleCollapsible = function(id, btn) {
+        var el = document.getElementById(id);
+        var isExpanded = el.classList.toggle('expanded');
+        btn.classList.toggle('expanded', isExpanded);
+        btn.querySelector('.unified-expand-label').textContent = isExpanded ? 'Show less' : 'Show more';
+    };
+
+    window.hideExportModal = function(event) {
+        if (!event || event.target.id === 'exportModal' ||
+            event.target.closest('.thesis-modal-close') ||
+            event.target.closest('.thesis-modal-footer button[type="button"]')) {
+            document.getElementById('exportModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+    };
+
+    window.hideValuationModal = function(event) {
+        if (!event || event.target.id === 'valuationEditModal' ||
+            event.target.closest('.thesis-modal-close') ||
+            event.target.closest('.thesis-modal-footer button[type="button"]')) {
+            document.getElementById('valuationEditModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+    };
+
+    // ---- Notes Editor (BlockNote bridge, lazy) ----
+
+    function initNotesEditor() {
+        var getUrl = cfg.notesGetUrl;
+        var saveUrl = cfg.notesSaveUrl;
+        var tryInit = setInterval(function() {
+            if (window.initBlockNoteEditor) {
+                clearInterval(tryInit);
+                window.initBlockNoteEditor('journeyNotesEditor', {
+                    getResearchNotesUrl: getUrl,
+                    saveResearchNotesUrl: saveUrl,
+                    placeholder: 'Start writing your company notes here...',
+                    onSave: function() {
+                        var status = document.getElementById('notesSaveStatus');
+                        status.style.display = 'flex';
+                        setTimeout(function() { status.style.display = 'none'; }, 2000);
+                    }
+                });
+            }
+        }, 100);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // ---- Mount eager React islands ----
+
+        if (window.initSettingsForm) {
+            window.initSettingsForm('settings-form-mount', {
+                currencySymbol: currencySymbol
+            });
+        }
+
+        if (window.initSecFilingsFetcher) {
+            window.initSecFilingsFetcher('sec-filings-fetcher-mount', {
+                companyId: companyId
+            });
+        }
+
+        if (window.initCompanyDashboardTabs) {
+            window.initCompanyDashboardTabs('tab-router-mount', {
+                items: [
+                    { type: 'tab', key: 'overview', label: 'Overview', icon: 'bi-grid-1x2' },
+                    { type: 'separator' },
+                    { type: 'tab', key: 'timeline', label: 'Timeline', icon: 'bi-list-ul', count: {{ timeline_events|length if timeline_events else 0 }} },
+                    { type: 'separator' },
+                    { type: 'tab', key: 'research', label: 'Research', icon: 'bi-microscope' },
+                    { type: 'tab', key: 'library', label: 'Library', icon: 'bi-collection' },
+                    { type: 'separator', auto: true },
+                    {% if company_state == 'portfolio' %}
+                    { type: 'tab', key: 'transactions', label: 'Transactions', icon: 'bi-arrow-left-right', count: {{ transaction_count or 0 }} },
+                    {% endif %}
+                    { type: 'separator' },
+                    { type: 'tab', key: 'settings', label: 'Settings', icon: 'bi-gear' }
+                ]
+            });
+        }
+
+        // ---- Lazy-init via React TabRouter custom events ----
+
+        document.addEventListener('tab-changed', function(e) {
+            var tabId = e.detail.tabId;
+            if (tabId === 'transactions' && !transactionsInitialized) {
+                if (window.initTransactionsTable) {
+                    window.initTransactionsTable('transactions-table-mount', {
+                        transactions: cfg.transactions,
+                        currencySymbol: currencySymbol
+                    });
+                }
+                transactionsInitialized = true;
+            }
+        });
+
+        document.addEventListener('library-section-changed', function(e) {
+            var sectionId = e.detail.sectionId;
+            if (sectionId === 'notes' && !notesInitialized) {
+                initNotesEditor();
+                notesInitialized = true;
+            }
+            if (sectionId === 'journal' && !journalInitialized) {
+                var mount = document.getElementById('journal-entries-mount');
+                if (mount && window.initJournalEntries) {
+                    window.initJournalEntries('journal-entries-mount', {
+                        companyId: companyId,
+                        newEntryUrl: mount.dataset.newEntryUrl
+                    });
+                }
+                journalInitialized = true;
+            }
+            if (sectionId === 'annotations' && !annotationsInitialized) {
+                if (window.initCompanyAnnotationsPanel) {
+                    window.initCompanyAnnotationsPanel('company-annotations-mount', {
+                        companyId: companyId
+                    });
+                }
+                annotationsInitialized = true;
+            }
+        });
+
+        document.addEventListener('research-section-changed', function(e) {
+            var sectionId = e.detail.sectionId;
+            if (sectionId === 'qa' && !qaInitialized) {
+                if (window.initStandaloneQA) {
+                    window.initStandaloneQA('standalone-qa-mount', {
+                        companyId: companyId,
+                        companyName: companyName
+                    });
+                }
+                qaInitialized = true;
+            }
+        });
+
+        // ---- Async Price Refresh (portfolio companies) ----
+
+        if (cfg.priceStale) {
+            fetch('/portfolio/api/refresh-position/' + companyId, { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        var p = data.position;
+                        var displayPrice = p.current_price_base !== null ? p.current_price_base : p.current_price;
+                        document.getElementById('posPrice').textContent = currencySymbol + (displayPrice !== null ? displayPrice.toFixed(2) : '--');
+                        document.getElementById('posPriceSub').textContent = 'Updated just now';
+                        if (p.current_value !== null) {
+                            document.getElementById('posValue').textContent = currencySymbol + Math.round(p.current_value).toLocaleString();
+                        }
+                        if (p.gain_loss !== null) {
+                            var sign = p.gain_loss >= 0 ? '+' : '';
+                            document.getElementById('posPLValue').textContent = sign + currencySymbol + Math.round(Math.abs(p.gain_loss)).toLocaleString();
+                            document.getElementById('posPLValue').className = 'position-metric-value ' + (p.gain_loss >= 0 ? 'gain' : 'loss');
+                            document.getElementById('posPLCard').className = 'position-metric highlight ' + (p.gain_loss >= 0 ? 'gain' : 'loss');
+                        }
+                        if (p.gain_loss_pct !== null) {
+                            var pctSign = p.gain_loss_pct >= 0 ? '+' : '';
+                            document.getElementById('posPLPct').textContent = pctSign + p.gain_loss_pct.toFixed(1) + '%';
+                        }
+                    }
+                })
+                .catch(function() { /* silent — stale price stays */ });
+        }
+
+        // ---- Timeline Filter Sub-Tabs ----
+
+        var filterTabs = document.querySelectorAll('#timelineFilterTabs .journey-tab');
+        var timelineItems = document.querySelectorAll('.journey-item');
+
+        filterTabs.forEach(function(filterTab) {
+            filterTab.addEventListener('click', function() {
+                var filter = this.dataset.filter;
+                if (!filter) return;
+                filterTabs.forEach(function(t) { t.classList.remove('active'); });
+                this.classList.add('active');
+                timelineItems.forEach(function(item) {
+                    var itemType = item.getAttribute('data-type');
+                    item.style.display = (filter === 'all' || itemType === filter) ? 'block' : 'none';
+                });
+            });
+        });
+    }); // end DOMContentLoaded
+})();
+</script>
+{% endblock %}

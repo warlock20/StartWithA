@@ -1,0 +1,467 @@
+{% extends "main/_base_companies.html" %}
+
+{% block head %}
+{% include 'components/_tabulator.html' %}
+<!-- BlockNote Editor (React) -->
+{% include 'components/blocknote_editor_include.html' %}
+
+<!-- Highlight.js for code syntax highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+<!-- Sector Research Modules -->
+<script>
+    // Global URL configuration for JavaScript modules
+    window.sectorUrls = {
+        // Section endpoints
+        createSection: '{{ url_for("sectors.create_section", sector_name=analysis.sector.slug) }}',
+        updateSection: '{{ url_for("sectors.update_section", section_id=0) }}',
+        deleteSection: '{{ url_for("sectors.delete_section", section_id=0) }}',
+
+        // Note endpoints
+        createNote: '{{ url_for("sectors.create_note", sector_name=analysis.sector.slug) }}',
+        updateNote: '{{ url_for("sectors.update_note", note_id=0) }}',
+        deleteNote: '{{ url_for("sectors.delete_note", note_id=0) }}',
+
+        // Document endpoints
+        getResearchNotes: '{{ url_for("sectors.get_research_notes", sector_name=analysis.sector.slug) }}',
+        saveResearchNotes: '{{ url_for("sectors.save_research_notes", sector_name=analysis.sector.slug) }}',
+        generateDocument: '{{ url_for("sectors.generate_document_from_canvas", sector_name=analysis.sector.slug) }}',
+
+        // Source endpoints
+        addSource: '{{ url_for("sectors.add_source", sector_name=analysis.sector.slug) }}'
+    };
+</script>
+
+<script defer src="{{ url_for('static', filename='js/dist/sector-canvas.bundle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sector-document-init.js') }}"></script>
+
+<!-- Company Search Component (React Island) -->
+<script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
+
+<!-- Company Tagging Module (React Island) -->
+<script defer src="{{ url_for('static', filename='js/dist/company-tagging.bundle.js') }}"></script>
+
+<!-- Generate Document Module -->
+<script src="{{ url_for('static', filename='js/generate-document.js') }}"></script>
+
+<!-- AI-Powered Features -->
+<script src="{{ url_for('static', filename='js/ai-summary.js') }}"></script>
+
+<!-- Data Table Component -->
+{% include 'components/_tabulator_js.html' %}
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sector-sources-table.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Focus Mode Container -->
+<div class="focus-mode-container">
+    <!-- Minimal Top Bar -->
+    <div class="focus-top-bar">
+        <div class="focus-top-left">
+            <!-- Breadcrumb -->
+            <nav class="breadcrumb-nav">
+                <a href="{{ url_for('dashboard.index') }}"><i class="bi bi-house-door"></i></a>
+                <i class="bi bi-chevron-right"></i>
+                <a href="{{ url_for('sectors.index') }}">Sectors</a>
+                <i class="bi bi-chevron-right"></i>
+                <span class="active">{{ analysis.sector_name }}</span>
+            </nav>
+
+            <!-- Page Selector Dropdown -->
+            <div class="page-selector">
+                <button class="page-selector-btn" onclick="togglePageDropdown()" id="pageSelectorBtn">
+                    <i class="bi bi-journal-text" id="currentPageIcon"></i>
+                    <span id="currentPageName">Documentation</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+
+                <div class="page-dropdown" id="pageDropdown">
+                    <div class="page-dropdown-header">Switch View</div>
+                    <a href="#" class="page-dropdown-item active" data-view="documentation" onclick="switchView('documentation', event)">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Documentation</span>
+                    </a>
+                    <a href="#" class="page-dropdown-item" data-view="canvas" onclick="switchView('canvas', event)">
+                        <i class="bi bi-kanban"></i>
+                        <span>Research Canvas</span>
+                        <span class="badge bg-info">New</span>
+                    </a>
+                    <a href="#" class="page-dropdown-item" data-view="sources" onclick="switchView('sources', event)">
+                        <i class="bi bi-link-45deg"></i>
+                        <span>Sources</span>
+                        <span class="badge bg-secondary">{{ sources|length }}</span>
+                    </a>
+                    <a href="#" class="page-dropdown-item" data-view="takeaways" onclick="switchView('takeaways', event)">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>Key Takeaways</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="focus-top-right">
+            <!-- Context-specific actions (change based on current view) -->
+            <div id="viewActions">
+                <!-- Documentation actions (default) -->
+                <button class="btn btn-outline-success btn-sm" onclick="openGenerateDocumentModal()">
+                    <i class="bi bi-arrow-down-circle"></i> Generate from Canvas
+                </button>
+                <button class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
+                    <i class="bi bi-file-earmark-text"></i> Template
+                </button>
+            </div>
+
+            <!-- Editor status -->
+            <div id="editorStatus" class="editor-status saved">
+                <span class="badge bg-success" id="editorStatusBadge" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                    <i class="bi bi-check-circle-fill"></i> <span id="statusText">Saved</span>
+                </span>
+            </div>
+
+            <!-- Exit Focus Mode -->
+            <a href="{{ url_for('sectors.notebook', sector_name=analysis.sector_name) }}" class="btn btn-outline-secondary btn-sm" title="Exit Focus Mode">
+                <i class="bi bi-x-lg"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content Area (switches between views) -->
+    <div class="main-content">
+        <!-- Documentation View -->
+        <div id="documentationView" class="view-container" style="display: block;">
+            <div class="notion-page">
+                <div class="focus-mode-page-subtitle">
+                    Last edited {{ analysis.updated_at.strftime('%B %d, %Y at %I:%M %p') if analysis.updated_at else 'Never' }} •
+                    {{ analysis.time_spent_formatted }} research time •
+                    {{ sector_metrics.total }} companies tracked
+                </div>
+                <div id="sectorEditor">{# BlockNote editor will be initialized here #}</div>
+            </div>
+        </div>
+
+        <!-- Canvas View (React Island) -->
+        <div id="canvasView" class="view-container" style="display: none;">
+            <div class="notion-page">
+                <div id="sector-canvas-mount"></div>
+            </div>
+        </div>
+
+        <!-- Sources View -->
+        <div id="sourcesView" class="view-container" style="display: none;">
+            <div class="notion-page">
+                <div class="sources-tab-container">
+                    {% from 'components/data_table.html' import data_table %}
+
+                    <div class="data-table-wrapper">
+                        {# Table Header #}
+                        <div class="data-table-header">
+                            <h2 class="data-table-title">
+                                <i class="bi bi-link-45deg"></i>
+                                Research Sources
+                                <span class="data-table-badge">{{ sources|length }}</span>
+                            </h2>
+
+                            <div class="data-table-controls">
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                                    <i class="bi bi-plus-circle"></i> Add Source
+                                </button>
+                                <div id="sources-table-export-buttons"></div>
+                            </div>
+                        </div>
+
+                        {# Table container - Tabulator will be initialized here #}
+                        <div id="sources-table"></div>
+
+                        {# Empty state (shown by Tabulator when no data) #}
+                        <template id="sources-table-empty-template">
+                            <div class="portfolio-empty-state">
+                                <div class="portfolio-empty-state-icon">
+                                    <i class="bi bi-link-45deg"></i>
+                                </div>
+                                <h3 class="portfolio-empty-state-title">No sources yet</h3>
+                                <div>
+                                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                                        <i class="bi bi-plus-circle-fill"></i> Add Source
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Takeaways View -->
+        <div id="takeawaysView" class="view-container" style="display: none;">
+            <div class="notion-page">
+                <div class="takeaways-container">
+                    <div class="takeaways-header">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <p class="text-muted mb-2">Summarize your most important findings in bullet points</p>
+                                <small class="text-muted">
+                                    <i class="bi bi-lightbulb"></i> Use AI to generate a summary, or write your own takeaways
+                                </small>
+                            </div>
+                            <button class="btn btn-primary" id="generateAISummaryBtn" onclick="generateAISummary()">
+                                <i class="bi bi-stars"></i> Generate AI Summary
+                            </button>
+                        </div>
+                    </div>
+                    <div id="takeawaysEditor">{# BlockNote editor will be initialized here #}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Quick Tools Button -->
+    <div class="floating-quick-tools">
+        <button class="quick-tools-pill" onclick="toggleQuickTools()">
+            <i class="bi bi-tools"></i>
+            <span>Quick Tools</span>
+        </button>
+    </div>
+
+    <!-- Quick Tools Panel -->
+    <div class="quick-tools-panel" id="quickToolsPanel">
+        <div class="quick-tools-panel-header">
+            <h3>
+                <i class="bi bi-tools"></i>
+                Quick Tools
+            </h3>
+            <button class="close-panel-btn" onclick="toggleQuickTools()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="quick-tools-panel-content">
+            {% include 'partials/_quick_tools_accordion.html' %}
+        </div>
+    </div>
+
+    <!-- Overlay -->
+    <div class="focus-overlay" id="focusOverlay" onclick="closeAllPanels()"></div>
+</div>
+
+<!-- Sources Data for JavaScript -->
+<script>
+    // Pass sources data to JavaScript
+    window.sourcesData = [
+        {% for source in sources %}
+        {
+            id: {{ source.id }},
+            title: {{ source.title|tojson|safe }},
+            url: {{ source.url|tojson|safe }},
+            source_type: {{ source.source_type|tojson|safe }},
+            description: {{ source.description|tojson|safe }},
+            created_at: {{ source.created_at.isoformat()|tojson|safe if source.created_at else 'null' }},
+            accessed_at: {{ source.accessed_at.isoformat()|tojson|safe if source.accessed_at else 'null' }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+</script>
+
+<!-- Sector Canvas Data for React Island -->
+<script>
+    window.sectorCanvasData = {
+        sections: [
+            {% for section in canvas_sections %}
+            {
+                id: {{ section.id }},
+                title: {{ section.title|tojson }},
+                description: {{ (section.description or '')|tojson }},
+                icon: {{ (section.icon or '')|tojson }},
+                notes: [
+                    {% for note in section.section_notes.order_by('sort_order').all() %}
+                    {
+                        id: {{ note.id }},
+                        title: {{ note.title|tojson }},
+                        content: {{ (note.content or '')|tojson }},
+                        contentHtml: {{ (note.content|blocknote_to_html or '')|tojson }},
+                        sourceUrl: {{ (note.source_reference or '')|tojson }},
+                        sourceTitle: {{ (note.source_title or '')|tojson }},
+                        tags: {{ (note.tags or '')|tojson }},
+                        noteType: {{ (note.note_type or 'note')|tojson }},
+                        sectionId: {{ note.section_id|tojson }}
+                    }{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        inboxNotes: [
+            {% for note in collector_notes %}
+            {
+                id: {{ note.id }},
+                title: {{ note.title|tojson }},
+                content: {{ (note.content or '')|tojson }},
+                contentHtml: {{ (note.content|blocknote_to_html or '')|tojson }},
+                sourceUrl: {{ (note.source_reference or '')|tojson }},
+                sourceTitle: {{ (note.source_title or '')|tojson }},
+                tags: {{ (note.tags or '')|tojson }},
+                noteType: {{ (note.note_type or 'note')|tojson }},
+                sectionId: null
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]
+    };
+</script>
+
+<!-- Focus Mode JavaScript -->
+<script>
+// View switching logic
+function switchView(viewName, event) {
+    event.preventDefault();
+
+    // Hide all views
+    document.querySelectorAll('.view-container').forEach(v => v.style.display = 'none');
+
+    // Show selected view
+    document.getElementById(viewName + 'View').style.display = 'block';
+
+    // Update page selector button
+    const viewData = {
+        documentation: { icon: 'journal-text', name: 'Documentation' },
+        canvas: { icon: 'kanban', name: 'Research Canvas' },
+        sources: { icon: 'link-45deg', name: 'Sources' },
+        takeaways: { icon: 'lightbulb', name: 'Key Takeaways' }
+    };
+
+    document.getElementById('currentPageIcon').className = `bi bi-${viewData[viewName].icon}`;
+    document.getElementById('currentPageName').textContent = viewData[viewName].name;
+
+    // Update active state in dropdown
+    document.querySelectorAll('.page-dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.target.closest('.page-dropdown-item').classList.add('active');
+
+    // Close dropdown
+    togglePageDropdown();
+
+    // Update actions bar based on view
+    updateViewActions(viewName);
+
+    // Save current view to URL hash (so it persists on refresh)
+    window.location.hash = viewName;
+}
+
+function updateViewActions(viewName) {
+    const actionsContainer = document.getElementById('viewActions');
+
+    const actionsByView = {
+        documentation: `
+            <button class="btn btn-outline-success btn-sm" onclick="openGenerateDocumentModal()">
+                <i class="bi bi-arrow-down-circle"></i> Generate from Canvas
+            </button>
+            <button class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
+                <i class="bi bi-file-earmark-text"></i> Template
+            </button>
+        `,
+        canvas: `
+            <button class="btn btn-primary btn-sm" onclick="createNewNote()">
+                <i class="bi bi-plus-lg"></i> New Note
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="createNewSection()">
+                <i class="bi bi-layout-wtf"></i> New Section
+            </button>
+        `,
+        sources: `
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                <i class="bi bi-plus-circle"></i> Add Source
+            </button>
+        `,
+        takeaways: `
+            <button class="btn btn-primary btn-sm" onclick="generateAISummary()">
+                <i class="bi bi-stars"></i> Generate AI Summary
+            </button>
+        `
+    };
+
+    actionsContainer.innerHTML = actionsByView[viewName] || '';
+}
+
+function togglePageDropdown() {
+    const dropdown = document.getElementById('pageDropdown');
+    const btn = document.getElementById('pageSelectorBtn');
+    dropdown.classList.toggle('show');
+    btn.classList.toggle('open');
+}
+
+function toggleQuickTools() {
+    const panel = document.getElementById('quickToolsPanel');
+    const overlay = document.getElementById('focusOverlay');
+    panel.classList.toggle('show');
+    overlay.classList.toggle('show');
+}
+
+function closeAllPanels() {
+    document.getElementById('pageDropdown').classList.remove('show');
+    document.getElementById('pageSelectorBtn').classList.remove('open');
+    document.getElementById('quickToolsPanel').classList.remove('show');
+    document.getElementById('focusOverlay').classList.remove('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const pageSelector = document.querySelector('.page-selector');
+    if (pageSelector && !pageSelector.contains(event.target)) {
+        document.getElementById('pageDropdown').classList.remove('show');
+        document.getElementById('pageSelectorBtn').classList.remove('open');
+    }
+});
+
+// Restore view from URL hash on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Sector Canvas React Island
+    if (window.initSectorCanvas && window.sectorCanvasData) {
+        window.initSectorCanvas('sector-canvas-mount', {
+            sections: window.sectorCanvasData.sections,
+            inboxNotes: window.sectorCanvasData.inboxNotes,
+            urls: window.sectorUrls
+        });
+    }
+
+    // Initialize scroll fade effects
+    if (window.initScrollFadeEffects) {
+        window.initScrollFadeEffects();
+    }
+
+    const hash = window.location.hash.substring(1); // Remove the '#'
+
+    if (hash && ['documentation', 'canvas', 'sources', 'takeaways'].includes(hash)) {
+        // Wait a bit for DOM to be ready
+        setTimeout(() => {
+            // Find the dropdown item for this view
+            const dropdownItem = document.querySelector(`[data-view="${hash}"]`);
+            if (dropdownItem) {
+                // Simulate click to switch to that view
+                const fakeEvent = {
+                    preventDefault: () => {},
+                    target: dropdownItem
+                };
+                switchView(hash, fakeEvent);
+            }
+        }, 100);
+    }
+});
+</script>
+
+<!-- Active research time tracker (heartbeat) -->
+<span id="sector-time-tracker" data-analysis-id="{{ analysis.id }}" hidden></span>
+<script src="{{ url_for('static', filename='js/sector-time-tracker.js') }}" defer></script>
+{% endblock %}
+
+{% block modals %}
+<!-- Company Search Modal (React Island) -->
+<div id="company-search-mount"></div>
+
+<!-- Keep all existing modals -->
+{% include 'components/templates_modal.html' %}
+{% include 'components/add_source_modal.html' %}
+
+{# Section/note/view-note modals now rendered by React SectorCanvas component #}
+<div id="company-tagging-mount"></div>
+{% include 'components/modals/generate_document_modal.html' %}
+{% endblock %}

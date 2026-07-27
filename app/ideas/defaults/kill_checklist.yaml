@@ -1,0 +1,27 @@
+# Default Kill Checklist
+# Auto-created for new users who don't have a kill checklist yet.
+# Admin can edit this file to change the default criteria for new users.
+
+name: My Kill Checklist
+description: Default evaluation criteria for screening investment ideas.
+
+criteria:
+  - question: "Do I understand this business?"
+    help_text: "Can you explain what the company does in one sentence?"
+    failure_reason: "Investing in what you don't understand leads to poor decisions."
+
+  - question: "Is this within my circle of competence?"
+    help_text: "Do you have enough knowledge to evaluate this industry?"
+    failure_reason: "Straying outside your circle of competence increases risk."
+
+  - question: "Are there any obvious red flags (fraud, governance, debt)?"
+    help_text: "Check for accounting irregularities, insider selling, or excessive leverage."
+    failure_reason: "Red flags should not be ignored regardless of upside potential."
+
+  - question: "Is the valuation clearly unreasonable?"
+    help_text: "Is the price so high that even optimistic assumptions don't justify it?"
+    failure_reason: "Overpaying destroys returns even for great businesses."
+
+  - question: "Is there a clear catalyst or reason to act now?"
+    help_text: "Why this idea now? What would make the market re-rate?"
+    failure_reason: "Without a catalyst, even cheap stocks can stay cheap."

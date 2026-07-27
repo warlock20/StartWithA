@@ -1,0 +1,56 @@
+{% extends "main/_base_companies.html" %}
+
+{% block head %}
+<script defer src="{{ url_for('static', filename='js/dist/vendors-recharts.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/financials-charts.bundle.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+    <div class="dashboard-header-card">
+        <div class="dashboard-header">
+            <div>
+                <h1><i class="bi bi-bar-chart-line me-2"></i>{{ title }}</h1>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('companies.company_detail', company_id=company.id) }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-2">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Revenue Trend</div>
+                <div class="card-body">
+                    <div id="revenue-chart-mount"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Net Income Trend</div>
+                <div class="card-body">
+                    <div id="net-income-chart-mount"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var chartData = {{ chart_data|tojson }};
+        if (window.initRevenueChart && chartData.revenue) {
+            window.initRevenueChart('revenue-chart-mount', chartData.revenue);
+        }
+        if (window.initNetIncomeChart && chartData.net_income) {
+            window.initNetIncomeChart('net-income-chart-mount', chartData.net_income);
+        }
+    });
+    </script>
+{% endblock %}

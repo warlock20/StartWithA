@@ -1,0 +1,202 @@
+{% extends "main/_base_companies.html" %}
+
+{% block title %}Destination Analysis - {{ company.ticker_symbol }}{% endblock %}
+
+{% block content %}
+<div class="research-workspace-dashboard-container">
+    <!-- Header -->
+    <header class="destination-header">
+        <div class="destination-identity">
+            <div class="destination-logo">
+                {{ (company.name)[:2]|upper }}
+            </div>
+            <div class="destination-title-group">
+                <h1>Destination Analysis</h1>
+                <div class="destination-meta">
+                    <span class="destination-ticker">{{ company.ticker_symbol }}</span>
+                    <span>{{ company.name }}</span>
+                    <span>Investment Thesis Tracking</span>
+                </div>
+            </div>
+        </div>
+        <div class="destination-header-actions">
+            <a href="{{ url_for('companies.company_detail', company_id=company.id) }}" class="destination-btn">
+                <i class="bi bi-clock-history"></i> Journey
+            </a>
+            <a href="{{ url_for('companies.company_detail', company_id=company.id) }}" class="destination-btn">
+                <i class="bi bi-arrow-left"></i> Position
+            </a>
+        </div>
+    </header>
+
+    <!-- Stats Strip -->
+    {% if checkpoints %}
+    <div class="destination-stats-strip">
+        <div class="destination-stat success">
+            <div class="destination-stat-value">{{ checkpoints | selectattr('status', 'equalto', 'Met') | list | length }}</div>
+            <div class="destination-stat-label">Met</div>
+        </div>
+        <div class="destination-stat warning">
+            <div class="destination-stat-value">{{ checkpoints | selectattr('status', 'equalto', 'Active') | list | length }}</div>
+            <div class="destination-stat-label">Active</div>
+        </div>
+        <div class="destination-stat danger">
+            <div class="destination-stat-value">{{ checkpoints | selectattr('status', 'equalto', 'Not Met') | list | length }}</div>
+            <div class="destination-stat-label">Missed</div>
+        </div>
+        <div class="destination-stat">
+            <div class="destination-stat-value">{{ checkpoints | length }}</div>
+            <div class="destination-stat-label">Total</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Add Checkpoint Card -->
+    <div class="destination-add-card">
+        <div class="destination-add-header">
+            <i class="bi bi-plus-circle"></i>
+            <div>
+                <h3>Add Investment Checkpoint</h3>
+                <p>Define key metrics and milestones to track your thesis</p>
+            </div>
+        </div>
+        <form method="POST" action="{{ url_for('companies.add_checkpoint', company_id=company.id) }}" class="destination-add-form">
+            <div class="destination-form-row">
+                <div class="destination-form-group">
+                    <label for="metric">Metric</label>
+                    <input type="text" class="form-control" id="metric" name="metric"
+                        placeholder="e.g., Data Center Revenue Growth" required>
+                </div>
+                <div class="destination-form-group">
+                    <label for="expectation">Target / Expectation</label>
+                    <input type="text" class="form-control" id="expectation" name="expectation"
+                        placeholder="e.g., > 30% YoY" required>
+                </div>
+                <div class="destination-form-group small">
+                    <label for="target_date">Target Date</label>
+                    <input type="date" class="form-control" id="target_date" name="target_date" required>
+                </div>
+                <div class="destination-form-group action">
+                    <button type="submit" class="destination-btn primary">
+                        <i class="bi bi-plus-lg"></i> Add
+                    </button>
+                </div>
+            </div>
+            <div class="destination-form-row">
+                <div class="destination-form-group full">
+                    <label for="description">Description <span class="destination-form-hint-label">(optional — thesis context for automated tracking)</span></label>
+                    <textarea class="form-control" id="description" name="description" rows="2"
+                        placeholder="e.g., By Q2 2027, I expect the company to reduce long-term debt by 30% through FCF allocation, validating management's capital discipline thesis"></textarea>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Checkpoints Section -->
+    <div class="destination-section-header">
+        <h2><i class="bi bi-signpost-split"></i> Investment Checkpoints</h2>
+    </div>
+
+    {% if checkpoints %}
+    <div class="destination-checkpoints">
+        {% for cp in checkpoints %}
+        {% set status_class = 'active' %}
+        {% if cp.status == 'Met' %}
+        {% set status_class = 'met' %}
+        {% elif cp.status == 'Not Met' %}
+        {% set status_class = 'not-met' %}
+        {% endif %}
+
+        <div class="destination-checkpoint {{ status_class }}">
+            <div class="destination-checkpoint-indicator">
+                <div class="destination-checkpoint-dot {{ status_class }}">
+                    {% if cp.status == 'Met' %}
+                    <i class="bi bi-check"></i>
+                    {% elif cp.status == 'Not Met' %}
+                    <i class="bi bi-x"></i>
+                    {% endif %}
+                </div>
+                <div class="destination-checkpoint-date">{{ cp.target_date.strftime('%b %d, %Y') }}</div>
+            </div>
+
+            <div class="destination-checkpoint-card">
+                <div class="destination-checkpoint-header">
+                    <h4>{{ cp.metric }}</h4>
+                    <span class="destination-status-badge {{ status_class }}">
+                        {% if cp.status == 'Met' %}
+                        <i class="bi bi-check-circle-fill"></i> Met
+                        {% elif cp.status == 'Not Met' %}
+                        <i class="bi bi-x-circle-fill"></i> Not Met
+                        {% else %}
+                        <i class="bi bi-clock-fill"></i> Active
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="destination-checkpoint-body">
+                    <div class="destination-checkpoint-detail">
+                        <span class="label"><i class="bi bi-bullseye"></i> Target</span>
+                        <span class="value">{{ cp.expectation }}</span>
+                    </div>
+                    {% if cp.description %}
+                    <div class="destination-checkpoint-detail">
+                        <span class="label"><i class="bi bi-journal-text"></i> Context</span>
+                        <span class="value">{{ cp.description }}</span>
+                    </div>
+                    {% endif %}
+                    {% if cp.outcome_notes %}
+                    <div class="destination-checkpoint-detail">
+                        <span class="label"><i class="bi bi-clipboard-check"></i> Outcome</span>
+                        <span class="value">{{ cp.outcome_notes }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Update Form -->
+                <div class="destination-checkpoint-update">
+                    <form method="POST" action="{{ url_for('companies.update_checkpoint', checkpoint_id=cp.id) }}">
+                        <div class="destination-update-row">
+                            <div class="destination-update-field">
+                                <textarea name="outcome_notes" rows="2" class="form-control"
+                                    placeholder="Document progress or results...">{{ cp.outcome_notes if cp.outcome_notes }}</textarea>
+                            </div>
+                            <div class="destination-update-field small">
+                                <select name="status" class="form-select">
+                                    <option value="Active" {% if cp.status=='Active' %}selected{% endif %}>Active</option>
+                                    <option value="Met" {% if cp.status=='Met' %}selected{% endif %}>Met</option>
+                                    <option value="Not Met" {% if cp.status=='Not Met' %}selected{% endif %}>Not Met</option>
+                                </select>
+                            </div>
+                            <div class="destination-update-field action">
+                                <button type="submit" class="destination-btn primary sm">Update</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Actions -->
+                <div class="destination-checkpoint-actions">
+                    <a href="{{ url_for('companies.edit_checkpoint', checkpoint_id=cp.id) }}" class="destination-action-btn">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <form method="POST" action="{{ url_for('companies.delete_checkpoint', checkpoint_id=cp.id) }}" class="d-inline">
+                        <button type="submit" class="destination-action-btn danger"
+                            onclick="return confirm('Delete this checkpoint?');">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="destination-empty-state">
+        <i class="bi bi-signpost-2"></i>
+        <h4>No Checkpoints Yet</h4>
+        <p>Start tracking your investment thesis for {{ company.name }}</p>
+        <p class="hint">Add your first checkpoint above to begin your investment journey</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

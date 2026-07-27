@@ -1,0 +1,38 @@
+{#
+  Cookie Information Notice (non-blocking)
+
+  Since this platform only uses strictly necessary cookies,
+  consent is not required under § 25(2) TDDDG / ePrivacy Art. 5(3).
+  This banner is informational only — it does not block the page.
+
+  Dismissal is stored in localStorage so it only shows once.
+  CSS: modules/_cookie-notice.css
+#}
+<div id="cookieNotice" class="cookie-notice" style="display: none;">
+    <div class="cookie-notice-inner">
+        <div class="cookie-notice-text">
+            <i class="bi bi-shield-check me-2"></i>
+            This site uses only essential cookies required for the platform to function.
+            No tracking or advertising cookies are used.
+            <a href="{{ url_for('main.cookies') }}" class="cookie-notice-link">Learn more</a>
+        </div>
+        <button type="button" class="cookie-notice-btn" id="cookieNoticeAccept">Got it</button>
+    </div>
+</div>
+
+<script>
+    (function() {
+        if (localStorage.getItem('cookie_notice_dismissed')) return;
+
+        var notice = document.getElementById('cookieNotice');
+        if (notice) notice.style.display = 'block';
+
+        var btn = document.getElementById('cookieNoticeAccept');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                localStorage.setItem('cookie_notice_dismissed', '1');
+                notice.style.display = 'none';
+            });
+        }
+    })();
+</script>

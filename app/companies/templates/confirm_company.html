@@ -1,0 +1,64 @@
+{% extends "main/_base_companies.html" %}
+
+{% block content %}
+{# In app/companies/templates/confirm_company.html #}
+<div class="card-body">
+    <h4>Is this the correct company?</h4>
+
+    <!-- Duplicate Detection Alerts -->
+    <div id="duplicate-alerts" class="mb-3"></div>
+
+    <form method="POST" action="{{ url_for('companies.add_company_confirmed') }}" data-entity="company">
+        {# This form tag should wrap all the inputs #}
+
+        <dl class="row">
+            <dt class="col-sm-3">Company Name</dt>
+            <dd class="col-sm-9">{{ name }}</dd>
+
+            <dt class="col-sm-3">Ticker Symbol</dt>
+            <dd class="col-sm-9">{{ ticker }}</dd>
+
+            <dt class="col-sm-3">Business Summary</dt>
+            <dd class="col-sm-9"><p style="max-height: 200px; overflow-y: auto;">{{ summary }}</p></dd>
+
+            {# Ensure these editable inputs are INSIDE the form #}
+            <dt class="col-sm-3">Sector</dt>
+            <dd class="col-sm-9">
+                <input type="text" class="form-control form-control-sm" name="sector" value="{{ sector }}">
+            </dd>
+
+            <dt class="col-sm-3">Industry</dt>
+            <dd class="col-sm-9">
+                <input type="text" class="form-control form-control-sm" name="industry" value="{{ industry }}">
+            </dd>
+        </dl>
+
+        {# These hidden inputs are still needed to pass along their values #}
+        <input type="hidden" id="sector-analysis-company-name" name="name" value="{{ name }}">
+        <input type="hidden" id="company-ticker" name="ticker_symbol" value="{{ ticker }}">
+        <input type="hidden" name="summary" value="{{ summary }}">
+
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('companies.new_company') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success">Confirm & Add Company</button>
+        </div>
+    </form> {# The form tag should end here #}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script defer src="{{ url_for('static', filename='js/dist/duplicate-detector.bundle.js') }}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.initDuplicateDetector) {
+            window.initDuplicateDetector('duplicate-alerts', {
+                entityType: 'company',
+                nameInputId: 'sector-analysis-company-name',
+                tickerInputId: 'company-ticker',
+                submitSelector: 'form[data-entity="company"] button[type="submit"]'
+            });
+        }
+    });
+    </script>
+{% endblock %}

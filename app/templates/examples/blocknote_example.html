@@ -1,0 +1,94 @@
+{% extends "main/_base.html" %}
+
+{#
+  ========================================
+  BlockNote Editor - Example Template
+  ========================================
+
+  This template demonstrates how to integrate BlockNote editor
+  into any page on the platform.
+
+  Copy this example and adapt for your use case:
+  - Company research notes
+  - Project documentation
+  - Meeting notes
+  - Investment thesis
+  - etc.
+#}
+
+{% block head %}
+<!-- Include BlockNote Editor Bundle -->
+{% include 'components/blocknote_editor_include.html' %}
+
+<!-- Your custom styles (optional) -->
+<style>
+    .editor-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .editor-header {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    #myEditor {
+        min-height: 500px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+</style>
+
+<!-- Initialize BlockNote Editor -->
+<script>
+    // Configure API endpoints (replace with your actual routes)
+    window.editorConfig = {
+        // Option 1: Use API endpoints for load/save
+        getNotesUrl: '{{ url_for("your_blueprint.get_notes", id=item_id) }}',
+        saveNotesUrl: '{{ url_for("your_blueprint.save_notes", id=item_id) }}',
+
+        // Option 2: Or provide initial content directly
+        // initialContent: '{{ initial_content | safe }}',
+    };
+</script>
+
+<!-- Editor initialization script -->
+<script src="{{ url_for('static', filename='js/examples/blocknote-init-example.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="editor-container">
+    <!-- Header -->
+    <div class="editor-header">
+        <h1>📝 Document Title</h1>
+        <p class="text-muted">Last updated: <span id="lastSaved">Never</span></p>
+    </div>
+
+    <!-- Editor Actions (optional) -->
+    <div class="editor-actions mb-3">
+        <button class="btn btn-primary btn-sm" onclick="insertSampleTemplate()">
+            <i class="bi bi-file-earmark-text"></i> Insert Template
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="exportContent()">
+            <i class="bi bi-download"></i> Export
+        </button>
+    </div>
+
+    <!-- BlockNote Editor Container -->
+    <div id="myEditor"></div>
+
+    <!-- Status/Help Text -->
+    <div class="mt-3">
+        <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            Type <kbd>/</kbd> for commands • Auto-saves every 2 seconds
+        </small>
+    </div>
+</div>
+{% endblock %}

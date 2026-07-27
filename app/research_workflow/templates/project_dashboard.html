@@ -1,0 +1,662 @@
+{% extends "main/_base_companies.html" %}
+
+{% block content %}
+
+<!-- Onboarding Guidance Modal -->
+{% if request.args.get('from_onboarding') %}
+<div class="modal fade" id="onboardingGuidanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">🎉 Welcome to Your Research Dashboard!</h5>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Congratulations! You've successfully set up your first research template.</p>
+                <p class="mb-3">You're now ready to start your investment research. Here's how to begin:</p>
+                <div class="alert alert-primary border-0" role="alert">
+                    <h6 class="text-primary mb-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Next Step:
+                    </h6>
+                    <p class="mb-0 small">Click the <strong>"Continue Step"</strong> button below to begin your current research step.</p>
+                </div>
+                <p class="mb-0">The system will guide you through each step of your research workflow.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                    Got it! Let's start researching
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="research-workspace-dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <p class="text-primary text-uppercase fw-semibold small mb-2">Value Investing Framework</p>
+                <h1 class="dashboard-title font-poppins">{{ project.project_name }}</h1>
+                <p class="dashboard-subtitle">
+                    {% if project.company %}
+                    <a href="{{ url_for('companies.company_detail', company_id=project.company.id) }}" class="text-decoration-none" style="color: inherit">{{ project.company.name }}</a>
+                    {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
+                    {% endif %}
+                </p>
+            </div>
+            <div class="dashboard-header-actions">
+                {% if project.status == 'active' %}
+                <form method="POST" action="{{ url_for('research_workflow.pin_project', project_id=project.id) }}" class="d-inline">
+                    <button type="submit" class="action-btn{% if is_pinned %} action-btn--active{% endif %}"
+                            title="{{ 'Unpin — focus will be chosen automatically' if is_pinned else 'Pin as your current focus. Overrides automatic priority ranking on the dashboard.' }}">
+                        <i class="bi bi-pin-angle{% if is_pinned %}-fill{% endif %}"></i> {{ 'Pinned' if is_pinned else 'Pin as Focus' }}
+                    </button>
+                </form>
+                {% endif %}
+                <button class="action-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                <a href="{{ url_for('research_workflow.edit_project_workflow', project_id=project.id) }}" class="action-btn">
+                    <i class="bi bi-pencil-square"></i> Edit Workflow
+                </a>
+                {% if project.status == 'active' and project.decision != 'watchlist' %}
+                <button class="action-btn" data-bs-toggle="modal" data-bs-target="#watchlistModal">
+                    <i class="bi bi-eye"></i> Move to Watchlist
+                </button>
+                {% elif project.status == 'active' and project.decision == 'watchlist' %}
+                <form method="POST" action="{{ url_for('research_workflow.remove_from_watchlist', project_id=project.id) }}" class="d-inline">
+                    <button type="submit" class="action-btn action-btn--active" onclick="return confirm('Remove from watchlist and return to active research?')">
+                        <i class="bi bi-eye-slash"></i> Remove from Watchlist
+                    </button>
+                </form>
+                {% endif %}
+                {% if project.status == 'active' %}
+                <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="action-btn">
+                    <i class="bi bi-archive"></i> Mark as Too Hard
+                </a>
+                {% elif project.decision == 'pass' %}
+                <form method="POST" action="{{ url_for('research_workflow.reactivate_project', project_id=project.id) }}" class="d-inline">
+                    <button type="submit" class="action-btn" onclick="return confirm('Reactivate this research project?')">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reactivate Research
+                    </button>
+                </form>
+                {% endif %}
+                <a href="{{ url_for('research_workflow.export_project', project_id=project.id) }}" class="action-btn">
+                    <i class="bi bi-download"></i> Export
+                </a>
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i> Back to My Projects
+                </a>
+            </div>
+        </header>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="row g-4">
+
+        <!-- Timeline Column (Main) -->
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="font-poppins fw-bold mb-0">Project Workflow</h2>
+                {% if project.completed_steps and project.completed_steps|length > 0 %}
+                <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
+                   class="btn btn-outline-primary">
+                    <i class="bi bi-file-text"></i> View Full Summary
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- All Steps Completed - Make Decision CTA -->
+            {% if project.progress_percentage == 100 and not project.decision %}
+            <div class="alert alert-success border-0 shadow-sm mb-4">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h5 class="mb-1">
+                            <i class="bi bi-check-circle-fill me-2"></i>Research Complete!
+                        </h5>
+                        <p class="mb-0">All workflow steps completed. Ready to make your final investment decision.</p>
+                    </div>
+                    <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
+                       class="btn btn-success btn-lg ms-3">
+                        <i class="bi bi-clipboard-check"></i> Make Decision
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="project-timeline-container">
+                {% for step in project.workflow_steps %}
+                {% set step_index = loop.index0 %}
+                {% set is_completed = step_index in project.completed_steps %}
+                {% set is_current = step_index == project.current_step_index %}
+                {% set is_pending = step_index > project.current_step_index %}
+
+                <div class="project-timeline-item">
+                    <!-- Timeline Dot -->
+                    <div class="project-timeline-dot {% if is_completed %}completed{% elif is_current %}active{% else %}pending{% endif %}">
+                        {% if is_completed %}
+                        <i class="bi bi-check text-white" style="font-size: 0.625rem;"></i>
+                        {% elif is_current %}
+                        <i class="bi bi-arrow-right text-white" style="font-size: 0.625rem;"></i>
+                        {% endif %}
+                    </div>
+
+                    <!-- Timeline Card -->
+                    <div class="project-timeline-card {% if is_completed %}completed{% elif is_current %}active{% else %}pending{% endif %}">
+                        {% if is_completed %}
+                        <!-- Completed Step - Minimal View -->
+                        <div class="p-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p class="fw-semibold text-muted mb-1">Step {{ loop.index }}: {{ step.name }}</p>
+                                    {% if project.time_per_step and project.time_per_step[step_index|string] %}
+                                    <p class="text-muted small mb-0">Completed • {{ project.time_per_step[step_index|string] }} min</p>
+                                    {% else %}
+                                    <p class="text-muted small mb-0">Completed</p>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex gap-2">
+                                    {% if step.type == 'checklist' and checklist_analyses and checklist_analyses[step_index] %}
+                                    <!-- Checklist-specific buttons -->
+                                    <a href="{{ url_for('research_workflow.view_checklist_session_summary', analysis_id=checklist_analyses[step_index]) }}"
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="View checklist summary">
+                                        <i class="bi bi-file-text"></i> Summary
+                                    </a>
+                                    <a href="{{ url_for('research_workflow.export_session_to_txt', analysis_id=checklist_analyses[step_index]) }}"
+                                       class="btn btn-sm btn-outline-success"
+                                       title="Export checklist analysis">
+                                        <i class="bi bi-download"></i> Export
+                                    </a>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="showNotes('{{ step_index }}')">
+                                        <i class="bi bi-journal-text"></i> Notes
+                                    </button>
+                                    {% if project.status == 'active' %}
+                                    <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=step_index) }}"
+                                       class="btn btn-sm btn-outline-primary" title="Revisit this step">
+                                        <i class="bi bi-arrow-repeat"></i> Revisit
+                                    </a>
+                                    <form method="POST" action="{{ url_for('research_workflow.reopen_step', project_id=project.id, step_index=step_index) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Reopen this step"
+                                                onclick="return confirm('Reopen step {{ loop.index }}? It will become your current step.')">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Step notes (hidden by default) -->
+                            <div id="notes-{{ step_index }}" class="mt-3 pt-3 border-top" style="display: none;">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-journal-text text-primary me-2"></i>
+                                    <strong>Step Notes</strong>
+                                </div>
+                                {% if project.step_notes and project.step_notes[step_index|string] %}
+                                <div class="step-notes-content">
+                                    {{ project.step_notes[step_index|string]|markdown|safe }}
+                                </div>
+                                {% elif step.type == 'thesis_writing' and project.investment_thesis %}
+                                <!-- Fallback: Show investment thesis if step_notes is empty -->
+                                <div class="step-notes-content">
+                                    <strong>Investment Thesis:</strong><br><br>
+                                    {{ project.investment_thesis|blocknote_to_html|safe }}
+                                </div>
+                                {% else %}
+                                <div class="alert alert-info border-0 mb-0">
+                                    <p class="mb-0"><em>No notes available for this step.</em></p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% elif is_current %}
+                        <!-- Current Step - Full Card -->
+                        <div class="p-4">
+                            <p class="text-primary fw-semibold small mb-2">CURRENT STEP</p>
+                            <h3 class="fw-bold mb-2">{{ step.name }}</h3>
+                            {% if step.description %}
+                            <p class="text-muted small mb-3">{{ step.description }}</p>
+                            {% endif %}
+                            <div class="d-flex gap-3 text-muted small mb-3">
+                                <span><i class="bi bi-tag"></i> {{ step.type|replace('_', ' ')|title }}</span>
+                                <span><i class="bi bi-clock"></i> Est: {{ step.estimated_minutes }} min</span>
+                            </div>
+                            <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=step_index) }}"
+                               class="btn btn-primary fw-semibold">
+                                Continue Step <i class="bi bi-arrow-right-short"></i>
+                            </a>
+                        </div>
+
+                        {% else %}
+                        <!-- Pending Step - Minimal View -->
+                        <div class="p-3">
+                            <p class="fw-semibold text-muted mb-0">Step {{ loop.index }}: {{ step.name }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Intelligence Hub Sidebar -->
+        <div class="col-lg-4">
+
+            <!-- Project Vitals -->
+            <div class="project-vitals-card mb-4">
+                <h3 class="font-poppins fw-bold mb-3">Project Vitals</h3>
+                <div>
+                    <div class="project-vitals-item">
+                        <span class="project-vitals-label">Status:</span>
+                        <span class="project-vitals-value">
+                            {% if project.status == 'active' and project.decision == 'watchlist' %}
+                            <span class="badge bg-warning text-dark">Watchlist (In Progress)</span>
+                            {% elif project.status == 'active' %}
+                            <span class="badge bg-primary">In Progress</span>
+                            {% elif project.status == 'completed' and project.decision == 'invest' %}
+                            <span class="badge bg-success">Invested</span>
+                            {% elif project.status == 'completed' and project.decision == 'pass' %}
+                            <span class="badge bg-secondary">Passed</span>
+                            {% elif project.status == 'completed' and project.decision == 'watchlist' %}
+                            <span class="badge bg-warning text-dark">Watchlist</span>
+                            {% elif project.status == 'completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="project-vitals-item">
+                        <span class="project-vitals-label">Progress:</span>
+                        <span class="project-vitals-value">{{ project.progress_percentage }}%</span>
+                    </div>
+                    <div class="project-progress-bar mb-2">
+                        <div class="project-progress-fill" style="width: {{ project.progress_percentage }}%"></div>
+                    </div>
+                    <div class="project-vitals-item">
+                        <span class="project-vitals-label">Time Spent:</span>
+                        <span class="project-vitals-value">{{ project.total_time_including_active|round(1) }} Hours</span>
+                    </div>
+                    <div class="project-vitals-item border-bottom-0 pb-0">
+                        <span class="project-vitals-label">Days Since Work:</span>
+                        <span class="project-vitals-value">
+                            {% if days_since_last_work is not none %}
+                            {{ days_since_last_work }}d
+                            {% else %}
+                            -
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Findings -->
+            <div class="key-findings-card mb-4">
+                <h3 class="font-poppins fw-bold mb-3">Key Findings</h3>
+                <div id="findingsList">
+                    {% if project.green_flags %}
+                    {% for flag in project.green_flags %}
+                    <div class="key-finding-item">
+                        <i class="bi bi-plus-circle-fill key-finding-icon green"></i>
+                        <div>
+                            <span class="key-finding-label">Green Flag:</span>
+                            <span class="key-finding-text">{{ flag }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if project.red_flags %}
+                    {% for flag in project.red_flags %}
+                    <div class="key-finding-item">
+                        <i class="bi bi-dash-circle-fill key-finding-icon red"></i>
+                        <div>
+                            <span class="key-finding-label">Red Flag:</span>
+                            <span class="key-finding-text">{{ flag }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if project.must_exit_criteria %}
+                    {% for criterion in project.must_exit_criteria %}
+                    <div class="key-finding-item">
+                        <i class="bi bi-exclamation-triangle-fill key-finding-icon" style="color: #f59e0b;"></i>
+                        <div>
+                            <span class="key-finding-label">Must Exit:</span>
+                            <span class="key-finding-text">{{ criterion }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if not project.green_flags and not project.red_flags and not project.must_exit_criteria %}
+                    <p class="text-muted small mb-0">No key findings documented yet.</p>
+                    {% endif %}
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-sm btn-success me-2" onclick="showAddFindingModal('green_flag')">
+                        <i class="bi bi-plus-lg"></i> Green Flag
+                    </button>
+                    <button class="btn btn-sm btn-danger me-2" onclick="showAddFindingModal('red_flag')">
+                        <i class="bi bi-plus-lg"></i> Red Flag
+                    </button>
+                    <button class="btn btn-sm btn-warning" onclick="showAddFindingModal('must_exit')">
+                        <i class="bi bi-exclamation-triangle"></i> Must Exit
+                    </button>
+                </div>
+            </div>
+
+            <!-- Company Resources -->
+            <div class="project-vitals-card mb-4">
+                <h3 class="font-poppins fw-bold mb-3">
+                    <i class="bi bi-folder2-open me-2"></i>Resources
+                </h3>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-sm btn-outline-primary" onclick='CompanyResources.open({
+                        companyId: {{ project.company.id }},
+                        companyName: {{ project.company.name|tojson }},
+                        projectId: {{ project.id }},
+                        defaultTab: "upload"
+                    })'>
+                        <i class="bi bi-cloud-upload me-1"></i> Upload File
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick='CompanyResources.open({
+                        companyId: {{ project.company.id }},
+                        companyName: {{ project.company.name|tojson }},
+                        projectId: {{ project.id }},
+                        defaultTab: "link"
+                    })'>
+                        <i class="bi bi-link-45deg me-1"></i> Save Link
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick='CompanyResources.open({
+                        companyId: {{ project.company.id }},
+                        companyName: {{ project.company.name|tojson }},
+                        projectId: {{ project.id }}
+                    })'>
+                        <i class="bi bi-folder2-open me-1"></i> View All Resources
+                    </button>
+                </div>
+            </div>
+
+            <!-- Companion Alerts -->
+            {% include 'partials/_companion_alerts.html' %}
+
+            <!-- Quick Actions -->
+            <div class="quick-actions-card">
+                <h3 class="font-poppins fw-bold mb-3">Quick Actions</h3>
+                <div>
+                    {% if project.company %}
+                    <a href="{{ url_for('companies.company_detail', company_id=project.company.id) }}" class="quick-action-link">
+                        <i class="bi bi-building"></i> Company Dashboard
+                    </a>
+                    <a href="{{ url_for('journal_enhanced.knowledge_hub', company_id=project.company.id) }}" class="quick-action-link">
+                        <i class="bi bi-journal-text"></i> View Journal Entries
+                    </a>
+                    <a href="{{ url_for('journal_enhanced.new_entry', company_id=project.company.id) }}" class="quick-action-link">
+                        <i class="bi bi-journal-plus"></i> New Journal Entry
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('research_workflow.my_projects') }}" class="quick-action-link">
+                        <i class="bi bi-folder"></i> All Projects
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Watchlist Modal -->
+<div class="modal fade" id="watchlistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye me-2"></i>Move to Watchlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('research_workflow.move_to_watchlist', project_id=project.id) }}">
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Park this research on your watchlist. Progress is preserved and you can continue anytime.</p>
+                    <div class="mb-3">
+                        <label for="watchReason" class="form-label">Watch Reason <span class="text-danger">*</span></label>
+                        <select class="form-select" name="watch_reason" id="watchReason" required>
+                            <option value="" selected disabled>Select a reason...</option>
+                            <option value="valuation_too_high">Valuation too high</option>
+                            <option value="waiting_for_catalyst">Waiting for catalyst</option>
+                            <option value="lower_priority">Lower priority</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label for="watchNotes" class="form-label">Notes <span class="text-muted">(optional)</span></label>
+                        <textarea class="form-control" name="watch_notes" id="watchNotes" rows="3"
+                                  placeholder="e.g. Revisit if price drops below $X, or after Q3 earnings..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning"><i class="bi bi-eye me-1"></i> Move to Watchlist</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Thesis Modal -->
+<div class="modal fade" id="thesisModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Investment Thesis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="thesisModalForm" method="POST" action="{{ url_for('research_workflow.update_thesis', project_id=project.id) }}">
+                <div class="modal-body">
+                    <input type="hidden" id="thesisModalHidden" name="investment_thesis">
+                    <div id="thesisModalEditor" class="blocknote-form-editor"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Thesis</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Finding Modal -->
+<div class="modal fade" id="addFindingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="findingModalTitle">Add Finding</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" id="addFindingForm">
+                <div class="modal-body">
+                    <input type="hidden" name="finding_type" id="findingType">
+                    <div class="mb-3">
+                        <label for="findingText" class="form-label">Finding Description</label>
+                        <textarea class="form-control" name="finding_text" id="findingText" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Finding</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Tips Modal -->
+{% set tips_title = "Research Project Best Practices" %}
+{% set tips_intro = "Follow these best practices to conduct thorough and systematic investment research." %}
+{% set tips = [
+    "<strong>Take Detailed Notes:</strong> Document your findings during each step - they'll be invaluable for your final investment decision",
+    "<strong>Document Findings:</strong> Record green and red flags as you discover them to build a clear decision framework",
+    "<strong>Evolve Your Thesis:</strong> Update your investment thesis regularly as your understanding of the company deepens",
+    "<strong>Don't Rush:</strong> Quality research takes time - thorough analysis leads to better investment decisions",
+    "<strong>Use the Timeline:</strong> Track your progress through the workflow - the current step is highlighted for easy navigation",
+    "<strong>Review Past Work:</strong> Access notes from completed steps anytime by clicking 'View Notes' to revisit your analysis"
+] %}
+{% include 'main/_tips_modal.html' %}
+{% include 'components/company_resources_modal.html' %}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% include 'components/blocknote_editor_include.html' %}
+<script src="{{ url_for('static', filename='js/company-resources.js') }}"></script>
+<script>
+// Thesis modal BlockNote editor
+let thesisModalContent = '';
+const thesisModalEl = document.getElementById('thesisModal');
+if (thesisModalEl) {
+    let thesisEditorInited = false;
+    thesisModalEl.addEventListener('shown.bs.modal', function () {
+        if (thesisEditorInited) return;
+        const checkEditor = setInterval(() => {
+            if (window.initBlockNoteEditor) {
+                clearInterval(checkEditor);
+                thesisEditorInited = true;
+                const initialContent = {{ (project.investment_thesis or '')|tojson }};
+                window.initBlockNoteEditor('thesisModalEditor', {
+                    initialContent: initialContent,
+                    placeholder: 'Document your evolving thesis as you progress through research...',
+                    onChange: (json) => { thesisModalContent = json; }
+                });
+            }
+        }, 100);
+    });
+
+    document.getElementById('thesisModalForm').addEventListener('submit', function (e) {
+        if (!thesisModalContent) {
+            e.preventDefault();
+            alert('Please write your thesis before saving.');
+            return;
+        }
+        document.getElementById('thesisModalHidden').value = thesisModalContent;
+    });
+}
+</script>
+<script>
+// Show onboarding modal if from onboarding flow
+{% if request.args.get('from_onboarding') %}
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = new bootstrap.Modal(document.getElementById('onboardingGuidanceModal'));
+    modal.show();
+});
+{% endif %}
+
+// Toggle step notes visibility
+function showNotes(stepIndex) {
+    const notesDiv = document.getElementById('notes-' + stepIndex);
+    if (notesDiv) {
+        notesDiv.style.display = notesDiv.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+
+// showAddFindingModal and form handling with this:
+function showAddFindingModal(findingType) {
+    const modalEl = document.getElementById('addFindingModal');
+    const modal = new bootstrap.Modal(modalEl);
+    const form = document.getElementById('addFindingForm');
+    const title = document.getElementById('findingModalTitle');
+    const typeInput = document.getElementById('findingType');
+    const textInput = document.getElementById('findingText');
+
+    // 1. Setup modal state
+    typeInput.value = findingType;
+    if (findingType.includes('green')) {
+        title.textContent = 'Add Green Flag';
+    } else if (findingType.includes('must_exit')) {
+        title.textContent = 'Add Must Exit Criterion';
+    } else {
+        title.textContent = 'Add Red Flag';
+    }
+    textInput.value = ''; // Clear previous text
+
+    // 2. Attach AJAX submission handler
+    form.onsubmit = async (e) => {
+        e.preventDefault(); // STOP THE RELOAD
+        
+        const text = textInput.value.trim();
+        if (!text) return;
+
+        try {
+            const response = await fetch('{{ url_for("research_workflow.add_finding", project_id=project.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    type: findingType.includes('must_exit') ? 'must_exit' : (findingType.includes('green') ? 'green' : 'red'),
+                    text: text
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // SUCCESS: Update the UI dynamically instead of reloading!
+                appendFindingToSidebar(findingType, text);
+                modal.hide();
+                
+                // Optional: Show a small success toast/alert
+                console.log("Finding saved via AJAX");
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (err) {
+            console.error('AJAX Error:', err);
+            alert('Failed to save finding. check console.');
+        }
+    };
+
+    modal.show();
+}
+
+/**
+ * Helper to inject the new finding into the HTML sidebar
+ */
+function appendFindingToSidebar(findingType, text) {
+    const container = document.getElementById('findingsList');
+    if (!container) return;
+
+    // Remove the "No findings" text if it exists
+    const emptyMsg = container.querySelector('p.text-muted');
+    if (emptyMsg) emptyMsg.remove();
+
+    let iconClass, label, iconStyle = '';
+    if (findingType.includes('green')) {
+        iconClass = 'bi-plus-circle-fill green';
+        label = 'Green Flag:';
+    } else if (findingType.includes('must_exit')) {
+        iconClass = 'bi-exclamation-triangle-fill';
+        label = 'Must Exit:';
+        iconStyle = ' style="color: #f59e0b;"';
+    } else {
+        iconClass = 'bi-dash-circle-fill red';
+        label = 'Red Flag:';
+    }
+
+    const findingHtml = `
+        <div class="key-finding-item">
+            <i class="bi ${iconClass} key-finding-icon"${iconStyle}></i>
+            <div>
+                <span class="key-finding-label">${label}</span>
+                <span class="key-finding-text">${text}</span>
+            </div>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', findingHtml);
+}
+</script>
+{% endblock %}

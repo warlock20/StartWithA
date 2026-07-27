@@ -1,0 +1,82 @@
+{% extends "main/_base_companies.html" %}
+
+{% block content %}
+<div class="checklist-edit-item-page">
+<div class="dashboard-header-card">
+    <div class="dashboard-header">
+        <div>
+            <h1><i class="bi bi-pencil-square me-2"></i>Edit Checklist Item</h1>
+            <p class="dashboard-header-subtitle">Update the item text and optional AI prompt</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('checklists.view_checklist', checklist_id=item.checklist_id) }}" class="action-btn">
+                <i class="bi bi-arrow-left"></i> Back to Checklist
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📝 Item Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('checklists.edit_checklist_item', item_id=item.id) }}">
+                    <div class="mb-3">
+                        <label for="item_text" class="form-label">Item Text <span class="text-danger">*</span></label>
+                        <textarea id="item_text" name="item_text" class="form-control" rows="2" required>{{ request.form.item_text if request.form else item.text }}</textarea>
+                        <small class="text-muted">Short, clear title for the checklist item</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea id="description" name="description" class="form-control" rows="3" placeholder="Provide detailed context, guidance, or explanation for this item...">{{ request.form.description if request.form else (item.description if item.description else '') }}</textarea>
+                        <small class="text-muted">Optional: Add context, examples, or detailed instructions for this item</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="llm_prompt" class="form-label">Optional LLM Prompt</label>
+                        <textarea id="llm_prompt" name="llm_prompt" class="form-control" rows="3" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?">{{ request.form.llm_prompt if request.form else (item.llm_prompt if item.llm_prompt else '') }}</textarea>
+                        <small class="text-muted">Optional: AI analysis prompt to help answer this question automatically</small>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <form method="POST" action="{{ url_for('checklists.delete_checklist_item', item_id=item.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-outline-danger"
+                                    onclick="return confirm('⚠️ Delete this item and all its sub-items?\n\nThis action cannot be undone.');">
+                                <i class="bi bi-trash"></i> Delete Item
+                            </button>
+                        </form>
+                        <div>
+                            <a href="{{ url_for('checklists.view_checklist', checklist_id=item.checklist_id) }}" class="btn btn-secondary me-2">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus the text field for better UX
+    const textField = document.getElementById('item_text');
+    if (textField) {
+        textField.focus();
+        // Move cursor to end of text
+        textField.setSelectionRange(textField.value.length, textField.value.length);
+    }
+});
+</script>
+{% endblock %}

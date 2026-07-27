@@ -1,0 +1,473 @@
+{% extends "main/_base_portfolio.html" %}
+
+{% block title %}Investment Journey - {{ company.ticker_symbol }}{% endblock %}
+
+{% block content %}
+<div class="portfolio-dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div class="dashboard-header-identity">
+                <div class="dashboard-header-logo">
+                    {{ (company.name)[:2]|upper }}
+                </div>
+                <div>
+                    <h1 class="dashboard-title font-poppins">Investment Journey</h1>
+                    <p class="dashboard-subtitle">
+                        <span class="journey-ticker">{{ company.ticker_symbol }}</span>
+                        {{ company.name }}{% if company.sector %} · {{ company.sector.name }}{% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" class="action-btn primary">
+                    <i class="bi bi-plus-circle"></i> Update Thesis
+                </a>
+                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="action-btn">
+                    <i class="bi bi-flag"></i> Checkpoints
+                </a>
+                <a href="{{ url_for('companies.company_detail', company_id=company.id) }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i> Position
+                </a>
+            </div>
+        </header>
+
+        <!-- Journey Stats Strip -->
+        <div class="dashboard-metrics-strip">
+            <div class="journey-stat {% if journey_stats.total_return > 0 %}gain{% elif journey_stats.total_return < 0 %}loss{% endif %}">
+                <div class="journey-stat-value">
+                    {% if journey_stats.total_return > 0 %}+{% endif %}{{ "%.1f"|format(journey_stats.total_return) }}%
+                </div>
+                <div class="journey-stat-label">Total Return</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">{{ journey_stats.thesis_updates }}</div>
+                <div class="journey-stat-label">Thesis Updates</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">
+                    {{ journey_stats.checkpoints_met }}/{{ journey_stats.total_checkpoints }}
+                </div>
+                <div class="journey-stat-label">Checkpoints Met</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">{{ journey_stats.days_held }}</div>
+                <div class="journey-stat-label">Days Held</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">{{ journey_stats.current_conviction }}/10</div>
+                <div class="journey-stat-label">Conviction</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">{{ journey_stats.notes_count }}</div>
+                <div class="journey-stat-label">Notes</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="journey-filter-tabs">
+        <button class="journey-filter-tab active" data-filter="all">
+            <i class="bi bi-list-ul"></i>
+            <span>All Events</span>
+            <span class="journey-tab-count">{{ timeline_events|length }}</span>
+        </button>
+        <button class="journey-filter-tab" data-filter="thesis">
+            <i class="bi bi-lightbulb"></i>
+            <span>Thesis</span>
+            <span class="journey-tab-count">{{ thesis_count }}</span>
+        </button>
+        <button class="journey-filter-tab" data-filter="checkpoint">
+            <i class="bi bi-flag"></i>
+            <span>Checkpoints</span>
+            <span class="journey-tab-count">{{ checkpoint_count }}</span>
+        </button>
+        <button class="journey-filter-tab" data-filter="transaction">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>Transactions</span>
+            <span class="journey-tab-count">{{ event_count }}</span>
+        </button>
+        <button class="journey-filter-tab" data-filter="note">
+            <i class="bi bi-journal-text"></i>
+            <span>Notes</span>
+            <span class="journey-tab-count">{{ notes_count }}</span>
+        </button>
+        {% if findings_count > 0 %}
+        <button class="journey-filter-tab" data-filter="finding">
+            <i class="bi bi-search"></i>
+            <span>Findings</span>
+            <span class="journey-tab-count">{{ findings_count }}</span>
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Timeline View (all tabs except Notes) -->
+    <div id="timelineView">
+    <div class="journey-timeline">
+        {% for event in timeline_events %}
+        {% set is_current = (event.type == 'thesis' and current_thesis and event.data.id == current_thesis.id) %}
+
+        <div class="journey-item" data-type="{{ event.type }}">
+            <!-- Timeline Dot -->
+            <div class="journey-dot
+                {% if event.type == 'checkpoint' %}checkpoint
+                    {% if event.data.status == 'Met' %}met
+                    {% elif event.data.status == 'Not Met' %}not-met
+                    {% endif %}
+                {% elif event.type == 'transaction' %}event
+                {% elif event.type == 'finding' %}finding {{ event.data.flag_type }}
+                {% elif is_current %}current
+                {% endif %}">
+            </div>
+
+            <!-- Timeline Content -->
+            <div class="journey-content
+                {% if event.type == 'checkpoint' %}checkpoint-content
+                    {% if event.data.status == 'Met' %}met
+                    {% elif event.data.status == 'Not Met' %}not-met
+                    {% endif %}
+                {% elif event.type == 'finding' %}finding-content {{ event.data.flag_type }}
+                {% endif %}">
+
+                <!-- THESIS VERSION -->
+                {% if event.type == 'thesis' %}
+                <div class="journey-event-header">
+                    <span class="journey-badge {% if is_current %}current{% else %}thesis{% endif %}">
+                        {% if is_current %}Current Thesis{% else %}V{{ event.data.version }}{% endif %}
+                    </span>
+                    {% if event.data.position_sizing %}
+                    <span class="journey-position-badge {{ event.data.position_sizing }}">
+                        {{ event.data.position_sizing|replace('_', ' ')|title }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <h4 class="journey-event-title">{{ event.data.change_summary or 'Thesis Update' }}</h4>
+                <p class="journey-event-date">
+                    <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
+                </p>
+
+                {% if event.data.thesis %}
+                <div class="journey-event-body">{{ event.data.thesis|blocknote_to_html|safe }}</div>
+                {% endif %}
+
+                {% if event.data.change_trigger %}
+                <div class="journey-trigger-alert">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span><strong>Trigger:</strong> {{ event.data.change_trigger }}</span>
+                </div>
+                {% endif %}
+
+                <!-- Metrics -->
+                <div class="journey-event-metrics">
+                    {% if event.data.conviction_level %}
+                    <div class="journey-event-metric">
+                        <div class="journey-event-metric-label">Conviction</div>
+                        <div class="journey-event-metric-value">{{ event.data.conviction_level }}/10</div>
+                        <div class="conviction-meter">
+                            {% set conviction_pct = event.data.conviction_level * 10 %}
+                            {% set conviction_class = 'high' if event.data.conviction_level >= 8 else ('medium' if event.data.conviction_level >= 5 else 'low') %}
+                            <div class="conviction-fill {{ conviction_class }}" style="width: {{ conviction_pct }}%"></div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if event.data.target_price %}
+                    <div class="journey-event-metric">
+                        <div class="journey-event-metric-label">Target Price</div>
+                        <div class="journey-event-metric-value">${{ "%.2f"|format(event.data.target_price) }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Bull/Bear Cases -->
+                {% if event.data.bull_case or event.data.bear_case %}
+                <div class="journey-bull-bear">
+                    {% if event.data.bull_case %}
+                    <div class="journey-case bull">
+                        <h6><i class="bi bi-graph-up"></i> Bull Case</h6>
+                        <ul>
+                            {% for point in event.data.bull_case %}
+                            <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if event.data.bear_case %}
+                    <div class="journey-case bear">
+                        <h6><i class="bi bi-graph-down"></i> Bear Case</h6>
+                        <ul>
+                            {% for point in event.data.bear_case %}
+                            <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- CHECKPOINT -->
+                {% elif event.type == 'checkpoint' %}
+                <div class="journey-event-header">
+                    <span class="journey-badge checkpoint">Checkpoint</span>
+                    <span class="journey-checkpoint-status {{ event.data.status|lower|replace(' ', '-') }}">
+                        {% if event.data.status == 'Met' %}
+                        <i class="bi bi-check-circle-fill"></i> Met
+                        {% elif event.data.status == 'Not Met' %}
+                        <i class="bi bi-x-circle-fill"></i> Not Met
+                        {% else %}
+                        <i class="bi bi-clock"></i> Pending
+                        {% endif %}
+                    </span>
+                </div>
+
+                <h4 class="journey-event-title">{{ event.data.metric }}</h4>
+                <p class="journey-event-date">
+                    <i class="bi bi-calendar3"></i> Target: {{ event.date.strftime('%B %d, %Y') }}
+                </p>
+
+                <div class="journey-checkpoint-details">
+                    <div class="journey-checkpoint-expectation">
+                        <strong>Expected:</strong> {{ event.data.expectation }}
+                    </div>
+
+                    {% if event.data.actual_outcome %}
+                    <div class="journey-checkpoint-outcome {% if event.data.status == 'Met' %}met{% else %}not-met{% endif %}">
+                        <strong>Actual:</strong> {{ event.data.actual_outcome }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if event.data.status == 'Met' %}
+                <div class="journey-checkpoint-alert success">
+                    <i class="bi bi-check-circle"></i>
+                    <span><strong>Thesis Validated:</strong> This checkpoint supports your investment thesis.</span>
+                </div>
+                {% elif event.data.status == 'Not Met' %}
+                <div class="journey-checkpoint-alert danger">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <span><strong>Thesis Challenge:</strong> This checkpoint indicates a deviation from expectations.</span>
+                </div>
+                {% endif %}
+
+                <!-- TRANSACTION -->
+                {% elif event.type == 'transaction' %}
+                <div class="journey-event-header">
+                    <span class="journey-badge transaction {{ event.data.type|lower }}">
+                        {{ event.data.type }}
+                    </span>
+                </div>
+
+                <h4 class="journey-event-title">
+                    {{ event.data.type }} {{ event.data.quantity }} shares @ ${{ "%.2f"|format(event.data.price_per_share) }}
+                </h4>
+                <p class="journey-event-date">
+                    <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
+                </p>
+
+                <div class="journey-transaction-details">
+                    <div class="journey-transaction-total">
+                        <span class="label">Total Value</span>
+                        <span class="value">${{ "{:,.2f}".format(event.data.total_value) }}</span>
+                    </div>
+                </div>
+
+                {% if event.data.notes %}
+                <p class="journey-transaction-notes">
+                    <i class="bi bi-chat-text"></i> {{ event.data.notes }}
+                </p>
+                {% endif %}
+
+                <!-- FINDING (Research Red/Green Flag) -->
+                {% elif event.type == 'finding' %}
+                <div class="journey-event-header">
+                    <span class="journey-badge finding {{ event.data.flag_type }}">
+                        {% if event.data.flag_type == 'green' %}
+                        <i class="bi bi-check-circle"></i> Green Flag
+                        {% else %}
+                        <i class="bi bi-exclamation-triangle"></i> Red Flag
+                        {% endif %}
+                    </span>
+                </div>
+                <p class="journey-event-date">
+                    <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
+                </p>
+                <div class="journey-event-body">{{ event.data.text }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not timeline_events %}
+        <div class="journey-empty-state">
+            <i class="bi bi-inbox"></i>
+            <h4>No Journey Events Yet</h4>
+            <p>Thesis updates, checkpoints, and transactions will appear here as your investment evolves.</p>
+            <div class="journey-empty-actions">
+                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="action-btn primary">
+                    <i class="bi bi-flag"></i> Add Checkpoints
+                </a>
+                <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="action-btn">
+                    <i class="bi bi-plus-circle"></i> Add Transaction
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    </div>{# end #timelineView #}
+
+    <!-- Notes List View (dedicated, shown when Notes tab active) -->
+    <div id="notesListView" style="display:none;">
+        <div class="journey-notes-search">
+            <input type="text" id="notesSearchInput" class="journey-notes-search-input"
+                placeholder="Search notes by content or #tags..." oninput="debouncedSearch()">
+        </div>
+        <div id="noteCards"></div>
+        <button id="notesLoadMore" class="journey-notes-load-more" style="display:none;" onclick="loadNotes()">
+            Load more <i class="bi bi-chevron-down"></i>
+        </button>
+        <div id="notesEmptyState" class="journey-notes-empty" style="display:none;">
+            <i class="bi bi-journal-text"></i>
+            <p>No notes found</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterTabs = document.querySelectorAll('.journey-filter-tab');
+    const timelineItems = document.querySelectorAll('.journey-item');
+    const timelineView = document.getElementById('timelineView');
+    const notesListView = document.getElementById('notesListView');
+
+    let notesInitialized = false;
+
+    filterTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            filterTabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            const filterType = this.getAttribute('data-filter');
+
+            if (filterType === 'note') {
+                // Switch to dedicated notes list view
+                timelineView.style.display = 'none';
+                notesListView.style.display = 'block';
+                if (!notesInitialized) {
+                    loadNotes(true);
+                    notesInitialized = true;
+                }
+            } else {
+                // Switch to timeline view
+                timelineView.style.display = 'block';
+                notesListView.style.display = 'none';
+
+                timelineItems.forEach(item => {
+                    const itemType = item.getAttribute('data-type');
+                    if (filterType === 'all' || itemType === filterType) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+        });
+    });
+});
+
+// ---- Notes List AJAX ----
+const companyId = {{ company.id }};
+let notesOffset = 0;
+let notesTotal = 0;
+let notesSearchQuery = '';
+let searchTimeout = null;
+
+function debouncedSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        notesSearchQuery = document.getElementById('notesSearchInput').value.trim();
+        loadNotes(true);
+    }, 300);
+}
+
+function loadNotes(reset) {
+    if (reset) {
+        notesOffset = 0;
+        document.getElementById('noteCards').innerHTML = '';
+    }
+
+    const loadMoreBtn = document.getElementById('notesLoadMore');
+    const emptyState = document.getElementById('notesEmptyState');
+    loadMoreBtn.style.display = 'none';
+    emptyState.style.display = 'none';
+
+    let url = `/portfolio/api/notes/${companyId}?offset=${notesOffset}&limit=10`;
+    if (notesSearchQuery) url += `&q=${encodeURIComponent(notesSearchQuery)}`;
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+
+            notesTotal = data.total;
+            const container = document.getElementById('noteCards');
+
+            if (data.entries.length === 0 && notesOffset === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            data.entries.forEach(entry => {
+                container.insertAdjacentHTML('beforeend', renderNoteCard(entry));
+            });
+
+            notesOffset += data.entries.length;
+
+            if (data.has_more) {
+                loadMoreBtn.style.display = 'block';
+                loadMoreBtn.innerHTML = `Load more (${notesOffset} of ${notesTotal}) <i class="bi bi-chevron-down"></i>`;
+            }
+        });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function renderNoteCard(entry) {
+    const contentHtml = entry.content_html || escapeHtml(entry.content);
+
+    let sentimentHtml = '';
+    if (entry.sentiment) {
+        sentimentHtml = `<span class="journey-note-sentiment ${entry.sentiment}">${entry.sentiment}</span>`;
+    }
+
+    let tagsHtml = '';
+    if (entry.tags && entry.tags.length) {
+        tagsHtml = '<div class="journey-note-tags">' +
+            entry.tags.slice(0, 6).map(t => `<span class="journey-note-tag">#${escapeHtml(t)}</span>`).join('') +
+            '</div>';
+    }
+
+    const viewUrl = `/journal/entry/${entry.id}`;
+
+    return `<div class="journey-note-card">
+        <div class="journey-note-card-header">
+            <span class="journey-note-card-date"><i class="bi bi-calendar3"></i> ${entry.created_at}</span>
+            <div class="journey-note-card-actions">
+                ${sentimentHtml}
+                <a href="${viewUrl}" class="journey-note-view-btn" title="View full entry"><i class="bi bi-box-arrow-up-right"></i></a>
+            </div>
+        </div>
+        <div class="journey-note-card-content blocknote-content">${contentHtml}</div>
+        ${tagsHtml}
+    </div>`;
+}
+</script>
+{% endblock %}

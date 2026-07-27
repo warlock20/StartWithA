@@ -1,0 +1,316 @@
+/* ========================================================================
+   Thesis vs Reality — Section Tabs + Compact Table Design
+   ======================================================================== */
+
+/* ── Section Tabs (pill-style navigation) ── */
+.tr-section-tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.tr-section-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    background: var(--bg-primary, #ffffff);
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+.tr-section-tab:hover {
+    border-color: var(--primary, #2563eb);
+    color: var(--primary, #2563eb);
+}
+
+.tr-tab-count {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    color: var(--text-muted, #9ca3af);
+}
+
+/* Tab active state variants */
+.tr-section-tab.active--danger  { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+.tr-section-tab.active--danger  .tr-tab-count { background: #fee2e2; color: #dc2626; }
+
+.tr-section-tab.active--warning { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.tr-section-tab.active--warning .tr-tab-count { background: #fef3c7; color: #b45309; }
+
+.tr-section-tab.active--success { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+.tr-section-tab.active--success .tr-tab-count { background: #dcfce7; color: #15803d; }
+
+.tr-section-tab.active--blue    { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+.tr-section-tab.active--blue    .tr-tab-count { background: #dbeafe; color: #1d4ed8; }
+
+/* ── Section Content Toggle ── */
+.tr-section-content { display: none; }
+.tr-section-content.active { display: block; }
+
+/* ── Positions Panel (table wrapper) ── */
+.tr-positions-panel {
+    background: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Positions Table ── */
+.tr-positions-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.tr-positions-table th {
+    text-align: left;
+    padding: 0.7rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--bg-secondary, #f8fafc);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.tr-positions-table th:last-child { text-align: right; }
+
+.tr-positions-table td {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    vertical-align: middle;
+}
+.tr-positions-table tbody tr {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.tr-positions-table tbody tr:hover {
+    background: var(--bg-secondary, #f8fafc);
+}
+.tr-positions-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ── Ticker Badge ── */
+.tr-ticker-badge {
+    display: inline-block;
+    background: var(--primary, #2563eb);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+}
+
+/* ── Company Cell ── */
+.tr-company-cell {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary, #111827);
+}
+.tr-company-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted, #9ca3af);
+    font-weight: 400;
+}
+
+/* ── Return Cell ── */
+.tr-return-cell {
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.tr-return-cell.positive { color: var(--success-color, #22c55e); }
+.tr-return-cell.negative { color: var(--danger-color, #ef4444); }
+.tr-return-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted, #9ca3af);
+    font-weight: 400;
+}
+.tr-asterisk {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    font-weight: normal;
+}
+
+/* ── Thesis Snippet ── */
+.tr-thesis-snippet {
+    color: var(--text-secondary, #6b7280);
+    max-width: 350px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tr-thesis-snippet.tr-no-thesis {
+    color: var(--text-muted, #9ca3af);
+    font-style: italic;
+}
+
+/* ── Pills (confidence, days) ── */
+.tr-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: #f3f4f6;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* ── Row Action Buttons ── */
+.tr-row-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.25rem;
+}
+.tr-row-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    background: var(--bg-primary, #ffffff);
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+}
+.tr-row-action-btn:hover {
+    border-color: var(--primary, #2563eb);
+    color: var(--primary, #2563eb);
+    text-decoration: none;
+}
+.tr-row-action-btn.warning {
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+.tr-row-action-btn.warning:hover {
+    background: #f59e0b;
+    color: white;
+}
+
+/* ── Expanded Detail Row ── */
+.tr-detail-row {
+    display: none;
+}
+.tr-detail-row.open {
+    display: table-row;
+}
+.tr-detail-row td {
+    padding: 0 !important;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+/* Don't highlight detail rows on hover */
+.tr-detail-row:hover {
+    background: transparent !important;
+    cursor: default;
+}
+
+.tr-detail-panel {
+    background: var(--bg-secondary, #f8fafc);
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    animation: trSlideDown 0.2s ease;
+}
+@keyframes trSlideDown {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.tr-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1.5rem;
+}
+
+.tr-detail-thesis-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted, #9ca3af);
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+}
+
+.tr-detail-thesis {
+    background: var(--bg-primary, #ffffff);
+    border-left: 3px solid var(--primary, #2563eb);
+    border-radius: 8px;
+    padding: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--text-primary, #111827);
+}
+
+.tr-detail-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.tr-detail-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-start;
+    align-content: flex-start;
+}
+
+.tr-detail-metric {
+    background: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    text-align: center;
+    min-width: 90px;
+}
+.tr-detail-metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted, #9ca3af);
+    letter-spacing: 0.04em;
+}
+.tr-detail-metric-value {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1000px) {
+    .tr-positions-table .tr-hide-md { display: none; }
+    .tr-detail-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+    .tr-positions-table .tr-hide-sm { display: none; }
+    .tr-section-tabs { gap: 0.35rem; }
+    .tr-section-tab { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+    .tr-detail-actions { flex-direction: column; }
+}
+
+@media (max-width: 480px) {
+    .tr-section-tab i { display: none; }
+    .tr-ticker-badge { font-size: 0.7rem; padding: 2px 6px; }
+    .tr-company-cell { font-size: 0.8rem; }
+}

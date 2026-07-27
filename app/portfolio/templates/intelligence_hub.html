@@ -1,0 +1,430 @@
+{% extends "main/_base_portfolio.html" %}
+
+{% block title %}Investment Intelligence Hub{% endblock %}
+
+{% block content %}
+<div class="portfolio-dashboard-container">
+
+    <!-- ════════════════════════════════════════════════
+         HEADER CARD (unified dashboard pattern)
+         ════════════════════════════════════════════════ -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Investment Intelligence Hub</h1>
+                <p class="dashboard-subtitle">Your central command for portfolio insights, patterns, and actionable intelligence</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.decision_journal_list') }}" class="action-btn">
+                    <i class="bi bi-journal-bookmark-fill"></i> Decision Journal
+                </a>
+                <a href="{{ url_for('portfolio.dashboard') }}" class="action-btn">
+                    <i class="bi bi-briefcase"></i> Portfolio
+                </a>
+                <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn primary">
+                    <i class="bi bi-plus"></i> Add Transaction
+                </a>
+            </div>
+        </header>
+
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div class="portfolio-metric-label">Total Return</div>
+                <div class="portfolio-metric-value {% if health.total_return >= 0 %}gain{% else %}loss{% endif %}">
+                    {% if health.total_return >= 0 %}+{% endif %}{{ "%.1f"|format(health.total_return) }}%
+                </div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue">
+                    <i class="bi bi-trophy"></i>
+                </div>
+                <div class="portfolio-metric-label">Win Rate</div>
+                <div class="portfolio-metric-value">{{ "%.0f"|format(health.win_rate) }}%</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon {% if health.overdue_checkpoints > 0 %}gray{% else %}green{% endif %}">
+                    <i class="bi bi-calendar-x"></i>
+                </div>
+                <div class="portfolio-metric-label">Overdue</div>
+                <div class="portfolio-metric-value {% if health.overdue_checkpoints > 0 %}loss{% endif %}">{{ health.overdue_checkpoints }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon {% if health.needs_attention > 0 %}gray{% else %}green{% endif %}">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="portfolio-metric-label">Needs Attention</div>
+                <div class="portfolio-metric-value {% if health.needs_attention > 0 %}loss{% endif %}">{{ health.needs_attention }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue">
+                    <i class="bi bi-star"></i>
+                </div>
+                <div class="portfolio-metric-label">Avg Research</div>
+                <div class="portfolio-metric-value">{{ health.avg_quality_grade }}</div>
+            </div>
+        </div>
+
+        {% if alerts %}
+        <div class="dashboard-alerts-strip" id="alerts-strip">
+            {% for alert in alerts[:2] %}
+            <div class="dashboard-alert-card dashboard-alert-card--warning">
+                <i class="bi bi-{{ alert.icon }}"></i>
+                <span class="dashboard-alert-card__text">{{ alert.message }}</span>
+                <div class="dashboard-alert-card__actions">
+                    <a href="{{ alert.link }}" class="action-btn">{{ alert.action }}</a>
+                    {% if loop.last and alerts|length > 2 %}
+                    <div class="dashboard-alerts-more">
+                        +{{ alerts|length - 2 }} more
+                        <button onclick="toggleAlerts()">Show all</button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if alerts|length > 2 %}
+            <div class="dashboard-alerts-expanded" id="alerts-expanded">
+                {% for alert in alerts[2:] %}
+                <div class="dashboard-alert-card dashboard-alert-card--warning">
+                    <i class="bi bi-{{ alert.icon }}"></i>
+                    <span class="dashboard-alert-card__text">{{ alert.message }}</span>
+                    <div class="dashboard-alert-card__actions">
+                        <a href="{{ alert.link }}" class="action-btn">{{ alert.action }}</a>
+                    </div>
+                </div>
+                {% endfor %}
+                <button class="dashboard-alerts-more" onclick="toggleAlerts()" style="align-self: flex-start;">Collapse</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Intelligence Cards Grid -->
+    <div class="priority-lane-grid">
+
+        <!-- Performance Card -->
+        <div class="hub-intel-card performance">
+            <div class="hub-intel-card-header">
+                <div class="hub-intel-card-icon">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div>
+                    <h3 class="hub-intel-card-title">Performance Analytics</h3>
+                    <p class="hub-intel-card-subtitle">Portfolio returns & metrics</p>
+                </div>
+            </div>
+            <div class="hub-intel-card-body">
+                {% if performance.has_data %}
+                <div class="hub-intel-card-metrics">
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value {% if performance.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if performance.total_return >= 0 %}+{% endif %}{{ "%.1f"|format(performance.total_return) }}%
+                        </div>
+                        <div class="hub-intel-metric-label">Total Return</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value">{{ performance.positions_count }}</div>
+                        <div class="hub-intel-metric-label">Positions</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value positive">{{ performance.winning }}</div>
+                        <div class="hub-intel-metric-label">Winning</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value negative">{{ performance.losing }}</div>
+                        <div class="hub-intel-metric-label">Losing</div>
+                    </div>
+                </div>
+                {% if performance.top_performer %}
+                <div class="hub-intel-card-highlight">
+                    <i class="bi bi-trophy text-success"></i>
+                    <span>Top: {{ performance.top_performer.ticker }} ({% if performance.top_performer.return >= 0 %}+{% endif %}{{ "%.1f"|format(performance.top_performer.return) }}%)</span>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="hub-intel-card-empty">
+                    <i class="bi bi-briefcase"></i>
+                    <p>Add positions to see performance</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="hub-intel-card-footer">
+                <a href="{{ url_for('portfolio.analytics') }}">
+                    View Performance Details <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Decisions Card -->
+        <div class="hub-intel-card decisions">
+            <div class="hub-intel-card-header">
+                <div class="hub-intel-card-icon">
+                    <i class="bi bi-signpost-split"></i>
+                </div>
+                <div>
+                    <h3 class="hub-intel-card-title">Decision Quality</h3>
+                    <p class="hub-intel-card-subtitle">Research impact on returns</p>
+                </div>
+            </div>
+            <div class="hub-intel-card-body">
+                {% if decisions.has_data %}
+                <div class="hub-intel-card-metrics">
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value {% if decisions.research_return >= decisions.no_research_return %}positive{% else %}negative{% endif %}">
+                            {% if decisions.research_return >= 0 %}+{% endif %}{{ "%.1f"|format(decisions.research_return) }}%
+                        </div>
+                        <div class="hub-intel-metric-label">With Research</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value {% if decisions.no_research_return >= decisions.research_return %}positive{% else %}negative{% endif %}">
+                            {% if decisions.no_research_return >= 0 %}+{% endif %}{{ "%.1f"|format(decisions.no_research_return) }}%
+                        </div>
+                        <div class="hub-intel-metric-label">No Research</div>
+                    </div>
+                </div>
+                <div class="hub-intel-card-highlight">
+                    {% if decisions.research_advantage >= 0 %}
+                    <i class="bi bi-check-circle text-success"></i>
+                    <span>Research adds +{{ "%.1f"|format(decisions.research_advantage) }}% edge</span>
+                    {% else %}
+                    <i class="bi bi-exclamation-circle text-warning"></i>
+                    <span>Research process needs review</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="hub-intel-card-empty">
+                    <i class="bi bi-clipboard-data"></i>
+                    <p>Complete trades to analyze decisions</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="hub-intel-card-footer">
+                <a href="{{ url_for('portfolio.analytics_decisions') }}">
+                    View Decision Analysis <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Research Correlation Card -->
+        <div class="hub-intel-card research">
+            <div class="hub-intel-card-header">
+                <div class="hub-intel-card-icon">
+                    <i class="bi bi-bar-chart-line"></i>
+                </div>
+                <div>
+                    <h3 class="hub-intel-card-title">Research Correlation</h3>
+                    <p class="hub-intel-card-subtitle">Quality score → returns</p>
+                </div>
+            </div>
+            <div class="hub-intel-card-body">
+                {% if correlation.has_data %}
+                <div class="hub-intel-card-metrics">
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value {% if correlation.research_advantage >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if correlation.research_advantage >= 0 %}+{% endif %}{{ "%.1f"|format(correlation.research_advantage) }}%
+                        </div>
+                        <div class="hub-intel-metric-label">Research Edge</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value">{{ correlation.total_outcomes }}</div>
+                        <div class="hub-intel-metric-label">Trades Analyzed</div>
+                    </div>
+                </div>
+                {% if correlation.best_grade %}
+                <div class="hub-intel-card-highlight">
+                    <i class="bi bi-award text-primary"></i>
+                    <span>Best grade: {{ correlation.best_grade }} trades</span>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="hub-intel-card-empty">
+                    <i class="bi bi-graph-up"></i>
+                    <p>Need {{ correlation.min_needed }} trades to analyze</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="hub-intel-card-footer">
+                <a href="{{ url_for('portfolio.research_correlation') }}">
+                    View Correlation Data <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Checkpoints Card -->
+        <div class="hub-intel-card checkpoints">
+            <div class="hub-intel-card-header">
+                <div class="hub-intel-card-icon">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+                <div>
+                    <h3 class="hub-intel-card-title">Checkpoints</h3>
+                    <p class="hub-intel-card-subtitle">Milestones & reminders</p>
+                </div>
+            </div>
+            <div class="hub-intel-card-body">
+                {% if checkpoints.total > 0 %}
+                <div class="hub-intel-card-metrics">
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value {% if checkpoints.overdue > 0 %}negative{% else %}positive{% endif %}">
+                            {{ checkpoints.overdue }}
+                        </div>
+                        <div class="hub-intel-metric-label">Overdue</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value warning">{{ checkpoints.this_week }}</div>
+                        <div class="hub-intel-metric-label">This Week</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value">{{ checkpoints.upcoming }}</div>
+                        <div class="hub-intel-metric-label">Upcoming</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value">{{ checkpoints.total }}</div>
+                        <div class="hub-intel-metric-label">Total Active</div>
+                    </div>
+                </div>
+                {% if checkpoints.overdue > 0 %}
+                <div class="hub-intel-card-highlight" style="background: #fef2f2;">
+                    <i class="bi bi-exclamation-triangle text-danger"></i>
+                    <span>{{ checkpoints.overdue }} checkpoint{% if checkpoints.overdue != 1 %}s{% endif %} need review</span>
+                </div>
+                {% else %}
+                <div class="hub-intel-card-highlight">
+                    <i class="bi bi-check-circle text-success"></i>
+                    <span>All checkpoints on track</span>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="hub-intel-card-empty">
+                    <i class="bi bi-calendar-plus"></i>
+                    <p>No active checkpoints</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="hub-intel-card-footer">
+                <a href="{{ url_for('portfolio.checkpoint_reminders') }}">
+                    View All Checkpoints <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Thesis Reality Card -->
+        <div class="hub-intel-card thesis">
+            <div class="hub-intel-card-header">
+                <div class="hub-intel-card-icon">
+                    <i class="bi bi-clipboard-check"></i>
+                </div>
+                <div>
+                    <h3 class="hub-intel-card-title">Thesis Tracker</h3>
+                    <p class="hub-intel-card-subtitle">Expected vs actual</p>
+                </div>
+            </div>
+            <div class="hub-intel-card-body">
+                {% if thesis.has_positions %}
+                <div class="hub-intel-card-metrics">
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value positive">{{ thesis.exceeding }}</div>
+                        <div class="hub-intel-metric-label">Exceeding</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value">{{ thesis.on_track }}</div>
+                        <div class="hub-intel-metric-label">On Track</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value warning">{{ thesis.behind }}</div>
+                        <div class="hub-intel-metric-label">Behind</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value negative">{{ thesis.needs_attention }}</div>
+                        <div class="hub-intel-metric-label">Attention</div>
+                    </div>
+                </div>
+                {% if thesis.needs_attention > 0 %}
+                <div class="hub-intel-card-highlight" style="background: #fef2f2;">
+                    <i class="bi bi-exclamation-triangle text-danger"></i>
+                    <span>{{ thesis.needs_attention }} position{% if thesis.needs_attention != 1 %}s{% endif %} diverging from thesis</span>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="hub-intel-card-empty">
+                    <i class="bi bi-clipboard"></i>
+                    <p>Add positions to track thesis</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="hub-intel-card-footer">
+                <a href="{{ url_for('portfolio.thesis_reality') }}">
+                    View Thesis Details <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Learning Insights Card -->
+        <div class="hub-intel-card learning">
+            <div class="hub-intel-card-header">
+                <div class="hub-intel-card-icon">
+                    <i class="bi bi-lightbulb"></i>
+                </div>
+                <div>
+                    <h3 class="hub-intel-card-title">Learning Insights</h3>
+                    <p class="hub-intel-card-subtitle">Patterns from your history</p>
+                </div>
+            </div>
+            <div class="hub-intel-card-body">
+                {% if learning.has_insights %}
+                <div class="hub-intel-card-metrics">
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value positive">{{ learning.edge_count }}</div>
+                        <div class="hub-intel-metric-label">Your Edge</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value">{{ learning.patterns_count }}</div>
+                        <div class="hub-intel-metric-label">Patterns</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value warning">{{ learning.warnings_count }}</div>
+                        <div class="hub-intel-metric-label">Warnings</div>
+                    </div>
+                    <div class="hub-intel-metric">
+                        <div class="hub-intel-metric-value">{{ learning.total_trades }}</div>
+                        <div class="hub-intel-metric-label">Trades</div>
+                    </div>
+                </div>
+                {% if learning.top_insight %}
+                <div class="hub-intel-card-highlight">
+                    <i class="bi bi-star text-warning"></i>
+                    <span>{{ learning.top_insight }}</span>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="hub-intel-card-empty">
+                    <i class="bi bi-lightbulb"></i>
+                    <p>Need {{ learning.min_needed }} trades to unlock insights</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="hub-intel-card-footer">
+                <a href="{{ url_for('portfolio.learning_insights') }}">
+                    View All Insights <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    function toggleAlerts() {
+        var expanded = document.getElementById('alerts-expanded');
+        if (expanded) {
+            expanded.classList.toggle('is-open');
+        }
+    }
+</script>
+{% endblock %}
+

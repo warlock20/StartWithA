@@ -1,0 +1,38 @@
+<!-- View Note Modal (Read-only) -->
+<div class="modal fade" id="viewNoteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewNoteTitle">Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="viewNoteContent" class="note-view-content"></div>
+
+                <div id="viewNoteMetadata" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
+                    <!-- Source -->
+                    <div id="viewNoteSourceWrapper" style="display: none; margin-bottom: 1rem;">
+                        <p class="text-muted mb-1" style="font-size: 0.875rem; font-weight: 600;">
+                            <i class="bi bi-link-45deg"></i> Source
+                        </p>
+                        <a id="viewNoteSource" href="#" target="_blank" style="color: #3b82f6; text-decoration: none;"></a>
+                    </div>
+
+                    <!-- Tags -->
+                    <div id="viewNoteTagsWrapper" style="display: none;">
+                        <p class="text-muted mb-2" style="font-size: 0.875rem; font-weight: 600;">
+                            <i class="bi bi-tags"></i> Tags
+                        </p>
+                        <div id="viewNoteTags"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="viewNoteEditBtn" onclick="editNoteFromView()">
+                    <i class="bi bi-pencil"></i> Edit Note
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

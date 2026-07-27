@@ -1,0 +1,844 @@
+{% extends "main/_base_companies.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- ================================================================
+         PROGRESS HEADER — Segmented bar + legend
+         ================================================================ -->
+    <div class="cl-progress-header">
+        <div class="cl-progress-header-top">
+            <h2 class="cl-progress-title">
+                {{ session.company.name }} <span>({{ session.company.ticker_symbol }})</span>
+            </h2>
+            <div class="d-flex align-items-center gap-3">
+                <div class="cl-progress-count">
+                    <strong>{{ current_item_number }}</strong> of <strong>{{ total_items }}</strong> items
+                </div>
+                {% with btn_class='btn btn-outline-secondary btn-sm' %}
+                    {% include 'components/smart_back_button.html' %}
+                {% endwith %}
+            </div>
+        </div>
+
+        {# Compute status counts from answers_map #}
+        {% set ns = namespace(satisfied=0, not_satisfied=0, needs_attention=0, neutral_count=0, pending=0) %}
+        {% for item in all_items_in_order %}
+            {% set ans = answers_map.get(item.id) %}
+            {% if ans %}
+                {% if ans.satisfaction_status == 'satisfied' %}
+                    {% set ns.satisfied = ns.satisfied + 1 %}
+                {% elif ans.satisfaction_status == 'not_satisfied' %}
+                    {% set ns.not_satisfied = ns.not_satisfied + 1 %}
+                {% elif ans.satisfaction_status == 'needs_attention' %}
+                    {% set ns.needs_attention = ns.needs_attention + 1 %}
+                {% else %}
+                    {% set ns.neutral_count = ns.neutral_count + 1 %}
+                {% endif %}
+            {% else %}
+                {% set ns.pending = ns.pending + 1 %}
+            {% endif %}
+        {% endfor %}
+
+        <div class="cl-progress-bar">
+            {% if ns.satisfied > 0 %}
+            <div class="cl-progress-segment satisfied" style="width: {{ (ns.satisfied / total_items * 100)|round(1) }}%"></div>
+            {% endif %}
+            {% if ns.not_satisfied > 0 %}
+            <div class="cl-progress-segment not-satisfied" style="width: {{ (ns.not_satisfied / total_items * 100)|round(1) }}%"></div>
+            {% endif %}
+            {% if ns.needs_attention > 0 %}
+            <div class="cl-progress-segment needs-attention" style="width: {{ (ns.needs_attention / total_items * 100)|round(1) }}%"></div>
+            {% endif %}
+            {% if ns.neutral_count > 0 %}
+            <div class="cl-progress-segment neutral" style="width: {{ (ns.neutral_count / total_items * 100)|round(1) }}%"></div>
+            {% endif %}
+        </div>
+
+        <div class="cl-progress-legend">
+            <div class="cl-progress-legend-item">
+                <span class="cl-progress-legend-dot satisfied"></span>
+                <span class="cl-progress-legend-count">{{ ns.satisfied }}</span> Satisfied
+            </div>
+            <div class="cl-progress-legend-item">
+                <span class="cl-progress-legend-dot not-satisfied"></span>
+                <span class="cl-progress-legend-count">{{ ns.not_satisfied }}</span> Not Satisfied
+            </div>
+            <div class="cl-progress-legend-item">
+                <span class="cl-progress-legend-dot needs-attention"></span>
+                <span class="cl-progress-legend-count">{{ ns.needs_attention }}</span> Needs Attention
+            </div>
+            <div class="cl-progress-legend-item">
+                <span class="cl-progress-legend-dot neutral"></span>
+                <span class="cl-progress-legend-count">{{ ns.neutral_count }}</span> Neutral
+            </div>
+            <div class="cl-progress-legend-item">
+                <span class="cl-progress-legend-dot pending"></span>
+                <span class="cl-progress-legend-count">{{ ns.pending }}</span> Pending
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- ================================================================
+             MAIN CONTENT (col-lg-8)
+             ================================================================ -->
+        <main class="col-lg-8">
+            <form method="POST" id="answerForm"
+                action="{{ url_for('research_workflow.research_step', analysis_id=session.id, item_id=current_item.id) }}">
+
+                <!-- Question Card -->
+                {% set current_status = answer.satisfaction_status if answer and answer.satisfaction_status else 'pending' %}
+                <div class="cl-question-card status-{{ current_status }}" id="questionCard">
+                    <div class="cl-question-header">
+                        <div class="cl-question-number">{{ current_item_number }}</div>
+                        <div class="cl-question-content">
+                            <h4 class="cl-question-text">{{ current_item.text }}</h4>
+                            <div class="cl-question-meta">
+                                {% if current_item.parent %}
+                                <span class="parent-label">
+                                    <i class="bi bi-diagram-3"></i> {{ current_item.parent.text }}
+                                </span>
+                                {% endif %}
+                                {% if current_item.description %}
+                                <button type="button" class="cl-description-toggle" onclick="toggleDescription()">
+                                    <i class="bi bi-info-circle"></i> <span id="descToggleText">Show details</span>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if current_item.description %}
+                    <div class="cl-question-description" id="questionDescription" style="display: none;">
+                        <div class="cl-question-description-content">
+                            {{ current_item.description }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Verdict Buttons -->
+                    <div class="cl-verdict-section">
+                        <div class="cl-verdict-label">Your Verdict</div>
+                        <div class="cl-verdict-buttons">
+                            <button type="button" class="cl-verdict-btn satisfied {{ 'active' if current_status == 'satisfied' }}"
+                                    onclick="setVerdict('satisfied')">
+                                <i class="bi bi-check-circle-fill"></i> Satisfied
+                            </button>
+                            <button type="button" class="cl-verdict-btn not-satisfied {{ 'active' if current_status == 'not_satisfied' }}"
+                                    onclick="setVerdict('not_satisfied')">
+                                <i class="bi bi-x-circle-fill"></i> Not Satisfied
+                            </button>
+                            <button type="button" class="cl-verdict-btn needs-attention {{ 'active' if current_status == 'needs_attention' }}"
+                                    onclick="setVerdict('needs_attention')">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Needs Attention
+                            </button>
+                            <button type="button" class="cl-verdict-btn neutral {{ 'active' if answer and current_status == 'neutral' }}"
+                                    onclick="setVerdict('neutral')">
+                                <i class="bi bi-info-circle"></i> Neutral
+                            </button>
+                        </div>
+                        <!-- Hidden input: empty when no answer exists yet, so no false verdict -->
+                        <input type="hidden" id="satisfaction_status" name="satisfaction_status"
+                               value="{{ current_status if current_status != 'pending' else '' }}">
+                    </div>
+                </div>
+
+                <!-- Answer / Synthesis Area -->
+                <div class="cl-answer-section">
+                    <div class="cl-answer-header">
+                        <h6><i class="bi bi-pencil-square"></i> Notes & Synthesis</h6>
+                        <span id="autoSaveStatus" class="text-muted" style="font-size: 0.75rem;"></span>
+                    </div>
+                    <div class="cl-answer-body">
+                        <div id="answerEditor" class="cl-answer-editor blocknote-editor-wrapper"></div>
+                        <textarea class="form-control d-none" id="answer_text" name="answer_text" rows="8"
+                            placeholder="Synthesize your findings...">{{ answer.answer_text if answer else '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- AI Tools (React Island) -->
+                <div id="ai-assistant-mount"></div>
+
+                <!-- Navigation -->
+                <div class="cl-nav-bar">
+                    <div>
+                        {% if previous_item_id %}
+                        <a href="{{ url_for('research_workflow.research_step', analysis_id=session.id, item_id=previous_item_id) }}"
+                           class="btn btn-outline-secondary"
+                           onclick="event.preventDefault(); navigateToItem({{ previous_item_id }}, this.href);">
+                            <i class="bi bi-arrow-left"></i> Previous
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        {% include 'partials/_argos_check.html' %}
+                        <a href="{{ url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id) }}"
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-list-check"></i> Summary
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            Save & Next <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </main>
+
+        <!-- ================================================================
+             SIDEBAR (col-lg-4)
+             ================================================================ -->
+        <aside class="col-lg-4">
+            <div class="sticky-top" style="top: 1rem;">
+
+                <!-- Progress Stats -->
+                <div class="cl-sidebar-section">
+                    <div class="cl-sidebar-header">
+                        <h6><i class="bi bi-bar-chart-fill"></i> Verification Progress</h6>
+                    </div>
+                    <div class="cl-sidebar-stats">
+                        <div class="cl-sidebar-stat">
+                            <div class="cl-sidebar-stat-value total">{{ total_items }}</div>
+                            <div class="cl-sidebar-stat-label">Total</div>
+                        </div>
+                        <div class="cl-sidebar-stat">
+                            <div class="cl-sidebar-stat-value satisfied">{{ ns.satisfied }}</div>
+                            <div class="cl-sidebar-stat-label">Pass</div>
+                        </div>
+                        <div class="cl-sidebar-stat">
+                            <div class="cl-sidebar-stat-value flagged">{{ ns.not_satisfied }}</div>
+                            <div class="cl-sidebar-stat-label">Fail</div>
+                        </div>
+                        <div class="cl-sidebar-stat">
+                            <div class="cl-sidebar-stat-value attention">{{ ns.needs_attention }}</div>
+                            <div class="cl-sidebar-stat-label">Watch</div>
+                        </div>
+                    </div>
+
+                    <!-- Checklist Map -->
+                    <div class="cl-map-list" id="checklistMap">
+                        {% for item in all_items_in_order %}
+                            {% set item_ans = answers_map.get(item.id) %}
+                            {% set item_status = item_ans.satisfaction_status if item_ans and item_ans.satisfaction_status else 'pending' %}
+                            {% set is_current = (item.id == current_item.id) %}
+
+                            <a href="{{ url_for('research_workflow.research_step', analysis_id=session.id, item_id=item.id) }}"
+                               class="cl-map-item {{ 'current' if is_current }} {{ 'sub-item' if item.parent_id }}"
+                               data-item-id="{{ item.id }}"
+                               data-item-index="{{ loop.index }}">
+                                <span class="cl-map-item-number {{ item_status|replace('_', '-') if item_status != 'pending' else '' }} {{ 'current-item' if is_current and item_status == 'pending' }}">
+                                    {% if item_status == 'satisfied' %}
+                                        <i class="bi bi-check"></i>
+                                    {% elif item_status == 'not_satisfied' %}
+                                        <i class="bi bi-x"></i>
+                                    {% elif item_status == 'needs_attention' %}
+                                        <i class="bi bi-exclamation"></i>
+                                    {% elif item_status == 'neutral' %}
+                                        <i class="bi bi-dash"></i>
+                                    {% else %}
+                                        {{ loop.index }}
+                                    {% endif %}
+                                </span>
+                                <span class="cl-map-item-text">{{ item.text|truncate(45) }}</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Documents (minimal) -->
+                {% if company_documents %}
+                <div class="cl-sidebar-section">
+                    <div class="cl-sidebar-header">
+                        <h6><i class="bi bi-file-earmark-text"></i> Documents ({{ company_documents|length }})</h6>
+                    </div>
+                    <div class="cl-documents-list">
+                        {% for doc in company_documents[:5] %}
+                        <a href="{{ url_for('companies.api_download_resource', resource_id=doc.id) }}"
+                           target="_blank">
+                            {{ doc.title or doc.original_filename }}
+                        </a>
+                        {% endfor %}
+                        {% if company_documents|length > 5 %}
+                        <a href="{{ url_for('companies.company_detail', company_id=session.company.id) }}">
+                            View all {{ company_documents|length }} documents...
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script defer src="{{ url_for('static', filename='js/dist/ai-research-assistant.bundle.js') }}"></script>
+
+<!-- BlockNote Editor -->
+{% include 'components/blocknote_editor_include.html' %}
+<script>
+    // =========================================================================
+    // Verdict Buttons
+    // =========================================================================
+    function setVerdict(status) {
+        // Update hidden input
+        document.getElementById('satisfaction_status').value = status;
+
+        // Update button states
+        document.querySelectorAll('.cl-verdict-btn').forEach(btn => btn.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+
+        // Update question card border color
+        const card = document.getElementById('questionCard');
+        card.className = card.className.replace(/status-\S+/, '');
+        card.classList.add('status-' + status);
+
+        // Update the current item in the sidebar map
+        const currentMapItem = document.querySelector('.cl-map-item.current .cl-map-item-number');
+        if (currentMapItem) {
+            currentMapItem.className = 'cl-map-item-number ' + status.replace('_', '-');
+            const iconMap = {
+                'satisfied': '<i class="bi bi-check"></i>',
+                'not_satisfied': '<i class="bi bi-x"></i>',
+                'needs_attention': '<i class="bi bi-exclamation"></i>',
+                'neutral': '<i class="bi bi-dash"></i>'
+            };
+            currentMapItem.innerHTML = iconMap[status] || '{{ current_item_number }}';
+        }
+    }
+
+    // =========================================================================
+    // Description Toggle
+    // =========================================================================
+    function toggleDescription() {
+        const desc = document.getElementById('questionDescription');
+        const toggleText = document.getElementById('descToggleText');
+        if (desc) {
+            const isHidden = desc.style.display === 'none';
+            desc.style.display = isHidden ? 'block' : 'none';
+            toggleText.textContent = isHidden ? 'Hide details' : 'Show details';
+        }
+    }
+
+    // AI Tools Toggle — handled by React island, kept as no-op for safety
+    function toggleAITools() {}
+
+    // =========================================================================
+    // BlockNote Editor
+    // =========================================================================
+    let answerEditorRoot = null;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initializeAnswerEditor();
+
+        // Intercept form submit for AJAX Save & Next
+        const answerForm = document.getElementById('answerForm');
+        if (answerForm) {
+            answerForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                // Get current content from BlockNote
+                let content = '';
+                if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+                    const blocks = window.blockNoteEditorInstance.editor.document;
+                    content = JSON.stringify(blocks);
+                } else {
+                    content = document.getElementById('answer_text').value || '';
+                }
+
+                const satisfactionStatus = document.getElementById('satisfaction_status').value;
+
+                // Derive save_and_next URL from current form action
+                const saveNextUrl = answerForm.action + '/save_and_next';
+
+                // Show saving state on button
+                const submitBtn = answerForm.querySelector('button[type="submit"]');
+                const originalBtnHtml = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+                try {
+                    const response = await fetch(saveNextUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            content: content,
+                            satisfaction_status: satisfactionStatus
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Save failed');
+                    const data = await response.json();
+
+                    if (!data.success) throw new Error(data.error || 'Save failed');
+
+                    if (data.is_last_item) {
+                        // Last item: redirect to summary page
+                        window.location.href = data.summary_url;
+                        return;
+                    }
+
+                    // Restore button state before navigation
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+
+                    // Navigate to next item via AJAX (skip autosave — we just saved)
+                    const nextItemId = data.next_item_id;
+                    const fallbackUrl = `${CHECKLIST_BASE_URL}/item/${nextItemId}`;
+                    await navigateToItem(nextItemId, fallbackUrl, { skipAutosave: true });
+
+                } catch (error) {
+                    console.error('AJAX Save & Next failed, falling back:', error);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+
+                    // Fallback: sync content to textarea and do traditional form submit
+                    if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+                        const blocks = window.blockNoteEditorInstance.editor.document;
+                        document.getElementById('answer_text').value = JSON.stringify(blocks);
+                    }
+                    HTMLFormElement.prototype.submit.call(answerForm);
+                }
+            });
+        }
+
+        // Initialize AI Assistant (React island)
+        if (window.initAIAssistant) {
+            window.initAIAssistant('ai-assistant-mount', {
+                context: {
+                    analysis_id: {{ session.id }},
+                    item_id: {{ current_item.id }},
+                    company_name: {{ session.company.name|tojson }},
+                    question_text: {{ current_item.text|tojson }},
+                },
+                hasLlmPrompt: {{ 'true' if current_item.llm_prompt else 'false' }},
+                analysisId: {{ session.id }},
+            });
+        }
+
+        // Scroll current item into view in the sidebar map
+        const currentMapItem = document.querySelector('.cl-map-item.current');
+        if (currentMapItem) {
+            currentMapItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+    });
+
+    // Module-level config reference for autosave URL updates during AJAX navigation
+    let editorConfig = null;
+
+    function initializeAnswerEditor() {
+        try {
+            if (!window.initBlockNoteEditor) {
+                throw new Error('BlockNote library not loaded');
+            }
+
+            const existingContent = document.getElementById('answer_text').value || '';
+
+            editorConfig = {
+                initialContent: existingContent,
+                placeholder: 'Add your synthesis notes here... Type "/" for commands',
+                saveResearchNotesUrl: '{{ url_for("research_workflow.autosave_research_answer", analysis_id=session.id, item_id=current_item.id) }}',
+                onSave: (data) => {
+                    const indicator = document.getElementById('autoSaveStatus');
+                    if (indicator) {
+                        indicator.innerHTML = '<i class="bi bi-check-circle"></i> Saved';
+                        setTimeout(() => { indicator.innerHTML = ''; }, 2000);
+                    }
+                }
+            };
+
+            answerEditorRoot = window.initBlockNoteEditor('answerEditor', editorConfig);
+        } catch (error) {
+            console.error('Error initializing BlockNote editor:', error);
+            const editorElement = document.getElementById('answerEditor');
+            const textareaElement = document.getElementById('answer_text');
+            if (editorElement && textareaElement) {
+                editorElement.style.display = 'none';
+                textareaElement.classList.remove('d-none');
+            }
+        }
+    }
+
+    // =========================================================================
+    // AJAX Smooth Navigation
+    // =========================================================================
+    const ANALYSIS_ID = {{ session.id }};
+    const CHECKLIST_BASE_URL = '{{ url_for("research_workflow.research_step", analysis_id=session.id, item_id=0) }}'.replace('/item/0', '');
+    let isNavigating = false;
+
+    // Intercept sidebar map clicks
+    document.addEventListener('DOMContentLoaded', function() {
+        const mapList = document.getElementById('checklistMap');
+        if (mapList) {
+            mapList.addEventListener('click', function(e) {
+                const mapItem = e.target.closest('.cl-map-item');
+                if (!mapItem) return;
+
+                e.preventDefault();
+                const itemId = mapItem.dataset.itemId;
+                if (itemId && !isNavigating) {
+                    navigateToItem(parseInt(itemId), mapItem.href);
+                }
+            });
+        }
+    });
+
+    async function navigateToItem(itemId, fallbackUrl, options = {}) {
+        if (isNavigating) return;
+        isNavigating = true;
+
+        // Skip autosave when called from Save & Next (already saved)
+        if (!options.skipAutosave) {
+            await autoSaveCurrentAnswer();
+        }
+
+        // Fade out main content
+        const mainContent = document.querySelector('main.col-lg-8');
+        if (mainContent) mainContent.classList.add('cl-fade-out');
+
+        try {
+            const response = await fetch(`${CHECKLIST_BASE_URL}/item/${itemId}/json`);
+            if (!response.ok) throw new Error(`Failed to fetch item: ${response.status}`);
+            const data = await response.json();
+
+            // Wait for fade out to complete
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // Update form action FIRST (other updates may depend on it)
+            document.getElementById('answerForm').action = data.form_action_url;
+
+            // Update URL without reload
+            const newUrl = `${CHECKLIST_BASE_URL}/item/${itemId}`;
+            history.pushState({ itemId }, '', newUrl);
+
+            // Update all content — each wrapped so one failure doesn't abort the rest
+            const updates = [
+                ['QuestionCard', () => updateQuestionCard(data)],
+                ['VerdictButtons', () => updateVerdictButtons(data)],
+                ['AnswerEditor', () => updateAnswerEditor(data)],
+                ['Navigation', () => updateNavigation(data)],
+                ['SidebarMap', () => updateSidebarMap(data)],
+                ['ProgressHeader', () => updateProgressHeader(data)],
+                ['AIContext', () => updateAIContext(data)]
+            ];
+
+            for (const [name, fn] of updates) {
+                try {
+                    fn();
+                } catch (err) {
+                    console.error(`AJAX nav: ${name} update failed:`, err);
+                }
+            }
+
+            // Fade in
+            if (mainContent) {
+                mainContent.classList.remove('cl-fade-out');
+                mainContent.classList.add('cl-fade-in');
+                setTimeout(() => mainContent.classList.remove('cl-fade-in'), 300);
+            }
+
+            // Scroll map item into view
+            const currentMapItem = document.querySelector('.cl-map-item.current');
+            if (currentMapItem) {
+                currentMapItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+
+        } catch (error) {
+            console.error('AJAX navigation failed, falling back:', error);
+            if (mainContent) mainContent.classList.remove('cl-fade-out');
+            window.location.href = fallbackUrl;
+        } finally {
+            isNavigating = false;
+        }
+    }
+
+    async function autoSaveCurrentAnswer() {
+        try {
+            let content = '';
+            if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+                const blocks = window.blockNoteEditorInstance.editor.document;
+                content = JSON.stringify(blocks);
+            } else {
+                content = document.getElementById('answer_text').value || '';
+            }
+
+            const status = document.getElementById('satisfaction_status').value;
+            const formAction = document.getElementById('answerForm').action;
+            // Derive autosave URL from form action
+            const autosaveUrl = formAction + '/autosave';
+
+            await fetch(autosaveUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, satisfaction_status: status })
+            });
+        } catch (e) {
+            console.warn('Auto-save before navigation failed:', e);
+        }
+    }
+
+    function updateQuestionCard(data) {
+        const status = (!data.satisfaction_status || data.satisfaction_status === 'pending') ? 'pending' : data.satisfaction_status;
+
+        // Update card border
+        const card = document.getElementById('questionCard');
+        card.className = card.className.replace(/status-\S+/, '');
+        card.classList.add('status-' + status);
+
+        // Update number
+        document.querySelector('.cl-question-number').textContent = data.item_number;
+
+        // Update text
+        document.querySelector('.cl-question-text').textContent = data.text;
+
+        // Update meta (parent + description toggle)
+        const meta = document.querySelector('.cl-question-meta');
+        let metaHtml = '';
+        if (data.parent_text) {
+            metaHtml += `<span class="parent-label"><i class="bi bi-diagram-3"></i> ${data.parent_text}</span> `;
+        }
+        if (data.description) {
+            metaHtml += `<button type="button" class="cl-description-toggle" onclick="toggleDescription()">
+                <i class="bi bi-info-circle"></i> <span id="descToggleText">Show details</span>
+            </button>`;
+        }
+        meta.innerHTML = metaHtml;
+
+        // Update description
+        const descWrapper = document.getElementById('questionDescription');
+        if (descWrapper) {
+            if (data.description) {
+                descWrapper.querySelector('.cl-question-description-content').textContent = data.description;
+                descWrapper.style.display = 'none';
+            } else {
+                descWrapper.style.display = 'none';
+            }
+        } else if (data.description) {
+            // Create description element if it doesn't exist
+            const header = document.querySelector('.cl-question-header');
+            const descHtml = `<div class="cl-question-description" id="questionDescription" style="display: none;">
+                <div class="cl-question-description-content">${data.description}</div>
+            </div>`;
+            header.insertAdjacentHTML('afterend', descHtml);
+        }
+
+        // Update progress count
+        document.querySelector('.cl-progress-count').innerHTML =
+            `<strong>${data.item_number}</strong> of <strong>${data.total_items}</strong> items`;
+    }
+
+    function updateVerdictButtons(data) {
+        const isPending = !data.satisfaction_status || data.satisfaction_status === 'pending';
+        const status = isPending ? '' : data.satisfaction_status;
+        document.getElementById('satisfaction_status').value = status;
+        document.querySelectorAll('.cl-verdict-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (isPending) return; // No answer yet — no button active
+            const btnStatus = btn.classList.contains('satisfied') ? 'satisfied'
+                : btn.classList.contains('not-satisfied') ? 'not_satisfied'
+                : btn.classList.contains('needs-attention') ? 'needs_attention'
+                : 'neutral';
+            if (btnStatus === status) btn.classList.add('active');
+        });
+    }
+
+    function updateAnswerEditor(data) {
+        // Update hidden textarea (for fallback and form sync)
+        const textarea = document.getElementById('answer_text');
+        textarea.value = data.answer_text || '';
+
+        // Update autosave URL on the config object (closure picks this up)
+        if (editorConfig) {
+            editorConfig.saveResearchNotesUrl = data.autosave_url;
+        }
+
+        // Try to reuse existing editor via replaceBlocks
+        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+            try {
+                const editor = window.blockNoteEditorInstance.editor;
+                let newBlocks;
+
+                if (data.answer_text && data.answer_text.trim()) {
+                    try {
+                        const parsed = JSON.parse(data.answer_text);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            newBlocks = parsed;
+                        } else {
+                            newBlocks = [{ type: "paragraph", content: [] }];
+                        }
+                    } catch (parseErr) {
+                        // Not JSON — treat as plain text
+                        newBlocks = [{
+                            type: "paragraph",
+                            content: [{ type: "text", text: data.answer_text }]
+                        }];
+                    }
+                } else {
+                    // Empty content — single empty paragraph
+                    newBlocks = [{ type: "paragraph", content: [] }];
+                }
+
+                editor.replaceBlocks(editor.document, newBlocks);
+                return; // Success — editor stays alive
+            } catch (replaceErr) {
+                console.warn('replaceBlocks failed, falling back to full re-init:', replaceErr);
+            }
+        }
+
+        // Fallback: full destroy + re-create (only if replaceBlocks failed or editor not available)
+        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.unmount) {
+            window.blockNoteEditorInstance.unmount();
+        }
+        window.blockNoteEditorInstance = null;
+
+        const editorWrapper = document.getElementById('answerEditor');
+        editorWrapper.innerHTML = '';
+        editorWrapper.style.display = '';
+        textarea.classList.add('d-none');
+
+        try {
+            if (window.initBlockNoteEditor) {
+                editorConfig = {
+                    initialContent: data.answer_text || '',
+                    placeholder: 'Add your synthesis notes here... Type "/" for commands',
+                    saveResearchNotesUrl: data.autosave_url,
+                    onSave: () => {
+                        const indicator = document.getElementById('autoSaveStatus');
+                        if (indicator) {
+                            indicator.innerHTML = '<i class="bi bi-check-circle"></i> Saved';
+                            setTimeout(() => { indicator.innerHTML = ''; }, 2000);
+                        }
+                    }
+                };
+                answerEditorRoot = window.initBlockNoteEditor('answerEditor', editorConfig);
+            } else {
+                throw new Error('BlockNote not available');
+            }
+        } catch (error) {
+            console.error('Editor re-init failed:', error);
+            editorWrapper.style.display = 'none';
+            textarea.classList.remove('d-none');
+        }
+    }
+
+    function updateNavigation(data) {
+        const navBar = document.querySelector('.cl-nav-bar');
+        const prevContainer = navBar.querySelector('div:first-child');
+
+        if (data.previous_item_id) {
+            prevContainer.innerHTML = `<a href="${CHECKLIST_BASE_URL}/item/${data.previous_item_id}"
+                class="btn btn-outline-secondary" data-ajax-nav="${data.previous_item_id}">
+                <i class="bi bi-arrow-left"></i> Previous
+            </a>`;
+            // Wire up previous button for AJAX too
+            const prevBtn = prevContainer.querySelector('a');
+            prevBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                navigateToItem(data.previous_item_id, this.href);
+            });
+        } else {
+            prevContainer.innerHTML = '';
+        }
+    }
+
+    function updateSidebarMap(data) {
+        // Update current highlight
+        document.querySelectorAll('.cl-map-item').forEach(item => {
+            item.classList.remove('current');
+            if (parseInt(item.dataset.itemId) === data.item_id) {
+                item.classList.add('current');
+            }
+        });
+
+        // Update all status dots from answers_map
+        const iconMap = {
+            'satisfied': '<i class="bi bi-check"></i>',
+            'not_satisfied': '<i class="bi bi-x"></i>',
+            'needs_attention': '<i class="bi bi-exclamation"></i>',
+            'neutral': '<i class="bi bi-dash"></i>'
+        };
+
+        document.querySelectorAll('.cl-map-item').forEach(item => {
+            const itemId = parseInt(item.dataset.itemId);
+            const itemIndex = item.dataset.itemIndex;
+            const numberEl = item.querySelector('.cl-map-item-number');
+            const status = data.answers_map[itemId];
+            const isCurrent = itemId === data.item_id;
+
+            if (status && iconMap[status]) {
+                numberEl.className = 'cl-map-item-number ' + status.replace('_', '-');
+                numberEl.innerHTML = iconMap[status];
+            } else {
+                numberEl.className = 'cl-map-item-number' + (isCurrent ? ' current-item' : '');
+                numberEl.textContent = itemIndex;
+            }
+        });
+
+        // Update sidebar stats
+        const counts = data.status_counts;
+        document.querySelector('.cl-sidebar-stat-value.satisfied').textContent = counts.satisfied;
+        document.querySelector('.cl-sidebar-stat-value.flagged').textContent = counts.not_satisfied;
+        document.querySelector('.cl-sidebar-stat-value.attention').textContent = counts.needs_attention;
+    }
+
+    function updateProgressHeader(data) {
+        const counts = data.status_counts;
+        const total = data.total_items;
+
+        // Update segments
+        const bar = document.querySelector('.cl-progress-bar');
+        let barHtml = '';
+        if (counts.satisfied > 0) barHtml += `<div class="cl-progress-segment satisfied" style="width: ${(counts.satisfied / total * 100).toFixed(1)}%"></div>`;
+        if (counts.not_satisfied > 0) barHtml += `<div class="cl-progress-segment not-satisfied" style="width: ${(counts.not_satisfied / total * 100).toFixed(1)}%"></div>`;
+        if (counts.needs_attention > 0) barHtml += `<div class="cl-progress-segment needs-attention" style="width: ${(counts.needs_attention / total * 100).toFixed(1)}%"></div>`;
+        if (counts.neutral > 0) barHtml += `<div class="cl-progress-segment neutral" style="width: ${(counts.neutral / total * 100).toFixed(1)}%"></div>`;
+        bar.innerHTML = barHtml;
+
+        // Update legend counts
+        const legendItems = document.querySelectorAll('.cl-progress-legend-item');
+        const legendOrder = ['satisfied', 'not_satisfied', 'needs_attention', 'neutral', 'pending'];
+        const countMap = { ...counts };
+        legendItems.forEach((item, i) => {
+            if (legendOrder[i]) {
+                const key = legendOrder[i] === 'neutral' ? 'neutral' : legendOrder[i];
+                item.querySelector('.cl-progress-legend-count').textContent = countMap[key] || 0;
+            }
+        });
+    }
+
+    function updateAIContext(data) {
+        // Delegate to React island — handles context update, state reset, collapse
+        if (window.aiAssistant && window.aiAssistant.updateContext) {
+            window.aiAssistant.updateContext(data);
+        }
+    }
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', function(e) {
+        if (e.state && e.state.itemId) {
+            navigateToItem(e.state.itemId, window.location.href);
+        } else {
+            window.location.reload();
+        }
+    });
+
+    // =========================================================================
+    // Keyboard Shortcuts
+    // =========================================================================
+    document.addEventListener('keydown', function (e) {
+        if (e.ctrlKey && !e.target.matches('input, textarea, select, .bn-editor *, .research-content *')) {
+            switch (e.key.toLowerCase()) {
+                case 's':
+                    e.preventDefault();
+                    // Smart search
+                    const questionText = document.querySelector('.cl-question-text').textContent.trim();
+                    const searchTerms = `{{ session.company.name }} {{ session.company.ticker_symbol }} ${questionText}`;
+                    window.open(`https://www.google.com/search?q=${encodeURIComponent(searchTerms)}`, '_blank');
+                    break;
+            }
+        }
+    });
+</script>
+{% endblock %}

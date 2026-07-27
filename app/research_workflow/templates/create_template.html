@@ -1,0 +1,513 @@
+{% extends "main/_base_companies.html" %}
+
+{% block content %}
+<div class="research-workspace-dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                {% if template %}
+                <h1 class="dashboard-title font-poppins">Edit Workflow</h1>
+                <p class="dashboard-subtitle">Customize your research workflow steps</p>
+                {% else %}
+                <h1 class="dashboard-title font-poppins">Create Research Template</h1>
+                <p class="dashboard-subtitle">Design a systematic workflow for analyzing investments</p>
+                {% endif %}
+            </div>
+            <div class="dashboard-header-actions">
+                <button class="action-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                {% if template %}
+                <a href="javascript:history.back()" class="action-btn">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+                {% else %}
+                <a href="{{ url_for('research_workflow.template_list') }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+                {% endif %}
+            </div>
+        </header>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="row g-4">
+        <!-- Workflow Canvas (Main Column) -->
+        <div class="col-lg-8">
+            <div class="card template-builder-card">
+                <div class="card-body">
+                    <form method="POST" action="{% if project %}{{ url_for('research_workflow.edit_project_workflow', project_id=project.id) }}{% elif template %}{{ url_for('research_workflow.edit_template', template_id=template.id) }}{% else %}{{ url_for('research_workflow.create_template') }}{% endif %}" id="templateForm">
+                        <!-- Template Name -->
+                        <div class="mb-4">
+                            <input type="text" class="form-control template-name-input font-poppins" id="name"
+                                name="name" placeholder="Enter Template Name..."
+                                value="{{ template.name if template else '' }}" required>
+                        </div>
+
+                        <!-- Basic Settings -->
+                        <div class="template-settings-section mb-4">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="investment_style" class="form-label small text-muted">Investment
+                                        Style</label>
+                                    {% set style = template.investment_style if template else '' %}
+                                    <select class="form-select form-select-sm" id="investment_style"
+                                        name="investment_style">
+                                        <option value="">Select style...</option>
+                                        <option value="value" {{ 'selected' if style == 'value' }}>Value Investing</option>
+                                        <option value="growth" {{ 'selected' if style == 'growth' }}>Growth Investing</option>
+                                        <option value="garp" {{ 'selected' if style == 'garp' }}>GARP</option>
+                                        <option value="dividend" {{ 'selected' if style == 'dividend' }}>Dividend</option>
+                                        <option value="quality" {{ 'selected' if style == 'quality' }}>Quality Focus</option>
+                                        <option value="custom" {{ 'selected' if style and style not in ['value','growth','garp','dividend','quality',''] }}>Custom...</option>
+                                    </select>
+                                    <input type="text" class="form-control form-control-sm mt-2"
+                                        id="custom_investment_style" name="custom_investment_style"
+                                        placeholder="Custom style..." style="display: none;">
+                                </div>
+                                <div class="col-12">
+                                    <label for="description" class="form-label small text-muted">Description
+                                        (Optional)</label>
+                                    <textarea class="form-control form-control-sm" id="description" name="description"
+                                        rows="2" placeholder="When and how to use this template...">{{ template.description if template else '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Workflow Canvas -->
+                        <div class="workflow-section">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="font-poppins mb-0">Workflow Steps</h5>
+                                <span class="step-count-badge">
+                                    <span id="step-count">0</span> steps
+                                </span>
+                            </div>
+
+                            <div id="workflow-canvas" class="workflow-canvas">
+                                <!-- Empty state -->
+                                <div class="workflow-empty-state" id="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="bi bi-diagram-3"></i>
+                                    </div>
+                                    <h6 class="font-poppins">No steps yet</h6>
+                                    <p class="text-muted small">Click on any step from the library to start building
+                                        your research workflow</p>
+                                    <div class="empty-state-arrow">
+                                        <i class="bi bi-arrow-right"></i>
+                                    </div>
+                                </div>
+                                <!-- Steps will be added here dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Submit buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            {% if template %}
+                            <a href="{{ url_for('research_workflow.my_projects') }}" class="action-btn">
+                                <i class="bi bi-x"></i> Cancel
+                            </a>
+                            <button type="submit" class="eval-submit-btn">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                            {% else %}
+                            <a href="{{ url_for('research_workflow.template_list') }}" class="action-btn">
+                                <i class="bi bi-x"></i> Cancel
+                            </a>
+                            <button type="submit" class="eval-submit-btn">
+                                <i class="bi bi-save"></i> Create Template
+                            </button>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step Library Sidebar -->
+        <div class="col-lg-4">
+            <div class="card step-library-card sticky-top" style="top: 1rem;">
+                <div class="card-body">
+                    <h5 class="font-poppins mb-3">
+                        <i class="bi bi-tools text-primary"></i> Step Library
+                    </h5>
+                    <p class="text-muted small mb-4">Click to add steps to your workflow</p>
+
+                    <div class="step-library">
+                        {% set step_configs = {
+                        'checklist': {'icon': 'bi-list-check', 'color': 'blue', 'desc': 'Custom evaluation criteria'},
+                        'model': {'icon': 'bi-diagram-3', 'color': 'purple', 'desc': 'SWOT, Porter\'s 5 Forces'},
+                        'competitor_analysis': {'icon': 'bi-trophy', 'color': 'green', 'desc': 'Competitive landscape'},
+                        'thesis_writing': {'icon': 'bi-pen', 'color': 'orange', 'desc': 'Write your rationale'},
+                        'learning_overview': {'icon': 'bi-book', 'color': 'teal', 'desc': 'Educational overview'},
+                        'concept_study': {'icon': 'bi-mortarboard', 'color': 'indigo', 'desc': 'Study key concepts'},
+                        'industry_deep_dive': {'icon': 'bi-building', 'color': 'cyan', 'desc': 'Industry analysis'},
+                        'business_model_analysis': {'icon': 'bi-briefcase', 'color': 'violet', 'desc': 'Business model
+                        review'},
+                        'case_study': {'icon': 'bi-journal-text', 'color': 'pink', 'desc': 'Case study analysis'},
+                        'custom': {'icon': 'bi-gear', 'color': 'gray', 'desc': 'Free-form research'}
+                        } %}
+                        {% for step_type in step_types %}
+                        {% set config = step_configs.get(step_type.value, step_configs['custom']) %}
+                        <div class="step-library-item"
+                            onclick="addStepFromLibrary('{{ step_type.label }}', '{{ step_type.value }}')">
+                            <div class="step-library-icon step-icon-{{ config.color }}">
+                                <i class="bi {{ config.icon }}"></i>
+                            </div>
+                            <div class="step-library-content">
+                                <div class="step-library-title">{{ step_type.label }}</div>
+                                <div class="step-library-desc">{{ config.desc }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tips Modal -->
+{% set tips_title = "Research Template Tips" %}
+{% set tips_intro = "How to build your research workflow:" %}
+{% set tips = [
+"Click any step from the library to add it to your workflow",
+"Drag steps by the grip handle to reorder them",
+"Start simple with 2-3 core steps, add more as needed",
+"Use Investment Checklist as your final validation step",
+"Custom tasks give flexibility for unique research needs"
+] %}
+{% include 'main/_tips_modal.html' %}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    let stepCount = 0;
+    const stepTypes = {{ step_types| tojson }};
+    const userChecklists = {{ user_checklists| tojson }};
+    const userKillChecklists = {{ user_kill_checklists| tojson }};
+    const mentalModels = {{ mental_models| tojson }};
+
+    const stepTypeIcons = {
+        checklist: { icon: 'bi-list-check', color: 'blue', label: 'Investment Checklist' },
+        model: { icon: 'bi-diagram-3', color: 'purple', label: 'Mental Model' },
+        competitor_analysis: { icon: 'bi-trophy', color: 'green', label: 'Competitor Analysis' },
+        thesis_writing: { icon: 'bi-pen', color: 'orange', label: 'Investment Thesis' },
+        learning_overview: { icon: 'bi-book', color: 'teal', label: 'Learning Overview' },
+        concept_study: { icon: 'bi-mortarboard', color: 'indigo', label: 'Concept Study' },
+        industry_deep_dive: { icon: 'bi-building', color: 'cyan', label: 'Industry Deep Dive' },
+        business_model_analysis: { icon: 'bi-briefcase', color: 'violet', label: 'Business Model Analysis' },
+        case_study: { icon: 'bi-journal-text', color: 'pink', label: 'Case Study' },
+        custom: { icon: 'bi-gear', color: 'gray', label: 'Custom Task' }
+    };
+
+    function addStepFromLibrary(name, type) {
+        addStep(name, type);
+    }
+
+    function addStep(name = '', type = 'custom', estimatedMinutes = 60, config = {}) {
+        const container = document.getElementById('workflow-canvas');
+        const stepIndex = container.querySelectorAll('.workflow-step').length;
+
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'workflow-step';
+        stepDiv.dataset.stepIndex = stepIndex;
+        stepDiv.dataset.stepType = type;
+        stepDiv.draggable = true;
+
+        const stepInfo = stepTypeIcons[type] || stepTypeIcons['custom'];
+
+        stepDiv.innerHTML = `
+        <div class="workflow-step-timeline">
+            <div class="timeline-dot"></div>
+            <div class="timeline-line"></div>
+        </div>
+        <div class="workflow-step-content">
+            <div class="workflow-step-card step-card-${stepInfo.color}">
+                <div class="step-drag-handle">
+                    <i class="bi bi-grip-vertical"></i>
+                </div>
+                <div class="step-icon-badge step-badge-${stepInfo.color}">
+                    <i class="bi ${stepInfo.icon}"></i>
+                </div>
+                <div class="step-main-content">
+                    <div class="step-header-row">
+                        <div class="step-number-label">Step ${stepIndex + 1}</div>
+                        <input type="text" class="form-control workflow-step-name"
+                               name="step_name[]" placeholder="Enter step name..." value="${name}" required>
+                    </div>
+                    <div class="step-body-row">
+                        <div class="step-type-display">
+                            <i class="bi ${stepInfo.icon} text-${stepInfo.color}"></i>
+                            <span class="step-type-label">${stepInfo.label}</span>
+                        </div>
+                    </div>
+                    <div id="step-config-${stepIndex}" class="step-config">
+                        <!-- Type-specific configuration will be added here -->
+                    </div>
+                </div>
+                <div class="step-actions-menu">
+                    <button type="button" class="btn btn-sm btn-ghost text-danger" onclick="removeStep(this)" title="Delete">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <input type="hidden" name="step_type[]" value="${type}">
+        <input type="hidden" name="step_config[]" id="step-config-data-${stepIndex}" value="{}">
+        <input type="hidden" name="step_estimate[]" value="${estimatedMinutes || 60}">
+    `;
+
+        // Insert new steps BEFORE the Investment Thesis step (which should always be last)
+        // Find the thesis_writing step
+        const thesisStep = container.querySelector('.workflow-step[data-step-type="thesis_writing"]');
+
+        if (thesisStep && type !== 'thesis_writing') {
+            // Insert before the thesis step to keep thesis as last step
+            container.insertBefore(stepDiv, thesisStep);
+        } else {
+            // No thesis step yet, or we're adding the thesis step itself
+            container.appendChild(stepDiv);
+        }
+
+        // Add drag and drop event listeners
+        setupDragAndDrop(stepDiv);
+
+        updateStepConfig(stepIndex, type, config);
+        updateStepNumbers();
+    }
+
+    // Drag and Drop functionality
+    let draggedElement = null;
+
+    function setupDragAndDrop(element) {
+        element.addEventListener('dragstart', function (e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        element.addEventListener('dragend', function (e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.workflow-step').forEach(step => {
+                step.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+        });
+
+        element.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            if (draggedElement === this) return;
+
+            const rect = this.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+
+            // Remove all drag-over classes first
+            document.querySelectorAll('.workflow-step').forEach(step => {
+                step.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+
+            if (e.clientY < midpoint) {
+                this.classList.add('drag-over-top');
+            } else {
+                this.classList.add('drag-over-bottom');
+            }
+        });
+
+        element.addEventListener('dragleave', function (e) {
+            this.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+
+        element.addEventListener('drop', function (e) {
+            e.preventDefault();
+            if (draggedElement === this) return;
+
+            // Check if trying to move Investment Thesis step away from last position
+            if (draggedElement.dataset.stepType === 'thesis_writing') {
+                const allSteps = Array.from(document.querySelectorAll('.workflow-step'));
+                const currentIndex = allSteps.indexOf(draggedElement);
+                const isLastStep = currentIndex === allSteps.length - 1;
+
+                if (isLastStep) {
+                    const confirmed = confirm(
+                        '⚠️ NOTICE: You are moving the Investment Thesis step away from the final position.\n\n' +
+                        'It is recommended to keep this as the last step of your research workflow.\n\n' +
+                        'Continue anyway?'
+                    );
+                    if (!confirmed) {
+                        return; // Cancel the drop
+                    }
+                }
+            }
+
+            const rect = this.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+
+            if (e.clientY < midpoint) {
+                this.parentNode.insertBefore(draggedElement, this);
+            } else {
+                this.parentNode.insertBefore(draggedElement, this.nextSibling);
+            }
+
+            updateStepNumbers();
+        });
+    }
+
+    function updateStepConfig(stepIndex, stepType, config = {}) {
+        const configDiv = document.getElementById(`step-config-${stepIndex}`);
+        const configData = document.getElementById(`step-config-data-${stepIndex}`);
+
+        let configHtml = '';
+        const selectedChecklistId = config.checklist_id || '';
+        const selectedKillChecklistId = config.kill_checklist_id || '';
+        const selectedModelType = config.model_type || '';
+
+        if (stepType === 'checklist') {
+            const checklistOptions = userChecklists.map(cl =>
+                `<option value="${cl.id}" ${String(cl.id) === String(selectedChecklistId) ? 'selected' : ''}>${cl.name}</option>`
+            ).join('');
+            configHtml = `
+            <div class="mb-3">
+                <label class="form-label">Select Investment Checklist:</label>
+                <select class="form-select" name="step_${stepIndex}_checklist_id" required>
+                    <option value="">-- Choose checklist --</option>
+                    ${checklistOptions}
+                </select>
+                <small class="form-text text-muted">Use an existing investment checklist with document upload and LLM analysis features</small>
+            </div>
+        `;
+        } else if (stepType === 'kill_checklist_reference') {
+            const killChecklistOptions = userKillChecklists.map(kc =>
+                `<option value="${kc.id}" ${String(kc.id) === String(selectedKillChecklistId) ? 'selected' : ''}>${kc.name}</option>`
+            ).join('');
+            configHtml = `
+            <div class="mb-3">
+                <label class="form-label">Select Kill Checklist:</label>
+                <select class="form-select" name="step_${stepIndex}_kill_checklist_id" required>
+                    <option value="">-- Choose kill checklist --</option>
+                    ${killChecklistOptions}
+                </select>
+                <small class="form-text text-muted">Reference an existing kill checklist for screening</small>
+            </div>
+        `;
+        } else if (stepType === 'model') {
+            configHtml = `
+            <label class="form-label">Mental Model:</label>
+            <select class="form-select" name="step_${stepIndex}_model_type" required>
+                <option value="">-- Choose mental model --</option>
+                ${mentalModels.map(m => `<option value="${m}" ${m === selectedModelType ? 'selected' : ''}>${m}</option>`).join('')}
+            </select>
+        `;
+        }
+
+        configDiv.innerHTML = configHtml;
+    }
+
+    function removeStep(buttonElement) {
+        // Find the parent workflow-step element
+        const step = buttonElement.closest('.workflow-step');
+        if (step) {
+            // Check if this is the Investment Thesis step
+            if (step.dataset.stepType === 'thesis_writing') {
+                const confirmed = confirm(
+                    '⚠️ WARNING: The Investment Thesis step is highly recommended as the final step.\n\n' +
+                    'This step creates Version 0 of your investment thesis, which is essential for:\n' +
+                    '• Tracking thesis evolution over time\n' +
+                    '• AI-powered thesis analysis\n' +
+                    '• Decision quality improvement\n\n' +
+                    'Are you sure you want to remove it?'
+                );
+                if (!confirmed) {
+                    return; // User cancelled, don't remove
+                }
+            }
+            step.remove();
+            updateStepNumbers();
+        }
+    }
+
+    function updateStepNumbers() {
+        const steps = document.querySelectorAll('.workflow-step');
+        const emptyState = document.getElementById('empty-state');
+        const stepCount = document.getElementById('step-count');
+
+        // Update step count
+        if (stepCount) {
+            stepCount.textContent = steps.length;
+        }
+
+        // Show/hide empty state
+        if (emptyState) {
+            emptyState.style.display = steps.length === 0 ? 'flex' : 'none';
+        }
+
+        steps.forEach((step, index) => {
+            const numberLabel = step.querySelector('.step-number-label');
+            if (numberLabel) {
+                numberLabel.textContent = `Step ${index + 1}`;
+            }
+            step.dataset.stepIndex = index;
+
+            // Hide timeline line for last step
+            const timelineLine = step.querySelector('.timeline-line');
+            if (timelineLine) {
+                timelineLine.style.display = index === steps.length - 1 ? 'none' : 'block';
+            }
+        });
+    }
+
+
+    // Handle custom investment style
+    function handleInvestmentStyleChange() {
+        const styleSelect = document.getElementById('investment_style');
+        const customInput = document.getElementById('custom_investment_style');
+
+        if (styleSelect.value === 'custom') {
+            customInput.style.display = 'block';
+            customInput.required = true;
+        } else {
+            customInput.style.display = 'none';
+            customInput.required = false;
+            customInput.value = '';
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function () {
+        {% if template %}
+        // Edit mode: load existing workflow steps
+        const existingSteps = {{ (workflow_steps_override or template.workflow_steps) | tojson }};
+        existingSteps.forEach(function(step) {
+            addStep(step.name || '', step.type || 'custom', step.estimated_minutes || 60, step.config || {});
+        });
+
+        // Show custom investment style input if applicable
+        const knownStyles = ['value', 'growth', 'garp', 'dividend', 'quality', '', null];
+        const currentStyle = '{{ template.investment_style or "" }}';
+        if (currentStyle && !knownStyles.includes(currentStyle)) {
+            const customInput = document.getElementById('custom_investment_style');
+            customInput.style.display = 'block';
+            customInput.value = currentStyle;
+        }
+        {% else %}
+        // Create mode: add default Investment Thesis step as the final step
+        addStep('Investment Thesis', 'thesis_writing');
+
+        // Mark this step as required (cannot be easily removed)
+        const thesisStep = document.querySelector('.workflow-step[data-step-type="thesis_writing"]');
+        if (thesisStep) {
+            thesisStep.classList.add('required-step');
+            thesisStep.setAttribute('data-required', 'true');
+        }
+        {% endif %}
+
+        updateStepNumbers();
+
+        // Add event listener for investment style
+        document.getElementById('investment_style').addEventListener('change', handleInvestmentStyleChange);
+    });
+</script>
+{% endblock %}

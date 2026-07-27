@@ -1,0 +1,107 @@
+{% extends "main/_base_companies.html" %}
+
+{% block head %}
+{% include 'components/session_summary_include.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="research-workspace-dashboard-container">
+
+    <!-- Header Card with Metrics (platform reusable pattern) -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Session Summary</h1>
+                <p class="dashboard-subtitle">{{ session.company.name }} • {{ session.checklist.name }}{% if research_context %} • <span class="badge bg-info text-white" style="font-size: 0.7rem;"><i class="bi bi-diagram-3"></i> Research Workflow Step</span>{% endif %}</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('research_workflow.export_session_to_txt', analysis_id=session.id) }}"
+                    class="action-btn">
+                    <i class="bi bi-download"></i> Export
+                </a>
+                {% if research_context and research_context.get('project_id') %}
+                <a href="{{ url_for('research_workflow.complete_research_step',
+                                      project_id=research_context.project_id,
+                                      step_index=research_context.step_index) }}" class="action-btn">
+                    <i class="bi bi-check-circle"></i> Complete & Continue
+                </a>
+                {% endif %}
+                {% if research_context and research_context.get('project_id') %}
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i> Back to Project
+                </a>
+                {% else %}
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+                {% endif %}
+            </div>
+        </header>
+
+        {% set answered_count = answers_map.keys()|list|length %}
+        {% set satisfied_count = answers_map.values()|selectattr('satisfaction_status', 'equalto', 'satisfied')|list|length %}
+        {% set attention_count = answers_map.values()|selectattr('satisfaction_status', 'equalto', 'needs_attention')|list|length %}
+        {% set not_satisfied_count = answers_map.values()|selectattr('satisfaction_status', 'equalto', 'not_satisfied')|list|length %}
+
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ all_ordered_items|length }}</div>
+                <div class="portfolio-metric-label">Questions</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value" style="color: var(--accent-600);">{{ answered_count }}</div>
+                <div class="portfolio-metric-label">Answered</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value" style="color: var(--success-500);">{{ satisfied_count }}</div>
+                <div class="portfolio-metric-label">Satisfied</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value" style="color: var(--warning-500);">{{ attention_count }}</div>
+                <div class="portfolio-metric-label">Attention</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value" style="color: var(--danger-500);">{{ not_satisfied_count }}</div>
+                <div class="portfolio-metric-label">Not Satisfied</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">
+                    <i class="bi bi-{% if session.status == 'completed' %}check-circle{% else %}clock{% endif %}" style="color: {% if session.status == 'completed' %}var(--success-500){% else %}var(--accent-600){% endif %};"></i>
+                </div>
+                <div class="portfolio-metric-label">{{ session.status|capitalize }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- React Island: Question Map + Conclusion + Master-Detail -->
+    <div id="session-summary-root"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.initSessionSummary('session-summary-root', {
+            session: {
+                id: {{ session.id }},
+                status: {{ session.status|tojson }},
+                startDate: {{ session.start_date.strftime('%Y-%m-%d')|tojson }},
+                conclusion: {{ session.conclusion|tojson if session.conclusion else 'null' }},
+            },
+            company: {
+                id: {{ session.company.id }},
+                name: {{ session.company.name|tojson }},
+            },
+            intrinsicValue: {{ intrinsic_display_value|tojson if intrinsic_display_value else 'null' }},
+            intrinsicUnit: {{ intrinsic_unit }},
+            questions: {{ questions_json|safe }},
+            urls: {
+                saveConclusion: {{ url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)|tojson }},
+                exportTxt: {{ url_for('research_workflow.export_session_to_txt', analysis_id=session.id)|tojson }},
+                editAnswer: "/research/workflow/checklist/{{ session.id }}/item/{itemId}",
+                saveIntrinsicValue: {{ url_for('companies.set_intrinsic_value', company_id=session.company.id)|tojson }},
+            },
+        });
+    });
+</script>
+{% endblock %}

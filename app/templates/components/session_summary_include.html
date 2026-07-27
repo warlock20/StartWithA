@@ -1,0 +1,25 @@
+{#
+  Session Summary — React Island
+
+  Usage:
+    1. Include this in your template's {% block head %}:
+       {% include 'components/session_summary_include.html' %}
+
+    2. Add a mount point:
+       <div id="session-summary-root"></div>
+
+    3. Initialize:
+       <script>
+         window.initSessionSummary('session-summary-root', {
+           session: { ... },
+           company: { ... },
+           questions: [ ... ],
+           intrinsicValue: '...',
+           intrinsicUnit: 1,
+           urls: { ... }
+         });
+       </script>
+#}
+
+<!-- Session Summary (React) -->
+<script defer src="{{ url_for('static', filename='js/dist/session-summary.bundle.js') }}"></script>

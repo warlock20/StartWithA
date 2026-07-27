@@ -1,0 +1,603 @@
+{% extends "main/_base_portfolio.html" %}
+
+{% block title %}Thesis vs Reality{% endblock %}
+
+{% block content %}
+<div class="portfolio-dashboard-container">
+
+    <!-- Page Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-clipboard-check me-2"></i>Thesis vs Reality
+                </h1>
+                <p class="dashboard-subtitle">Compare your investment thesis to actual performance</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="action-btn">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Intelligence Hub
+                </a>
+                <a href="{{ url_for('portfolio.checkpoint_reminders') }}" class="action-btn">
+                    <i class="bi bi-calendar-check"></i>
+                    Checkpoints
+                </a>
+                <a href="{{ url_for('portfolio.analytics_decisions') }}" class="action-btn primary">
+                    <i class="bi bi-brain"></i>
+                    Decision Intelligence
+                </a>
+            </div>
+        </header>
+        {% if positions %}
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon red"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div class="portfolio-metric-label">Needs Attention</div>
+                <div class="portfolio-metric-value {% if status_counts.needs_attention > 0 %}loss{% endif %}">{{ status_counts.needs_attention }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon amber"><i class="bi bi-dash-circle-fill"></i></div>
+                <div class="portfolio-metric-label">Behind Plan</div>
+                <div class="portfolio-metric-value {% if status_counts.behind > 0 %}loss{% endif %}">{{ status_counts.behind }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green"><i class="bi bi-check-circle-fill"></i></div>
+                <div class="portfolio-metric-label">On Track</div>
+                <div class="portfolio-metric-value gain">{{ status_counts.on_track }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-arrow-up-circle-fill"></i></div>
+                <div class="portfolio-metric-label">Exceeding</div>
+                <div class="portfolio-metric-value gain">{{ status_counts.exceeding }}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if not positions %}
+    <!-- Empty State -->
+    <div class="portfolio-empty-state">
+        <i class="bi bi-clipboard-data"></i>
+        <h3>No Positions to Track</h3>
+        <p>You don't have any active positions with investment theses yet.</p>
+        <a href="{{ url_for('portfolio.add_transaction') }}" class="btn-portfolio-modern primary">
+            <i class="bi bi-plus-lg"></i>
+            Add Transaction
+        </a>
+    </div>
+
+    {% else %}
+
+    {% set needs_attention = positions | selectattr('status', 'equalto', 'needs_attention') | list %}
+    {% set behind = positions | selectattr('status', 'equalto', 'behind') | list %}
+    {% set on_track = positions | selectattr('status', 'equalto', 'on_track') | list %}
+    {% set exceeding = positions | selectattr('status', 'equalto', 'exceeding') | list %}
+
+    <!-- Section Tabs -->
+    <div class="tr-section-tabs">
+        {% if needs_attention %}
+        <button class="tr-section-tab active--danger" data-section="attention" data-active="active--danger">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Needs Attention
+            <span class="tr-tab-count">{{ needs_attention|length }}</span>
+        </button>
+        {% endif %}
+        {% if behind %}
+        <button class="tr-section-tab{% if not needs_attention %} active--warning{% endif %}" data-section="behind" data-active="active--warning">
+            <i class="bi bi-dash-circle-fill"></i>
+            Behind Plan
+            <span class="tr-tab-count">{{ behind|length }}</span>
+        </button>
+        {% endif %}
+        {% if on_track %}
+        <button class="tr-section-tab{% if not needs_attention and not behind %} active--success{% endif %}" data-section="ontrack" data-active="active--success">
+            <i class="bi bi-check-circle-fill"></i>
+            On Track
+            <span class="tr-tab-count">{{ on_track|length }}</span>
+        </button>
+        {% endif %}
+        {% if exceeding %}
+        <button class="tr-section-tab{% if not needs_attention and not behind and not on_track %} active--blue{% endif %}" data-section="exceeding" data-active="active--blue">
+            <i class="bi bi-arrow-up-circle-fill"></i>
+            Exceeding
+            <span class="tr-tab-count">{{ exceeding|length }}</span>
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- SECTION: Needs Attention -->
+    {% if needs_attention %}
+    <div class="tr-section-content{% if needs_attention %} active{% endif %}" id="section-attention">
+        <div class="tr-positions-panel">
+            <table class="tr-positions-table">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th class="tr-hide-sm">Thesis</th>
+                        <th class="tr-hide-md">Confidence</th>
+                        <th class="tr-hide-md">Held</th>
+                        <th style="text-align:right">CAGR</th>
+                        <th style="text-align:right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for p in needs_attention %}
+                    <tr onclick="toggleDetail('att-{{ loop.index }}')">
+                        <td>
+                            <span class="tr-ticker-badge">{{ p.company_ticker }}</span>
+                            <div class="tr-company-cell">
+                                {{ p.company_name }}
+                                {% if p.expected_return %}
+                                <div class="tr-company-sub">Expected: +{{ "%.1f"|format(p.expected_return) }}%</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="tr-hide-sm">
+                            {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
+                            <div class="tr-thesis-snippet">{{ p.investment_thesis|blocknote_preview(150) }}</div>
+                            {% else %}
+                            <div class="tr-thesis-snippet tr-no-thesis">No thesis recorded</div>
+                            {% endif %}
+                        </td>
+                        <td class="tr-hide-md">
+                            {% if p.confidence_score %}
+                            <span class="tr-pill"><i class="bi bi-star-fill" style="color:#f59e0b;"></i> {{ p.confidence_score }}/10</span>
+                            {% else %}
+                            <span class="tr-pill">--</span>
+                            {% endif %}
+                        </td>
+                        <td class="tr-hide-md"><span class="tr-pill"><i class="bi bi-calendar3"></i> {{ p.days_held }}d</span></td>
+                        <td class="tr-return-cell {% if p.annualized_return_pct >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%{% if p.days_held < 365 %}<span class="tr-asterisk">*</span>{% endif %}
+                            {% if p.days_held >= 30 %}
+                            <div class="tr-return-sub">{{ "%.1f"|format(p.actual_return_pct) }}% total</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="tr-row-actions">
+                                <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="tr-row-action-btn" title="View Position" onclick="event.stopPropagation()"><i class="bi bi-eye"></i></a>
+                                <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="tr-row-action-btn" title="Journey" onclick="event.stopPropagation()"><i class="bi bi-graph-up"></i></a>
+                                <a href="{{ url_for('portfolio.add_thesis_version', company_id=p.company_id) }}" class="tr-row-action-btn warning" title="Update Thesis" onclick="event.stopPropagation()"><i class="bi bi-pencil"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="tr-detail-row" id="detail-att-{{ loop.index }}">
+                        <td colspan="6">
+                            <div class="tr-detail-panel">
+                                <div class="tr-detail-grid">
+                                    <div>
+                                        <div class="tr-detail-thesis-label">Investment Thesis</div>
+                                        {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
+                                        <div class="tr-detail-thesis">{{ p.investment_thesis|blocknote_to_html|safe }}</div>
+                                        {% else %}
+                                        <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
+                                        {% endif %}
+                                        <div class="tr-detail-actions">
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-eye"></i> View Position</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
+                                            <a href="{{ url_for('portfolio.add_thesis_version', company_id=p.company_id) }}" class="action-btn" style="background:#f59e0b;color:white;border-color:#f59e0b;"><i class="bi bi-pencil"></i> Update Thesis</a>
+                                        </div>
+                                    </div>
+                                    <div class="tr-detail-metrics">
+                                        {% if p.expected_return %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Expected</div>
+                                            <div class="tr-detail-metric-value" style="color:var(--success-500);">+{{ "%.1f"|format(p.expected_return) }}%</div>
+                                        </div>
+                                        {% endif %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Actual CAGR</div>
+                                            <div class="tr-detail-metric-value" style="color:{% if p.annualized_return_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %};">{% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%</div>
+                                        </div>
+                                        {% if p.expected_timeframe_months %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Timeframe</div>
+                                            <div class="tr-detail-metric-value">{{ p.expected_timeframe_months }}mo</div>
+                                        </div>
+                                        {% endif %}
+                                        {% if p.confidence_score %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Confidence</div>
+                                            <div class="tr-detail-metric-value">{{ p.confidence_score }}/10</div>
+                                        </div>
+                                        {% endif %}
+                                        {% if p.current_price %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Current Price</div>
+                                            <div class="tr-detail-metric-value">{{ "%.2f"|format(p.current_price) }}</div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- SECTION: Behind Plan -->
+    {% if behind %}
+    <div class="tr-section-content{% if not needs_attention %} active{% endif %}" id="section-behind">
+        <div class="tr-positions-panel">
+            <table class="tr-positions-table">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th class="tr-hide-sm">Thesis</th>
+                        <th class="tr-hide-md">Confidence</th>
+                        <th class="tr-hide-md">Held</th>
+                        <th style="text-align:right">CAGR</th>
+                        <th style="text-align:right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for p in behind %}
+                    <tr onclick="toggleDetail('bh-{{ loop.index }}')">
+                        <td>
+                            <span class="tr-ticker-badge">{{ p.company_ticker }}</span>
+                            <div class="tr-company-cell">
+                                {{ p.company_name }}
+                                {% if p.expected_return %}
+                                <div class="tr-company-sub">Expected: +{{ "%.1f"|format(p.expected_return) }}%</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="tr-hide-sm">
+                            {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
+                            <div class="tr-thesis-snippet">{{ p.investment_thesis|blocknote_preview(150) }}</div>
+                            {% else %}
+                            <div class="tr-thesis-snippet tr-no-thesis">No thesis recorded</div>
+                            {% endif %}
+                        </td>
+                        <td class="tr-hide-md">
+                            {% if p.confidence_score %}
+                            <span class="tr-pill"><i class="bi bi-star-fill" style="color:#f59e0b;"></i> {{ p.confidence_score }}/10</span>
+                            {% else %}
+                            <span class="tr-pill">--</span>
+                            {% endif %}
+                        </td>
+                        <td class="tr-hide-md"><span class="tr-pill"><i class="bi bi-calendar3"></i> {{ p.days_held }}d</span></td>
+                        <td class="tr-return-cell {% if p.annualized_return_pct >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%{% if p.days_held < 365 %}<span class="tr-asterisk">*</span>{% endif %}
+                            {% if p.days_held >= 30 %}
+                            <div class="tr-return-sub">{{ "%.1f"|format(p.actual_return_pct) }}% total</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="tr-row-actions">
+                                <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="tr-row-action-btn" title="View Position" onclick="event.stopPropagation()"><i class="bi bi-eye"></i></a>
+                                <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="tr-row-action-btn" title="Journey" onclick="event.stopPropagation()"><i class="bi bi-graph-up"></i></a>
+                                <a href="{{ url_for('portfolio.add_thesis_version', company_id=p.company_id) }}" class="tr-row-action-btn warning" title="Update Thesis" onclick="event.stopPropagation()"><i class="bi bi-pencil"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="tr-detail-row" id="detail-bh-{{ loop.index }}">
+                        <td colspan="6">
+                            <div class="tr-detail-panel">
+                                <div class="tr-detail-grid">
+                                    <div>
+                                        <div class="tr-detail-thesis-label">Investment Thesis</div>
+                                        {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
+                                        <div class="tr-detail-thesis">{{ p.investment_thesis|blocknote_to_html|safe }}</div>
+                                        {% else %}
+                                        <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
+                                        {% endif %}
+                                        <div class="tr-detail-actions">
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-eye"></i> View Position</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
+                                            <a href="{{ url_for('portfolio.add_thesis_version', company_id=p.company_id) }}" class="action-btn" style="background:#f59e0b;color:white;border-color:#f59e0b;"><i class="bi bi-pencil"></i> Update Thesis</a>
+                                        </div>
+                                    </div>
+                                    <div class="tr-detail-metrics">
+                                        {% if p.expected_return %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Expected</div>
+                                            <div class="tr-detail-metric-value" style="color:var(--success-500);">+{{ "%.1f"|format(p.expected_return) }}%</div>
+                                        </div>
+                                        {% endif %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Actual CAGR</div>
+                                            <div class="tr-detail-metric-value" style="color:{% if p.annualized_return_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %};">{% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%</div>
+                                        </div>
+                                        {% if p.expected_timeframe_months %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Timeframe</div>
+                                            <div class="tr-detail-metric-value">{{ p.expected_timeframe_months }}mo</div>
+                                        </div>
+                                        {% endif %}
+                                        {% if p.confidence_score %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Confidence</div>
+                                            <div class="tr-detail-metric-value">{{ p.confidence_score }}/10</div>
+                                        </div>
+                                        {% endif %}
+                                        {% if p.current_price %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Current Price</div>
+                                            <div class="tr-detail-metric-value">{{ "%.2f"|format(p.current_price) }}</div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- SECTION: On Track -->
+    {% if on_track %}
+    <div class="tr-section-content{% if not needs_attention and not behind %} active{% endif %}" id="section-ontrack">
+        <div class="tr-positions-panel">
+            <table class="tr-positions-table">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th class="tr-hide-sm">Thesis</th>
+                        <th class="tr-hide-md">Confidence</th>
+                        <th class="tr-hide-md">Held</th>
+                        <th style="text-align:right">CAGR</th>
+                        <th style="text-align:right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for p in on_track %}
+                    <tr onclick="toggleDetail('ot-{{ loop.index }}')">
+                        <td>
+                            <span class="tr-ticker-badge">{{ p.company_ticker }}</span>
+                            <div class="tr-company-cell">
+                                {{ p.company_name }}
+                                {% if p.expected_return %}
+                                <div class="tr-company-sub">Expected: +{{ "%.1f"|format(p.expected_return) }}%</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="tr-hide-sm">
+                            {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
+                            <div class="tr-thesis-snippet">{{ p.investment_thesis|blocknote_preview(150) }}</div>
+                            {% else %}
+                            <div class="tr-thesis-snippet tr-no-thesis">No thesis recorded</div>
+                            {% endif %}
+                        </td>
+                        <td class="tr-hide-md">
+                            {% if p.confidence_score %}
+                            <span class="tr-pill"><i class="bi bi-star-fill" style="color:#f59e0b;"></i> {{ p.confidence_score }}/10</span>
+                            {% else %}
+                            <span class="tr-pill">--</span>
+                            {% endif %}
+                        </td>
+                        <td class="tr-hide-md"><span class="tr-pill"><i class="bi bi-calendar3"></i> {{ p.days_held }}d</span></td>
+                        <td class="tr-return-cell {% if p.annualized_return_pct >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%{% if p.days_held < 365 %}<span class="tr-asterisk">*</span>{% endif %}
+                            {% if p.days_held >= 30 %}
+                            <div class="tr-return-sub">{{ "%.1f"|format(p.actual_return_pct) }}% total</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="tr-row-actions">
+                                <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="tr-row-action-btn" title="View Position" onclick="event.stopPropagation()"><i class="bi bi-eye"></i></a>
+                                <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="tr-row-action-btn" title="Journey" onclick="event.stopPropagation()"><i class="bi bi-graph-up"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="tr-detail-row" id="detail-ot-{{ loop.index }}">
+                        <td colspan="6">
+                            <div class="tr-detail-panel">
+                                <div class="tr-detail-grid">
+                                    <div>
+                                        <div class="tr-detail-thesis-label">Investment Thesis</div>
+                                        {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
+                                        <div class="tr-detail-thesis">{{ p.investment_thesis|blocknote_to_html|safe }}</div>
+                                        {% else %}
+                                        <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
+                                        {% endif %}
+                                        <div class="tr-detail-actions">
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-eye"></i> View Position</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
+                                        </div>
+                                    </div>
+                                    <div class="tr-detail-metrics">
+                                        {% if p.expected_return %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Expected</div>
+                                            <div class="tr-detail-metric-value" style="color:var(--success-500);">+{{ "%.1f"|format(p.expected_return) }}%</div>
+                                        </div>
+                                        {% endif %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Actual CAGR</div>
+                                            <div class="tr-detail-metric-value" style="color:{% if p.annualized_return_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %};">{% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%</div>
+                                        </div>
+                                        {% if p.expected_timeframe_months %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Timeframe</div>
+                                            <div class="tr-detail-metric-value">{{ p.expected_timeframe_months }}mo</div>
+                                        </div>
+                                        {% endif %}
+                                        {% if p.confidence_score %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Confidence</div>
+                                            <div class="tr-detail-metric-value">{{ p.confidence_score }}/10</div>
+                                        </div>
+                                        {% endif %}
+                                        {% if p.current_price %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Current Price</div>
+                                            <div class="tr-detail-metric-value">{{ "%.2f"|format(p.current_price) }}</div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- SECTION: Exceeding -->
+    {% if exceeding %}
+    <div class="tr-section-content{% if not needs_attention and not behind and not on_track %} active{% endif %}" id="section-exceeding">
+        <div class="tr-positions-panel">
+            <table class="tr-positions-table">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th class="tr-hide-sm">Thesis</th>
+                        <th class="tr-hide-md">Confidence</th>
+                        <th class="tr-hide-md">Held</th>
+                        <th style="text-align:right">CAGR</th>
+                        <th style="text-align:right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for p in exceeding %}
+                    <tr onclick="toggleDetail('ex-{{ loop.index }}')">
+                        <td>
+                            <span class="tr-ticker-badge">{{ p.company_ticker }}</span>
+                            <div class="tr-company-cell">
+                                {{ p.company_name }}
+                                {% if p.expected_return %}
+                                <div class="tr-company-sub">Expected: +{{ "%.1f"|format(p.expected_return) }}%</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="tr-hide-sm">
+                            {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
+                            <div class="tr-thesis-snippet">{{ p.investment_thesis|blocknote_preview(150) }}</div>
+                            {% else %}
+                            <div class="tr-thesis-snippet tr-no-thesis">No thesis recorded</div>
+                            {% endif %}
+                        </td>
+                        <td class="tr-hide-md">
+                            {% if p.confidence_score %}
+                            <span class="tr-pill"><i class="bi bi-star-fill" style="color:#f59e0b;"></i> {{ p.confidence_score }}/10</span>
+                            {% else %}
+                            <span class="tr-pill">--</span>
+                            {% endif %}
+                        </td>
+                        <td class="tr-hide-md"><span class="tr-pill"><i class="bi bi-calendar3"></i> {{ p.days_held }}d</span></td>
+                        <td class="tr-return-cell {% if p.annualized_return_pct >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%{% if p.days_held < 365 %}<span class="tr-asterisk">*</span>{% endif %}
+                            {% if p.days_held >= 30 %}
+                            <div class="tr-return-sub">{{ "%.1f"|format(p.actual_return_pct) }}% total</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="tr-row-actions">
+                                <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="tr-row-action-btn" title="View Position" onclick="event.stopPropagation()"><i class="bi bi-eye"></i></a>
+                                <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="tr-row-action-btn" title="Journey" onclick="event.stopPropagation()"><i class="bi bi-graph-up"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="tr-detail-row" id="detail-ex-{{ loop.index }}">
+                        <td colspan="6">
+                            <div class="tr-detail-panel">
+                                <div class="tr-detail-grid">
+                                    <div>
+                                        <div class="tr-detail-thesis-label">Investment Thesis</div>
+                                        {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
+                                        <div class="tr-detail-thesis">{{ p.investment_thesis|blocknote_to_html|safe }}</div>
+                                        {% else %}
+                                        <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
+                                        {% endif %}
+                                        <div class="tr-detail-actions">
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-eye"></i> View Position</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
+                                        </div>
+                                    </div>
+                                    <div class="tr-detail-metrics">
+                                        {% if p.expected_return %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Expected</div>
+                                            <div class="tr-detail-metric-value" style="color:var(--success-500);">+{{ "%.1f"|format(p.expected_return) }}%</div>
+                                        </div>
+                                        {% endif %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Actual CAGR</div>
+                                            <div class="tr-detail-metric-value" style="color:{% if p.annualized_return_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %};">{% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%</div>
+                                        </div>
+                                        {% if p.expected_timeframe_months %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Timeframe</div>
+                                            <div class="tr-detail-metric-value">{{ p.expected_timeframe_months }}mo</div>
+                                        </div>
+                                        {% endif %}
+                                        {% if p.confidence_score %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Confidence</div>
+                                            <div class="tr-detail-metric-value">{{ p.confidence_score }}/10</div>
+                                        </div>
+                                        {% endif %}
+                                        {% if p.current_price %}
+                                        <div class="tr-detail-metric">
+                                            <div class="tr-detail-metric-label">Current Price</div>
+                                            <div class="tr-detail-metric-value">{{ "%.2f"|format(p.current_price) }}</div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Section Tab Switching (no page refresh)
+    document.querySelectorAll('.tr-section-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            // Remove active from all tabs
+            document.querySelectorAll('.tr-section-tab').forEach(function(t) {
+                t.className = 'tr-section-tab';
+            });
+            // Hide all sections
+            document.querySelectorAll('.tr-section-content').forEach(function(s) {
+                s.classList.remove('active');
+            });
+            // Activate clicked tab
+            tab.classList.add(tab.dataset.active);
+            // Show corresponding section
+            document.getElementById('section-' + tab.dataset.section).classList.add('active');
+            // Close any open detail rows
+            document.querySelectorAll('.tr-detail-row.open').forEach(function(d) {
+                d.classList.remove('open');
+            });
+        });
+    });
+
+    // Toggle Detail Row (expand/collapse)
+    function toggleDetail(id) {
+        var row = document.getElementById('detail-' + id);
+        if (row) {
+            var parent = row.closest('tbody');
+            parent.querySelectorAll('.tr-detail-row.open').forEach(function(d) {
+                if (d.id !== 'detail-' + id) d.classList.remove('open');
+            });
+            row.classList.toggle('open');
+        }
+    }
+</script>
+{% endblock %}

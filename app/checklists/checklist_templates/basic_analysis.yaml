@@ -1,0 +1,80 @@
+# Basic Investment Analysis Checklist Template
+# A comprehensive starting point for evaluating any investment opportunity
+
+name: Basic Investment Analysis
+description: A comprehensive starting point for evaluating any investment opportunity
+category: general
+difficulty: beginner
+estimated_time: 2-4 hours
+icon: 📊
+
+items:
+  - text: Business Model & Strategy
+    llm_prompt: Analyze the business model and strategic positioning
+    subitems:
+      - text: What products/services does the company sell?
+        llm_prompt: List and describe the company's main products and services
+      - text: Who are the target customers?
+        llm_prompt: Identify and describe the primary customer segments
+      - text: What is the company's competitive advantage?
+        llm_prompt: Analyze the company's unique value proposition and competitive moats
+      - text: How does the company generate revenue?
+        llm_prompt: Explain the revenue model and key revenue streams
+      - text: What is the long-term strategic vision?
+        llm_prompt: Summarize management's strategic goals and vision for the next 5-10 years
+
+  - text: Financial Performance Review
+    llm_prompt: Analyze the company's financial health and performance trends
+    subitems:
+      - text: Revenue growth trend over the past 5 years
+        llm_prompt: Calculate and analyze the revenue CAGR and growth trajectory
+      - text: Profitability metrics and margin analysis
+        llm_prompt: Evaluate gross, operating, and net profit margins with trends
+      - text: Cash flow vs. net income comparison
+        llm_prompt: Compare operating cash flow to net income and explain any discrepancies
+      - text: Debt levels and capital structure
+        llm_prompt: Analyze debt-to-equity ratio, interest coverage, and financial leverage
+      - text: Financial statement red flags
+        llm_prompt: Identify any concerning patterns or red flags in the financial statements
+
+  - text: Management Quality Assessment
+    llm_prompt: Evaluate the leadership team and corporate governance practices
+    subitems:
+      - text: Executive team background and track record
+        llm_prompt: Research the CEO, CFO, and key executives' experience and past performance
+      - text: Management compensation structure
+        llm_prompt: Analyze executive compensation and alignment with shareholder interests
+      - text: Capital allocation track record
+        llm_prompt: Evaluate management's history of M&A, dividends, buybacks, and investments
+      - text: Communication transparency
+        llm_prompt: Assess the quality and transparency of earnings calls, letters, and filings
+      - text: Insider trading activity
+        llm_prompt: Review recent insider buying/selling patterns and what they might indicate
+
+  - text: Competitive Position Analysis
+    llm_prompt: Assess the company's competitive position within its industry
+    subitems:
+      - text: Identify main competitors
+        llm_prompt: List the top 3-5 competitors and their market positions
+      - text: Market share analysis
+        llm_prompt: Determine the company's market share and trends over time
+      - text: Barriers to entry evaluation
+        llm_prompt: Analyze what prevents new competitors from entering this market
+      - text: Competitive advantage sustainability
+        llm_prompt: Assess how durable the company's competitive advantages are
+      - text: Disruption threats
+        llm_prompt: Identify potential threats from technology, regulation, or business model disruption
+
+  - text: Valuation & Investment Decision
+    llm_prompt: Determine if the stock price offers an attractive investment opportunity
+    subitems:
+      - text: P/E ratio vs. historical average
+        llm_prompt: Compare current P/E to 5-year and 10-year historical averages
+      - text: Peer valuation comparison
+        llm_prompt: Compare valuation multiples (P/E, P/S, EV/EBITDA) to industry peers
+      - text: Intrinsic value estimate
+        llm_prompt: Calculate DCF-based intrinsic value and other valuation approaches
+      - text: Margin of safety calculation
+        llm_prompt: Determine the discount between current price and intrinsic value
+      - text: Expected return projection
+        llm_prompt: Estimate potential 3-5 year returns based on growth and valuation assumptions

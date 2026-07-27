@@ -1,0 +1,692 @@
+{% extends "main/_base_learning.html" %}
+
+{% block head %}
+{{ super() }}
+<!-- BlockNote Editor -->
+{% include 'components/blocknote_editor_include.html' %}
+<!-- Hashtag Autocomplete -->
+<script defer src="{{ url_for('static', filename='js/dist/hashtag-autocomplete.bundle.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="action-page">
+    <div class="action-container action-container--lg">
+        <!-- Editorial Hero -->
+        <div class="action-hero">
+            <div class="action-hero-badge">
+                <i class="bi bi-journal-plus"></i>
+                <span>New Entry</span>
+            </div>
+            <h1>New Journal Entry</h1>
+            <p class="action-hero-subtitle">Capture your investment thinking</p>
+        </div>
+
+        <!-- Entry Form -->
+        <div class="action-card">
+            <div class="action-card-body">
+                <form method="POST" action="{{ url_for('journal_enhanced.new_entry') }}" enctype="multipart/form-data" id="journalEntryForm">
+                    {% if return_url %}
+                    <input type="hidden" name="return_url" value="{{ return_url }}">
+                    {% endif %}
+
+                    <!-- Category Selector: picks which record type gets created -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Category</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="entry_category" id="cat_research"
+                                   value="research" {% if preset_category != 'wisdom' and preset_category != 'mistake' %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="cat_research">
+                                <i class="bi bi-search"></i> Research
+                            </label>
+
+                            <input type="radio" class="btn-check" name="entry_category" id="cat_wisdom"
+                                   value="wisdom" {% if preset_category == 'wisdom' %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="cat_wisdom">
+                                <i class="bi bi-lightbulb"></i> Wisdom
+                            </label>
+
+                            <input type="radio" class="btn-check" name="entry_category" id="cat_mistake"
+                                   value="mistake" {% if preset_category == 'mistake' %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="cat_mistake">
+                                <i class="bi bi-exclamation-triangle"></i> Mistake
+                            </label>
+                        </div>
+                        <small class="text-muted" id="categoryHint"></small>
+                    </div>
+
+                    <!-- Template Selector -->
+                    {% if templates %}
+                    <div class="mb-4 cat-block cat-research">
+                        <label class="form-label fw-bold">Use Template (Optional):</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for template in templates[:4] %}
+                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                onclick="loadTemplate({{ template.id }}, {{ template.entry_type|tojson }}, {{ template.prompts|tojson }}, {{ template.example_content|tojson }})">
+                                <i class="bi bi-file-text"></i> {{ template.name }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                        <!-- Basic Info -->
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label for="title" class="form-label">Title</label>
+                                <input type="text" class="form-control" id="title" name="title"
+                                    placeholder="Optional - summarize your entry">
+                            </div>
+                            <div class="col-md-4 cat-block cat-research">
+                                <label for="entry_type" class="form-label">Entry Type</label>
+                                <select class="form-select" id="entry_type" name="entry_type" onchange="toggleCustomEntryType()">
+                                    <option value="observation">Observation</option>
+                                    <option value="thesis_update">Thesis Update</option>
+                                    <option value="question">Question</option>
+                                    <option value="insight">Insight</option>
+                                    <option value="lesson_learned">Lesson Learned</option>
+                                    <option value="market_thought">Market Thought</option>
+                                    <option value="meeting_notes">Meeting Notes</option>
+                                    <option value="earnings_reaction">Earnings Reaction</option>
+                                    <option value="news_analysis">News Analysis</option>
+                                    <option value="accounting_note">Accounting Note</option>
+                                    <option value="finance_tip">Finance Tip</option>
+                                    <option value="industry_analysis">Industry Analysis</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                                <input type="text" class="form-control mt-2" id="custom_entry_type" name="custom_entry_type"
+                                       placeholder="Enter custom type" style="display: none;">
+                            </div>
+                        </div>
+
+                        <!-- Company Association (for all entry types) -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Company (Optional)</label>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-primary" onclick="openCompanyModal(handleCompanySelection)">
+                                        <i class="bi bi-building"></i> Select Company
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="clearCompanyBtn" onclick="clearSelectedCompany()" style="display: none;">
+                                        <i class="bi bi-x-circle"></i> Clear
+                                    </button>
+                                </div>
+                                <input type="hidden" id="company_id" name="company_id" value="{{ preset_company_id or '' }}">
+                                <div id="selectedCompanyInfo" class="mt-2" style="display: none;">
+                                    <div class="alert alert-info mb-0">
+                                        <small><strong>Selected:</strong> <span id="companyDisplayInfo"></span></small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 cat-block cat-research" id="sourceField">
+                                <label for="source" class="form-label">Source</label>
+                                <input type="text" class="form-control" id="source" name="source"
+                                    placeholder="e.g., Q3 Earnings Call, WSJ Article">
+                            </div>
+                        </div>
+
+                        <!-- Main Content -->
+                        <div class="mb-3 cat-block cat-research">
+                            <label for="content" class="form-label">
+                                Content <span class="text-danger">*</span>
+                            </label>
+                            <div id="journalContentEditor" class="blocknote-form-editor"></div>
+                            <input type="hidden" id="content" name="content" required>
+                        </div>
+
+                        <!-- Hashtags (Research only - Wisdom/Mistake use structured fields) -->
+                        <div class="mb-3 cat-block cat-research">
+                            <label class="form-label">Hashtags</label>
+                            <div id="hashtag-autocomplete-mount"></div>
+                            <small class="text-muted">Enter hashtags with # for easy searching</small>
+                        </div>
+
+                        <!-- Sentiment and Conviction (shown for all research entry types, as in edit_entry) -->
+                        <div class="row mb-3 cat-block cat-research">
+                            <div class="col-md-6">
+                                <label for="sentiment" class="form-label">Sentiment</label>
+                                <select class="form-select" id="sentiment" name="sentiment">
+                                    <option value="">Select sentiment</option>
+                                    <option value="bullish">Bullish</option>
+                                    <option value="neutral">Neutral</option>
+                                    <option value="bearish">Bearish</option>
+                                    <option value="uncertain">Uncertain</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="conviction" class="form-label">Conviction Level (1-10)</label>
+                                <input type="number" class="form-control" id="conviction" name="conviction"
+                                    min="1" max="10" placeholder="How confident are you?">
+                            </div>
+                        </div>
+
+                        <!-- Template Prompts (shown when template selected) -->
+                        <div id="templatePrompts" class="mb-3" style="display: none;">
+                            <div class="alert alert-info">
+                                <h6>Template Prompts:</h6>
+                                <ul id="promptsList" class="mb-0"></ul>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Fields (for Observation type only) -->
+                        <div id="advancedFields" class="cat-block cat-research">
+                            <!-- Key Insight -->
+                            <div class="mb-3">
+                                <label for="key_insight" class="form-label">Key Insight</label>
+                                <input type="text" class="form-control" id="key_insight" name="key_insight"
+                                    placeholder="What's the main takeaway?">
+                            </div>
+
+
+                            <!-- Action Items and Questions -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="action_items" class="form-label">Action Items</label>
+                                    <textarea class="form-control" id="action_items" name="action_items" rows="3"
+                                        placeholder="One per line"></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="questions_raised" class="form-label">Questions Raised</label>
+                                    <textarea class="form-control" id="questions_raised" name="questions_raised" rows="3"
+                                        placeholder="One per line"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File Attachments -->
+                        <div class="mb-3 cat-block cat-research">
+                            <label for="attachments" class="form-label">Attachments</label>
+                            <input type="file" class="form-control" id="attachments" name="attachments" multiple
+                                accept=".png,.jpg,.jpeg,.gif,.pdf,.xlsx,.xls,.doc,.docx">
+                            <small class="text-muted">Attach charts, documents, or images</small>
+                        </div>
+
+                        <!-- ============ WISDOM (LearningNote) ============ -->
+                        <div class="cat-block cat-wisdom d-none">
+                            <div class="mb-3">
+                                <label for="lesson" class="form-label">
+                                    Lesson <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" id="lesson" name="lesson" rows="4"
+                                    placeholder="What is the timeless principle or insight?"></textarea>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label for="note_category" class="form-label">Category</label>
+                                    <select class="form-select" id="note_category" name="note_category"
+                                            onchange="toggleCustomNoteCategory()">
+                                        <option value="valuation">Valuation</option>
+                                        <option value="business_quality">Business Quality</option>
+                                        <option value="management">Management</option>
+                                        <option value="psychology">Psychology</option>
+                                        <option value="macro">Macro</option>
+                                        <option value="accounting">Accounting</option>
+                                        <option value="portfolio">Portfolio Management</option>
+                                        <option value="mistake">Mistake</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                    <input type="text" class="form-control mt-2" id="custom_note_category"
+                                           name="custom_note_category" placeholder="Enter custom category"
+                                           style="display: none;">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="knowledge_type" class="form-label">Knowledge Type</label>
+                                    <select class="form-select" id="knowledge_type" name="knowledge_type">
+                                        <option value="principle">Principle</option>
+                                        <option value="framework">Framework</option>
+                                        <option value="heuristic">Heuristic</option>
+                                        <option value="fact">Fact</option>
+                                        <option value="technique">Technique</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="importance" class="form-label">Importance (1-10)</label>
+                                    <input type="number" class="form-control" id="importance" name="importance"
+                                           min="1" max="10" value="5">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="context" class="form-label">Context</label>
+                                <textarea class="form-control" id="context" name="context" rows="2"
+                                    placeholder="When and where does this apply?"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="how_to_apply" class="form-label">How to Apply</label>
+                                <textarea class="form-control" id="how_to_apply" name="how_to_apply" rows="2"
+                                    placeholder="How do you put this into practice?"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="examples" class="form-label">Examples</label>
+                                <textarea class="form-control" id="examples" name="examples" rows="3"
+                                    placeholder="One per line"></textarea>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label for="source_type" class="form-label">Source Type</label>
+                                    <select class="form-select" id="source_type" name="source_type">
+                                        <option value="">-- Select --</option>
+                                        <option value="book">Book</option>
+                                        <option value="article">Article</option>
+                                        <option value="interview">Interview</option>
+                                        <option value="letter">Shareholder Letter</option>
+                                        <option value="podcast">Podcast</option>
+                                        <option value="experience">Personal Experience</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="source_author" class="form-label">Author / Investor</label>
+                                    <input type="text" class="form-control" id="source_author" name="source_author"
+                                           placeholder="e.g., Warren Buffett">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="source_date" class="form-label">Source Date</label>
+                                    <input type="date" class="form-control" id="source_date" name="source_date">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="source_detail" class="form-label">Source Detail</label>
+                                    <input type="text" class="form-control" id="source_detail" name="source_detail"
+                                           placeholder="e.g., The Intelligent Investor, Ch. 8">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="source_url" class="form-label">Source URL</label>
+                                    <input type="url" class="form-control" id="source_url" name="source_url"
+                                           placeholder="https://...">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="topic_tags" class="form-label">Topic Tags</label>
+                                <input type="text" class="form-control" id="topic_tags" name="topic_tags"
+                                       placeholder="Comma-separated, e.g., moats, capital allocation">
+                            </div>
+                        </div>
+
+                        <!-- ============ MISTAKE (MistakeLog) ============ -->
+                        <div class="cat-block cat-mistake d-none">
+                            <div class="mb-3">
+                                <label for="description" class="form-label">
+                                    What Happened <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" id="description" name="description" rows="4"
+                                    placeholder="Describe the mistake and its circumstances"></textarea>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <label for="mistake_type" class="form-label">Mistake Type</label>
+                                    <select class="form-select" id="mistake_type" name="mistake_type">
+                                        <option value="analysis_error">Analysis Error</option>
+                                        <option value="emotional_decision">Emotional Decision</option>
+                                        <option value="process_failure">Process Failure</option>
+                                        <option value="information_gap">Information Gap</option>
+                                        <option value="timing">Timing</option>
+                                        <option value="position_sizing">Position Sizing</option>
+                                        <option value="thesis_drift">Thesis Drift</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="severity" class="form-label">Severity (1-10)</label>
+                                    <input type="number" class="form-control" id="severity" name="severity"
+                                           min="1" max="10" value="5">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="cost_estimate" class="form-label">Estimated Cost</label>
+                                    <input type="number" step="0.01" class="form-control" id="cost_estimate"
+                                           name="cost_estimate" placeholder="$ or %">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="occurred_date" class="form-label">Occurred On</label>
+                                    <input type="date" class="form-control" id="occurred_date" name="occurred_date">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="root_cause" class="form-label">Root Cause</label>
+                                <textarea class="form-control" id="root_cause" name="root_cause" rows="2"
+                                    placeholder="Why did this actually happen?"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="contributing_factors" class="form-label">Contributing Factors</label>
+                                <textarea class="form-control" id="contributing_factors" name="contributing_factors"
+                                    rows="3" placeholder="One per line"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="lesson_learned" class="form-label">
+                                    Lesson Learned <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" id="lesson_learned" name="lesson_learned" rows="3"
+                                    placeholder="What will you do differently?"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="prevention_steps" class="form-label">Prevention Steps</label>
+                                <textarea class="form-control" id="prevention_steps" name="prevention_steps" rows="3"
+                                    placeholder="One per line"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="process_changes" class="form-label">Process Changes</label>
+                                <textarea class="form-control" id="process_changes" name="process_changes" rows="2"
+                                    placeholder="What changes to your investment process?"></textarea>
+                            </div>
+                        </div>
+                </form>
+            </div>
+
+            <!-- Footer -->
+            <div class="action-footer">
+                <div class="action-footer-row">
+                    <button type="submit" form="journalEntryForm" class="btn btn-primary">Save Entry</button>
+                    <a href="{{ return_url or url_for('journal_enhanced.knowledge_hub', type='research') }}" class="action-cancel-link">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Company Search Modal (React Island) -->
+<div id="company-search-mount"></div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
+<script>
+    // Initialize Hashtag Autocomplete React island
+    // Deferred bundles execute after parsing but before DOMContentLoaded,
+    // so the init must wait for that event or window.initHashtagAutocomplete
+    // is still undefined and the island silently never mounts.
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.initHashtagAutocomplete) {
+            window.initHashtagAutocomplete('hashtag-autocomplete-mount', {
+                name: 'hashtags',
+                placeholder: 'e.g., #accountingtips #cfaprep #financialratios',
+                className: 'form-control'
+            });
+        }
+    });
+
+    // Initialize BlockNote Editor
+    let journalEditorInstance = null;
+
+    // Wait for BlockNote to load
+    const initJournalEditor = setInterval(() => {
+        if (window.initBlockNoteEditor) {
+            clearInterval(initJournalEditor);
+
+            // Initialize BlockNote for journal content
+            journalEditorInstance = window.initBlockNoteEditor('journalContentEditor', {
+                placeholder: 'Write your journal entry here... Type "/" for commands',
+                onSave: null // Manual save via form submission
+            });
+
+            console.log('Journal BlockNote editor initialized');
+        }
+    }, 100);
+
+    // Timeout after 10 seconds
+    setTimeout(() => {
+        clearInterval(initJournalEditor);
+        if (!window.initBlockNoteEditor) {
+            console.error('BlockNote failed to load');
+        }
+    }, 10000);
+
+    // Capture BlockNote content before form submission
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+            const blocks = window.blockNoteEditorInstance.editor.document;
+            const content = JSON.stringify(blocks);
+            document.getElementById('content').value = content;
+        }
+        // Don't prevent default - allow form submission to continue
+    });
+
+    // Handle entry type changes
+    document.getElementById('entry_type').addEventListener('change', function(e) {
+        const entryType = e.target.value;
+        const advancedFields = document.getElementById('advancedFields');
+        const sourceField = document.getElementById('sourceField');
+
+        if (entryType === 'observation') {
+            // Show all fields for observations
+            advancedFields.style.display = 'block';
+            sourceField.style.display = 'block';
+        } else {
+            // Hide advanced fields for other entry types
+            advancedFields.style.display = 'none';
+            sourceField.style.display = 'none';
+
+            // Clear advanced field values when hidden
+            document.getElementById('key_insight').value = '';
+            document.getElementById('action_items').value = '';
+            document.getElementById('questions_raised').value = '';
+            document.getElementById('source').value = '';
+        }
+    });
+
+    // Initialize form based on default selection
+    document.addEventListener('DOMContentLoaded', function() {
+        const entryType = document.getElementById('entry_type').value;
+        if (entryType !== 'observation') {
+            document.getElementById('advancedFields').style.display = 'none';
+            document.getElementById('sourceField').style.display = 'none';
+        }
+
+        {% if preset_company %}
+        // Auto-show pre-selected company
+        document.getElementById('companyDisplayInfo').textContent = '{{ preset_company.name }}{% if preset_company.ticker_symbol %} ({{ preset_company.ticker_symbol }}){% endif %}';
+        document.getElementById('selectedCompanyInfo').style.display = 'block';
+        document.getElementById('clearCompanyBtn').style.display = 'inline-block';
+        {% endif %}
+    });
+
+    // Company selection callbacks (modal provided by company-search React island)
+    function handleCompanySelection(company) {
+        console.log('handleCompanySelection called with:', company);
+
+        // Set the hidden form field
+        const companyIdField = document.getElementById('company_id');
+        if (companyIdField) {
+            companyIdField.value = company.id;
+            console.log('Set company_id to:', company.id);
+        }
+
+        // Update the display text in the form (not the modal)
+        const companyDisplayInfo = document.getElementById('companyDisplayInfo');
+        if (companyDisplayInfo) {
+            companyDisplayInfo.textContent =
+                `${company.name}${company.ticker_symbol ? ' (' + company.ticker_symbol + ')' : ''}`;
+            console.log('Updated display info');
+        } else {
+            console.error('companyDisplayInfo element not found');
+        }
+
+        // Show the selected company info in the form
+        const selectedCompanyInfo = document.getElementById('selectedCompanyInfo');
+        if (selectedCompanyInfo) {
+            selectedCompanyInfo.style.display = 'block';
+            console.log('Showed selected company info');
+        } else {
+            console.error('selectedCompanyInfo element not found');
+        }
+
+        // Show the clear button
+        const clearBtn = document.getElementById('clearCompanyBtn');
+        if (clearBtn) {
+            clearBtn.style.display = 'inline-block';
+            console.log('Showed clear button');
+        } else {
+            console.error('clearCompanyBtn element not found');
+        }
+    }
+
+    function clearSelectedCompany() {
+        document.getElementById('company_id').value = '';
+        document.getElementById('selectedCompanyInfo').style.display = 'none';
+        document.getElementById('clearCompanyBtn').style.display = 'none';
+    }
+
+    // Load template prompts
+    function loadTemplate(templateId, entryType, prompts, exampleContent) {
+        // Set entry type if provided
+        if (entryType) {
+            const entryTypeSelect = document.getElementById('entry_type');
+            entryTypeSelect.value = entryType;
+            // Trigger change event to show/hide fields
+            entryTypeSelect.dispatchEvent(new Event('change'));
+        }
+
+        // Show prompts if available
+        if (prompts && prompts.length > 0) {
+            const promptsList = document.getElementById('promptsList');
+            promptsList.innerHTML = '';
+            prompts.forEach(prompt => {
+                const li = document.createElement('li');
+                li.textContent = prompt;
+                promptsList.appendChild(li);
+            });
+            document.getElementById('templatePrompts').style.display = 'block';
+        } else {
+            document.getElementById('templatePrompts').style.display = 'none';
+        }
+
+        // Populate content field with example if available
+        if (exampleContent) {
+            const contentField = document.getElementById('content');
+            // Build template text
+            let templateText = '';
+
+            if (prompts && prompts.length > 0) {
+                // Add prompts as structure
+                prompts.forEach(prompt => {
+                    templateText += `${prompt}\n\n\n`;
+                });
+            } else if (exampleContent) {
+                // Use example content as guide
+                templateText = exampleContent;
+            }
+
+            contentField.value = templateText;
+            contentField.focus();
+        }
+
+        // Scroll to content field
+        document.getElementById('content').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Auto-save draft (optional)
+    let autoSaveTimer;
+    const contentField = document.getElementById('content');
+
+    contentField.addEventListener('input', function () {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(function () {
+            // Save to localStorage
+            const draft = {
+                title: document.getElementById('title').value,
+                content: contentField.value,
+                key_insight: document.getElementById('key_insight').value,
+                company_id: document.getElementById('company_id').value
+            };
+            localStorage.setItem('journal_draft', JSON.stringify(draft));
+            console.log('Draft saved');
+        }, 2000);
+    });
+
+    // Load draft on page load
+    window.addEventListener('load', function () {
+        const draft = localStorage.getItem('journal_draft');
+        if (draft) {
+            const data = JSON.parse(draft);
+            if (confirm('Resume your previous draft?')) {
+                document.getElementById('title').value = data.title || '';
+                document.getElementById('content').value = data.content || '';
+                document.getElementById('key_insight').value = data.key_insight || '';
+                if (data.company_id) {
+                    document.getElementById('company_id').value = data.company_id;
+                }
+            }
+        }
+    });
+
+    // Clear draft on successful submission
+    document.querySelector('form').addEventListener('submit', function () {
+        localStorage.removeItem('journal_draft');
+    });
+
+    // ---- Category switching (Research / Wisdom / Mistake) ----
+    // Each category maps to a different record type on the server, so we only
+    // reveal the field group that belongs to the selected one. Toggling uses
+    // Bootstrap's .d-none (display:none !important) so it cleanly overrides the
+    // inline display styles that entry-type/template logic sets on these blocks.
+    const CATEGORY_HINTS = {
+        research: 'Freeform research note — supports hashtags, attachments and templates.',
+        wisdom: 'A durable lesson or principle for your wisdom library.',
+        mistake: 'Logs the mistake and automatically files the lesson under Wisdom.'
+    };
+
+    function applyCategory(category) {
+        document.querySelectorAll('.cat-block').forEach(function (block) {
+            block.classList.toggle('d-none', !block.classList.contains('cat-' + category));
+        });
+
+        // Template prompts belong to Research and are shown on demand by
+        // loadTemplate(); make sure they never linger after switching away.
+        if (category !== 'research') {
+            document.getElementById('templatePrompts').style.display = 'none';
+        }
+
+        // Title is optional for Research but required by the other two models.
+        const titleInput = document.getElementById('title');
+        titleInput.placeholder = category === 'research'
+            ? 'Optional - summarize your entry'
+            : 'Required - name this entry';
+
+        document.getElementById('categoryHint').textContent = CATEGORY_HINTS[category];
+    }
+
+    document.querySelectorAll('input[name="entry_category"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            if (this.checked) applyCategory(this.value);
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const checked = document.querySelector('input[name="entry_category"]:checked');
+        applyCategory(checked ? checked.value : 'research');
+    });
+
+    // Handle custom wisdom category toggle
+    function toggleCustomNoteCategory() {
+        const select = document.getElementById('note_category');
+        const customInput = document.getElementById('custom_note_category');
+        customInput.style.display = select.value === 'custom' ? 'block' : 'none';
+        if (select.value !== 'custom') customInput.value = '';
+    }
+
+    // Handle custom entry type toggle
+    function toggleCustomEntryType() {
+        const entryTypeSelect = document.getElementById('entry_type');
+        const customEntryTypeInput = document.getElementById('custom_entry_type');
+
+        if (entryTypeSelect.value === 'custom') {
+            customEntryTypeInput.style.display = 'block';
+            customEntryTypeInput.required = true;
+        } else {
+            customEntryTypeInput.style.display = 'none';
+            customEntryTypeInput.required = false;
+            customEntryTypeInput.value = '';
+        }
+    }
+</script>
+{% endblock %}

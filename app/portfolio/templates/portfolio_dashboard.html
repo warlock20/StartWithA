@@ -1,0 +1,283 @@
+{% extends "main/_base_portfolio.html" %}
+
+{% block title %}Portfolio{% endblock %}
+
+{% block head %}
+{% include 'components/_tabulator.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="portfolio-dashboard-container">
+    <!-- ════════════════════════════════════════════════
+         HEADER CARD with metrics strip
+         ════════════════════════════════════════════════ -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Portfolio</h1>
+                <p class="dashboard-subtitle" id="dashboardSubtitle">{{ positions|length }} Position{{ 's' if positions|length != 1 else '' }} · Updated {{ updated_time if updated_time else 'recently' }}</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.transactions') }}" class="action-btn">
+                    <i class="bi bi-list-ul"></i> Transactions
+                </a>
+                <form method="POST" action="{{ url_for('portfolio.refresh_prices') }}" class="d-inline">
+                    <button type="submit" class="action-btn">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('portfolio.force_resync') }}" class="d-inline">
+                    <button type="submit" class="action-btn">
+                        <i class="bi bi-arrow-clockwise"></i> Force Resync
+                    </button>
+                </form>
+                <form action="{{ url_for('portfolio.import_transactions') }}" method="post"
+                    enctype="multipart/form-data" class="d-inline">
+                    <label class="action-btn" style="cursor: pointer; margin: 0;">
+                        <i class="bi bi-upload"></i> Import
+                        <input type="file" name="file" style="display: none;" onchange="this.form.submit()"
+                            accept=".csv, .xlsx">
+                    </label>
+                </form>
+                <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn primary">
+                    <i class="bi bi-plus"></i> Add Transaction
+                </a>
+                <form action="{{ url_for('portfolio.reset_portfolio') }}" method="POST" class="d-inline"
+                    onsubmit="return confirm('Are you absolutely sure you want to delete all transactions? This cannot be undone.');">
+                    <button type="submit" class="action-btn" style="color: var(--danger-500); border-color: var(--danger-500);" title="Developer: Reset Portfolio">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        <!-- Composition strip (React island, inside header card) -->
+        {% if positions %}
+        <div id="composition-strip-mount" style="margin-bottom: 16px;"></div>
+        {% endif %}
+
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+                <div class="portfolio-metric-label">Total Value</div>
+                <div class="portfolio-metric-value" id="metricTotalValue">{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.total_value) }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon purple">
+                    <i class="bi bi-wallet2"></i>
+                </div>
+                <div class="portfolio-metric-label">Cost Basis</div>
+                <div class="portfolio-metric-value">{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.total_cost) }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+                <div class="portfolio-metric-label">Cash</div>
+                <div class="portfolio-metric-value">{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.cash_balance) }}</div>
+            </div>
+            <div class="portfolio-metric highlight {% if portfolio_value.total_return >= 0 %}gain{% else %}loss{% endif %}" id="metricPLCard">
+                <div class="portfolio-metric-icon green">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div class="portfolio-metric-label">Total P/L</div>
+                <div class="portfolio-metric-value" id="metricPLValue">
+                    {% if portfolio_value.total_return >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.total_return) }}
+                </div>
+                <div class="portfolio-metric-subtext" id="metricPLPct">
+                    {% if portfolio_value.total_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(portfolio_value.total_return_pct) }}%
+                </div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray">
+                    <i class="bi bi-pie-chart-fill"></i>
+                </div>
+                <div class="portfolio-metric-label">Positions</div>
+                <div class="portfolio-metric-value">{{ portfolio_value.positions_count }}</div>
+                <div class="portfolio-metric-subtext" id="metricWinLoss">{{ gains_count }} gaining · {{ losses_count }} losing</div>
+            </div>
+        </div>
+
+        <!-- Price update indicator (shown during async refresh) -->
+        <div class="price-update-bar" id="priceUpdateBar" style="display: none;">
+            <div class="mini-spinner"></div>
+            <span>Updating prices... <span class="update-count" id="priceUpdateCount"></span></span>
+        </div>
+
+        {% if inferred_deposit is not none and not current_user.cash_setup_complete %}
+        <div class="dashboard-alerts-strip">
+            <form action="{{ url_for('portfolio.cash_setup') }}" method="POST" class="dashboard-alert-card dashboard-alert-card--info">
+                <i class="bi bi-cash-coin"></i>
+                <div class="dashboard-alert-card__text">
+                    <strong>Set up cash tracking</strong> &mdash;
+                    We calculated your total invested capital as {{ currency_symbol }}{{ "{:,.0f}".format(inferred_deposit) }}. Adjust if needed, then confirm.
+                </div>
+                <div class="dashboard-alert-card__actions">
+                    <input type="number" name="initial_capital" value="{{ "{:.2f}".format(inferred_deposit) }}" step="0.01" min="0" class="cash-setup-input">
+                    <button type="submit" class="action-btn">Confirm</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if positions %}
+    <!-- ════════════════════════════════════════════════
+         REACT PORTFOLIO DASHBOARD ISLAND
+         (composition strip, tabbed tables, charts sidebar)
+         ════════════════════════════════════════════════ -->
+    <div id="portfolio-dashboard-mount"></div>
+
+    {% else %}
+    <div class="rcl-empty-state">
+        <i class="bi bi-briefcase"></i>
+        <h5>No positions yet</h5>
+        <p>Add your first transaction to start tracking your portfolio.</p>
+        <div class="rcl-empty-actions">
+            <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
+                <i class="bi bi-plus"></i> Add Transaction
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% include 'components/_tabulator_js.html' %}
+{% if positions %}
+<script defer src="{{ url_for('static', filename='js/dist/portfolio-dashboard.bundle.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    var currencySymbol = "{{ currency_symbol }}";
+    var holdingsData = {{ holdings_json|safe }};
+    var staleCompanyIds = {{ stale_company_ids|safe }};
+    var cashBalance = {{ portfolio_value.cash_balance|float }};
+    var portfolioValue = {{ portfolio_value_json|safe }};
+
+    // ── Mount React islands ──
+    if (window.initCompositionStrip) {
+        window.initCompositionStrip('composition-strip-mount', {
+            holdings: holdingsData,
+            portfolioValue: portfolioValue,
+            currencySymbol: currencySymbol,
+        });
+    }
+    if (window.initPortfolioDashboard) {
+        window.initPortfolioDashboard('portfolio-dashboard-mount', {
+            holdings: holdingsData,
+            portfolioValue: portfolioValue,
+            currencySymbol: currencySymbol,
+            gainsCount: {{ gains_count }},
+            lossesCount: {{ losses_count }},
+        });
+    }
+
+    // ── Async batch price refresh (updates header metrics + React island) ──
+    if (staleCompanyIds.length > 0) {
+        var bar = document.getElementById('priceUpdateBar');
+        var countEl = document.getElementById('priceUpdateCount');
+        bar.style.display = 'flex';
+        countEl.textContent = '(' + staleCompanyIds.length + ' stale)';
+
+        fetch('/portfolio/api/refresh-positions', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.positions) {
+                    // Update local holdingsData with new prices
+                    data.positions.forEach(function(pos) {
+                        for (var j = 0; j < holdingsData.length; j++) {
+                            if (holdingsData[j].company_id === pos.company_id) {
+                                holdingsData[j].current_price = pos.current_price_base || pos.current_price;
+                                holdingsData[j].current_value = pos.current_value;
+                                holdingsData[j].gain_loss = pos.gain_loss;
+                                holdingsData[j].gain_loss_pct = pos.gain_loss_pct;
+                                break;
+                            }
+                        }
+                    });
+
+                    // Recalc header metrics
+                    recalcMetrics();
+
+                    // Re-mount React islands with fresh data
+                    if (window.initCompositionStrip) {
+                        window.initCompositionStrip('composition-strip-mount', {
+                            holdings: holdingsData,
+                            portfolioValue: portfolioValue,
+                            currencySymbol: currencySymbol,
+                        });
+                    }
+                    if (window.initPortfolioDashboard) {
+                        window.initPortfolioDashboard('portfolio-dashboard-mount', {
+                            holdings: holdingsData,
+                            portfolioValue: portfolioValue,
+                            currencySymbol: currencySymbol,
+                            gainsCount: {{ gains_count }},
+                            lossesCount: {{ losses_count }},
+                        });
+                    }
+
+                    var msg = data.updated + ' updated';
+                    if (data.failed > 0) msg += ', ' + data.failed + ' failed';
+                    countEl.textContent = '(' + msg + ')';
+                    setTimeout(function() { bar.style.display = 'none'; }, 1200);
+                    document.getElementById('dashboardSubtitle').textContent =
+                        holdingsData.length + ' Position' + (holdingsData.length !== 1 ? 's' : '') + ' \u00b7 Updated just now';
+                } else {
+                    countEl.textContent = '(failed)';
+                    console.error('Batch refresh error:', data.error || 'unknown');
+                    setTimeout(function() { bar.style.display = 'none'; }, 2000);
+                }
+            })
+            .catch(function(err) {
+                countEl.textContent = '(network error)';
+                console.error('Price refresh failed:', err);
+                setTimeout(function() { bar.style.display = 'none'; }, 2000);
+            });
+    }
+
+    function recalcMetrics() {
+        var totalValue = 0, totalCost = 0, totalPL = 0, gains = 0, losses = 0;
+        holdingsData.forEach(function(h) {
+            totalValue += h.current_value || 0;
+            totalCost += (h.avg_cost || 0) * (h.shares || 0);
+            totalPL += h.gain_loss || 0;
+            if (h.gain_loss > 0) gains++;
+            else if (h.gain_loss < 0) losses++;
+        });
+        var totalPct = totalCost > 0 ? (totalPL / totalCost * 100) : 0;
+
+        // Update portfolio value for React island
+        portfolioValue.total_value = totalValue + cashBalance;
+        portfolioValue.total_cost = totalCost;
+        portfolioValue.total_return = totalPL;
+        portfolioValue.total_return_pct = totalPct;
+        portfolioValue.invested_value = totalValue;
+
+        // Update header metrics
+        document.getElementById('metricTotalValue').textContent =
+            currencySymbol + Math.round(totalValue + cashBalance).toLocaleString();
+
+        var sign = totalPL >= 0 ? '+' : '';
+        document.getElementById('metricPLValue').textContent =
+            sign + currencySymbol + Math.round(Math.abs(totalPL)).toLocaleString();
+        document.getElementById('metricPLValue').className =
+            'portfolio-metric-value ' + (totalPL >= 0 ? 'gain' : 'loss');
+        document.getElementById('metricPLPct').textContent =
+            sign + totalPct.toFixed(1) + '%';
+
+        var plCard = document.getElementById('metricPLCard');
+        plCard.className = 'portfolio-metric highlight ' + (totalPL >= 0 ? 'gain' : 'loss');
+
+        document.getElementById('metricWinLoss').textContent =
+            gains + ' gaining \u00b7 ' + losses + ' losing';
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

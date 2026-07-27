@@ -1,0 +1,185 @@
+/* =============================================================================
+   RESEARCH SOURCES COMPONENT
+   ============================================================================= */
+
+/* Source list and items */
+
+.sources-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.source-item {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.source-item:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Source type badge */
+
+.source-type-badge {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.source-type-article {
+    background: linear-gradient(135deg, #3b82f6, #60a5fa);
+    color: white;
+}
+
+.source-type-report {
+    background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+    color: white;
+}
+
+.source-type-video {
+    background: linear-gradient(135deg, #ef4444, #f87171);
+    color: white;
+}
+
+.source-type-podcast {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    color: white;
+}
+
+.source-type-gemini {
+    background: linear-gradient(135deg, #10b981, #34d399);
+    color: white;
+}
+
+.source-type-other {
+    background: linear-gradient(135deg, #6b7280, #9ca3af);
+    color: white;
+}
+
+/* Source content */
+
+.source-content {
+    flex: 1;
+    min-width: 0; /* Allows text truncation */
+}
+
+.source-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.25rem;
+    line-height: 1.4;
+}
+
+.source-url {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: #3b82f6;
+    text-decoration: none;
+    margin-bottom: 0.25rem;
+    transition: color 0.2s ease;
+}
+
+.source-url:hover {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+.source-description {
+    font-size: 0.75rem;
+    color: #6b7280;
+    line-height: 1.4;
+    margin-top: 0.25rem;
+}
+
+/* Source actions */
+
+.source-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.25rem;
+}
+
+/* Add Source Modal Enhancements */
+
+#addSourceModal .modal-body {
+    padding: 1.5rem;
+}
+
+#addSourceModal .form-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+#addSourceModal .form-control,
+#addSourceModal .form-select {
+    font-size: 0.875rem;
+}
+
+#addSourceModal .form-select option {
+    padding: 0.5rem;
+}
+
+/* Empty state */
+
+.sources-list .text-muted.text-center {
+    padding: 2rem 1rem;
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+/* Editor Header Actions (for Paste from AI button) */
+
+.editor-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* AI Content Modal Styling */
+
+#pasteFromAIModal .alert-info {
+    background: linear-gradient(135deg, #dbeafe, #eff6ff);
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    font-size: 0.875rem;
+    padding: 0.875rem 1rem;
+}
+
+#pasteFromAIModal .modal-body {
+    padding: 1.5rem;
+}
+
+#aiContentEditor {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+}
+
+#aiContentEditor .ql-toolbar {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    background: #f9fafb;
+}
+
+#aiContentEditor .ql-container {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
