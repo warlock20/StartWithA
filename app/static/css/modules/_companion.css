@@ -560,12 +560,34 @@
     flex-shrink: 0;
 }
 
+.companion-panel-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
 .companion-panel-title {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
     font-weight: 600;
+}
+
+.companion-panel-scope {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.72);
+    padding-left: calc(7px + 0.5rem); /* align under the title text, past the status dot */
+}
+
+.companion-panel-scope i {
+    font-size: 0.75rem;
+    opacity: 0.9;
 }
 
 .companion-status-dot {
@@ -640,6 +662,44 @@
     background: var(--gray-100, #f3f4f6);
     color: var(--gray-800, #1f2937);
     border-bottom-left-radius: var(--radius-sm, 4px);
+    /* Assistant messages hold rendered markdown (block HTML), not raw text. */
+    white-space: normal;
+}
+
+/* Rendered-markdown spacing inside assistant bubbles */
+.c-msg--assistant p {
+    margin: 0 0 0.5rem;
+}
+
+.c-msg--assistant p:last-child {
+    margin-bottom: 0;
+}
+
+.c-msg--assistant ul,
+.c-msg--assistant ol {
+    margin: 0.25rem 0 0.5rem;
+    padding-left: 1.2rem;
+}
+
+.c-msg--assistant li {
+    margin-bottom: 0.15rem;
+}
+
+.c-msg--assistant li:last-child {
+    margin-bottom: 0;
+}
+
+.c-msg--assistant pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--gray-200, #e5e7eb);
+    padding: 0.4rem 0.55rem;
+    border-radius: var(--radius-sm, 4px);
+    margin: 0.3rem 0;
+}
+
+.c-msg--assistant code {
+    font-size: 0.92em;
 }
 
 .c-msg--system {

@@ -1,4 +1,6 @@
 {% extends "main/_base_companies.html" %}
+{# Opt in to the global companion (rendered by _base.html) #}
+{% set companion_focus = {'type': 'research', 'company_id': project.company_id, 'project_id': project.id, 'step': step_index | default(0)} %}
 
 {% block head %}
 <!-- Styles loaded from /static/css/modules/_free-research.css via design-system.css -->
@@ -207,7 +209,7 @@
     </div>
 </div>
 
-{% include 'partials/_companion_widget.html' %}
+{# companion now rendered globally by _base.html via companion_enabled #}
 {% include 'components/send_to_sector_modal.html' %}
 {% include 'components/company_resources_modal.html' %}
 {% endblock %}

@@ -1,4 +1,6 @@
 {% extends "main/_base_companies.html" %}
+{# Opt in to the global companion (rendered by _base.html) #}
+{% set companion_focus = {'type': 'research', 'company_id': project.company_id, 'project_id': project.id, 'step': step_index | default(0)} %}
 
 {% block content %}
 <div class="container-fluid mt-4">
@@ -196,7 +198,7 @@
 
 </div>
 
-{% include 'partials/_companion_widget.html' %}
+{# companion now rendered globally by _base.html via companion_enabled #}
 {% endblock %}
 
 {% block scripts %}

@@ -47,6 +47,7 @@ from ..config import get_ai_config, AIModel, AIProvider as AIProviderEnum
 from ..prompt_service import get_intelligence_prompt
 from ..analytics import log_prompt_usage
 from app.utils.time_utils import now_utc
+from app.services.ai.tool_calling import Message, TurnResult, ToolCall
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +275,64 @@ class ClaudeProvider(AIProvider):
                     success=success,
                     error_message=error_message
                 )
+
+    def supports_tools(self) -> bool:
+        return True
+
+    def _messages_to_claude(self, messages):
+        """Translate a neutral transcript (Message objects or dicts) into
+        Anthropic message dicts. Tool results become tool_result blocks in a
+        user message; assistant tool requests become tool_use blocks."""
+        
+        out = []
+        for raw in messages:
+            msg = Message.coerce(raw)
+            if msg.role == 'tool':
+                out.append({'role': 'user', 'content': [{
+                    'type': 'tool_result',
+                    'tool_use_id': msg.tool_call_id,
+                    'content': msg.content,
+                }]})
+            elif msg.role == 'assistant':
+                blocks = []
+                if msg.content:
+                    blocks.append({'type': 'text', 'text': msg.content})
+                for call in msg.tool_calls or []:
+                    blocks.append({'type': 'tool_use', 'id': call.id,
+                                   'name': call.name, 'input': call.arguments})
+                out.append({'role': 'assistant', 'content': blocks})
+            else:  # user
+                out.append({'role': 'user', 'content': msg.content})
+        return out
+
+    def generate_turn(self, messages, tools, system=None, max_tokens=1024, temperature=0.3):
+        """One turn of a tool-calling conversation. Returns a TurnResult."""
+        
+        create_params = {
+            'model': self._model_enum.model_id,
+            'max_tokens': max_tokens,
+            'temperature': temperature,
+            'messages': self._messages_to_claude(messages),
+        }
+        if system:
+            create_params['system'] = system
+        if tools:
+            create_params['tools'] = [{
+                'name': t.name,
+                'description': t.description,
+                'input_schema': t.parameters,
+            } for t in tools]
+
+        response = self._client.messages.create(**create_params)
+
+        calls, text = [], None
+        for block in response.content:
+            if block.type == 'tool_use':
+                calls.append(ToolCall(id=block.id, name=block.name,
+                                      arguments=dict(block.input)))
+            elif block.type == 'text':
+                text = (text or '') + block.text
+        return TurnResult(text=text, tool_calls=calls)
 
     def generate_json(
         self,

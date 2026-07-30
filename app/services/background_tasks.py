@@ -35,6 +35,7 @@ from app.celery_tasks import portfolio_import_task
 from app.celery_tasks import checklist_item_analyze_task
 from app.celery_tasks import ai_research_assist_task
 from app.celery_tasks import screening_analysis_task
+from app.celery_tasks import companion_ask_task
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +292,24 @@ class BackgroundTaskService:
 
         logger.info(f"Started bias check task {task_id} (Celery: {celery_task.id}) for project {project_id}")
 
+        return task_id
+
+    @staticmethod
+    def start_companion_ask(user_id, question, history, focus):
+        """Start a companion agentic-chat task in the background. Returns task_id."""
+        task_id = str(uuid.uuid4())
+        task = BackgroundTask(
+            id=task_id,
+            user_id=user_id,
+            task_type='companion_ask',
+            status='pending',
+        )
+        db.session.add(task)
+        db.session.commit()
+
+        celery_task = companion_ask_task.delay(task_id, user_id, question, history, focus)
+        logger.info(f"Started companion_ask task {task_id} (Celery: {celery_task.id}) "
+                    f"for user {user_id}")
         return task_id
 
     @staticmethod

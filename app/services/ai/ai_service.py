@@ -65,6 +65,7 @@ from .providers.base import AIProvider as AIProviderBase
 from .providers.gemini import GeminiProvider
 from .providers.claude import ClaudeProvider
 from .providers.deepseek import DeepseekProvider
+from app.services.ai.tool_calling import run_tool_loop
 
 logger = logging.getLogger(__name__)
 
@@ -265,7 +266,51 @@ class AIService:
             stop_sequences=stop_sequences,
             **kwargs
         )
-    
+
+    def generate_with_tools(
+        self,
+        messages,
+        tools,
+        executor,
+        system=None,
+        task=None,
+        provider=None,
+        model=None,
+        max_hops=5,
+        max_tokens=1024,
+        temperature=0.3,
+    ):
+        """
+        Run an agentic tool-calling loop.
+
+        Routes to a tool-capable provider (Gemini/Claude) and drives the
+        model ⇄ tool conversation via `run_tool_loop`. See
+        `app.services.ai.tool_calling` for the neutral contract.
+
+        Args:
+            messages: neutral transcript (Message objects or plain dicts)
+            tools: list[ToolSpec] the model may call
+            executor: ToolExecutorFn mapping a ToolCall to a ToolResult
+            system: optional system prompt
+            task/provider/model: routing controls (as for generate_text)
+            max_hops: maximum tool-execution rounds
+
+        Returns:
+            ToolLoopResult(text, hops, calls)
+
+        Raises:
+            RuntimeError: if the routed provider does not support tools
+        """
+
+        ai_provider = self._get_provider(task, provider, model)
+        if not ai_provider.supports_tools():
+            raise RuntimeError(
+                f"Provider {ai_provider.model_name} does not support tool-calling")
+        return run_tool_loop(
+            ai_provider, messages, tools, executor,
+            system=system, max_hops=max_hops,
+            max_tokens=max_tokens, temperature=temperature)
+
     def generate_json(
         self,
         prompt: str,

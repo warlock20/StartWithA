@@ -42,6 +42,7 @@ from google.genai import types as genai_types
 
 from .base import AIProvider
 from ..config import get_ai_config, AIModel, AIProvider as AIProviderEnum
+from app.services.ai.tool_calling import Message, TurnResult, ToolCall
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +205,72 @@ class GeminiProvider(AIProvider):
         except Exception as e:
             logger.error(f"Gemini generate_text error: {str(e)}")
             raise
+
+    def supports_tools(self) -> bool:
+        return True
+
+    def _messages_to_gemini(self, messages):
+        """Translate a neutral transcript (Message objects or dicts) into
+        google-genai Content objects."""
+        contents = []
+        for raw in messages:
+            msg = Message.coerce(raw)
+            if msg.role == 'tool':
+                # A tool result is returned to the model as a function_response part.
+                contents.append(genai_types.Content(
+                    role='tool',
+                    parts=[genai_types.Part.from_function_response(
+                        name=msg.tool_call_id or 'tool',
+                        response={'result': msg.content})]))
+            elif msg.role == 'assistant':
+                parts = []
+                if msg.content:
+                    parts.append(genai_types.Part(text=msg.content))
+                for call in msg.tool_calls or []:
+                    part_kwargs = {
+                        'function_call': genai_types.FunctionCall(
+                            name=call.name, args=call.arguments),
+                    }
+                    # Gemini 3 requires the thought_signature to be echoed back
+                    # with the function call it originally produced.
+                    if call.signature is not None:
+                        part_kwargs['thought_signature'] = call.signature
+                    parts.append(genai_types.Part(**part_kwargs))
+                contents.append(genai_types.Content(role='model', parts=parts))
+            else:  # 'user' (or anything else) → user turn
+                contents.append(genai_types.Content(
+                    role='user', parts=[genai_types.Part(text=msg.content)]))
+        return contents
+
+    def generate_turn(self, messages, tools, system=None, max_tokens=1024, temperature=0.3):
+        """One turn of a tool-calling conversation. Returns a TurnResult."""
+        contents = self._messages_to_gemini(messages)
+        config_dict = {'temperature': temperature, 'max_output_tokens': max_tokens}
+        if system:
+            config_dict['system_instruction'] = system
+        if tools:
+            config_dict['tools'] = [genai_types.Tool(function_declarations=[
+                genai_types.FunctionDeclaration(
+                    name=t.name, description=t.description, parameters=t.parameters)
+                for t in tools])]
+
+        response = self._client.models.generate_content(
+            model=self._model_enum.model_id, contents=contents, config=config_dict)
+
+        calls, text = [], None
+        candidate = response.candidates[0] if getattr(response, 'candidates', None) else None
+        parts = candidate.content.parts if candidate and candidate.content else []
+        for part in parts:
+            fc = getattr(part, 'function_call', None)
+            if fc:
+                # Gemini function calls have no id; use the name as the correlation id.
+                # Preserve thought_signature — Gemini 3 requires it echoed back.
+                calls.append(ToolCall(
+                    id=fc.name, name=fc.name, arguments=dict(fc.args or {}),
+                    signature=getattr(part, 'thought_signature', None)))
+            elif getattr(part, 'text', None):
+                text = (text or '') + part.text
+        return TurnResult(text=text, tool_calls=calls)
 
     def generate_json(
         self,
