@@ -49,3 +49,28 @@ def test_agent_ask_assembles_system_tools_and_messages(monkeypatch, app_context,
     assert len(captured['tools']) == 6
     # The user's question is the final message.
     assert captured['messages'][-1] == {'role': 'user', 'content': 'what did I miss?'}
+
+
+def test_agent_prompt_gives_page_context_and_separates_it_from_account_map(
+        monkeypatch, app_context, seed_portfolio):
+    """Regression: on an unfocused page the agent must know the real page and not
+    describe the whole-account map as 'this page'."""
+    captured = {}
+
+    def fake_generate_with_tools(messages, tools, executor, system=None, **kwargs):
+        captured['system'] = system
+        return ToolLoopResult(text='x', hops=1, calls=[])
+
+    monkeypatch.setattr(agent_mod.ai_service, 'generate_with_tools', fake_generate_with_tools)
+
+    CompanionAgent(seed_portfolio).ask(
+        'what is this page?', [],
+        {'type': '', 'path': '/ideas/inbox', 'title': 'Idea Inbox'})
+
+    system = captured['system']
+    # The real page reaches the prompt…
+    assert '/ideas/inbox' in system
+    assert 'Idea Inbox' in system
+    # …and the model is told the account map is the entire account, not the page.
+    assert 'entire account' in system.lower()
+    assert 'not the page' in system.lower()

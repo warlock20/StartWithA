@@ -70,6 +70,13 @@ def test_js_resumes_pending_task_per_context():
     assert 'startedAt' in s
 
 
+def test_js_sends_current_page_context():
+    """The companion tells the agent which page the user is on (URL + title)."""
+    s = _js()
+    assert 'window.location.pathname' in s
+    assert 'document.title' in s
+
+
 def test_js_shows_scope_indicator():
     """Header names the current scope so a shared 'general' thread isn't confusing."""
     s = _js()

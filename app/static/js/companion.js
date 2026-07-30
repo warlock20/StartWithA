@@ -50,6 +50,10 @@
       company_id: toInt(root.dataset.focusCompanyId),
       project_id: toInt(root.dataset.focusProjectId),
       step: toInt(root.dataset.focusStep),
+      // Which page the user is actually on, so the agent can answer "what is this
+      // page?" instead of guessing from the account-wide map.
+      path: window.location.pathname,
+      title: document.title,
     },
   };
 

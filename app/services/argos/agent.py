@@ -37,6 +37,27 @@ logger = logging.getLogger(__name__)
 _MAX_HOPS = 5
 
 
+def _render_focus(focus):
+    """Human-readable 'current page' block for the prompt.
+
+    Leads with the real page (URL + title) so the agent answers "what is this page?"
+    from where the user actually is, not by guessing from the account-wide map.
+    """
+    focus = focus or {}
+    lines = []
+    if focus.get('title'):
+        lines.append(f"Page title: {focus['title']}")
+    if focus.get('path'):
+        lines.append(f"URL path: {focus['path']}")
+    if focus.get('type'):
+        lines.append(f"Focus type: {focus['type']}")
+    if focus.get('company_id'):
+        lines.append(f"Company id: {focus['company_id']}")
+    if focus.get('project_id'):
+        lines.append(f"Research project id: {focus['project_id']}")
+    return "\n".join(lines) if lines else "No page context provided."
+
+
 class CompanionAgent:
     """One instance per user; ``ask`` answers a question grounded in their account."""
 
@@ -54,7 +75,7 @@ class CompanionAgent:
         prompt_data = prompt_service.get_prompt_with_metadata(
             'companion', 'companion_agent',
             account_map=render_account_map(account_map),
-            focus=str(focus or {}),
+            focus=_render_focus(focus),
         )
         metadata = prompt_data.get('metadata', {})
         system = prompt_data['prompt']
