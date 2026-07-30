@@ -183,7 +183,7 @@
         sessionStorage.removeItem(PENDING_KEY);
         this.hideTyping();
         if (answer !== null) {
-          this.appendMessage('assistant', this.escapeHtml(answer));
+          this.appendMessage('assistant', this.renderMarkdown(answer));
           this.conversationHistory.push({ role: 'assistant', content: answer });
           this.saveThread();
         }
@@ -238,7 +238,7 @@
         this.hideTyping();
         sessionStorage.removeItem(PENDING_KEY);
         if (answer !== null) {
-          this.appendMessage('assistant', this.escapeHtml(answer));
+          this.appendMessage('assistant', this.renderMarkdown(answer));
           this.conversationHistory.push({ role: 'assistant', content: answer });
           this.saveThread();
           if (!this.isOpen) {
@@ -350,7 +350,7 @@
 
         if (data.success) {
           this.appendMessage('assistant',
-            `<div class="c-msg-wrapup-label"><i class="bi bi-flag-fill me-1"></i> Session Summary</div>${this.escapeHtml(data.data.summary)}`
+            `<div class="c-msg-wrapup-label"><i class="bi bi-flag-fill me-1"></i> Session Summary</div>${this.renderMarkdown(data.data.summary)}`
           );
         } else {
           this.appendMessage('assistant', `<span class="text-danger">Wrap-up failed: ${this.escapeHtml(data.error || 'Unknown error')}</span>`);
@@ -408,6 +408,18 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    },
+
+    // Render the agent's markdown answer to sanitized HTML. `marked` does the
+    // markdown → HTML; `DOMPurify` strips anything unsafe (answers are LLM output,
+    // so this must be sanitized). Falls back to escaped plain text if the vendored
+    // libs somehow didn't load.
+    renderMarkdown(text) {
+      const raw = String(text == null ? '' : text);
+      if (window.marked && window.DOMPurify) {
+        return window.DOMPurify.sanitize(window.marked.parse(raw, { breaks: true }));
+      }
+      return this.escapeHtml(raw);
     }
   };
 
@@ -420,9 +432,10 @@
   // Restore the rolling thread for this tab and replay it into the panel.
   CompanionChat.loadThread();
   CompanionChat.conversationHistory.forEach((m) => {
+    const isUser = m.role === 'user';
     CompanionChat.appendMessage(
-      m.role === 'user' ? 'user' : 'assistant',
-      CompanionChat.escapeHtml(m.content)
+      isUser ? 'user' : 'assistant',
+      isUser ? CompanionChat.escapeHtml(m.content) : CompanionChat.renderMarkdown(m.content)
     );
   });
 

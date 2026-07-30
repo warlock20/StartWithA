@@ -79,7 +79,12 @@
         </div>
     </div>
 
-    {# Global research/portfolio companion — renders only when a page opts in via companion_enabled #}
+    {# Markdown rendering + sanitizer for AI answers (self-hosted). Loaded before the
+       companion so marked/DOMPurify are available when companion.js runs. #}
+    <script defer src="{{ url_for('static', filename='js/vendor/marked.min.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/vendor/purify.min.js') }}"></script>
+
+    {# Global research/portfolio companion — renders for authenticated users (opt-out) #}
     {% include 'main/_companion_widget.html' ignore missing %}
 
     <!-- Modal Block - Modals should be direct children of body for proper Bootstrap positioning -->

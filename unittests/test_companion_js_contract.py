@@ -79,6 +79,16 @@ def test_js_shows_scope_indicator():
     assert 'Focused on this company' in s     # company
 
 
+def test_js_renders_markdown_answers():
+    """Answers are markdown from the agent; render via marked + DOMPurify (sanitized)."""
+    s = _js()
+    assert 'renderMarkdown' in s
+    assert 'marked.parse' in s        # markdown -> HTML
+    assert 'DOMPurify.sanitize' in s  # sanitize LLM output before innerHTML
+    # No longer rendered as plain escaped text:
+    assert 'this.escapeHtml(answer)' not in s
+
+
 def test_widget_has_scope_element():
     html = open(WIDGET, encoding='utf-8').read()
     assert 'companionScope' in html

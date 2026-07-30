@@ -34,6 +34,16 @@ def test_base_includes_companion_widget():
     assert '_companion_widget.html' in html
 
 
+def test_base_loads_markdown_libs_before_companion():
+    """marked + DOMPurify are self-hosted and load before the companion widget."""
+    html = open(BASE, encoding='utf-8').read()
+    marked_at = html.find('vendor/marked.min.js')
+    purify_at = html.find('vendor/purify.min.js')
+    widget_at = html.find('_companion_widget.html')
+    assert marked_at != -1 and purify_at != -1, 'markdown libs not loaded'
+    assert marked_at < widget_at and purify_at < widget_at, 'libs must precede companion.js'
+
+
 def test_widget_guard_is_auth_gated_opt_out():
     """Renders for authenticated users unless a page explicitly opts out."""
     html = open(WIDGET, encoding='utf-8').read()
