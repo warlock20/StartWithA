@@ -1,6 +1,5 @@
 {% extends "main/_base_companies.html" %}
 {# Opt in to the global companion (rendered by _base.html) #}
-{% set companion_enabled = true %}
 {% set companion_focus = {'type': 'research', 'company_id': project.company_id, 'project_id': project.id, 'step': step_index | default(0)} %}
 
 {% block head %}

@@ -560,12 +560,34 @@
     flex-shrink: 0;
 }
 
+.companion-panel-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
 .companion-panel-title {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
     font-weight: 600;
+}
+
+.companion-panel-scope {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.72);
+    padding-left: calc(7px + 0.5rem); /* align under the title text, past the status dot */
+}
+
+.companion-panel-scope i {
+    font-size: 0.75rem;
+    opacity: 0.9;
 }
 
 .companion-status-dot {

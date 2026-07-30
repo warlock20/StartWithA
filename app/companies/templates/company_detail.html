@@ -1,6 +1,5 @@
 {% extends "main/_base_companies.html" %}
 {# Opt in to the global companion, focused on this company (rendered by _base.html) #}
-{% set companion_enabled = true %}
 {% set companion_focus = {'type': 'company', 'company_id': company.id} %}
 
 {% block title %}{{ company.name }} — Company Hub{% endblock %}

@@ -48,6 +48,42 @@ def test_js_has_focus_specific_quick_actions():
     assert 'renderQuickActions' in s
 
 
+def test_js_threads_are_per_context():
+    """Each focus context keeps its own thread (company/portfolio/project/general)."""
+    s = _js()
+    assert 'focusKey' in s
+    assert 'companion.thread:' in s
+
+
+def test_js_persists_open_state():
+    """Panel open/closed survives navigation (tab-global)."""
+    s = _js()
+    assert 'companion.open' in s
+    assert 'setOpen' in s
+
+
+def test_js_resumes_pending_task_per_context():
+    """A still-running answer is re-attached after navigation, per context."""
+    s = _js()
+    assert 'companion.pending:' in s
+    assert 'resumePending' in s
+    assert 'startedAt' in s
+
+
+def test_js_shows_scope_indicator():
+    """Header names the current scope so a shared 'general' thread isn't confusing."""
+    s = _js()
+    assert 'scopeLabel' in s
+    assert 'companionScope' in s
+    assert 'Across your whole account' in s   # general
+    assert 'Focused on this company' in s     # company
+
+
+def test_widget_has_scope_element():
+    html = open(WIDGET, encoding='utf-8').read()
+    assert 'companionScope' in html
+
+
 def test_widget_exposes_focus_dataset():
     html = open(WIDGET, encoding='utf-8').read()
     assert 'data-focus-type' in html

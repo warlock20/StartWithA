@@ -13,7 +13,7 @@
 
 {% set _focus = companion_focus | default({}) %}
 
-{% if companion_enabled | default(false) %}
+{% if current_user.is_authenticated and (companion_enabled | default(true)) %}
 <!-- Config for companion.js (read via dataset) -->
 <div id="companion-root"
      data-focus-type="{{ _focus.type | default('') }}"
@@ -33,9 +33,13 @@
 <div class="companion-panel" id="companionPanel">
     <!-- Header -->
     <div class="companion-panel-header">
-        <div class="companion-panel-title">
-            <span class="companion-status-dot"></span>
-            Research Companion
+        <div class="companion-panel-heading">
+            <div class="companion-panel-title">
+                <span class="companion-status-dot"></span>
+                Research Companion
+            </div>
+            <!-- Scope indicator (set by companion.js from focus) -->
+            <div class="companion-panel-scope" id="companionScope"></div>
         </div>
         <div class="companion-panel-actions">
             <button title="Minimize" onclick="CompanionChat.toggle()"><i class="bi bi-dash-lg"></i></button>

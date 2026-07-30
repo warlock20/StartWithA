@@ -21,6 +21,27 @@
   if (!root) return;
 
   const toInt = (v) => (v ? parseInt(v, 10) : null);
+
+  // Thread identity: one conversation per focus context. Most-specific wins, so a
+  // research project (which belongs to a company) keeps its own thread, distinct
+  // from the company page and the portfolio. Unfocused pages share 'general'.
+  const focusKey = (f) => {
+    if (f.project_id) return 'project:' + f.project_id;
+    if (f.company_id) return 'company:' + f.company_id;
+    if (f.type === 'portfolio') return 'portfolio';
+    return 'general';
+  };
+
+  // Human label for the current scope, shown in the panel header so a shared
+  // 'general' thread across unfocused pages reads as intentional, not a glitch.
+  // Generic (scope type only) — no per-page wiring.
+  const scopeLabel = (f) => {
+    if (f.project_id) return { icon: 'bi-search', text: 'This research session' };
+    if (f.company_id) return { icon: 'bi-building', text: 'Focused on this company' };
+    if (f.type === 'portfolio') return { icon: 'bi-pie-chart', text: 'Across your portfolio' };
+    return { icon: 'bi-globe', text: 'Across your whole account' };
+  };
+
   const cfg = {
     endpointBase: root.dataset.endpointBase || '/companion',
     researchBase: '/research/workflow/companion',
@@ -32,7 +53,12 @@
     },
   };
 
-  const THREAD_KEY = 'companion.thread';
+  // sessionStorage keys are scoped to the focus context (and per browser tab), so
+  // switching pages loads the right conversation and tabs never collide.
+  const CTX_KEY = focusKey(cfg.focus);
+  const THREAD_KEY = 'companion.thread:' + CTX_KEY;
+  const OPEN_KEY = 'companion.open';   // tab-global: whether the panel is open
+  const PENDING_KEY = 'companion.pending:' + CTX_KEY;  // in-flight task for this context
 
   // Quick actions per focus type. `prefill` sends a question through the agent;
   // `action` runs a widget function. "Capture" is universal. Labels stay factual
@@ -86,21 +112,26 @@
       } catch (e) { /* storage full / disabled — non-fatal */ }
     },
 
-    toggle() {
-      this.isOpen = !this.isOpen;
-      const panel = document.getElementById('companionPanel');
-      const fab = document.getElementById('companionFab');
-      const icon = document.getElementById('companionFabIcon');
-
-      panel.classList.toggle('open', this.isOpen);
-      fab.classList.toggle('active', this.isOpen);
-      icon.className = this.isOpen ? 'bi bi-x-lg' : 'bi bi-chat-text';
-
-      if (this.isOpen) {
+    // Apply + persist open/closed. Shared by toggle() and the on-load restore so
+    // the panel stays open across navigations (tab-global preference).
+    setOpen(open) {
+      this.isOpen = open;
+      document.getElementById('companionPanel').classList.toggle('open', open);
+      document.getElementById('companionFab').classList.toggle('active', open);
+      document.getElementById('companionFabIcon').className =
+        open ? 'bi bi-x-lg' : 'bi bi-chat-text';
+      try {
+        sessionStorage.setItem(OPEN_KEY, open ? '1' : '');
+      } catch (e) { /* storage disabled — non-fatal */ }
+      if (open) {
         document.getElementById('companionFabBadge').style.display = 'none';
         this.scrollToBottom();
-        document.getElementById('companionChatInput').focus();
       }
+    },
+
+    toggle() {
+      this.setOpen(!this.isOpen);
+      if (this.isOpen) document.getElementById('companionChatInput').focus();
     },
 
     async send() {
@@ -140,7 +171,16 @@
           this.appendMessage('assistant', `<span class="text-danger">Error: ${this.escapeHtml(data.error || 'Failed to start')}</span>`);
           return;
         }
+        // Record the in-flight task so the answer can be recovered if the user
+        // navigates away before it finishes (the Celery task keeps running).
+        try {
+          sessionStorage.setItem(PENDING_KEY, JSON.stringify({
+            taskId: data.data.task_id, startedAt: Date.now(),
+          }));
+        } catch (e) { /* storage disabled — resume is best-effort */ }
+
         const answer = await this.pollAnswer(data.data.task_id);
+        sessionStorage.removeItem(PENDING_KEY);
         this.hideTyping();
         if (answer !== null) {
           this.appendMessage('assistant', this.escapeHtml(answer));
@@ -176,6 +216,43 @@
       }
       this.appendMessage('assistant', '<span class="text-danger">Timed out waiting for the companion.</span>');
       return null;
+    },
+
+    // Re-attach to a task that was still running when the user navigated here.
+    // Only this context's pending task is resumed; a task started elsewhere stays
+    // put and resolves when the user returns to that context.
+    resumePending() {
+      let p;
+      try { p = JSON.parse(sessionStorage.getItem(PENDING_KEY) || 'null'); }
+      catch (e) { p = null; }
+      if (!p || !p.taskId) return;
+
+      // Always allow one status check (a finished task returns instantly), but
+      // bound the polling loop to ~3 min from when it started so a lost worker
+      // can't spin forever.
+      const AGE_CAP = 3 * 60 * 1000;
+      const remaining = Math.max(2000, AGE_CAP - (Date.now() - (p.startedAt || 0)));
+
+      this.showTyping();
+      this.pollAnswer(p.taskId, 1200, remaining).then((answer) => {
+        this.hideTyping();
+        sessionStorage.removeItem(PENDING_KEY);
+        if (answer !== null) {
+          this.appendMessage('assistant', this.escapeHtml(answer));
+          this.conversationHistory.push({ role: 'assistant', content: answer });
+          this.saveThread();
+          if (!this.isOpen) {
+            document.getElementById('companionFabBadge').style.display = 'block';
+          }
+        }
+      });
+    },
+
+    renderScope() {
+      const el = document.getElementById('companionScope');
+      if (!el) return;
+      const s = scopeLabel(this.focus);
+      el.innerHTML = `<i class="bi ${s.icon}"></i> ${this.escapeHtml(s.text)}`;
     },
 
     renderQuickActions() {
@@ -336,7 +413,8 @@
 
   window.CompanionChat = CompanionChat;
 
-  // Render focus-appropriate quick actions.
+  // Render the scope indicator and focus-appropriate quick actions.
+  CompanionChat.renderScope();
   CompanionChat.renderQuickActions();
 
   // Restore the rolling thread for this tab and replay it into the panel.
@@ -347,4 +425,13 @@
       CompanionChat.escapeHtml(m.content)
     );
   });
+
+  // Restore panel open/closed state across navigation (tab-global). Don't focus
+  // the input on restore — that would steal focus/scroll on every page load.
+  if (sessionStorage.getItem(OPEN_KEY)) {
+    CompanionChat.setOpen(true);
+  }
+
+  // Resume an answer that was still generating when we navigated to this page.
+  CompanionChat.resumePending();
 })();
