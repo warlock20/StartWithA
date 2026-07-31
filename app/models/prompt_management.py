@@ -61,7 +61,7 @@ class PromptVersion(db.Model):
     activated_at = db.Column(db.DateTime)
 
     # Relationships
-    usage_logs = db.relationship('PromptUsageLog', back_populates='prompt_version',
+    usage_logs = db.relationship('PromptUsageLog', back_populates='version_record',
                                  lazy='dynamic', cascade='all, delete-orphan')
 
     def __repr__(self):
@@ -95,6 +95,8 @@ class PromptUsageLog(db.Model):
     # Prompt details
     prompt_version_id = db.Column(db.Integer, db.ForeignKey('prompt_version.id'), index=True)
     prompt_name = db.Column(db.String(100), nullable=False, index=True)
+    # The version string as recorded at call time (e.g. "1.0"). Distinct from the
+    # `version_record` relationship below — that link is optional, this always holds.
     prompt_version = db.Column(db.String(20))
 
     # Execution details
@@ -122,7 +124,9 @@ class PromptUsageLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     # Relationships
-    prompt_version = db.relationship('PromptVersion', back_populates='usage_logs')
+    # NOTE: named `version_record`, not `prompt_version` — the latter is the string
+    # column above, and rebinding the name would silently drop that column.
+    version_record = db.relationship('PromptVersion', back_populates='usage_logs')
     user = db.relationship('User', backref=db.backref('prompt_usage', lazy='dynamic'))
 
     def __repr__(self):

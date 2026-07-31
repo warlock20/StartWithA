@@ -629,6 +629,58 @@
     color: #fff;
 }
 
+/* --- Context strip ---
+   Names what the answer is grounded on. 'mine' chips are the user's own data;
+   'page' chips are what this page happens to be showing. */
+.companion-rail-context {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem 0.7rem;
+    border-bottom: 1px solid var(--gray-100, #f3f4f6);
+    background: var(--gray-50, #f7f8fc);
+    flex-shrink: 0;
+}
+
+.companion-rail-context-label {
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-400, #9ca3af);
+    margin-right: 0.15rem;
+}
+
+.companion-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    border: 1px solid var(--gray-200, #e5e7eb);
+    background: #fff;
+    color: var(--gray-600, #4b5563);
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The user's own data — tinted so it reads apart from page-supplied context. */
+.companion-chip--mine {
+    border-color: var(--accent-200, #bbf7d0);
+    background: var(--accent-50, #f0fdf4);
+    color: var(--accent-700, #1b4332);
+}
+
+.companion-chip i {
+    font-size: 0.7rem;
+    opacity: 0.85;
+}
+
 /* --- Body (messages) --- */
 .companion-rail-body {
     flex: 1;

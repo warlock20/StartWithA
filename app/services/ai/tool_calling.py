@@ -29,8 +29,28 @@ independent of any provider SDK. Providers translate to/from their own formats
 - ToolLoopResult: the final outcome of the whole loop
 """
 
+import logging
+
 from dataclasses import dataclass, field
 from typing import Callable, List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
+
+# Appended to the transcript before the forced final turn. Dropping the tool menu
+# is not enough on its own: a transcript full of tool calls keeps the model
+# emitting more of them, so the instruction has to be stated in-band.
+_FINAL_TURN_INSTRUCTION = (
+    "You have used all available tool calls and no tools remain. Do not request "
+    "another tool. Answer now in prose using only what the tool results above "
+    "already gave you, and say plainly which parts you could not determine."
+)
+
+# Last-resort user-facing text, so an empty model turn never surfaces as a blank
+# answer that the caller reports as success.
+_EMPTY_ANSWER_FALLBACK = (
+    "I couldn't assemble an answer from your data for that question. "
+    "Try narrowing it or asking about one holding at a time."
+)
 
 
 @dataclass
@@ -155,9 +175,30 @@ def run_tool_loop(provider, messages, tools, executor,
 
         # Hop cap hit while the model still wants tools: force a tool-free answer.
         if turn.tool_calls and hops >= max_hops:
+            logger.info(
+                f"tool loop hit the {max_hops}-hop cap "
+                f"(last request: {', '.join(c.name for c in turn.tool_calls)}); "
+                "forcing a final answer")
+            transcript.append(Message(role='user', content=_FINAL_TURN_INSTRUCTION))
             final = provider.generate_turn(transcript, [], system=system,
                                            max_tokens=max_tokens, temperature=temperature)
-            return ToolLoopResult(text=final.text or '', hops=hops, calls=all_calls)
+            return ToolLoopResult(text=_answer_text(final), hops=hops, calls=all_calls)
 
         # Model returned prose: done.
-        return ToolLoopResult(text=turn.text or '', hops=hops, calls=all_calls)
+        return ToolLoopResult(text=_answer_text(turn), hops=hops, calls=all_calls)
+
+
+def _answer_text(turn: TurnResult) -> str:
+    """The turn's prose, or a stated fallback — never a silent empty string.
+
+    A turn can carry no text at all (the model spent the turn on a tool request,
+    or ran the output budget down on reasoning), and returning '' from here shows
+    up as a blank answer that the caller still reports as a success.
+    """
+    text = (turn.text or '').strip()
+    if text:
+        return text
+    logger.warning(
+        "model turn produced no text "
+        f"(tool_calls={[c.name for c in turn.tool_calls]}); returning fallback")
+    return _EMPTY_ANSWER_FALLBACK

@@ -8,8 +8,14 @@
 
   Rendered globally. A page opts out with:
     {% set companion_enabled = false %}
-  A page declares what it's showing with:
-    {% set companion_focus = {'type': 'research'|'company'|'portfolio', 'company_id': ..., 'project_id': ..., 'step': ...} %}
+  A page declares what it's showing — ids for grounding, chips for the context
+  strip — with:
+    {% set companion_focus = {
+        'type': 'research'|'company'|'portfolio',
+        'company_id': ..., 'project_id': ..., 'step': ...,
+        'chips': [{'icon': 'bi-building', 'label': company.ticker_symbol, 'kind': 'mine'}]} %}
+  Chips are optional; a page that declares none falls back to an account-wide chip.
+  See app/services/argos/page_context.py.
 
   The Quick Capture modal lives in _companion_capture_modal.html, included at body
   level — Bootstrap modals must not be nested inside the flex layout.
@@ -53,6 +59,17 @@
                     <i class="bi bi-chevron-double-right"></i>
                 </button>
             </div>
+        </div>
+
+        {# What this answer is grounded on. Server-rendered from what the page
+           declared, so the strip is correct on first paint. #}
+        <div class="companion-rail-context">
+            <span class="companion-rail-context-label">Context</span>
+            {% for chip in companion_context_chips(_focus) %}
+            <span class="companion-chip companion-chip--{{ chip.kind }}">
+                <i class="bi {{ chip.icon }}"></i>{{ chip.label }}
+            </span>
+            {% endfor %}
         </div>
 
         <div class="companion-rail-body" id="companionMessages">

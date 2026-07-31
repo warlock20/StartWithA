@@ -1,6 +1,9 @@
 {% extends "main/_base_portfolio.html" %}
-{# Opt in to the global companion, focused on the whole portfolio (rendered by _base.html) #}
-{% set companion_focus = {'type': 'portfolio'} %}
+{# Opt in to the global companion, focused on the whole portfolio (rendered by _base.html).
+   The holdings count is added server-side; this names the page itself. #}
+{% set companion_focus = {
+    'type': 'portfolio',
+    'chips': [{'icon': 'bi-pie-chart', 'label': 'Portfolio'}]} %}
 
 {% block title %}Portfolio{% endblock %}
 

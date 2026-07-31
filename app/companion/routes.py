@@ -37,12 +37,29 @@ from app.models.research import ResearchProject
 from app.models.company import Company
 from app.models.background_task import BackgroundTask
 from app.services.argos import ArgosService
+from app.services.argos.page_context import build_context_chips
 from app.services.background_tasks import BackgroundTaskService
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_validation_error
 from app.utils.db_utils import safe_add_and_commit
 
 logger = logging.getLogger(__name__)
+
+
+@companion_bp.app_context_processor
+def inject_companion_context_chips():
+    """Expose the rail's context chips to every template.
+
+    Registered app-wide (``app_context_processor``) because _base.html renders the
+    rail on every page, but kept here so the models it needs can be imported at
+    module top rather than inside the factory.
+    """
+    def companion_context_chips(focus):
+        if not current_user.is_authenticated:
+            return []
+        return build_context_chips(current_user.id, focus)
+
+    return dict(companion_context_chips=companion_context_chips)
 
 
 def _capture_link(focus):

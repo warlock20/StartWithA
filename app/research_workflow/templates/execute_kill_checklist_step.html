@@ -1,6 +1,17 @@
 {% extends "main/_base_companies.html" %}
-{# Opt in to the global companion (rendered by _base.html) #}
-{% set companion_focus = {'type': 'research', 'company_id': project.company_id, 'project_id': project.id, 'step': step_index | default(0)} %}
+{# Opt in to the global companion (rendered by _base.html).
+   'chips' names what the rail is grounded on: the company, the checklist, and the
+   step being worked. Blank labels are dropped, so a missing name shows no chip. #}
+{% set companion_focus = {
+    'type': 'research', 'company_id': project.company_id, 'project_id': project.id,
+    'step': step_index | default(0),
+    'chips': [
+        {'icon': 'bi-building', 'kind': 'mine',
+         'label': (project.company.ticker_symbol or project.company.name) if project.company else ''},
+        {'icon': 'bi-list-check', 'kind': 'mine',
+         'label': project.project_name or (project.template.name if project.template else '')},
+        {'icon': 'bi-signpost', 'label': step.name if step else ''},
+    ]} %}
 
 {% block content %}
 <div class="row">
