@@ -14,13 +14,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-"""Static contract checks on companion.js (Task 14). No app/DB needed."""
+"""Static contract checks on companion.js. No app/DB needed.
+
+Covers the #300 seamless-chat behaviours (threads, open state, resume) and the
+#311 State C rail surface that replaced the floating bubble.
+"""
 
 import os
 
 JS = os.path.join(os.path.dirname(__file__), '..', 'app/static/js/companion.js')
 WIDGET = os.path.join(
     os.path.dirname(__file__), '..', 'app/templates/main/_companion_widget.html')
+CSS = os.path.join(
+    os.path.dirname(__file__), '..', 'app/static/css/modules/_companion.css')
 
 
 def _js():
@@ -56,10 +62,20 @@ def test_js_threads_are_per_context():
 
 
 def test_js_persists_open_state():
-    """Panel open/closed survives navigation (tab-global)."""
+    """Rail expanded/collapsed survives navigation (tab-global)."""
     s = _js()
     assert 'companion.open' in s
     assert 'setOpen' in s
+
+
+def test_js_targets_the_rail_not_the_bubble():
+    """State C: the surface is a docked rail; the FAB + slide-up panel are gone."""
+    s = _js()
+    assert 'companionRail' in s           # config + collapse target
+    assert 'companionRailBadge' in s      # unread dot when an answer lands collapsed
+    assert "classList.toggle('collapsed'" in s
+    assert 'companionFab' not in s        # bubble removed, not hidden
+    assert 'companionPanel' not in s
 
 
 def test_js_resumes_pending_task_per_context():
@@ -99,6 +115,30 @@ def test_js_renders_markdown_answers():
 def test_widget_has_scope_element():
     html = open(WIDGET, encoding='utf-8').read()
     assert 'companionScope' in html
+
+
+def test_widget_renders_a_rail():
+    """The markup is a docked rail with an edge tab, not a floating bubble."""
+    html = open(WIDGET, encoding='utf-8').read()
+    assert 'companion-rail' in html
+    assert 'id="companionRail"' in html
+    assert 'id="companionRailTab"' in html
+    assert 'companion-fab' not in html
+    assert 'companion-panel' not in html
+
+
+def test_rail_css_replaced_the_bubble_css():
+    """The FAB/panel rules are deleted, and the rail is styled in their place.
+
+    The first half of the module is the unrelated Argos alerts/banner feature —
+    it must survive the swap.
+    """
+    css = open(CSS, encoding='utf-8').read()
+    assert '.companion-rail' in css
+    assert '.companion-fab' not in css
+    assert '.companion-panel' not in css
+    assert '.companion-alerts-card' in css   # unrelated feature, untouched
+    assert '.companion-banner' in css
 
 
 def test_widget_exposes_focus_dataset():

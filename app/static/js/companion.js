@@ -1,9 +1,9 @@
 /**
  * =============================================================================
- * Research Companion — Floating Chat Widget (extracted from _companion_widget.html)
+ * Research Companion — Docked Rail (State C, issue #311)
  * =============================================================================
- * Config is read from the #companion-root dataset so the widget can be mounted
- * on any page. Focus is a page hint: {type, company_id?, project_id?, step?}.
+ * Config is read from the #companionRail dataset so the rail can be mounted on
+ * any page. Focus is a page hint: {type, company_id?, project_id?, step?}.
  *   data-endpoint-base       — global companion API base (default: /companion)
  *   data-focus-type          — 'company' | 'research' | 'portfolio' | ''
  *   data-focus-company-id    — company id (or empty)
@@ -17,7 +17,7 @@
  * Exposes window.CompanionChat with toggle/send/quickAction/saveCapture/runWrapup.
  */
 (function () {
-  const root = document.getElementById('companion-root');
+  const root = document.getElementById('companionRail');
   if (!root) return;
 
   const toInt = (v) => (v ? parseInt(v, 10) : null);
@@ -32,7 +32,7 @@
     return 'general';
   };
 
-  // Human label for the current scope, shown in the panel header so a shared
+  // Human label for the current scope, shown in the rail header so a shared
   // 'general' thread across unfocused pages reads as intentional, not a glitch.
   // Generic (scope type only) — no per-page wiring.
   const scopeLabel = (f) => {
@@ -61,7 +61,7 @@
   // switching pages loads the right conversation and tabs never collide.
   const CTX_KEY = focusKey(cfg.focus);
   const THREAD_KEY = 'companion.thread:' + CTX_KEY;
-  const OPEN_KEY = 'companion.open';   // tab-global: whether the panel is open
+  const OPEN_KEY = 'companion.open';   // tab-global: whether the rail is expanded
   const PENDING_KEY = 'companion.pending:' + CTX_KEY;  // in-flight task for this context
 
   // Quick actions per focus type. `prefill` sends a question through the agent;
@@ -116,19 +116,16 @@
       } catch (e) { /* storage full / disabled — non-fatal */ }
     },
 
-    // Apply + persist open/closed. Shared by toggle() and the on-load restore so
-    // the panel stays open across navigations (tab-global preference).
+    // Apply + persist expanded/collapsed. Shared by toggle() and the on-load
+    // restore so the rail keeps its width across navigations (tab-global).
     setOpen(open) {
       this.isOpen = open;
-      document.getElementById('companionPanel').classList.toggle('open', open);
-      document.getElementById('companionFab').classList.toggle('active', open);
-      document.getElementById('companionFabIcon').className =
-        open ? 'bi bi-x-lg' : 'bi bi-chat-text';
+      root.classList.toggle('collapsed', !open);
       try {
         sessionStorage.setItem(OPEN_KEY, open ? '1' : '');
       } catch (e) { /* storage disabled — non-fatal */ }
       if (open) {
-        document.getElementById('companionFabBadge').style.display = 'none';
+        document.getElementById('companionRailBadge').style.display = 'none';
         this.scrollToBottom();
       }
     },
@@ -246,7 +243,7 @@
           this.conversationHistory.push({ role: 'assistant', content: answer });
           this.saveThread();
           if (!this.isOpen) {
-            document.getElementById('companionFabBadge').style.display = 'block';
+            document.getElementById('companionRailBadge').style.display = 'block';
           }
         }
       });
@@ -443,8 +440,9 @@
     );
   });
 
-  // Restore panel open/closed state across navigation (tab-global). Don't focus
-  // the input on restore — that would steal focus/scroll on every page load.
+  // Restore the rail's expanded state across navigation (tab-global). Markup
+  // ships collapsed, so this only ever expands. Don't focus the input on
+  // restore — that would steal focus/scroll on every page load.
   if (sessionStorage.getItem(OPEN_KEY)) {
     CompanionChat.setOpen(true);
   }

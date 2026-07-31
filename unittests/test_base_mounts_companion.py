@@ -34,6 +34,21 @@ def test_base_includes_companion_widget():
     assert '_companion_widget.html' in html
 
 
+def test_rail_is_mounted_inside_the_app_layout():
+    """State C docks the rail as a flex sibling of .app-main, so content shrinks.
+
+    A floating widget could live anywhere in the document; a docked one cannot —
+    it has to be inside .app-layout and after .app-main to take real estate.
+    """
+    html = open(BASE, encoding='utf-8').read()
+    layout_at = html.find('class="app-layout"')
+    main_at = html.find('class="app-main"')
+    widget_at = html.find('_companion_widget.html')
+    layout_end = html.find('{# /app-layout #}')
+    assert -1 not in (layout_at, main_at, widget_at, layout_end)
+    assert layout_at < main_at < widget_at < layout_end
+
+
 def test_base_loads_markdown_libs_before_companion():
     """marked + DOMPurify are self-hosted and load before the companion widget."""
     html = open(BASE, encoding='utf-8').read()
@@ -59,13 +74,13 @@ def test_widget_renders_for_authenticated_user(app_context, _app):
     with _app.test_request_context('/'):
         login_user(user)
         html = render_template('main/_companion_widget.html')
-    assert 'companion-root' in html
+    assert 'companionRail' in html
 
 
 def test_widget_hidden_for_anonymous(app_context, _app):
     with _app.test_request_context('/'):
         html = render_template('main/_companion_widget.html')  # no login_user
-    assert 'companion-root' not in html
+    assert 'companionRail' not in html
 
 
 def test_companion_css_is_in_global_core_bundle():

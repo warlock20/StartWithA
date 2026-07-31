@@ -459,155 +459,160 @@
 }
 
 /* =============================================================================
-   COMPANION FLOATING CHAT WIDGET
+   COMPANION RAIL  (State C — issue #311)
+   -----------------------------------------------------------------------------
+   A docked right-hand rail, mounted by _base.html as a flex sibling of .app-main.
+   Expanded it takes real estate and the content column shrinks; collapsed it is a
+   slim edge tab. Below --rail-dock-min it stops docking and overlays instead, so
+   narrow screens keep their full content width.
+
+   Replaced the floating FAB + slide-up panel. Layout vars live in _sidebar.css
+   alongside the sidebar dimensions, since the two bookend the same flex row.
    ============================================================================= */
 
-/* --- FAB (Floating Action Button) --- */
-.companion-fab {
-    position: fixed;
-    bottom: 6rem; /* Above sticky footer (footer ~88px + breathing room) */
-    right: 1.5rem;
-    z-index: 1060; /* Above footer and other fixed elements */
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    border: none;
-    background: linear-gradient(135deg, var(--accent-color, #2d6a4f) 0%, var(--accent-700, #1b4332) 100%);
-    color: #fff;
-    cursor: pointer;
-    box-shadow: 0 6px 20px rgba(45, 106, 79, 0.35);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.4rem;
-}
-
-.companion-fab:hover {
-    transform: scale(1.08);
-    box-shadow: 0 8px 28px rgba(45, 106, 79, 0.45);
-}
-
-.companion-fab.active {
-    transform: rotate(90deg) scale(1);
-    background: var(--gray-700, #374151);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.companion-fab.active:hover {
-    transform: rotate(90deg) scale(1.06);
-}
-
-.companion-fab-badge {
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #ef4444;
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #f7f8fc;
-    animation: fabPulse 2s ease-in-out infinite;
-}
-
-@keyframes fabPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-    50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-}
-
-/* --- Chat Panel --- */
-.companion-panel {
-    position: fixed;
-    bottom: 10rem; /* Above FAB (FAB at 6rem + FAB height + gap) */
-    right: 1.5rem;
-    width: 380px;
-    max-height: 560px;
-    z-index: 1059; /* Below FAB but above other content */
+.companion-rail {
+    flex: 0 0 var(--rail-width);
+    width: var(--rail-width);
+    align-self: flex-start;
+    position: sticky;
+    top: var(--topbar-height);
+    height: calc(100vh - var(--topbar-height));
     background: #fff;
-    border-radius: var(--radius-xl, 16px);
-    box-shadow: 0 12px 48px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.06);
-    border: 1px solid var(--gray-200, #e5e7eb);
+    border-left: 1px solid var(--gray-200, #e5e7eb);
     display: flex;
     flex-direction: column;
+    z-index: 1030;
+    transition: flex-basis 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.companion-rail.collapsed {
+    flex-basis: var(--rail-collapsed-width);
+    width: var(--rail-collapsed-width);
+}
+
+/* Header / scrolling body / footer. min-height:0 so the body can actually scroll
+   instead of the whole column growing past the rail. */
+.companion-rail-inner {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
-    opacity: 0;
-    transform: translateY(16px) scale(0.96);
-    pointer-events: none;
-    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.companion-panel.open {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: all;
+.companion-rail.collapsed .companion-rail-inner { display: none; }
+.companion-rail:not(.collapsed) .companion-rail-tab { display: none; }
+
+/* --- Collapsed edge tab ---
+   Deliberately plain: State A (the pulse rail with orb + status icons) replaces
+   this wholesale. It exists so a collapsed rail can still be reopened. */
+.companion-rail-tab {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    color: var(--gray-500, #6b7280);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    padding-top: 1rem;
+    font-size: 1.05rem;
+    transition: background var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
 }
 
-/* --- Panel Header --- */
-.companion-panel-header {
+.companion-rail-tab:hover {
+    background: var(--gray-50, #f7f8fc);
+    color: var(--accent-color, #2d6a4f);
+}
+
+/* Unread dot — an answer landed while the rail was collapsed. */
+.companion-rail-tab-badge {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.5rem;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: railPulse 2s ease-in-out infinite;
+}
+
+@keyframes railPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+    50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+
+/* --- Header --- */
+.companion-rail-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+    padding: 0.7rem 0.85rem;
     background: linear-gradient(135deg, var(--primary-800, #1e293b) 0%, var(--primary-700, #334155) 100%);
     color: #fff;
     flex-shrink: 0;
 }
 
-.companion-panel-heading {
+.companion-rail-identity {
     display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
+    align-items: center;
+    gap: 0.55rem;
     min-width: 0;
 }
 
-.companion-panel-title {
+.companion-rail-orb {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent-color, #2d6a4f) 0%, var(--accent-700, #1b4332) 100%);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.companion-rail-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.companion-rail-title {
+    font-size: 0.85rem;
     font-weight: 600;
 }
 
-.companion-panel-scope {
+.companion-rail-scope {
     display: flex;
     align-items: center;
     gap: 0.3rem;
     font-size: 0.7rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.72);
-    padding-left: calc(7px + 0.5rem); /* align under the title text, past the status dot */
 }
 
-.companion-panel-scope i {
+.companion-rail-scope i {
     font-size: 0.75rem;
     opacity: 0.9;
 }
 
-.companion-status-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #4ade80;
-    box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.25);
-}
-
-.companion-panel-actions {
+.companion-rail-actions {
     display: flex;
     align-items: center;
     gap: 0.25rem;
+    flex-shrink: 0;
 }
 
-.companion-panel-actions button {
-    background: rgba(255,255,255,0.12);
+.companion-rail-actions button {
+    background: rgba(255, 255, 255, 0.12);
     border: none;
-    color: rgba(255,255,255,0.8);
+    color: rgba(255, 255, 255, 0.8);
     width: 28px;
     height: 28px;
     border-radius: 6px;
@@ -619,25 +624,40 @@
     transition: all var(--transition-fast, 0.15s);
 }
 
-.companion-panel-actions button:hover {
-    background: rgba(255,255,255,0.22);
+.companion-rail-actions button:hover {
+    background: rgba(255, 255, 255, 0.22);
     color: #fff;
 }
 
-/* --- Messages Area --- */
-.companion-messages {
+/* --- Body (messages) --- */
+.companion-rail-body {
     flex: 1;
     overflow-y: auto;
     padding: 0.65rem;
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
-    min-height: 180px;
+    min-height: 0;
 }
 
-.companion-messages::-webkit-scrollbar { width: 5px; }
-.companion-messages::-webkit-scrollbar-track { background: transparent; }
-.companion-messages::-webkit-scrollbar-thumb { background: var(--gray-300, #d1d5db); border-radius: 3px; }
+.companion-rail-body::-webkit-scrollbar { width: 5px; }
+.companion-rail-body::-webkit-scrollbar-track { background: transparent; }
+.companion-rail-body::-webkit-scrollbar-thumb { background: var(--gray-300, #d1d5db); border-radius: 3px; }
+
+/* --- Footer (quick actions + composer) --- */
+.companion-rail-footer {
+    flex-shrink: 0;
+}
+
+.companion-rail-fine {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.65rem 0.5rem;
+    font-size: 0.66rem;
+    color: var(--gray-400, #9ca3af);
+    background: #fff;
+}
 
 /* Message bubbles */
 .c-msg {
@@ -838,17 +858,22 @@
 
 .companion-send-btn i { font-size: 0.78rem; }
 
-/* --- Responsive --- */
-@media (max-width: 480px) {
-    .companion-panel {
+/* --- Responsive ---
+   Below the dock threshold the rail stops taking width (flex-basis 0) and floats
+   over the content instead, so a narrow viewport isn't squeezed to nothing. */
+@media (max-width: 1199.98px) {
+    .companion-rail {
+        position: fixed;
+        top: var(--topbar-height);
         right: 0;
-        bottom: 0;
-        width: 100%;
-        max-height: 100vh;
-        border-radius: 0;
+        flex: 0 0 0;
+        box-shadow: -8px 0 28px rgba(0, 0, 0, 0.10);
+        z-index: 1045;   /* under the Bootstrap modal backdrop (1050) */
     }
-    .companion-fab {
-        bottom: 5rem; /* Keep above footer on mobile */
-        right: 1rem;
+}
+
+@media (max-width: 480px) {
+    .companion-rail:not(.collapsed) {
+        width: 100%;
     }
 }
