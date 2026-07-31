@@ -72,9 +72,17 @@
             {% endfor %}
         </div>
 
-        <div class="companion-rail-body" id="companionMessages">
-            <div class="c-msg c-msg--system">
-                Companion ready — facts only, opinions are yours.
+        {# One scroll region: what the companion surfaced on its own, then the
+           conversation. Insights scroll away as the chat grows. #}
+        <div class="companion-rail-body" id="companionRailBody">
+            {# Filled by companion.js from /companion/warnings, and only when a
+               company is in focus — warnings are per-company. #}
+            <div class="companion-insights" id="companionInsights"></div>
+
+            <div class="companion-messages" id="companionMessages">
+                <div class="c-msg c-msg--system">
+                    Companion ready — facts only, opinions are yours.
+                </div>
             </div>
         </div>
 

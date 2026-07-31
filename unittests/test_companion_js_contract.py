@@ -112,9 +112,35 @@ def test_js_renders_markdown_answers():
     assert 'this.escapeHtml(answer)' not in s
 
 
+def test_js_surfaces_insights_from_the_warnings_endpoint():
+    """Task 3: the rail shows the user's own history, at zero token cost."""
+    s = _js()
+    assert 'loadInsights' in s
+    assert '/warnings?company_id=' in s      # existing zero-token endpoint
+    assert 'companionInsights' in s
+    assert 'Surfaced for you' in s
+
+
+def test_js_only_surfaces_insights_when_a_company_is_in_focus():
+    """Warnings are per-company; an unfocused page has nothing to surface.
+
+    The section is left absent rather than empty-stated — an account-wide
+    'surfaced' feed is a different feature.
+    """
+    s = _js()
+    loader = s[s.index('loadInsights'):]
+    guard = loader[:loader.index('\n    },')]
+    assert 'company_id' in guard, 'insights must be gated on a company focus'
+
+
 def test_widget_has_scope_element():
     html = open(WIDGET, encoding='utf-8').read()
     assert 'companionScope' in html
+
+
+def test_widget_has_an_insights_mount():
+    html = open(WIDGET, encoding='utf-8').read()
+    assert 'id="companionInsights"' in html
 
 
 def test_widget_renders_a_rail():
