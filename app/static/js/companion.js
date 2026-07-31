@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * Research Companion — Docked Rail (State C, issue #311)
+ * Research Companion — Docked Rail
  * =============================================================================
  * Config is read from the #companionRail dataset so the rail can be mounted on
  * any page. Focus is a page hint: {type, company_id?, project_id?, step?}.
@@ -133,6 +133,15 @@
     toggle() {
       this.setOpen(!this.isOpen);
       if (this.isOpen) document.getElementById('companionChatInput').focus();
+    },
+
+    // A question is in flight. Shown on the collapsed strip (spinner) and on the
+    // orb (a slow pulse), so leaving the rail collapsed still tells you it's busy.
+    setRunning(running) {
+      const spinner = document.getElementById('companionStatusRunning');
+      if (spinner) spinner.style.display = running ? '' : 'none';
+      const orb = document.getElementById('companionRailOrb');
+      if (orb) orb.classList.toggle('is-running', running);
     },
 
     async send() {
@@ -272,6 +281,14 @@
       }
       if (!warnings.length) return;
 
+      // Mirror the count onto the collapsed strip, so a collapsed rail still says
+      // there's something here.
+      const light = document.getElementById('companionStatusInsights');
+      if (light) {
+        document.getElementById('companionInsightCount').textContent = warnings.length;
+        light.style.display = '';
+      }
+
       const head = document.createElement('div');
       head.className = 'companion-insights-head';
       head.innerHTML = `<i class="bi bi-lightbulb-fill"></i> Surfaced for you
@@ -297,7 +314,7 @@
         ${detail}`;
 
       // Dismiss is view-only for now — nothing is persisted, so a reload brings
-      // it back. Persisting dismissals is its own decision (see #311).
+      // it back. Persisting dismissals would need a table and a scope decision.
       const dismiss = document.createElement('button');
       dismiss.className = 'companion-insight-dismiss';
       dismiss.type = 'button';
@@ -432,18 +449,22 @@
       this.scrollToBottom();
     },
 
+    // showTyping/hideTyping bracket every run (ask, resume, wrap-up), so the
+    // collapsed strip's running light rides along with them.
     showTyping() {
       const msg = document.createElement('div');
       msg.className = 'c-msg c-msg--typing';
       msg.id = 'companionTyping';
       msg.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
       document.getElementById('companionMessages').appendChild(msg);
+      this.setRunning(true);
       this.scrollToBottom();
     },
 
     hideTyping() {
       const el = document.getElementById('companionTyping');
       if (el) el.remove();
+      this.setRunning(false);
     },
 
     // The scroll region is the whole body (insights + messages), not the message
@@ -513,4 +534,206 @@
 
   // Resume an answer that was still generating when we navigated to this page.
   CompanionChat.resumePending();
+
+  // ⌘. / Ctrl+. toggles the rail. Ignored while typing in a field, so it can't
+  // steal the keystroke from a note or a form the user is filling in.
+  document.addEventListener('keydown', (e) => {
+    if (!(e.metaKey || e.ctrlKey) || e.key !== '.') return;
+    const el = document.activeElement;
+    const tag = el ? el.tagName : '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (el && el.isContentEditable)) {
+      if (el.id !== 'companionChatInput') return;
+    }
+    e.preventDefault();
+    CompanionChat.toggle();
+  });
+
+  // ===========================================================================
+  // Selection assist
+  // ---------------------------------------------------------------------------
+  // Highlight a phrase in the workspace and, if the user's own knowledge has
+  // something to say about it, a small popover offers that evidence. Retrieval
+  // only — no LLM, no tokens.
+  //
+  // The bar for appearing is deliberately high: nobody asked for this, so it has
+  // to earn the interruption. It stays silent for short selections, for anything
+  // selected inside the companion's own UI, and whenever the server finds nothing
+  // above its relevance floor.
+  // ===========================================================================
+  const SelectionAssist = {
+    // Mirrors MIN_SELECTION_CHARS on the server, to avoid a round-trip we know
+    // will come back empty.
+    MIN_CHARS: 12,
+    popover: null,
+    anchorEl: null,      // where the selection lives, so a citation lands there
+    lastText: '',
+
+    // The companion's own surfaces are off-limits: offering evidence about the
+    // answer it just wrote is noise, not help.
+    isOwnUI(node) {
+      const el = node && node.nodeType === 3 ? node.parentElement : node;
+      return !!(el && el.closest &&
+        el.closest('#companionRail, .companion-selection-popover, .modal'));
+    },
+
+    // Only the working area. Selecting a nav label or a page heading isn't a
+    // research question.
+    inWorkspace(node) {
+      const el = node && node.nodeType === 3 ? node.parentElement : node;
+      return !!(el && el.closest && el.closest('.app-main'));
+    },
+
+    async onSelection() {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) return this.hide();
+
+      const text = sel.toString().trim();
+      const node = sel.anchorNode;
+      if (text.length < this.MIN_CHARS || this.isOwnUI(node) || !this.inWorkspace(node)) {
+        return this.hide();
+      }
+      if (text === this.lastText && this.popover) return;   // same phrase, already shown
+
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      this.anchorEl = node && node.nodeType === 3 ? node.parentElement : node;
+
+      let evidence;
+      try {
+        const resp = await fetch(`${cfg.endpointBase}/selection`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, company_id: cfg.focus.company_id }),
+        });
+        const data = await resp.json();
+        if (!data.success) return;
+        evidence = data.data.evidence || [];
+      } catch (e) {
+        return;   // silent: this was never asked for
+      }
+      if (!evidence.length) return this.hide();
+
+      this.lastText = text;
+      this.show(evidence, rect);
+    },
+
+    show(evidence, rect) {
+      this.hide();
+      const pop = document.createElement('div');
+      pop.className = 'companion-selection-popover';
+      pop.id = 'companionSelectionPopover';
+
+      const head = document.createElement('div');
+      head.className = 'csp-head';
+      head.innerHTML = `<i class="bi bi-stars"></i> You already know something about this`;
+      pop.appendChild(head);
+
+      evidence.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'csp-item';
+        row.innerHTML = `
+          <div class="csp-item-top">
+            <span class="csp-source">${CompanionChat.escapeHtml(item.source_type)}</span>
+            <b>${CompanionChat.escapeHtml(item.title || '')}</b>
+          </div>
+          <p>${CompanionChat.escapeHtml(item.summary || '')}</p>`;
+
+        const insert = document.createElement('button');
+        insert.className = 'csp-insert';
+        insert.type = 'button';
+        insert.textContent = 'Insert citation';
+        insert.addEventListener('click', () => this.insertCitation(item));
+        row.appendChild(insert);
+        pop.appendChild(row);
+      });
+
+      document.body.appendChild(pop);
+      this.popover = pop;
+      this.position(rect);
+    },
+
+    // Anchor under the selection, nudged back inside the viewport if it would
+    // hang off the right edge or the bottom.
+    position(rect) {
+      const pop = this.popover;
+      const margin = 8;
+      const width = pop.offsetWidth;
+      let left = rect.left + window.scrollX;
+      let top = rect.bottom + window.scrollY + margin;
+
+      const maxLeft = window.scrollX + document.documentElement.clientWidth - width - margin;
+      if (left > maxLeft) left = Math.max(margin, maxLeft);
+
+      const overflowsBottom =
+        rect.bottom + pop.offsetHeight + margin > document.documentElement.clientHeight;
+      if (overflowsBottom) top = rect.top + window.scrollY - pop.offsetHeight - margin;
+
+      pop.style.left = `${left}px`;
+      pop.style.top = `${top}px`;
+    },
+
+    // Write the evidence where the user was reading. BlockNote exposes its editor
+    // globally; a plain textarea takes the text directly. If neither is the
+    // target, fall back to the clipboard rather than doing nothing.
+    insertCitation(item) {
+      const line = `${item.summary || item.title} — ${item.title}`;
+      const textarea = this.anchorEl && this.anchorEl.closest
+        ? this.anchorEl.closest('textarea')
+        : null;
+
+      if (textarea) {
+        textarea.value += (textarea.value ? '\n\n' : '') + line;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        return this.done('Citation inserted');
+      }
+
+      const editor = window.blockNoteEditorInstance;
+      if (editor && typeof editor.insertBlocks === 'function') {
+        try {
+          const doc = editor.document || [];
+          editor.insertBlocks(
+            [{ type: 'paragraph', content: line }], doc[doc.length - 1], 'after');
+          return this.done('Citation inserted');
+        } catch (e) { /* editor API drifted — fall through to clipboard */ }
+      }
+
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(line).then(
+          () => this.done('Citation copied'),
+          () => this.done('Could not insert'));
+        return;
+      }
+      this.done('Could not insert');
+    },
+
+    done(message) {
+      CompanionChat.appendMessage('system', CompanionChat.escapeHtml(message));
+      this.hide();
+    },
+
+    hide() {
+      if (this.popover) {
+        this.popover.remove();
+        this.popover = null;
+      }
+      this.lastText = '';
+    },
+  };
+
+  let selectionTimer = null;
+  document.addEventListener('mouseup', () => {
+    clearTimeout(selectionTimer);
+    // Wait for the selection to settle, and don't fire mid-drag.
+    selectionTimer = setTimeout(() => SelectionAssist.onSelection(), 250);
+  });
+
+  document.addEventListener('mousedown', (e) => {
+    if (!SelectionAssist.popover) return;
+    if (!e.target.closest('.companion-selection-popover')) SelectionAssist.hide();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') SelectionAssist.hide();
+  });
+
+  window.addEventListener('scroll', () => SelectionAssist.hide(), { passive: true });
 })();

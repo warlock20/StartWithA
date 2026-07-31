@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-"""Context chips — the rail shows what an answer is grounded on (#311 State C).
+"""Context chips — the rail shows what an answer is grounded on.
 
 Pages declare their own chips from objects they already render; this helper only
 normalises that declaration, adds the counts a template can't cheaply compute, and
@@ -41,7 +41,15 @@ TEMPLATES = {
     'research': '../app/research_workflow/templates/execute_step.html',
     'kill': '../app/research_workflow/templates/execute_kill_checklist_step.html',
     'free': '../app/research_workflow/templates/free_research_step.html',
+    'project': '../app/research_workflow/templates/project_dashboard.html',
 }
+
+PROJECT_DASHBOARD = os.path.join(
+    os.path.dirname(__file__), '..',
+    'app/research_workflow/templates/project_dashboard.html')
+ALERTS_PARTIAL = os.path.join(
+    os.path.dirname(__file__), '..',
+    'app/research_workflow/templates/partials/_companion_alerts.html')
 
 
 def _labels(chips):
@@ -137,8 +145,28 @@ def test_widget_renders_the_chip_strip(app_context, _app):
 
 
 def test_focused_templates_declare_their_chips():
-    """The five pages that declare a focus also declare what they're showing."""
+    """Every page that declares a focus also declares what it's showing."""
     here = os.path.dirname(__file__)
     for name, rel in TEMPLATES.items():
         html = open(os.path.join(here, rel), encoding='utf-8').read()
         assert "'chips'" in html, f'{name} declares a focus but no chips'
+
+
+def test_research_intelligence_card_was_absorbed_by_the_rail():
+    """The sidebar card duplicated the rail's 'Surfaced for you' — same three
+    sources, same endpoint, but only on this one page. The rail carries it now.
+    """
+    assert not os.path.exists(ALERTS_PARTIAL), 'the partial should be deleted'
+    html = open(PROJECT_DASHBOARD, encoding='utf-8').read()
+    assert '_companion_alerts.html' not in html
+
+
+def test_project_dashboard_focuses_the_company_so_insights_still_load():
+    """Retiring the card only works if the rail can surface the same warnings here.
+
+    `loadInsights` is gated on a company focus, so without this the page would lose
+    its warnings entirely rather than move them.
+    """
+    html = open(PROJECT_DASHBOARD, encoding='utf-8').read()
+    assert 'companion_focus' in html
+    assert 'company_id' in html

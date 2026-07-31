@@ -16,8 +16,8 @@
 
 """Static contract checks on companion.js. No app/DB needed.
 
-Covers the #300 seamless-chat behaviours (threads, open state, resume) and the
-#311 State C rail surface that replaced the floating bubble.
+Covers the seamless-chat behaviours (threads, open state, resume) and the
+docked rail surface that replaced the floating bubble.
 """
 
 import os
@@ -27,6 +27,9 @@ WIDGET = os.path.join(
     os.path.dirname(__file__), '..', 'app/templates/main/_companion_widget.html')
 CSS = os.path.join(
     os.path.dirname(__file__), '..', 'app/static/css/modules/_companion.css')
+ARGOS_CHECK = os.path.join(
+    os.path.dirname(__file__), '..',
+    'app/research_workflow/templates/partials/_argos_check.html')
 
 
 def _js():
@@ -69,7 +72,7 @@ def test_js_persists_open_state():
 
 
 def test_js_targets_the_rail_not_the_bubble():
-    """State C: the surface is a docked rail; the FAB + slide-up panel are gone."""
+    """The surface is a docked rail; the FAB + slide-up panel are gone."""
     s = _js()
     assert 'companionRail' in s           # config + collapse target
     assert 'companionRailBadge' in s      # unread dot when an answer lands collapsed
@@ -133,6 +136,37 @@ def test_js_only_surfaces_insights_when_a_company_is_in_focus():
     assert 'company_id' in guard, 'insights must be gated on a company focus'
 
 
+def test_js_binds_the_expand_shortcut():
+    """The rail expands from the keyboard without reaching for the tab."""
+    s = _js()
+    assert 'metaKey' in s and 'ctrlKey' in s
+    assert "'.'" in s                 # the bound key, however the guard is written
+    assert 'keydown' in s
+
+
+def test_js_drives_the_collapsed_status_lights():
+    """Orb pulses while a question is running; lights show what's waiting."""
+    s = _js()
+    assert 'setRunning' in s
+    assert 'companionStatusRunning' in s
+    assert 'companionStatusInsights' in s
+
+
+def test_widget_has_the_collapsed_status_rail():
+    """The 44px strip carries the orb, unread badge and status lights.
+
+    Three lights only. There is deliberately no 'needs review' light: the Dashboard
+    already surfaces upcoming reviews, and the only data behind one here would be
+    Destination Analysis checkpoints under a label promising more than that.
+    """
+    html = open(WIDGET, encoding='utf-8').read()
+    assert 'id="companionRailOrb"' in html
+    assert 'id="companionRailBadge"' in html
+    assert 'id="companionStatusRunning"' in html
+    assert 'id="companionStatusInsights"' in html
+    assert 'companionStatusReview' not in html
+
+
 def test_widget_has_scope_element():
     html = open(WIDGET, encoding='utf-8').read()
     assert 'companionScope' in html
@@ -154,17 +188,29 @@ def test_widget_renders_a_rail():
 
 
 def test_rail_css_replaced_the_bubble_css():
-    """The FAB/panel rules are deleted, and the rail is styled in their place.
-
-    The first half of the module is the unrelated Argos alerts/banner feature —
-    it must survive the swap.
-    """
+    """The FAB/panel rules are deleted, and the rail is styled in their place."""
     css = open(CSS, encoding='utf-8').read()
     assert '.companion-rail' in css
     assert '.companion-fab' not in css
     assert '.companion-panel' not in css
-    assert '.companion-alerts-card' in css   # unrelated feature, untouched
-    assert '.companion-banner' in css
+
+
+def test_only_the_argos_modal_still_uses_the_alert_item_rules():
+    """The alert-item family predates the rail and is NOT a separate feature —
+    it rendered the same warnings the rail now shows.
+
+    The sidebar card (.companion-alerts-*) and the never-used banner
+    (.companion-banner-*) are gone; the item rules stay because the Argos modal's
+    Research Intelligence tab still renders them.
+    """
+    css = open(CSS, encoding='utf-8').read()
+    assert '.companion-alert-item' in css
+    assert '#argosModal .companion-alert-item' in css
+    assert '.companion-alerts-card' not in css
+    assert '.companion-banner' not in css
+
+    argos = open(ARGOS_CHECK, encoding='utf-8').read()
+    assert 'companion-alert-item' in argos
 
 
 def test_widget_exposes_focus_dataset():

@@ -1,5 +1,5 @@
 {#
-  Research Companion — Docked Rail (State C, issue #311)
+  Research Companion — Docked Rail
 
   A persistent right-hand rail that expands and collapses with the task. Mounted by
   main/_base.html as a flex sibling of .app-main, so an expanded rail *shrinks* the
@@ -36,12 +36,30 @@
        data-focus-step="{{ _focus.step | default('') }}"
        data-endpoint-base="/companion">
 
-    {# Collapsed state: a slim edge tab. Deliberately plain — State A (the pulse
-       rail with orb + status icons) replaces this wholesale. #}
+    {# Collapsed: a 44px pulse rail. Present and silent — it never
+       overlaps content, and only lights up for things the rail itself knows about:
+       an answer you haven't seen, a question still running, insights it surfaced.
+
+       There is deliberately no "needs review" light. The Dashboard already surfaces
+       upcoming reviews, and duplicating it here would both crowd the strip and
+       promise more than one feature's data can deliver. #}
     <button class="companion-rail-tab" id="companionRailTab" type="button"
-            title="Open the companion" onclick="CompanionChat.toggle()">
-        <i class="bi bi-stars"></i>
-        <span class="companion-rail-tab-badge" id="companionRailBadge" style="display: none;"></span>
+            title="Open the companion (⌘.)" onclick="CompanionChat.toggle()">
+        <span class="companion-rail-orb-sm" id="companionRailOrb">A
+            <span class="companion-rail-tab-badge" id="companionRailBadge"
+                  title="New answer" style="display: none;"></span>
+        </span>
+
+        <span class="companion-rail-lights">
+            <span class="companion-rail-spinner" id="companionStatusRunning"
+                  title="Working on your question" style="display: none;"></span>
+
+            <span class="companion-rail-light" id="companionStatusInsights"
+                  style="display: none;">
+                <i class="bi bi-lightbulb-fill"></i>
+                <span class="companion-rail-light-count" id="companionInsightCount"></span>
+            </span>
+        </span>
     </button>
 
     <div class="companion-rail-inner">

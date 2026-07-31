@@ -1,4 +1,15 @@
 {% extends "main/_base_companies.html" %}
+{# Focus the companion on this project's company. The rail's "Surfaced for you"
+   replaced the Research Intelligence sidebar card that used to live here — it
+   shows the same pattern/journal/mistake warnings, and gating it needs this focus. #}
+{% set companion_focus = {
+    'type': 'research', 'company_id': project.company_id, 'project_id': project.id,
+    'chips': [
+        {'icon': 'bi-building', 'kind': 'mine',
+         'label': (project.company.ticker_symbol or project.company.name) if project.company else ''},
+        {'icon': 'bi-list-check', 'kind': 'mine',
+         'label': project.project_name or (project.template.name if project.template else '')},
+    ]} %}
 
 {% block content %}
 
@@ -380,9 +391,6 @@
                     </button>
                 </div>
             </div>
-
-            <!-- Companion Alerts -->
-            {% include 'partials/_companion_alerts.html' %}
 
             <!-- Quick Actions -->
             <div class="quick-actions-card">

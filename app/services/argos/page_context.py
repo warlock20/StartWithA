@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-Page context for the companion rail (issue #311).
+Page context for the companion rail.
 
 The rail shows a row of small pills — "chips" — naming the things the companion
 is using to answer you::

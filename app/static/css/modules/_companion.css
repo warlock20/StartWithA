@@ -1,90 +1,16 @@
 /* =============================================================================
-   RESEARCH COMPANION — Warning Banners & Alerts
+   RESEARCH COMPANION — Warning Alert Items
    =============================================================================
-   Proactive companion intelligence surfaces: pattern warnings, journal insights,
-   and mistake history. Auto-loaded on page load via DB queries (zero token cost).
+   Pattern warnings, journal insights and mistake history, rendered from DB
+   queries (zero token cost).
 
-   Components:
-   - .companion-alerts-card — Sidebar card for project dashboard
-   - .companion-banner — Top-of-page warning banner for research step pages
+   Only one surface still uses these rules: the Argos modal's Research
+   Intelligence tab (partials/_argos_check.html). The sidebar card and the
+   top-of-page banner that also used them are gone — the companion rail's
+   "Surfaced for you" carries the same warnings onto every company-focused page
+   Rail styling lives further down this file.
    ============================================================================= */
 
-/* --- Sidebar Alerts Card (Project Dashboard) --- */
-.companion-alerts-card {
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--gray-200);
-    border-radius: 12px;
-    overflow: hidden;
-    margin-bottom: 1.5rem;
-}
-
-.companion-alerts-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.875rem 1.125rem;
-    background: linear-gradient(135deg, var(--primary-50) 0%, #fff 100%);
-    border-bottom: 1px solid var(--gray-200);
-    cursor: pointer;
-    transition: background var(--transition-fast, 0.15s);
-}
-
-.companion-alerts-header:hover {
-    background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-50) 100%);
-}
-
-.companion-alerts-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--primary-800);
-}
-
-.companion-alerts-title i {
-    font-size: 1rem;
-    color: var(--accent-color);
-}
-
-.companion-alerts-count {
-    background: var(--accent-color);
-    color: white;
-    font-size: 0.7rem;
-    padding: 0.1rem 0.45rem;
-    border-radius: 10px;
-    font-weight: 600;
-    min-width: 20px;
-    text-align: center;
-}
-
-.companion-alerts-count.empty {
-    background: var(--gray-300);
-}
-
-.companion-alerts-chevron {
-    color: var(--gray-400);
-    transition: transform 0.2s;
-    font-size: 0.85rem;
-}
-
-.companion-alerts-header[aria-expanded="false"] .companion-alerts-chevron {
-    transform: rotate(-90deg);
-}
-
-.companion-alerts-body {
-    padding: 0.5rem;
-}
-
-.companion-alerts-empty {
-    padding: 0.75rem;
-    color: var(--gray-400);
-    font-size: 0.85rem;
-    font-style: italic;
-    text-align: center;
-}
-
-/* Alert items inside the sidebar card */
 .companion-alert-item {
     display: flex;
     gap: 0.625rem;
@@ -231,22 +157,6 @@
     color: var(--gray-600);
 }
 
-/* Loading state */
-.companion-alerts-loading {
-    text-align: center;
-    padding: 1rem;
-    color: var(--gray-400);
-    font-size: 0.8rem;
-}
-
-.companion-alerts-loading i {
-    animation: companionSpin 1s linear infinite;
-}
-
-@keyframes companionSpin {
-    to { transform: rotate(360deg); }
-}
-
 /* Dismiss animation */
 .companion-alert-item.dismissing {
     animation: companionSlideOut 0.3s ease forwards;
@@ -260,189 +170,6 @@
         padding: 0;
         margin: 0;
     }
-}
-
-/* --- Top-of-Page Warning Banner (Research Steps) --- */
-.companion-banner {
-    margin-bottom: 1rem;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid var(--gray-200);
-    background: #fff;
-}
-
-.companion-banner:empty {
-    display: none;
-}
-
-.companion-banner-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.6rem 0.875rem;
-    background: linear-gradient(135deg, var(--primary-50) 0%, #fff 100%);
-    border-bottom: 1px solid var(--gray-200);
-    cursor: pointer;
-}
-
-.companion-banner-title {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-weight: 600;
-    font-size: 0.8rem;
-    color: var(--primary-700);
-}
-
-.companion-banner-title i {
-    color: var(--accent-color);
-    font-size: 0.9rem;
-}
-
-.companion-banner-count {
-    background: var(--accent-color);
-    color: white;
-    font-size: 0.65rem;
-    padding: 0.05rem 0.4rem;
-    border-radius: 8px;
-    font-weight: 600;
-}
-
-.companion-banner-dismiss-all {
-    background: none;
-    border: none;
-    color: var(--gray-400);
-    cursor: pointer;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.4rem;
-    border-radius: 4px;
-    transition: all var(--transition-fast, 0.15s);
-}
-
-.companion-banner-dismiss-all:hover {
-    background: var(--gray-100);
-    color: var(--gray-600);
-}
-
-.companion-banner-items {
-    padding: 0.375rem;
-}
-
-/* Banner items */
-.companion-banner-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    padding: 0.5rem 0.625rem;
-    border-radius: 6px;
-    margin-bottom: 0.25rem;
-    position: relative;
-    font-size: 0.8rem;
-    line-height: 1.4;
-}
-
-.companion-banner-item:last-child {
-    margin-bottom: 0;
-}
-
-/* Severity */
-.companion-banner-item.severity-high {
-    background: #fef2f2;
-    border-left: 3px solid #ef4444;
-}
-
-.companion-banner-item.severity-medium {
-    background: #fffbeb;
-    border-left: 3px solid #f59e0b;
-}
-
-.companion-banner-item.severity-low {
-    background: #eff6ff;
-    border-left: 3px solid #3b82f6;
-}
-
-.companion-banner-item.severity-info {
-    background: #f0fdf4;
-    border-left: 3px solid #10b981;
-}
-
-.companion-banner-item-icon {
-    flex-shrink: 0;
-    font-size: 0.85rem;
-    margin-top: 1px;
-}
-
-.severity-high .companion-banner-item-icon { color: #dc2626; }
-.severity-medium .companion-banner-item-icon { color: #d97706; }
-.severity-low .companion-banner-item-icon { color: #2563eb; }
-.severity-info .companion-banner-item-icon { color: #16a34a; }
-
-.companion-banner-item-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.companion-banner-item-title {
-    font-weight: 600;
-    font-size: 0.78rem;
-    color: var(--text-primary, #111827);
-}
-
-.companion-banner-item-message {
-    font-size: 0.75rem;
-    color: var(--text-secondary, #4b5563);
-}
-
-.companion-banner-item-dismiss {
-    position: absolute;
-    top: 0.35rem;
-    right: 0.35rem;
-    background: none;
-    border: none;
-    color: var(--gray-300);
-    cursor: pointer;
-    font-size: 0.65rem;
-    padding: 0.1rem;
-    border-radius: 3px;
-    opacity: 0;
-    transition: opacity var(--transition-fast, 0.15s);
-}
-
-.companion-banner-item:hover .companion-banner-item-dismiss {
-    opacity: 1;
-}
-
-.companion-banner-item-dismiss:hover {
-    color: var(--gray-600);
-}
-
-/* Banner collapsed state */
-.companion-banner.collapsed .companion-banner-items {
-    display: none;
-}
-
-.companion-banner.collapsed .companion-banner-header {
-    border-bottom: none;
-}
-
-/* Banner slide-in animation */
-.companion-banner {
-    animation: companionBannerSlideIn 0.3s ease-out;
-}
-
-@keyframes companionBannerSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.companion-banner-item.dismissing {
-    animation: companionSlideOut 0.3s ease forwards;
 }
 
 /* --- Argos Modal: companion alerts inside modal context --- */
@@ -459,7 +186,7 @@
 }
 
 /* =============================================================================
-   COMPANION RAIL  (State C — issue #311)
+   COMPANION RAIL
    -----------------------------------------------------------------------------
    A docked right-hand rail, mounted by _base.html as a flex sibling of .app-main.
    Expanded it takes real estate and the content column shrinks; collapsed it is a
@@ -504,44 +231,124 @@
 .companion-rail.collapsed .companion-rail-inner { display: none; }
 .companion-rail:not(.collapsed) .companion-rail-tab { display: none; }
 
-/* --- Collapsed edge tab ---
-   Deliberately plain: State A (the pulse rail with orb + status icons) replaces
-   this wholesale. It exists so a collapsed rail can still be reopened. */
+/* --- Collapsed pulse rail ---
+   44px of presence. Every light here is driven by state the rail already owns —
+   an unseen answer, a running question, insights it fetched — so nothing can
+   claim something the rail can't back up. Reviews live on the Dashboard. */
 .companion-rail-tab {
-    position: relative;
     width: 100%;
     height: 100%;
     border: none;
     background: transparent;
-    color: var(--gray-500, #6b7280);
     cursor: pointer;
     display: flex;
-    justify-content: center;
-    padding-top: 1rem;
-    font-size: 1.05rem;
-    transition: background var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
+    flex-direction: column;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.65rem 0;
+    transition: background var(--transition-fast, 0.15s);
 }
 
 .companion-rail-tab:hover {
     background: var(--gray-50, #f7f8fc);
-    color: var(--accent-color, #2d6a4f);
+}
+
+.companion-rail-tab:focus-visible {
+    outline: 2px solid var(--accent-color, #2d6a4f);
+    outline-offset: -2px;
+}
+
+.companion-rail-orb-sm {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-color, #2d6a4f) 0%, var(--accent-700, #1b4332) 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.66rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* Busy: the orb breathes rather than spinning, so two moving things don't compete. */
+.companion-rail-orb-sm.is-running {
+    animation: railOrbPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes railOrbPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(45, 106, 79, 0.45); }
+    50% { box-shadow: 0 0 0 6px rgba(45, 106, 79, 0); }
 }
 
 /* Unread dot — an answer landed while the rail was collapsed. */
 .companion-rail-tab-badge {
     position: absolute;
-    top: 0.6rem;
-    right: 0.5rem;
+    top: -1px;
+    right: -1px;
     width: 9px;
     height: 9px;
     border-radius: 50%;
     background: #ef4444;
+    border: 1.5px solid #fff;
     animation: railPulse 2s ease-in-out infinite;
 }
 
 @keyframes railPulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
     50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+
+.companion-rail-lights {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.companion-rail-spinner {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px solid var(--gray-200, #e5e7eb);
+    border-top-color: var(--accent-color, #2d6a4f);
+    animation: railSpin 0.9s linear infinite;
+}
+
+@keyframes railSpin {
+    to { transform: rotate(360deg); }
+}
+
+.companion-rail-light {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    color: var(--warning-500, #f59e0b);
+    font-size: 0.8rem;
+    line-height: 1;
+}
+
+.companion-rail-light-count {
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--gray-500, #6b7280);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Motion is a status signal here, so keep the state visible without the movement. */
+@media (prefers-reduced-motion: reduce) {
+    .companion-rail-tab-badge,
+    .companion-rail-orb-sm.is-running {
+        animation: none;
+    }
+    .companion-rail-spinner {
+        animation: none;
+        border-top-color: var(--accent-color, #2d6a4f);
+        border-right-color: var(--accent-color, #2d6a4f);
+    }
 }
 
 /* --- Header --- */
@@ -1045,4 +852,105 @@
     .companion-rail:not(.collapsed) {
         width: 100%;
     }
+}
+
+/* =============================================================================
+   SELECTION ASSIST POPOVER
+   -----------------------------------------------------------------------------
+   Appears under a highlighted phrase when the user's own knowledge has something
+   to say about it. Positioned in JS; absolute so it scrolls with the document
+   (and hides on scroll anyway).
+
+   Visually quieter than the rail on purpose — it arrives uninvited, so it reads
+   as a margin note rather than a dialog.
+   ============================================================================= */
+.companion-selection-popover {
+    position: absolute;
+    z-index: 1040;
+    width: 20rem;
+    max-width: calc(100vw - 2rem);
+    background: #fff;
+    border: 1px solid var(--gray-200, #e5e7eb);
+    border-radius: var(--radius-lg, 12px);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    animation: cspIn 0.14s ease-out;
+}
+
+@keyframes cspIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.csp-head {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.65rem;
+    background: var(--gray-50, #f7f8fc);
+    border-bottom: 1px solid var(--gray-100, #f3f4f6);
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--gray-500, #6b7280);
+}
+
+.csp-head i {
+    color: var(--accent-color, #2d6a4f);
+}
+
+.csp-item {
+    padding: 0.55rem 0.65rem;
+    border-bottom: 1px solid var(--gray-100, #f3f4f6);
+    font-size: 0.76rem;
+}
+
+.csp-item:last-child {
+    border-bottom: none;
+}
+
+.csp-item-top {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.2rem;
+    color: var(--gray-800, #1f2937);
+}
+
+.csp-source {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    padding: 0.05rem 0.32rem;
+    border-radius: 3px;
+    background: var(--accent-50, #f0fdf4);
+    color: var(--accent-700, #1b4332);
+    flex-shrink: 0;
+}
+
+.csp-item p {
+    margin: 0 0 0.35rem;
+    color: var(--gray-600, #4b5563);
+    line-height: 1.45;
+}
+
+.csp-insert {
+    font-size: 0.7rem;
+    padding: 0.18rem 0.5rem;
+    border: 1px solid var(--gray-200, #e5e7eb);
+    border-radius: 20px;
+    background: #fff;
+    color: var(--gray-600, #4b5563);
+    cursor: pointer;
+    transition: all var(--transition-fast, 0.15s);
+}
+
+.csp-insert:hover {
+    background: var(--accent-color, #2d6a4f);
+    border-color: var(--accent-color, #2d6a4f);
+    color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .companion-selection-popover { animation: none; }
 }
