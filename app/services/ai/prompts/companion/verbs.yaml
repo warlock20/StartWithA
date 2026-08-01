@@ -1,0 +1,47 @@
+name: "verbs"
+description: "Composer verbs — the stance a question is asked in. The user supplies the subject."
+version: "1.0"
+category: "companion"
+
+# Picking a verb prefixes the composer with its `stance`, and the user types what
+# they want it applied to. The combined text goes to the companion agent as an
+# ordinary question, so a verb can only ever ask for what a typed question could
+# already get — it decides framing, not capability.
+#
+# Deliberately no "Monitor" verb: every companion tool is read-only, so nothing
+# can watch something and report back later. Checkpoints are the real feature for
+# that, and they need a target date and a metric rather than a sentence.
+#
+# `stance` is sent to the model. `placeholder` and `label` are UI text.
+verbs:
+  - key: compare
+    label: "Compare"
+    icon: "bi-bar-chart-line"
+    stance: >-
+      Compare the following using only my own data, and say plainly where my
+      records disagree or are missing:
+    placeholder: "…name what to compare"
+
+  - key: summarize
+    label: "Summarize"
+    icon: "bi-file-earmark-text"
+    stance: >-
+      Summarize the following from my own records, shortest useful version, and
+      note what is still open:
+    placeholder: "…name what to summarize"
+
+  - key: draft
+    label: "Draft"
+    icon: "bi-pencil"
+    stance: >-
+      Draft the following using only what my own research supports. Mark anything
+      my records do not cover rather than filling the gap:
+    placeholder: "…name what to draft"
+
+  - key: redteam
+    label: "Red-team"
+    icon: "bi-flag"
+    stance: >-
+      Argue against the following using my own findings, past decisions and logged
+      mistakes. Give me the strongest case I am wrong:
+    placeholder: "…name what to challenge"

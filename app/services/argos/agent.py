@@ -24,6 +24,7 @@ user's own data. Facts-only compliance rules live in companion_agent.yaml.
 """
 
 import logging
+import re
 
 from app.services.ai import ai_service
 from app.services.ai.prompt_service import prompt_service, resolve_model_provider
@@ -58,6 +59,22 @@ def _render_focus(focus):
     return "\n".join(lines) if lines else "No page context provided."
 
 
+_CITATION_MARKER = re.compile(r'\[(\d{1,3})\]')
+
+
+def strip_unresolved_citations(text, valid_numbers):
+    """Remove ``[n]`` markers that don't point at a source that was read.
+
+    Marking is expected to be sparse — the source list stands on its own, so an
+    unmarked claim is normal. What isn't acceptable is a number pointing at
+    nothing, which invites the user to look for evidence that was never there.
+    """
+    if not text:
+        return text
+    return _CITATION_MARKER.sub(
+        lambda m: m.group(0) if int(m.group(1)) in valid_numbers else '', text)
+
+
 class CompanionAgent:
     """One instance per user; ``ask`` answers a question grounded in their account."""
 
@@ -88,12 +105,16 @@ class CompanionAgent:
         ]
         messages.append({'role': 'user', 'content': question})
 
+        # One executor per question: it accumulates the sources read while
+        # answering, which become the answer's source list.
+        executor = ToolExecutor(self.user_id)
+
         started = now_utc()
         try:
             result = ai_service.generate_with_tools(
                 messages,
                 COMPANION_TOOLS,
-                ToolExecutor(self.user_id),
+                executor,
                 system=system,
                 provider=provider_enum,
                 model=model_enum,
@@ -108,8 +129,11 @@ class CompanionAgent:
 
         self._log_usage(metadata, provider_enum, model_enum, started,
                         success=True, hops=result.hops)
+        sources = executor.sources
         return {
-            'answer': result.text,
+            'answer': strip_unresolved_citations(
+                result.text, {s['n'] for s in sources}),
+            'sources': sources,
             'hops': result.hops,
             'tool_calls': [c.name for c in result.calls],
         }

@@ -99,6 +99,29 @@ class ToolExecutor:
 
     def __init__(self, user_id):
         self.user_id = user_id
+        # Every source actually read while answering, in the order first read.
+        # This is a record, not a claim: whatever the model does or doesn't cite,
+        # these are the things it was shown. One executor per question.
+        self.sources = []
+        self._source_numbers = {}
+
+    def _cite(self, source_type, source_id, label):
+        """Register a source and return its citation number.
+
+        Re-reading the same source keeps its original number — the user should see
+        one card per thing, not one per lookup.
+        """
+        key = (source_type, source_id)
+        if key not in self._source_numbers:
+            number = len(self.sources) + 1
+            self._source_numbers[key] = number
+            self.sources.append({
+                'n': number,
+                'source_type': source_type,
+                'source_id': source_id,
+                'label': label or source_type,
+            })
+        return self._source_numbers[key]
 
     def __call__(self, call):
         handler = getattr(self, f'_{call.name}', None)
@@ -118,19 +141,26 @@ class ToolExecutor:
             id=args.get('company_id'), user_id=self.user_id).first()
         if not company:
             return {'error': 'Company not found or access denied'}
-        return ArgosService(self.user_id).build_company_context(company.id).to_summary()
+        data = ArgosService(self.user_id).build_company_context(company.id).to_summary()
+        data['citation'] = self._cite('company', company.id, company.name)
+        return data
 
     def _get_research_project(self, args):
         project = ResearchProject.query.filter_by(
             id=args.get('project_id'), user_id=self.user_id).first()
         if not project:
             return {'error': 'Project not found or access denied'}
-        return ArgosService(self.user_id).build_research_context(project.id).to_dict()
+        data = ArgosService(self.user_id).build_research_context(project.id).to_dict()
+        label = project.project_name or (
+            project.company.name if project.company else 'Research project')
+        data['citation'] = self._cite('project', project.id, label)
+        return data
 
     def _get_portfolio_overview(self, args):
         service = PortfolioIntelligenceService(self.user_id)
         reality = service.get_thesis_reality_check()
         return {
+            'citation': self._cite('portfolio', 0, 'Your portfolio'),
             'positions': [
                 dataclasses.asdict(t) if dataclasses.is_dataclass(t) else dict(t.__dict__)
                 for t in reality[:20]
@@ -138,12 +168,20 @@ class ToolExecutor:
         }
 
     def _search_my_knowledge(self, args):
-        return {'results': search_my_knowledge(
-            self.user_id, args['query'], args.get('company_id'))}
+        results = search_my_knowledge(
+            self.user_id, args['query'], args.get('company_id'))
+        for result in results:
+            result['citation'] = self._cite(
+                result['source_type'], result['source_id'], result['title'])
+        return {'results': results}
 
     def _get_resource(self, args):
         resource = get_resource(self.user_id, args['source_type'], args['source_id'])
-        return resource or {'error': 'Not found or access denied'}
+        if not resource:
+            return {'error': 'Not found or access denied'}
+        resource['citation'] = self._cite(
+            args['source_type'], args['source_id'], resource.get('title'))
+        return resource
 
     def _get_mistakes_and_patterns(self, args):
         # User-wide mistakes + behavioural patterns (not company-scoped).
@@ -155,12 +193,14 @@ class ToolExecutor:
                     .order_by(PatternRecognition.impact_score.desc()).limit(5).all())
         return {
             'mistakes': [
-                {'title': m.title, 'type': m.mistake_type, 'lesson': m.lesson_learned}
+                {'title': m.title, 'type': m.mistake_type, 'lesson': m.lesson_learned,
+                 'citation': self._cite('mistake', m.id, m.title)}
                 for m in mistakes
             ],
             'patterns': [
                 {'name': p.pattern_name, 'impact': p.impact_score,
-                 'how_to_avoid': p.how_to_avoid}
+                 'how_to_avoid': p.how_to_avoid,
+                 'citation': self._cite('pattern', p.id, p.pattern_name)}
                 for p in patterns
             ],
         }

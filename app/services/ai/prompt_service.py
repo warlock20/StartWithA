@@ -242,6 +242,16 @@ class PromptService:
             'variables_used': kwargs
         }
 
+    def get_prompt_data(self, category: str, name: str) -> Dict[str, Any]:
+        """Raw parsed YAML for one prompt file.
+
+        For files that carry structured data alongside (or instead of) a single
+        template — the other accessors flatten to a fixed shape and would drop it.
+        Returns an empty dict when the file isn't present, so a caller can degrade
+        rather than raise.
+        """
+        return dict(self._cache.get(category, {}).get(name) or {})
+
     def list_categories(self) -> List[str]:
         """List all available prompt categories."""
         return list(self._cache.keys())

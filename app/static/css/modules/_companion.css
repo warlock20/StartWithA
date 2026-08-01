@@ -620,9 +620,59 @@
     color: var(--gray-700, #374151);
 }
 
-/* --- Footer (quick actions + composer) --- */
+/* --- Footer (verbs + quick actions + composer) --- */
 .companion-rail-footer {
     flex-shrink: 0;
+}
+
+/* Verb row: pick a stance, then type the subject. */
+.companion-verb-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.45rem 0.65rem 0.2rem;
+    background: var(--gray-50, #f7f8fc);
+    border-top: 1px solid var(--gray-100, #f3f4f6);
+}
+
+.companion-verb-palette:empty {
+    display: none;
+}
+
+.companion-verb {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.18rem 0.5rem;
+    border: 1px solid var(--gray-200, #e5e7eb);
+    border-radius: 20px;
+    background: #fff;
+    color: var(--gray-600, #4b5563);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-fast, 0.15s);
+}
+
+.companion-verb:hover {
+    border-color: var(--accent-color, #2d6a4f);
+    color: var(--accent-700, #1b4332);
+}
+
+.companion-verb:focus-visible {
+    outline: 2px solid var(--accent-color, #2d6a4f);
+    outline-offset: 1px;
+}
+
+.companion-verb.active {
+    background: var(--accent-color, #2d6a4f);
+    border-color: var(--accent-color, #2d6a4f);
+    color: #fff;
+}
+
+.companion-verb i {
+    font-size: 0.72rem;
 }
 
 .companion-rail-fine {
@@ -789,6 +839,9 @@
     flex-shrink: 0;
 }
 
+/* Height is managed by CompanionChat.autoGrow(): the box grows with its content
+   up to this ceiling, then scrolls. A verb's stance is two or three lines, and it
+   stays editable text precisely so the user can see what will be sent. */
 .companion-input textarea {
     flex: 1;
     border: 1px solid var(--gray-200, #e5e7eb);
@@ -797,10 +850,18 @@
     font-size: 0.8rem;
     font-family: inherit;
     resize: none;
-    max-height: 72px;
+    max-height: 9.5rem;
+    overflow-y: auto;
     line-height: 1.45;
     outline: none;
     transition: border-color var(--transition-fast, 0.15s), box-shadow var(--transition-fast, 0.15s);
+}
+
+.companion-input textarea::-webkit-scrollbar { width: 4px; }
+.companion-input textarea::-webkit-scrollbar-track { background: transparent; }
+.companion-input textarea::-webkit-scrollbar-thumb {
+    background: var(--gray-300, #d1d5db);
+    border-radius: 2px;
 }
 
 .companion-input textarea:focus {

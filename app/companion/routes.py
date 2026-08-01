@@ -39,6 +39,7 @@ from app.models.background_task import BackgroundTask
 from app.services.argos import ArgosService
 from app.services.argos.page_context import build_context_chips
 from app.services.argos.selection_assist import find_evidence_for_selection
+from app.services.argos.verbs import list_verbs
 from app.services.background_tasks import BackgroundTaskService
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_validation_error
@@ -60,7 +61,8 @@ def inject_companion_context_chips():
             return []
         return build_context_chips(current_user.id, focus)
 
-    return dict(companion_context_chips=companion_context_chips)
+    return dict(companion_context_chips=companion_context_chips,
+                companion_verbs=list_verbs)
 
 
 def _capture_link(focus):

@@ -160,6 +160,7 @@
       this.conversationHistory.push({ role: 'user', content: text });
       this.saveThread();
       input.value = '';
+      this.clearVerb();
 
       // Show typing indicator
       this.showTyping();
@@ -323,6 +324,47 @@
       dismiss.addEventListener('click', () => card.remove());
       card.appendChild(dismiss);
       return card;
+    },
+
+    // A verb sets the stance and hands the composer back to the user, who names
+    // the subject. Nothing is sent until they do — the verb is a framing, not a
+    // shortcut to a canned question.
+    pickVerb(btn) {
+      const input = document.getElementById('companionChatInput');
+      const stance = btn.dataset.verbStance || '';
+      const placeholder = btn.dataset.verbPlaceholder || '';
+
+      document.querySelectorAll('.companion-verb').forEach(
+        (el) => el.classList.toggle('active', el === btn));
+
+      input.value = stance + ' ';
+      input.placeholder = placeholder;
+      this.autoGrow();
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      input.scrollTop = input.scrollHeight;
+    },
+
+    // Back to a blank composer once a question has gone (or been abandoned).
+    clearVerb() {
+      const input = document.getElementById('companionChatInput');
+      document.querySelectorAll('.companion-verb').forEach(
+        (el) => el.classList.remove('active'));
+      if (input) input.placeholder = 'Ask about your research...';
+      this.autoGrow();
+    },
+
+    // Grow the composer to fit what's in it, up to a ceiling, then scroll.
+    // A verb's stance runs to a couple of lines, and the whole point of keeping
+    // it as editable text is that the user can read what will actually be sent —
+    // which only works if it's visible.
+    autoGrow() {
+      const input = document.getElementById('companionChatInput');
+      if (!input) return;
+      input.style.height = 'auto';
+      const ceiling = parseInt(
+        getComputedStyle(input).getPropertyValue('max-height'), 10) || 140;
+      input.style.height = `${Math.min(input.scrollHeight, ceiling)}px`;
     },
 
     renderScope() {
@@ -534,6 +576,40 @@
 
   // Resume an answer that was still generating when we navigated to this page.
   CompanionChat.resumePending();
+
+  // '/' in an empty composer jumps to the verbs, so the palette is reachable
+  // without the mouse. Only when empty — mid-sentence a slash is just a slash.
+  const composer = document.getElementById('companionChatInput');
+  if (composer) {
+    composer.addEventListener('input', () => CompanionChat.autoGrow());
+
+    composer.addEventListener('keydown', (e) => {
+      if (e.key !== '/' || composer.value !== '') return;
+      const firstVerb = document.querySelector('#companionVerbPalette .companion-verb');
+      if (!firstVerb) return;
+      e.preventDefault();
+      firstVerb.focus();
+    });
+  }
+
+  // Arrow keys walk the verb row; Escape returns to the composer empty-handed.
+  const palette = document.getElementById('companionVerbPalette');
+  if (palette) {
+    palette.addEventListener('keydown', (e) => {
+      const verbs = [...palette.querySelectorAll('.companion-verb')];
+      const at = verbs.indexOf(document.activeElement);
+      if (at === -1) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const next = e.key === 'ArrowRight' ? at + 1 : at - 1;
+        verbs[(next + verbs.length) % verbs.length].focus();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        CompanionChat.clearVerb();
+        if (composer) composer.focus();
+      }
+    });
+  }
 
   // ⌘. / Ctrl+. toggles the rail. Ignored while typing in a field, so it can't
   // steal the keystroke from a note or a form the user is filling in.

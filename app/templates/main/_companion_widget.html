@@ -105,7 +105,20 @@
         </div>
 
         <div class="companion-rail-footer">
-            {# Rendered by companion.js based on focus type #}
+            {# A verb sets the stance; you type the subject. Stance text comes from
+               the prompt YAML, so rewording it doesn't touch code. #}
+            <div class="companion-verb-palette" id="companionVerbPalette">
+                {% for verb in companion_verbs() %}
+                <button class="companion-verb" type="button"
+                        data-verb-stance="{{ verb.stance }}"
+                        data-verb-placeholder="{{ verb.placeholder }}"
+                        onclick="CompanionChat.pickVerb(this)">
+                    <i class="bi {{ verb.icon }}"></i>{{ verb.label }}
+                </button>
+                {% endfor %}
+            </div>
+
+            {# Actions, not questions — these do something rather than ask. #}
             <div class="companion-quick-actions" id="companionQuickActions"></div>
 
             <div class="companion-input">
