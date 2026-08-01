@@ -21,8 +21,12 @@ docked rail surface that replaced the floating bubble.
 """
 
 import os
+import sys
 
-JS = os.path.join(os.path.dirname(__file__), '..', 'app/static/js/companion.js')
+sys.path.insert(0, os.path.dirname(__file__))
+
+from companion_js import companion_js
+
 WIDGET = os.path.join(
     os.path.dirname(__file__), '..', 'app/templates/main/_companion_widget.html')
 CSS = os.path.join(
@@ -33,7 +37,7 @@ ARGOS_CHECK = os.path.join(
 
 
 def _js():
-    return open(JS, encoding='utf-8').read()
+    return companion_js()
 
 
 def test_js_posts_to_companion_ask_with_focus_and_history():

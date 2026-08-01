@@ -47,7 +47,7 @@
     {% include 'main/_navigation.html' %}
 
     {# Markdown rendering + sanitizer for AI answers (self-hosted). Deferred scripts
-       run in document order, so these must precede companion.js in the source. #}
+       run in document order, so these must precede the companion modules. #}
     <script defer src="{{ url_for('static', filename='js/vendor/marked.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='js/vendor/purify.min.js') }}"></script>
 

@@ -25,12 +25,14 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from companion_js import companion_js
 
 from app import db
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.services.argos.selection_assist import MIN_SELECTION_CHARS, find_evidence_for_selection
 
-JS = os.path.join(os.path.dirname(__file__), '..', 'app/static/js/companion.js')
 
 
 def _chunk_summaries(evidence):
@@ -110,7 +112,7 @@ def test_endpoint_rejects_an_empty_selection(client_logged_in):
 
 def test_js_offers_evidence_on_selection():
     """The popover is wired to selection, and can put a citation in the editor."""
-    s = open(JS, encoding='utf-8').read()
+    s = companion_js()
     assert 'selectionchange' in s or 'mouseup' in s
     assert '/selection' in s
     assert 'companionSelectionPopover' in s
@@ -119,6 +121,6 @@ def test_js_offers_evidence_on_selection():
 
 def test_js_ignores_selections_inside_the_rail():
     """Selecting the companion's own answer must not offer evidence about itself."""
-    s = open(JS, encoding='utf-8').read()
+    s = companion_js()
     assert 'companionRail' in s
     assert 'closest' in s

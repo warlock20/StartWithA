@@ -26,7 +26,7 @@
 {% set _focus = companion_focus | default({}) %}
 
 {% if current_user.is_authenticated and (companion_enabled | default(true)) %}
-{# Renders collapsed; companion.js expands it if this tab had it open. Starting
+{# Renders collapsed; bootstrap.js expands it if this tab had it open. Starting
    collapsed avoids a flash of full-width rail before the restore runs, and
    matches the storyboard's "default when you land" frame. #}
 <aside class="companion-rail collapsed" id="companionRail"
@@ -68,11 +68,17 @@
                 <span class="companion-rail-orb">A</span>
                 <div class="companion-rail-heading">
                     <div class="companion-rail-title">Research Companion</div>
-                    {# Scope indicator, set by companion.js from focus #}
+                    {# Scope indicator, set by rail-ui.js from focus #}
                     <div class="companion-rail-scope" id="companionScope"></div>
                 </div>
             </div>
             <div class="companion-rail-actions">
+                {# Widens the rail over the content column to show the last answer
+                   beside the sources it was built from. Appears once there is one. #}
+                <button title="Deep dive" type="button" id="companionDeepToggle"
+                        style="display: none;" onclick="CompanionChat.setDeep(true)">
+                    <i class="bi bi-arrows-fullscreen"></i>
+                </button>
                 <button title="Collapse" type="button" onclick="CompanionChat.toggle()">
                     <i class="bi bi-chevron-double-right"></i>
                 </button>
@@ -90,10 +96,14 @@
             {% endfor %}
         </div>
 
+        {# Deep dive: the last answer beside the sources it was built from. Replaces
+           the conversation view while open; filled by deep-dive.js. #}
+        <div class="companion-deep" id="companionDeep" style="display: none;"></div>
+
         {# One scroll region: what the companion surfaced on its own, then the
            conversation. Insights scroll away as the chat grows. #}
         <div class="companion-rail-body" id="companionRailBody">
-            {# Filled by companion.js from /companion/warnings, and only when a
+            {# Filled by insights.js from /companion/warnings, and only when a
                company is in focus — warnings are per-company. #}
             <div class="companion-insights" id="companionInsights"></div>
 
@@ -137,5 +147,14 @@
     </div>
 </aside>
 
-<script defer src="{{ url_for('static', filename='js/companion.js') }}"></script>
+{# Companion modules. core.js creates window.CompanionChat; the rest extend it,
+   and bootstrap.js starts everything — so the order matters. Deferred scripts
+   execute in document order, which is what guarantees it. #}
+<script defer src="{{ url_for('static', filename='js/companion/core.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/rail-ui.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/verbs.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/insights.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/deep-dive.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/selection.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/bootstrap.js') }}"></script>
 {% endif %}

@@ -25,10 +25,12 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from companion_js import companion_js
 
 from app.services.argos.verbs import list_verbs
 
-JS = os.path.join(os.path.dirname(__file__), '..', 'app/static/js/companion.js')
 WIDGET = os.path.join(
     os.path.dirname(__file__), '..', 'app/templates/main/_companion_widget.html')
 VERBS_YAML = os.path.join(
@@ -39,7 +41,7 @@ CSS = os.path.join(
 
 
 def _js():
-    return open(JS, encoding='utf-8').read()
+    return companion_js()
 
 
 def test_verbs_come_from_yaml_not_code():

@@ -27,6 +27,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from companion_js import companion_js
 
 from app.services.ai.tool_calling import ToolCall, ToolLoopResult
 from app.services.argos import agent as agent_mod
@@ -99,6 +102,30 @@ def test_unmarked_claims_are_left_alone():
     """Sparse marking is the normal case — the source list carries the rest."""
     text = 'Recurring revenue is 86%. Tenure is 12 years[2].'
     assert strip_unresolved_citations(text, {1, 2}) == text
+
+
+def test_js_renders_the_deep_dive_split():
+    """Answer and its numbered sources side by side, with the actions."""
+    js = companion_js()
+    assert 'setDeep' in js
+    assert 'companionDeep' in js
+    assert 'Insert into checklist' in js
+    assert 'Export' in js
+
+
+def test_js_links_markers_to_source_cards():
+    """A [n] in the answer should reach its card; sources render even unmarked."""
+    js = companion_js()
+    assert 'renderSources' in js
+    assert 'linkCitations' in js
+
+
+def test_widget_has_the_deep_dive_mount():
+    html = open(os.path.join(os.path.dirname(__file__), '..',
+                             'app/templates/main/_companion_widget.html'),
+                encoding='utf-8').read()
+    assert 'id="companionDeep"' in html
+    assert 'id="companionDeepToggle"' in html
 
 
 def test_ask_returns_the_sources_it_read(monkeypatch, app_context,
