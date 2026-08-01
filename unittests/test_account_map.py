@@ -21,6 +21,9 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from app import db
+from app.models.company import Company
+from app.models.user import User
 from app.services.argos.account_map import build_account_map, render_account_map
 
 
@@ -59,3 +62,47 @@ def test_account_map_surfaces_journal_and_mistakes(app_context, seed_portfolio_w
     # The rendered skeleton must advertise the mistake history to the agent.
     text = render_account_map(amap)
     assert 'mistake' in text.lower()
+
+
+def test_watchlist_companies_are_visible(app_context, seed_portfolio):
+    """The app calls favorited companies a "Watchlist"; the agent must see them.
+
+    Without this the companion has no data behind the word at all, so a question
+    like "exclude the ones on my watchlist" is unanswerable — it can only say it
+    could not determine, which is honest but useless.
+    """
+    user = User.query.get(seed_portfolio)
+    watched = Company(name='Copart', ticker_symbol='CPRT', user_id=user.id)
+    db.session.add(watched)
+    db.session.flush()
+    user.favorites.append(watched)
+    db.session.commit()
+
+    amap = build_account_map(seed_portfolio)
+    labels = [w['name'] for w in amap['watchlist']]
+    assert 'Copart' in labels
+    assert 'Copart' in render_account_map(amap)
+    assert 'WATCHLIST' in render_account_map(amap)
+
+
+def test_a_held_company_is_not_also_listed_as_watchlist(app_context, seed_portfolio):
+    """Portfolio wins, matching how the company page derives its badge."""
+    user = User.query.get(seed_portfolio)
+    held = Company.query.filter_by(user_id=user.id).first()
+    user.favorites.append(held)
+    db.session.commit()
+
+    amap = build_account_map(seed_portfolio)
+    assert held.name not in [w['name'] for w in amap['watchlist']]
+
+
+def test_watchlist_is_scoped_to_the_user(app_context, seed_portfolio, other_user):
+    """Another user's favourites are never visible."""
+    theirs = Company(name='Their Pick', ticker_symbol='XXX', user_id=other_user)
+    db.session.add(theirs)
+    db.session.flush()
+    User.query.get(other_user).favorites.append(theirs)
+    db.session.commit()
+
+    amap = build_account_map(seed_portfolio)
+    assert 'Their Pick' not in [w['name'] for w in amap['watchlist']]

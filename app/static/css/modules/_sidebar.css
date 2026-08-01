@@ -7,6 +7,10 @@
     --sidebar-width: 250px;
     --sidebar-collapsed-width: 62px;
     --topbar-height: 42px;
+    /* Companion rail (#311 State C) — the right-hand bookend to the sidebar. */
+    --rail-width: 380px;
+    --rail-collapsed-width: 44px;
+    --rail-dock-min: 1200px;   /* below this the rail overlays instead of docking */
 
     /* Sidebar dark theme — built from design-system tokens where possible */
     --sidebar-bg: var(--primary-900);                   /* #0f172a */

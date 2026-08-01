@@ -215,29 +215,25 @@ class EmbeddingProvider(Enum):
     COHERE = "cohere"     # Cohere API
     TFIDF = "tfidf"       # Fallback - always works
 
-# Default embedding provider priority
-# In production (Railway), prefer Gemini (free API, no torch memory overhead)
-# In local dev, prefer LOCAL (offline, no API costs)
-_is_production = bool(os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RAILWAY_PROJECT_ID'))
-
-if _is_production:
-    DEFAULT_EMBEDDING_PRIORITY = [
-        EmbeddingProvider.GEMINI,
-        EmbeddingProvider.OPENAI,
-        EmbeddingProvider.VOYAGE,
-        EmbeddingProvider.COHERE,
-        EmbeddingProvider.TFIDF,
-        EmbeddingProvider.LOCAL,  # Last resort in production (loads PyTorch)
-    ]
-else:
-    DEFAULT_EMBEDDING_PRIORITY = [
-        EmbeddingProvider.LOCAL,
-        EmbeddingProvider.GEMINI,
-        EmbeddingProvider.OPENAI,
-        EmbeddingProvider.VOYAGE,
-        EmbeddingProvider.COHERE,
-        EmbeddingProvider.TFIDF,
-    ]
+# Default embedding provider priority — API providers only, everywhere.
+#
+# LOCAL (sentence-transformers) is deliberately absent. It loads PyTorch into
+# whichever process embeds, ~1.3GB resident *per process* — 2 gunicorn workers
+# plus the Celery worker. Dev used to prefer it for offline work, but that made
+# local embeddings incomparable with production's: vectors from different models
+# occupy different spaces even at the same 768 dims, so a locally-indexed chunk
+# scored against a Gemini query is noise. One provider everywhere keeps stored
+# vectors and query vectors in the same space.
+#
+# TFIDF stays last as the no-dependency fallback when no API key is configured.
+# The LOCAL provider class still exists and can be selected explicitly.
+DEFAULT_EMBEDDING_PRIORITY = [
+    EmbeddingProvider.GEMINI,
+    EmbeddingProvider.OPENAI,
+    EmbeddingProvider.VOYAGE,
+    EmbeddingProvider.COHERE,
+    EmbeddingProvider.TFIDF,
+]
 
 # Task categories for routing decisions
 QUALITY_TASKS = {

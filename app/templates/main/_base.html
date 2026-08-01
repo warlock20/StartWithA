@@ -46,7 +46,12 @@
     {# Top bar (brand, quote, user menu) + mobile overlay #}
     {% include 'main/_navigation.html' %}
 
-    {# App layout: sidebar + main content #}
+    {# Markdown rendering + sanitizer for AI answers (self-hosted). Deferred scripts
+       run in document order, so these must precede the companion modules. #}
+    <script defer src="{{ url_for('static', filename='js/vendor/marked.min.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/vendor/purify.min.js') }}"></script>
+
+    {# App layout: sidebar + main content + companion rail #}
     <div class="app-layout">
         {% include 'main/_sidebar.html' %}
 
@@ -77,19 +82,20 @@
                 </div>
             </footer>
         </div>
+
+        {# Global companion rail — renders for authenticated users (opt-out).
+           A flex sibling of .app-main, so an expanded rail shrinks the content
+           rather than covering it. #}
+        {% include 'main/_companion_widget.html' ignore missing %}
     </div>
-
-    {# Markdown rendering + sanitizer for AI answers (self-hosted). Loaded before the
-       companion so marked/DOMPurify are available when companion.js runs. #}
-    <script defer src="{{ url_for('static', filename='js/vendor/marked.min.js') }}"></script>
-    <script defer src="{{ url_for('static', filename='js/vendor/purify.min.js') }}"></script>
-
-    {# Global research/portfolio companion — renders for authenticated users (opt-out) #}
-    {% include 'main/_companion_widget.html' ignore missing %}
+    {# /app-layout #}
 
     <!-- Modal Block - Modals should be direct children of body for proper Bootstrap positioning -->
     {% block modals %}
     {% endblock %}
+
+    {# Companion capture modal — kept at body level, out of the .app-layout flex row. #}
+    {% include 'main/_companion_capture_modal.html' ignore missing %}
 
     <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"

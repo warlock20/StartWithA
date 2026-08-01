@@ -42,21 +42,38 @@ def blocknote_to_text(content):
 
         text_parts = []
 
-        for block in blocks:
-            if not isinstance(block, dict):
-                continue
+        def _collect(items):
+            """Pull text out of a content array.
 
-            block_type = block.get('type', '')
-            content_list = block.get('content', [])
+            Inline content isn't only `text` items — a `link` carries its label in
+            its own nested content array. Skipping those silently drops whole
+            paragraphs whose only content is a link, which then read as empty.
+            """
+            if not isinstance(items, list):
+                return
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                if item.get('type') == 'text':
+                    text = item.get('text', '')
+                    if text:
+                        text_parts.append(text)
+                elif isinstance(item.get('content'), list):
+                    _collect(item['content'])          # link and other wrappers
+                elif isinstance(item.get('content'), str) and item.get('content'):
+                    text_parts.append(item['content'])
 
-            # Extract text from content array
-            if isinstance(content_list, list):
-                for item in content_list:
-                    if isinstance(item, dict) and item.get('type') == 'text':
-                        text = item.get('text', '')
-                        if text:
-                            text_parts.append(text)
+        def _walk(block_list):
+            for block in block_list:
+                if not isinstance(block, dict):
+                    continue
+                _collect(block.get('content', []))
+                # Nested blocks (list items, toggles) hold their own content.
+                children = block.get('children')
+                if isinstance(children, list):
+                    _walk(children)
 
+        _walk(blocks)
         return ' '.join(text_parts)
 
     except (json.JSONDecodeError, TypeError, ValueError):

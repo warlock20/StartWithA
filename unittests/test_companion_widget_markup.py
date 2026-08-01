@@ -31,8 +31,9 @@ def test_widget_has_no_inline_script():
 
 
 def test_widget_exposes_config_root():
+    """The rail element doubles as the config root companion.js reads (#311)."""
     html = open(WIDGET, encoding='utf-8').read()
-    assert 'id="companion-root"' in html
+    assert 'id="companionRail"' in html
     assert 'data-endpoint-base' in html
 
 

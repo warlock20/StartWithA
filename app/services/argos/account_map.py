@@ -18,9 +18,13 @@
 Account map — the compact, cheap DB skeleton the companion agent sees every turn.
 
 Pure DB queries, no LLM. Gives the model the *shape* of the user's account
-(holdings + weights, researched companies + project state) plus the current page
-focus, so it knows what exists and what to fetch via tools. Kept small on purpose
-(a few hundred tokens once rendered).
+(holdings + weights, researched companies + project state, the watchlist) plus the
+current page focus, so it knows what exists and what to fetch via tools. Kept small
+on purpose (a few hundred tokens once rendered).
+
+The section names match the words the user sees in the app — Portfolio, Watchlist,
+Researched — so a question phrased in their vocabulary resolves to real rows
+instead of being guessed at.
 """
 
 from sqlalchemy import func
@@ -31,6 +35,7 @@ from app.models.portfolio import PortfolioPosition
 from app.models.research import ResearchProject
 from app.models.journal import JournalEntry, PatternRecognition
 from app.models.idea_pipeline import MistakeLog
+from app.models.user import User
 
 
 def _counts_by_company(model, user_id):
@@ -97,12 +102,32 @@ def build_account_map(user_id, focus=None):
             'mistakes': mistakes_by_company.get(proj.company_id, 0),
         })
 
+    # "Watchlist" in the UI is the user's favourited companies — the company page
+    # derives its badge the same way, portfolio first (companies/routes.py).
+    # Held companies are excluded so a company appears under one heading only.
+    held_ids = {h['company_id'] for h in holdings}
+    user = db.session.get(User, user_id)
+    watchlist = []
+    if user is not None:
+        for company in user.favorites.all():
+            if company.id in held_ids:
+                continue
+            watchlist.append({
+                'company_id': company.id,
+                'name': company.name,
+                'ticker': company.ticker_symbol,
+                'notes': notes_by_company.get(company.id, 0),
+                'mistakes': mistakes_by_company.get(company.id, 0),
+            })
+
     company_ids = {h['company_id'] for h in holdings} | {
-        r['company_id'] for r in researched_companies}
+        r['company_id'] for r in researched_companies} | {
+        w['company_id'] for w in watchlist}
 
     return {
         'holdings': holdings,
         'researched_companies': researched_companies,
+        'watchlist': watchlist,
         'focus': focus or {},
         'counts': {
             'holdings': len(holdings),
@@ -146,6 +171,19 @@ def render_account_map(account_map):
         lines.append(f"RESEARCHED COMPANIES — {len(researched)}:")
         for r in researched:
             lines.append(f"  - {r['name']}: {r['project_state']}{_tags(r)}")
+
+    # The UI calls these the user's Watchlist; name it the same way so their
+    # wording resolves to something instead of being guessed at.
+    watchlist = account_map.get('watchlist', [])
+    lines.append(
+        f"WATCHLIST — {len(watchlist)} company(ies) the user is watching "
+        "(favourited, not held):")
+    if watchlist:
+        for w in watchlist:
+            ticker = f" ({w['ticker']})" if w.get('ticker') else ''
+            lines.append(f"  - {w['name']}{ticker}{_tags(w)}")
+    else:
+        lines.append("  - none")
 
     counts = account_map.get('counts', {})
     history = []

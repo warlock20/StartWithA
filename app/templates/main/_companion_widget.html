@@ -1,12 +1,24 @@
 {#
-  Research Companion — Floating Chat Widget
+  Research Companion — Docked Rail
 
-  A floating action button (FAB) + slide-up chat panel for live companion chat.
-  Wired to POST /companion/<project_id>/ask for Q&A during research sessions.
+  A persistent right-hand rail that expands and collapses with the task. Mounted by
+  main/_base.html as a flex sibling of .app-main, so an expanded rail *shrinks* the
+  content instead of covering it (below 1200px it overlays instead — see
+  modules/_sidebar.css). Replaces the floating FAB + slide-up panel.
 
-  Rendered globally by main/_base.html. A page opts in by setting:
-    {% set companion_enabled = true %}
-    {% set companion_focus = {'type': 'research'|'company'|'portfolio', 'company_id': ..., 'project_id': ..., 'step': ...} %}
+  Rendered globally. A page opts out with:
+    {% set companion_enabled = false %}
+  A page declares what it's showing — ids for grounding, chips for the context
+  strip — with:
+    {% set companion_focus = {
+        'type': 'research'|'company'|'portfolio',
+        'company_id': ..., 'project_id': ..., 'step': ...,
+        'chips': [{'icon': 'bi-building', 'label': company.ticker_symbol, 'kind': 'mine'}]} %}
+  Chips are optional; a page that declares none falls back to an account-wide chip.
+  See app/services/argos/page_context.py.
+
+  The Quick Capture modal lives in _companion_capture_modal.html, included at body
+  level — Bootstrap modals must not be nested inside the flex layout.
 
   CSS: modules/_companion.css
 #}
@@ -14,97 +26,135 @@
 {% set _focus = companion_focus | default({}) %}
 
 {% if current_user.is_authenticated and (companion_enabled | default(true)) %}
-<!-- Config for companion.js (read via dataset) -->
-<div id="companion-root"
-     data-focus-type="{{ _focus.type | default('') }}"
-     data-focus-company-id="{{ _focus.company_id | default('') }}"
-     data-focus-project-id="{{ _focus.project_id | default('') }}"
-     data-focus-step="{{ _focus.step | default('') }}"
-     data-endpoint-base="/companion"
-     style="display:none;"></div>
+{# Renders collapsed; bootstrap.js expands it if this tab had it open. Starting
+   collapsed avoids a flash of full-width rail before the restore runs, and
+   matches the storyboard's "default when you land" frame. #}
+<aside class="companion-rail collapsed" id="companionRail"
+       data-focus-type="{{ _focus.type | default('') }}"
+       data-focus-company-id="{{ _focus.company_id | default('') }}"
+       data-focus-project-id="{{ _focus.project_id | default('') }}"
+       data-focus-step="{{ _focus.step | default('') }}"
+       data-endpoint-base="/companion">
 
-<!-- Companion FAB -->
-<button class="companion-fab" id="companionFab" onclick="CompanionChat.toggle()">
-    <i class="bi bi-chat-text" id="companionFabIcon"></i>
-    <span class="companion-fab-badge" id="companionFabBadge" style="display: none;">0</span>
-</button>
+    {# Collapsed: a 44px pulse rail. Present and silent — it never
+       overlaps content, and only lights up for things the rail itself knows about:
+       an answer you haven't seen, a question still running, insights it surfaced.
 
-<!-- Companion Chat Panel -->
-<div class="companion-panel" id="companionPanel">
-    <!-- Header -->
-    <div class="companion-panel-header">
-        <div class="companion-panel-heading">
-            <div class="companion-panel-title">
-                <span class="companion-status-dot"></span>
-                Research Companion
-            </div>
-            <!-- Scope indicator (set by companion.js from focus) -->
-            <div class="companion-panel-scope" id="companionScope"></div>
-        </div>
-        <div class="companion-panel-actions">
-            <button title="Minimize" onclick="CompanionChat.toggle()"><i class="bi bi-dash-lg"></i></button>
-        </div>
-    </div>
+       There is deliberately no "needs review" light. The Dashboard already surfaces
+       upcoming reviews, and duplicating it here would both crowd the strip and
+       promise more than one feature's data can deliver. #}
+    <button class="companion-rail-tab" id="companionRailTab" type="button"
+            title="Open the companion (⌘.)" onclick="CompanionChat.toggle()">
+        <span class="companion-rail-orb-sm" id="companionRailOrb">A
+            <span class="companion-rail-tab-badge" id="companionRailBadge"
+                  title="New answer" style="display: none;"></span>
+        </span>
 
-    <!-- Messages -->
-    <div class="companion-messages" id="companionMessages">
-        <div class="c-msg c-msg--system">
-            Companion ready — facts only, opinions are yours.
-        </div>
-    </div>
+        <span class="companion-rail-lights">
+            <span class="companion-rail-spinner" id="companionStatusRunning"
+                  title="Working on your question" style="display: none;"></span>
 
-    <!-- Quick Actions (rendered by companion.js based on focus type) -->
-    <div class="companion-quick-actions" id="companionQuickActions"></div>
+            <span class="companion-rail-light" id="companionStatusInsights"
+                  style="display: none;">
+                <i class="bi bi-lightbulb-fill"></i>
+                <span class="companion-rail-light-count" id="companionInsightCount"></span>
+            </span>
+        </span>
+    </button>
 
-    <!-- Input -->
-    <div class="companion-input">
-        <textarea rows="1" placeholder="Ask about your research..."
-                  id="companionChatInput"
-                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();CompanionChat.send()}"></textarea>
-        <button class="companion-send-btn" onclick="CompanionChat.send()">
-            <i class="bi bi-send-fill"></i>
-        </button>
-    </div>
-</div>
-
-<!-- Quick Capture Modal -->
-<div class="modal fade" id="companionCaptureModal" tabindex="-1" aria-labelledby="companionCaptureModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="companionCaptureModalLabel">
-                    <i class="bi bi-bookmark-plus me-2"></i>Quick Capture
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted small mb-3">Capture insights from articles, podcasts, or conversations during research.</p>
-                <div class="mb-3">
-                    <label for="captureText" class="form-label">Text <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="captureText" rows="4"
-                              placeholder="Key insight or finding..."></textarea>
-                </div>
-                <div class="mb-3">
-                    <label for="captureSourceTitle" class="form-label">Source Title</label>
-                    <input type="text" class="form-control" id="captureSourceTitle"
-                           placeholder="e.g., Annual Report 2023, Q3 Earnings Call">
-                </div>
-                <div class="mb-3">
-                    <label for="captureUrl" class="form-label">URL</label>
-                    <input type="url" class="form-control" id="captureUrl"
-                           placeholder="https://...">
+    <div class="companion-rail-inner">
+        <div class="companion-rail-header">
+            <div class="companion-rail-identity">
+                <span class="companion-rail-orb">A</span>
+                <div class="companion-rail-heading">
+                    <div class="companion-rail-title">Research Companion</div>
+                    {# Scope indicator, set by rail-ui.js from focus #}
+                    <div class="companion-rail-scope" id="companionScope"></div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="CompanionChat.saveCapture()">
-                    <i class="bi bi-check-lg me-1"></i>Save Capture
+            <div class="companion-rail-actions">
+                {# Widens the rail over the content column to show the last answer
+                   beside the sources it was built from. Appears once there is one. #}
+                <button title="Deep dive" type="button" id="companionDeepToggle"
+                        style="display: none;" onclick="CompanionChat.toggleDeep()">
+                    <i class="bi bi-arrows-fullscreen"></i>
+                </button>
+                <button title="Collapse" type="button" onclick="CompanionChat.toggle()">
+                    <i class="bi bi-chevron-double-right"></i>
                 </button>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- Companion widget logic (extracted module) -->
-<script defer src="{{ url_for('static', filename='js/companion.js') }}"></script>
+        {# What this answer is grounded on. Server-rendered from what the page
+           declared, so the strip is correct on first paint. #}
+        <div class="companion-rail-context">
+            <span class="companion-rail-context-label">Context</span>
+            {% for chip in companion_context_chips(_focus) %}
+            <span class="companion-chip companion-chip--{{ chip.kind }}">
+                <i class="bi {{ chip.icon }}"></i>{{ chip.label }}
+            </span>
+            {% endfor %}
+        </div>
+
+        {# Deep dive: the last answer beside the sources it was built from. Replaces
+           the conversation view while open; filled by deep-dive.js. #}
+        <div class="companion-deep" id="companionDeep" style="display: none;"></div>
+
+        {# One scroll region: what the companion surfaced on its own, then the
+           conversation. Insights scroll away as the chat grows. #}
+        <div class="companion-rail-body" id="companionRailBody">
+            {# Filled by insights.js from /companion/warnings, and only when a
+               company is in focus — warnings are per-company. #}
+            <div class="companion-insights" id="companionInsights"></div>
+
+            <div class="companion-messages" id="companionMessages">
+                <div class="c-msg c-msg--system">
+                    Companion ready — facts only, opinions are yours.
+                </div>
+            </div>
+        </div>
+
+        <div class="companion-rail-footer">
+            {# A verb sets the stance; you type the subject. Stance text comes from
+               the prompt YAML, so rewording it doesn't touch code. #}
+            <div class="companion-verb-palette" id="companionVerbPalette">
+                {% for verb in companion_verbs() %}
+                <button class="companion-verb" type="button"
+                        data-verb-stance="{{ verb.stance }}"
+                        data-verb-placeholder="{{ verb.placeholder }}"
+                        onclick="CompanionChat.pickVerb(this)">
+                    <i class="bi {{ verb.icon }}"></i>{{ verb.label }}
+                </button>
+                {% endfor %}
+            </div>
+
+            {# Actions, not questions — these do something rather than ask. #}
+            <div class="companion-quick-actions" id="companionQuickActions"></div>
+
+            <div class="companion-input">
+                <textarea rows="1" placeholder="Ask about your research..."
+                          id="companionChatInput"
+                          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();CompanionChat.send()}"></textarea>
+                <button class="companion-send-btn" type="button" onclick="CompanionChat.send()">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+
+            <div class="companion-rail-fine">
+                <i class="bi bi-shield-check"></i> Grounded in your own data
+            </div>
+        </div>
+    </div>
+</aside>
+
+{# Companion modules. core.js creates window.CompanionChat; the rest extend it,
+   and bootstrap.js starts everything — so the order matters. Deferred scripts
+   execute in document order, which is what guarantees it. #}
+<script defer src="{{ url_for('static', filename='js/companion/core.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/rail-ui.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/verbs.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/insights.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/deep-dive.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/selection.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/companion/bootstrap.js') }}"></script>
 {% endif %}

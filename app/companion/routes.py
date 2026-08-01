@@ -37,12 +37,32 @@ from app.models.research import ResearchProject
 from app.models.company import Company
 from app.models.background_task import BackgroundTask
 from app.services.argos import ArgosService
+from app.services.argos.page_context import build_context_chips
+from app.services.argos.selection_assist import find_evidence_for_selection
+from app.services.argos.verbs import list_verbs
 from app.services.background_tasks import BackgroundTaskService
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_validation_error
 from app.utils.db_utils import safe_add_and_commit
 
 logger = logging.getLogger(__name__)
+
+
+@companion_bp.app_context_processor
+def inject_companion_context_chips():
+    """Expose the rail's context chips to every template.
+
+    Registered app-wide (``app_context_processor``) because _base.html renders the
+    rail on every page, but kept here so the models it needs can be imported at
+    module top rather than inside the factory.
+    """
+    def companion_context_chips(focus):
+        if not current_user.is_authenticated:
+            return []
+        return build_context_chips(current_user.id, focus)
+
+    return dict(companion_context_chips=companion_context_chips,
+                companion_verbs=list_verbs)
 
 
 def _capture_link(focus):
@@ -137,6 +157,32 @@ def capture():
     if safe_add_and_commit(db.session, entry, 'companion capture'):
         return json_success('Captured', data={'entry_id': entry.id})
     return json_error('Failed to save capture', status_code=500)
+
+
+@companion_bp.route('/selection', methods=['POST'])
+@login_required
+def selection():
+    """Evidence from the user's own knowledge for a highlighted phrase.
+
+    Retrieval only — no LLM, no tokens. Nobody asked a question here, so an empty
+    list is a normal, common answer: the popover simply doesn't appear.
+
+    `company_id` narrows the search when the page is focused on one; it's a hint,
+    and retrieval is scoped to `current_user` regardless of what's sent.
+    """
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()
+    if not text:
+        return json_validation_error('Selection is required')
+
+    company_id = data.get('company_id')
+    try:
+        evidence = find_evidence_for_selection(
+            current_user.id, text, company_id=company_id)
+        return json_success('Evidence loaded', data={'evidence': evidence})
+    except Exception as e:
+        logger.error(f"Companion selection lookup failed: {e}")
+        return json_error(str(e), status_code=500)
 
 
 @companion_bp.route('/warnings', methods=['GET'])
