@@ -37,6 +37,7 @@ from app.models.idea_pipeline import MistakeLog
 from app.services.ai import ai_service
 from app.services.ai.embedding_service import get_embedding_service
 from app.services.ai.prompt_service import prompt_service, resolve_model_provider
+from app.utils.blocknote_utils import blocknote_to_text
 from app.utils.db_utils import safe_commit
 
 logger = logging.getLogger(__name__)
@@ -45,8 +46,14 @@ _MAX_WORDS = 60
 
 
 def _summarise(user_id, source_type, raw):
-    """Short text passes through; long text is summarised via YAML prompt."""
-    raw = (raw or '').strip()
+    """Short text passes through; long text is summarised via YAML prompt.
+
+    Journal content is stored as BlockNote JSON, so it is flattened to plain text
+    first. Indexing it raw embeds the editor's own markup — block ids, `props`,
+    `textColor` — which both dilutes the vector and surfaces JSON to the reader.
+    The helper passes plain text and old Quill HTML through unchanged.
+    """
+    raw = blocknote_to_text(raw or '').strip()
     if not raw:
         return ''
     if len(raw.split()) <= _MAX_WORDS:

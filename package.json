@@ -30,6 +30,7 @@
     "baseline-browser-mapping": "^2.9.17",
     "css-loader": "^6.8.1",
     "jsdom": "^29.1.1",
+    "playwright": "^1.62.1",
     "style-loader": "^3.3.3",
     "vitest": "^4.1.8",
     "webpack": "^5.89.0",

@@ -46,10 +46,22 @@ MIN_SELECTION_CHARS = 12
 # refuse, so selecting a long sentence still works.
 MAX_SELECTION_CHARS = 600
 
-# Cosine floor. Tuned conservatively: silence is the better failure mode here.
-# Worth revisiting against real usage — it is the single knob deciding how often
-# this feature speaks.
-MIN_RELEVANCE = 0.55
+# Cosine floor — the single knob deciding how often this feature speaks.
+#
+# MEASURED, not guessed, against a real 68-chunk account using Gemini
+# embeddings (gemini-embedding-001 truncated to 768 dims):
+#
+#   6 relevant phrases    top score  0.640 – 0.968
+#   6 unrelated phrases   top score  0.561 – 0.623   (recipes, train delays, gibberish)
+#
+# Note how compressed that range is: with this model, unrelated text still
+# scores ~0.6, and gibberish once beat a genuine query. Anything below ~0.63
+# fires on everything, which is worse than silence — the user stops trusting the
+# popover. 0.63 sits in the gap between the two classes.
+#
+# This number is specific to the embedding model. Changing providers moves the
+# whole distribution and the floor must be re-measured, not carried over.
+MIN_RELEVANCE = 0.63
 
 MAX_EVIDENCE = 3
 
@@ -63,16 +75,26 @@ def find_evidence_for_selection(user_id, text, company_id=None):
 
     Same dict shape as ``search_my_knowledge``:
     ``{source_type, source_id, title, summary, score}``.
+
+    ``company_id`` is a preference, not a filter. Scoping hard to the page's
+    company sounds right and is wrong in practice: knowledge is indexed per
+    company, so on a company you haven't written about yet — exactly where you are
+    most likely to be reading something new — the scoped search matches nothing
+    and the feature is silent forever. So: try the company first, and fall back to
+    the whole account rather than saying nothing.
     """
     selection = (text or '').strip()
     if len(selection) < MIN_SELECTION_CHARS:
         return []
 
-    results = search_my_knowledge(
-        user_id,
-        selection[:MAX_SELECTION_CHARS],
-        company_id=company_id,
-        total_cap=MAX_EVIDENCE,
-        per_source_caps=_PER_SOURCE_CAPS,
-    )
+    query = selection[:MAX_SELECTION_CHARS]
+
+    def _search(scope):
+        return search_my_knowledge(
+            user_id, query, company_id=scope,
+            total_cap=MAX_EVIDENCE, per_source_caps=_PER_SOURCE_CAPS)
+
+    results = _search(company_id) if company_id else []
+    if not results:
+        results = _search(None)
     return [r for r in results if r['score'] >= MIN_RELEVANCE][:MAX_EVIDENCE]

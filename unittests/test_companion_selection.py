@@ -31,8 +31,11 @@ from companion_js import companion_js
 
 from app import db
 from app.models.knowledge_chunk import KnowledgeChunk
-from app.services.argos.selection_assist import MIN_SELECTION_CHARS, find_evidence_for_selection
-
+from app.services.argos import selection_assist
+from app.services.argos.knowledge_index import _summarise
+from app.services.argos.selection_assist import (
+    MIN_RELEVANCE, MIN_SELECTION_CHARS, find_evidence_for_selection)
+from app.utils.blocknote_utils import blocknote_to_text
 
 
 def _chunk_summaries(evidence):
@@ -73,8 +76,7 @@ def test_result_count_is_small_enough_for_a_popover(app_context, stub_embedding,
 def test_weak_matches_are_dropped(app_context, stub_embedding, seed_many_chunks,
                                   monkeypatch):
     """Below the relevance floor the companion stays silent."""
-    import app.services.argos.selection_assist as mod
-    monkeypatch.setattr(mod, 'MIN_RELEVANCE', 2.0)   # nothing can score this high
+    monkeypatch.setattr(selection_assist, 'MIN_RELEVANCE', 2.0)   # nothing can score this high
     evidence = find_evidence_for_selection(
         seed_many_chunks, 'the competitive moat and advantage of this business')
     assert evidence == []
@@ -124,3 +126,68 @@ def test_js_ignores_selections_inside_the_rail():
     s = companion_js()
     assert 'companionRail' in s
     assert 'closest' in s
+
+
+def test_relevance_floor_clears_the_measured_noise_band():
+    """The floor was measured against a real account, not guessed.
+
+    With Gemini embeddings unrelated text still scores ~0.56-0.62 (gibberish once
+    beat a genuine query), while relevant text starts around 0.64. A floor inside
+    the noise band makes the popover fire on everything, which is worse than
+    silence. Re-measure if the embedding model ever changes.
+    """
+    assert MIN_RELEVANCE > 0.623, 'floor must clear the measured noise ceiling'
+    assert MIN_RELEVANCE < 0.640, 'floor must stay under the weakest real match'
+
+
+def test_company_scope_falls_back_to_the_whole_account(app_context, stub_embedding,
+                                                       seed_many_chunks):
+    """Regression: scoping hard to the page's company made this silent forever.
+
+    Knowledge is indexed per company, so on a company with nothing written about
+    it yet — where you are most likely to be reading something new — a hard filter
+    matches nothing. The company is a preference; the account is the fallback.
+    """
+    user_id = seed_many_chunks
+    # 999 owns no chunks, so a hard scope would return nothing at all.
+    evidence = find_evidence_for_selection(
+        user_id, 'the competitive moat and advantage of this business', company_id=999)
+    assert evidence, 'expected a fallback to account-wide evidence'
+
+
+def test_blocknote_journal_content_is_flattened_before_indexing():
+    """Regression: journal entries are BlockNote JSON, and were indexed verbatim.
+
+    That embedded the editor's markup — block ids, props, textColor — diluting the
+    vector and showing raw JSON to the reader in the evidence popover.
+    """
+    raw = ('[{"id":"efa72e0e","type":"paragraph","props":{"textColor":"default"},'
+           '"content":[{"type":"text","text":"Aumann raised its dividend"}]}]')
+    out = _summarise(1, 'journal', raw)
+    assert out == 'Aumann raised its dividend'
+    assert 'textColor' not in out and '"type"' not in out
+
+
+def test_plain_text_passes_through_the_flattener():
+    assert _summarise(1, 'journal', 'a plain note') == 'a plain note'
+
+
+def test_flattener_keeps_link_text_and_nested_blocks():
+    """Regression: a paragraph whose only content is a link flattened to nothing.
+
+    That left the entry unindexable, and because _upsert skips empty summaries the
+    stale pre-fix row survived re-indexing with raw JSON still in it.
+    """
+    doc = ('[{"type":"paragraph","content":[{"type":"link","href":"https://x.test",'
+           '"content":[{"type":"text","text":"Vidrala annual report"}]}]},'
+           '{"type":"bulletListItem","content":[{"type":"text","text":"parent"}],'
+           '"children":[{"type":"bulletListItem",'
+           '"content":[{"type":"text","text":"nested point"}]}]}]')
+    out = blocknote_to_text(doc)
+    assert 'Vidrala annual report' in out
+    assert 'nested point' in out
+
+
+def test_flattener_still_handles_plain_and_html():
+    assert blocknote_to_text('just text') == 'just text'
+    assert blocknote_to_text('<p>old quill</p>') == 'old quill'
