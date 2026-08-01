@@ -225,6 +225,14 @@
     width: min(60rem, 72vw);
 }
 
+/* Collapsed always wins. Same specificity as .deep and declared later, so a rail
+   collapsed while deep can't get stuck at full width with its contents hidden. */
+.companion-rail.collapsed,
+.companion-rail.collapsed.deep {
+    flex-basis: var(--rail-collapsed-width);
+    width: var(--rail-collapsed-width);
+}
+
 /* Header / scrolling body / footer. min-height:0 so the body can actually scroll
    instead of the whole column growing past the rail. */
 .companion-rail-inner {

@@ -22,17 +22,34 @@
       if (toggle) toggle.style.display = this.lastAnswer ? '' : 'none';
     },
 
+    isDeep: false,
+
     setDeep(on) {
       const deep = document.getElementById('companionDeep');
       const body = document.getElementById('companionRailBody');
       const footer = document.querySelector('.companion-rail-footer');
       if (!deep) return;
 
-      this.root.classList.toggle('deep', on);
+      this.isDeep = !!on;
+      this.root.classList.toggle('deep', this.isDeep);
       deep.style.display = on ? '' : 'none';
       if (body) body.style.display = on ? 'none' : '';
       if (footer) footer.style.display = on ? 'none' : '';
+
+      // Keep the header button honest about what it will do next.
+      const toggle = document.getElementById('companionDeepToggle');
+      if (toggle) {
+        toggle.title = on ? 'Back to the conversation' : 'Deep dive';
+        toggle.innerHTML = on
+          ? '<i class="bi bi-fullscreen-exit"></i>'
+          : '<i class="bi bi-arrows-fullscreen"></i>';
+      }
+
       if (on) this.renderDeep();
+    },
+
+    toggleDeep() {
+      this.setDeep(!this.isDeep);
     },
 
     renderDeep() {

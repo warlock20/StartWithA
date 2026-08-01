@@ -113,6 +113,35 @@ def test_js_renders_the_deep_dive_split():
     assert 'Export' in js
 
 
+def test_deep_dive_can_be_left_the_same_way_it_was_entered():
+    """Regression: the expand button only ever set deep on, so it was one-way."""
+    js = companion_js()
+    assert 'toggleDeep' in js
+    assert 'setDeep(!this.isDeep)' in js
+
+    html = open(os.path.join(os.path.dirname(__file__), '..',
+                             'app/templates/main/_companion_widget.html'),
+                encoding='utf-8').read()
+    assert 'CompanionChat.toggleDeep()' in html
+    assert 'CompanionChat.setDeep(true)' not in html
+
+
+def test_collapsing_the_rail_leaves_the_deep_dive():
+    """Regression: collapsing while deep left the rail full-width and empty.
+
+    .deep and .collapsed have equal specificity, so the CSS must also settle it —
+    a stuck 60rem strip with its contents hidden is unrecoverable from the UI.
+    """
+    js = companion_js()
+    assert 'this.setDeep(false)' in js
+
+    css = open(os.path.join(os.path.dirname(__file__), '..',
+                            'app/static/css/modules/_companion.css'),
+               encoding='utf-8').read()
+    assert '.companion-rail.collapsed.deep' in css
+    assert css.index('.companion-rail.collapsed.deep') > css.index('.companion-rail.deep {')
+
+
 def test_js_links_markers_to_source_cards():
     """A [n] in the answer should reach its card; sources render even unmarked."""
     js = companion_js()

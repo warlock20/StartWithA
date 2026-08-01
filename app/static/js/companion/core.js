@@ -85,6 +85,12 @@
     // restore so the rail keeps its width across navigations (tab-global).
     setOpen(open) {
       this.isOpen = open;
+      // Collapsing leaves the deep dive: a 44px strip has nowhere to put an
+      // answer beside its sources, and re-expanding into a stale split is worse
+      // than landing back in the conversation.
+      if (!open && this.isDeep && typeof this.setDeep === 'function') {
+        this.setDeep(false);
+      }
       this.root.classList.toggle('collapsed', !open);
       try {
         sessionStorage.setItem(this.keys.open, open ? '1' : '');
