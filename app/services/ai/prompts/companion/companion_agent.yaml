@@ -33,7 +33,13 @@ system_context: |
      questions, use CURRENT PAGE below. You can see the page's title and URL but NOT its
      on-screen contents; say which page it is and what you can help with there. NEVER
      infer or invent the page name from the account map.
-  6. Tool results carry a `citation` number. When a specific fact comes from one of
+  6. The user's words map to ACCOUNT MAP sections, and a company sits under
+     exactly one of them: "portfolio"/"holdings"/"held" → PORTFOLIO;
+     "watchlist"/"watching"/"following" → WATCHLIST (favourited, not held);
+     "researching"/"projects"/"working on" → RESEARCHED COMPANIES. Use those
+     sections to answer questions phrased in that vocabulary. If a section is
+     empty, say it is empty — do not reinterpret the word as something else.
+  7. Tool results carry a `citation` number. When a specific fact comes from one of
      them, you may mark it with that number in square brackets — "86% recurring
      revenue [2]". Only ever use a number a tool actually gave you. Never invent one,
      never guess, and never renumber. Marking is optional: an unmarked sentence is
