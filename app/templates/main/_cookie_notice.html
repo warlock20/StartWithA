@@ -1,19 +1,75 @@
 {#
-  Cookie Information Notice (non-blocking)
+  Cookie notice — two modes, chosen by whether tracking is actually enabled.
 
-  Since this platform only uses strictly necessary cookies,
-  consent is not required under § 25(2) TDDDG / ePrivacy Art. 5(3).
-  This banner is informational only — it does not block the page.
+  1. DEFAULT (no analytics, or a cookieless provider): informational only.
+     The platform sets strictly necessary cookies, so consent is not required
+     under § 25(2) TDDDG / ePrivacy Art. 5(3) and the banner does not block.
 
-  Dismissal is stored in localStorage so it only shows once.
+  2. CONSENT GATE (a cookie-setting provider such as Clarity is enabled):
+     § 25(1) TDDDG requires opt-in BEFORE the cookie is set, so the user gets a
+     real Accept/Decline choice and _analytics.html withholds the tag until
+     they accept. See app/telemetry.py.
+
+  The choice is stored in localStorage so it is only asked once.
   CSS: modules/_cookie-notice.css
 #}
+{% if analytics and analytics.needs_consent %}
 <div id="cookieNotice" class="cookie-notice" style="display: none;">
     <div class="cookie-notice-inner">
         <div class="cookie-notice-text">
             <i class="bi bi-shield-check me-2"></i>
+            We use essential cookies to run the platform. With your permission we
+            also use {{ analytics.label }} to measure how the app is used —
+            this is optional and off until you accept.
+            <a href="{{ url_for('main.cookies') }}" class="cookie-notice-link">Learn more</a>
+        </div>
+        <button type="button" class="cookie-notice-btn cookie-notice-btn--ghost" id="cookieNoticeDecline">Decline</button>
+        <button type="button" class="cookie-notice-btn" id="cookieNoticeAccept">Accept</button>
+    </div>
+</div>
+
+<script>
+    (function() {
+        var CONSENT_KEY = 'analytics_consent';
+
+        // Only ask once — a previous 'granted' or 'denied' is respected.
+        if (localStorage.getItem(CONSENT_KEY)) return;
+
+        var notice = document.getElementById('cookieNotice');
+        if (!notice) return;
+        notice.style.display = 'block';
+
+        function choose(value) {
+            localStorage.setItem(CONSENT_KEY, value);
+            notice.style.display = 'none';
+            if (value === 'granted') {
+                // _analytics.html listens for this and injects the tag now,
+                // so accepting takes effect without a reload.
+                window.dispatchEvent(new Event('analytics-consent-granted'));
+            }
+        }
+
+        document.getElementById('cookieNoticeAccept')
+            .addEventListener('click', function() { choose('granted'); });
+        document.getElementById('cookieNoticeDecline')
+            .addEventListener('click', function() { choose('denied'); });
+    })();
+</script>
+{% else %}
+<div id="cookieNotice" class="cookie-notice" style="display: none;">
+    <div class="cookie-notice-inner">
+        <div class="cookie-notice-text">
+            <i class="bi bi-shield-check me-2"></i>
+            {% if analytics %}
+            {# Cookieless provider: no consent needed, but say it's there rather
+               than claiming outright that nothing measures usage. #}
+            This site uses only essential cookies required for the platform to function.
+            We measure usage with {{ analytics.label }}, which sets no cookies and
+            does not track you across sites.
+            {% else %}
             This site uses only essential cookies required for the platform to function.
             No tracking or advertising cookies are used.
+            {% endif %}
             <a href="{{ url_for('main.cookies') }}" class="cookie-notice-link">Learn more</a>
         </div>
         <button type="button" class="cookie-notice-btn" id="cookieNoticeAccept">Got it</button>
@@ -36,3 +92,4 @@
         }
     })();
 </script>
+{% endif %}

@@ -118,3 +118,18 @@ class Config:
     RATELIMIT_STRATEGY = 'fixed-window'
     RATELIMIT_DEFAULT = '200 per minute'
     RATELIMIT_HEADERS_ENABLED = True
+
+    # 11. FRONTEND ANALYTICS: opt-in, disabled by default.
+    # Leave ANALYTICS_PROVIDER empty and no third-party script is served, the
+    # CSP is untouched, and the cookie notice stays purely informational.
+    # Known providers and the origins they need live in app/telemetry.py.
+    ANALYTICS_PROVIDER = os.environ.get('ANALYTICS_PROVIDER', '')
+    ANALYTICS_SITE_ID = os.environ.get('ANALYTICS_SITE_ID')
+    # Point at a self-hosted script (Plausible/Umami); its origin is added to
+    # the CSP automatically. Leave unset to use the provider's default CDN.
+    ANALYTICS_SCRIPT_URL = os.environ.get('ANALYTICS_SCRIPT_URL')
+    # Only meaningful for cookie-setting providers. Turning this off skips the
+    # consent gate — do that solely where you have another lawful basis, since
+    # TDDDG § 25(1) requires opt-in BEFORE a tracking cookie is set.
+    ANALYTICS_REQUIRE_CONSENT = os.environ.get(
+        'ANALYTICS_REQUIRE_CONSENT', 'True').lower() == 'true'

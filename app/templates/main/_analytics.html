@@ -1,0 +1,54 @@
+{#
+  Third-party analytics loader.
+
+  Renders NOTHING unless a self-hoster set ANALYTICS_PROVIDER + ANALYTICS_SITE_ID
+  (see app/telemetry.py and config.py). The provider's origins are added to the
+  CSP in app/__init__.py at the same time, so the tag is never blocked.
+
+  Cookie-setting providers (Clarity, PostHog) are held behind explicit opt-in:
+  the script is not injected until consent is recorded by _cookie_notice.html,
+  which fires `analytics-consent-granted` on accept. Cookieless providers
+  (Plausible, Umami) load immediately.
+#}
+{% if analytics %}
+<script>
+    (function () {
+        var CONSENT_KEY = 'analytics_consent';
+
+        {%- if analytics.queue_global %}
+        // Command queue, defined up front exactly as the vendor snippet does:
+        // calls made before the tag arrives are buffered on .q and replayed by
+        // the real script. Declared even when consent is still pending — it is
+        // a plain function, sets no cookie and makes no request — so app code
+        // can call {{ analytics.queue_global }}(...) without guarding.
+        window.{{ analytics.queue_global }} = window.{{ analytics.queue_global }} || function () {
+            (window.{{ analytics.queue_global }}.q = window.{{ analytics.queue_global }}.q || []).push(arguments);
+        };
+        {%- endif %}
+
+        function loadAnalytics() {
+            if (window.__analyticsLoaded) return;   // guard double-injection
+            window.__analyticsLoaded = true;
+
+            var s = document.createElement('script');
+            s.async = true;
+            s.src = {{ analytics.script_url | tojson }};
+            {%- for name, value in analytics.attrs.items() %}
+            s.setAttribute({{ name | tojson }}, {{ value | tojson }});
+            {%- endfor %}
+            document.head.appendChild(s);
+        }
+
+        {% if analytics.needs_consent %}
+        if (localStorage.getItem(CONSENT_KEY) === 'granted') {
+            loadAnalytics();
+        } else {
+            // Load mid-session if the user accepts, without a page reload.
+            window.addEventListener('analytics-consent-granted', loadAnalytics);
+        }
+        {% else %}
+        loadAnalytics();
+        {% endif %}
+    })();
+</script>
+{% endif %}

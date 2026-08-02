@@ -58,6 +58,18 @@
     background: #a8dcf0;
 }
 
+/* Secondary action ("Decline"), shown only when an optional cookie-setting
+   analytics provider is enabled and consent is being requested. */
+.cookie-notice-btn--ghost {
+    background: transparent;
+    color: var(--color-text-inverse, #e0e0e0);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.cookie-notice-btn--ghost:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
 @media (max-width: 576px) {
     .cookie-notice-inner {
         flex-direction: column;

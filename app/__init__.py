@@ -30,6 +30,7 @@ from config import Config
 from celery_app import celery
 from app.assets import init_assets
 from app.features import user_has_feature
+from app.telemetry import get_active_provider
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -312,7 +313,44 @@ def create_app(config_class=Config):
 
         return dict(has_feature=has_feature, is_newly_unlocked=is_newly_unlocked, get_tier_info=get_tier_info)
 
+    # ── Frontend analytics (opt-in; None unless ANALYTICS_PROVIDER is set) ──
+    # Resolved once here rather than per-request: it depends only on config,
+    # which is fixed after app creation.
+    analytics_provider = get_active_provider(app.config)
+    if analytics_provider:
+        app.logger.info(
+            "Frontend analytics enabled: %s (consent gate: %s)",
+            analytics_provider['label'],
+            'on' if analytics_provider['needs_consent'] else 'off')
+
+    @app.context_processor
+    def inject_analytics():
+        """Expose the active analytics provider (or None) to all templates."""
+        return dict(analytics=analytics_provider)
+
     # ── Security headers ──────────────────────────────────────────────
+    # The CSP is a constant for the process, so build the string once. An
+    # enabled analytics provider widens script-src/connect-src by exactly the
+    # origins it declares — without this the tag is silently blocked.
+    _script_src = ["'self'", "'unsafe-inline'", 'blob:', 'https://cdn.jsdelivr.net',
+                   'https://unpkg.com', 'https://cdnjs.cloudflare.com']
+    _connect_src = ["'self'"]
+    if analytics_provider:
+        _script_src += analytics_provider['script_src']
+        _connect_src += analytics_provider['connect_src']
+
+    CSP = "; ".join([
+        "default-src 'self'",
+        "script-src " + " ".join(_script_src),
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com",
+        "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
+        "img-src 'self' data: https:",
+        "connect-src " + " ".join(_connect_src),
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+    ])
+
     @app.after_request
     def set_security_headers(response):
         # HTTPS enforcement (Railway terminates TLS at the proxy)
@@ -330,19 +368,8 @@ def create_app(config_class=Config):
         # Permissions policy — disable features we don't use
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
 
-        # Content Security Policy
-        csp = "; ".join([
-            "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' blob: https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com",
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com",
-            "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
-            "img-src 'self' data: https:",
-            "connect-src 'self'",
-            "frame-ancestors 'none'",
-            "base-uri 'self'",
-            "form-action 'self'",
-        ])
-        response.headers['Content-Security-Policy'] = csp
+        # Content Security Policy (built once above)
+        response.headers['Content-Security-Policy'] = CSP
 
         return response
 

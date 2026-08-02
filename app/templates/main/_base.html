@@ -125,8 +125,11 @@
     <!-- AI disclaimer utility (BaFin compliance) -->
     <script defer src="{{ url_for('static', filename='js/ai-disclaimer.js') }}"></script>
 
-    <!-- Cookie information notice -->
+    <!-- Cookie information notice (becomes a consent gate when tracking is on) -->
     {% include 'main/_cookie_notice.html' %}
+
+    <!-- Optional third-party analytics — renders nothing unless configured -->
+    {% include 'main/_analytics.html' %}
 
     <!-- AI consent modal (GDPR Art. 6(1)(a)) -->
     {% include 'main/_ai_consent_modal.html' %}
