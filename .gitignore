@@ -48,5 +48,11 @@ TODOs/
 scripts/*
 
 # ── Files with local overrides (tracked but ignored locally) ──
-app/portfolio/routes.py
+# NOTE: `app/portfolio/routes.py` used to be listed here. It never had any
+# effect — git cannot ignore a tracked file, so `git check-ignore` reported it
+# as not ignored — but tools that match these patterns WITHOUT consulting the
+# git index (e.g. `railway up` building its upload tarball) dropped the file
+# and the image then died on `from app.portfolio import routes`. Use
+# `git update-index --skip-worktree <file>` for local-override workflows
+# instead of listing a tracked path here.
 stratergy.md

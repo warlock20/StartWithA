@@ -1,0 +1,46 @@
+# Upload exclusions for `railway up`. Takes precedence over .gitignore.
+#
+# This file exists because .gitignore lists two paths that are actually
+# TRACKED and required at runtime:
+#
+#   app/portfolio/routes.py   <- imported by app/portfolio/__init__.py
+#   sync_db.py
+#
+# git ignores those two lines (a tracked file can't be re-ignored), so they
+# are harmless locally. Railway's uploader matches the patterns directly
+# without consulting the git index, so it would drop both from the build
+# context and the image would fail on `from app.portfolio import routes`.
+# Listing exclusions explicitly here avoids that.
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Secrets — set these as Railway variables instead, never in the image
+.env
+.env_local
+
+# Local-only app data
+instance/
+*.sqlite3
+app.db
+my_research_app.db
+
+# Build artifacts — regenerated inside the Docker build
+node_modules/
+app/static/js/dist/
+app/static/css/gen/
+app/static/.webassets-cache/
+
+# Local noise
+*.sql
+railway_backup_*
+local_backup_*
+*.bak
+TODOs/
+mockups/
+docs/Screenshots_and_gifs/

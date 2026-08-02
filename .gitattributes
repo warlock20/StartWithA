@@ -1,0 +1,18 @@
+# Normalize line endings so a Windows checkout still produces a working image.
+#
+# Without this, `core.autocrlf=true` (the Windows default) rewrites these files
+# to CRLF on checkout. For a shell script that is fatal inside the container:
+# the shebang becomes "#!/bin/bash\r" and the kernel looks for an interpreter
+# literally named "bash\r", which surfaces as the very confusing
+#   exec container process (missing dynamic library?) `/app/./docker-entrypoint.sh`:
+#   No such file or directory
+# Linux and macOS checkouts were unaffected, so this only ever bit Windows.
+
+# Files consumed by Linux tooling — always LF, on every platform.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+docker-compose.yml text eol=lf
+Procfile        text eol=lf
+
+# Let git decide for everything else.
+* text=auto

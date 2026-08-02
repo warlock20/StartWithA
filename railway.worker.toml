@@ -1,0 +1,30 @@
+# Railway config for the Celery worker service.
+#
+# Separate from railway.toml because that file declares healthcheckPath =
+# "/health", and a config file applies to every service that deploys this repo.
+# The worker serves no HTTP, so it can never answer a health check — it would
+# boot Celery correctly and then be marked FAILED when the probe timed out.
+# Point the worker service's "Config as code" path at this file instead.
+
+[build]
+builder = "dockerfile"
+
+[deploy]
+# `docker-entrypoint.sh` checks for "celery" as $1 and skips `flask db upgrade`
+# when it matches, so only the web container migrates the database.
+#
+# --concurrency is REQUIRED here. Celery defaults to os.cpu_count(), and the
+# Railway host reports 48 CPUs regardless of the container's memory limit, so
+# the default forks 48 prefork children that each import the whole Flask app
+# (pandas, matplotlib, weasyprint, scikit-learn). That OOMs immediately —
+# the worker boots, registers its tasks, then gets killed. The tasks are all
+# I/O-bound (LLM and market-data calls), so a small pool is the right shape
+# anyway; raise it only alongside a memory limit that can carry it.
+#
+# --max-tasks-per-child recycles a child after N jobs so a slow leak in a
+# long-running AI task can't accumulate across the life of the worker.
+startCommand = "celery -A celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=50"
+
+# No healthcheckPath here — that is the entire point of this file.
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
