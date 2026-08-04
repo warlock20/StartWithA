@@ -147,6 +147,12 @@
     </div>
 </aside>
 
+{# Mobile scrim. Below 768px an expanded rail covers the whole viewport, so it
+   needs somewhere to tap that means "go back to the page". Inert above that
+   breakpoint (CSS keeps it display:none), and only visible while the rail is
+   open — body.companion-open is set by CompanionChat.setOpen(). #}
+<div class="companion-scrim" id="companionScrim" onclick="CompanionChat.setOpen(false)"></div>
+
 {# Companion modules. core.js creates window.CompanionChat; the rest extend it,
    and bootstrap.js starts everything — so the order matters. Deferred scripts
    execute in document order, which is what guarantees it. #}
