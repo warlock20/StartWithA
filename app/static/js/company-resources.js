@@ -8,7 +8,7 @@
  *       companyName: 'Apple Inc.',
  *       projectId: 456,        // optional - research project context
  *       stepIndex: 2,          // optional - research step context
- *       defaultTab: 'upload',  // optional - 'list', 'upload', or 'link'
+ *       defaultTab: 'add',     // optional - 'list' or 'add' ('upload'/'link' also accepted)
  *   });
  */
 const CompanyResources = (() => {
@@ -45,10 +45,11 @@ const CompanyResources = (() => {
         // Load resources list
         loadResources();
 
-        // Activate the requested tab
+        // Activate the requested tab. 'upload' and 'link' predate the merged Add
+        // pane and still work — they just preselect the matching type.
         if (currentConfig.defaultTab !== 'list') {
-            const tabId = currentConfig.defaultTab === 'upload' ? 'cr-tab-upload' : 'cr-tab-link';
-            const tabEl = document.getElementById(tabId);
+            showResourceType(currentConfig.defaultTab === 'link' ? 'link' : 'file');
+            const tabEl = document.getElementById('cr-tab-add');
             if (tabEl) {
                 const tab = new bootstrap.Tab(tabEl);
                 tab.show();
@@ -56,6 +57,16 @@ const CompanyResources = (() => {
         }
 
         m.show();
+    }
+
+    function showResourceType(type) {
+        const isLink = type === 'link';
+        const fileForm = document.getElementById('cr-file-form');
+        const linkForm = document.getElementById('cr-link-form');
+        if (fileForm) fileForm.classList.toggle('d-none', isLink);
+        if (linkForm) linkForm.classList.toggle('d-none', !isLink);
+        const radio = document.getElementById(isLink ? 'cr-type-link' : 'cr-type-file');
+        if (radio) radio.checked = true;
     }
 
     function resetForms() {
@@ -387,6 +398,8 @@ const CompanyResources = (() => {
         document.getElementById('cr-filter-category').addEventListener('change', loadResources);
         document.getElementById('cr-upload-btn').addEventListener('click', uploadFile);
         document.getElementById('cr-link-btn').addEventListener('click', saveLink);
+        document.getElementById('cr-type-file').addEventListener('change', () => showResourceType('file'));
+        document.getElementById('cr-type-link').addEventListener('change', () => showResourceType('link'));
     }
 
     if (document.readyState === 'loading') {
