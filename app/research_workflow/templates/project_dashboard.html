@@ -370,17 +370,9 @@
                         companyId: {{ project.company.id }},
                         companyName: {{ project.company.name|tojson }},
                         projectId: {{ project.id }},
-                        defaultTab: "upload"
+                        defaultTab: "add"
                     })'>
-                        <i class="bi bi-cloud-upload me-1"></i> Upload File
-                    </button>
-                    <button class="btn btn-sm btn-outline-primary" onclick='CompanyResources.open({
-                        companyId: {{ project.company.id }},
-                        companyName: {{ project.company.name|tojson }},
-                        projectId: {{ project.id }},
-                        defaultTab: "link"
-                    })'>
-                        <i class="bi bi-link-45deg me-1"></i> Save Link
+                        <i class="bi bi-plus-lg me-1"></i> Add Resource
                     </button>
                     <button class="btn btn-sm btn-outline-secondary" onclick='CompanyResources.open({
                         companyId: {{ project.company.id }},
@@ -397,22 +389,89 @@
                 <h3 class="font-poppins fw-bold mb-3">Quick Actions</h3>
                 <div>
                     {% if project.company %}
+                    <a href="#" class="quick-action-link" onclick="event.preventDefault(); showQuickNoteModal();">
+                        <i class="bi bi-file-earmark-text"></i> Add Note
+                    </a>
+                    <a href="#" class="quick-action-link" onclick="event.preventDefault(); showQuickJournalModal();">
+                        <i class="bi bi-journal-plus"></i> Add Journal Entry
+                    </a>
                     <a href="{{ url_for('companies.company_detail', company_id=project.company.id) }}" class="quick-action-link">
                         <i class="bi bi-building"></i> Company Dashboard
                     </a>
                     <a href="{{ url_for('journal_enhanced.knowledge_hub', company_id=project.company.id) }}" class="quick-action-link">
                         <i class="bi bi-journal-text"></i> View Journal Entries
                     </a>
-                    <a href="{{ url_for('journal_enhanced.new_entry', company_id=project.company.id) }}" class="quick-action-link">
-                        <i class="bi bi-journal-plus"></i> New Journal Entry
-                    </a>
                     {% endif %}
-                    <a href="{{ url_for('research_workflow.my_projects') }}" class="quick-action-link">
-                        <i class="bi bi-folder"></i> All Projects
-                    </a>
                 </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- Quick Note Modal — appends to the company's Notes -->
+<div class="modal fade" id="quickNoteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-text me-2"></i>Add Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Appended to this company's notes, dated and tagged with this project.</p>
+                <div id="quickNoteEditorHost"></div>
+                <div class="alert alert-danger d-none mt-2" id="quickNoteError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="quickNoteSave">Save Note</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Journal Modal -->
+<div class="modal fade" id="quickJournalModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-journal-plus me-2"></i>Add Journal Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="quickJournalEditorHost" class="mb-3"></div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="quickJournalType" class="form-label">Entry Type</label>
+                        <select class="form-select" id="quickJournalType">
+                            <option value="observation" selected>Observation</option>
+                            <option value="thesis_update">Thesis Update</option>
+                            <option value="question">Question</option>
+                            <option value="insight">Insight</option>
+                            <option value="lesson_learned">Lesson Learned</option>
+                            <option value="market_thought">Market Thought</option>
+                            <option value="meeting_notes">Meeting Notes</option>
+                            <option value="earnings_reaction">Earnings Reaction</option>
+                            <option value="news_analysis">News Analysis</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="quickJournalSentiment" class="form-label">Sentiment</label>
+                        <select class="form-select" id="quickJournalSentiment">
+                            <option value="" selected>None</option>
+                            <option value="bullish">Bullish</option>
+                            <option value="bearish">Bearish</option>
+                            <option value="neutral">Neutral</option>
+                            <option value="uncertain">Uncertain</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="alert alert-danger d-none" id="quickJournalError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="quickJournalSave">Save Entry</button>
+            </div>
         </div>
     </div>
 </div>
@@ -521,6 +580,121 @@
 {% include 'components/blocknote_editor_include.html' %}
 <script src="{{ url_for('static', filename='js/company-resources.js') }}"></script>
 <script>
+// Quick Note / Quick Journal — save without leaving the page.
+{% if project.company %}
+const QUICK_COMPANY_ID = {{ project.company.id }};
+const QUICK_PROJECT_NAME = {{ (project.project_name or '')|tojson }};
+
+let quickNoteContent = '';
+let quickJournalContent = '';
+
+// BlockNote has no documented reset, so each open gets a fresh container and a
+// fresh editor mounted into it. Mounting happens on shown.bs.modal because the
+// editor needs a visible box to size itself against.
+function mountQuickEditor(hostId, editorId, placeholder, onChange) {
+    const host = document.getElementById(hostId);
+    host.innerHTML = '<div id="' + editorId + '" class="blocknote-form-editor"></div>';
+    const wait = setInterval(function () {
+        if (window.initBlockNoteEditor) {
+            clearInterval(wait);
+            window.initBlockNoteEditor(editorId, {
+                initialContent: '',
+                placeholder: placeholder,
+                onChange: onChange
+            });
+        }
+    }, 100);
+}
+
+// An editor is never truly "empty" — it always holds at least one block — so
+// emptiness means no text inside any of them.
+function blocknoteHasText(json) {
+    if (!json) return false;
+    try {
+        return /"text"\s*:\s*"[^"]+"/.test(JSON.stringify(JSON.parse(json)));
+    } catch (e) {
+        return json.trim().length > 0;
+    }
+}
+
+function showQuickNoteModal() {
+    document.getElementById('quickNoteError').classList.add('d-none');
+    new bootstrap.Modal(document.getElementById('quickNoteModal')).show();
+}
+
+function showQuickJournalModal() {
+    document.getElementById('quickJournalType').value = 'observation';
+    document.getElementById('quickJournalSentiment').value = '';
+    document.getElementById('quickJournalError').classList.add('d-none');
+    new bootstrap.Modal(document.getElementById('quickJournalModal')).show();
+}
+
+document.getElementById('quickNoteModal').addEventListener('shown.bs.modal', function () {
+    quickNoteContent = '';
+    mountQuickEditor('quickNoteEditorHost', 'quickNoteEditor',
+                     'What did you learn?',
+                     function (json) { quickNoteContent = json; });
+});
+
+document.getElementById('quickJournalModal').addEventListener('shown.bs.modal', function () {
+    quickJournalContent = '';
+    mountQuickEditor('quickJournalEditorHost', 'quickJournalEditor',
+                     'What happened?',
+                     function (json) { quickJournalContent = json; });
+});
+
+function showQuickError(id, message) {
+    const el = document.getElementById(id);
+    el.textContent = message;
+    el.classList.remove('d-none');
+}
+
+async function saveQuick(modalId, url, payload, errorId, button) {
+    button.disabled = true;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!data.success) {
+            showQuickError(errorId, data.message || data.error || 'Could not save.');
+            return;
+        }
+        bootstrap.Modal.getInstance(document.getElementById(modalId)).hide();
+    } catch (err) {
+        showQuickError(errorId, 'Connection error: ' + err.message);
+    } finally {
+        button.disabled = false;
+    }
+}
+
+document.getElementById('quickNoteSave').addEventListener('click', function () {
+    if (!blocknoteHasText(quickNoteContent)) {
+        showQuickError('quickNoteError', 'Please write something first.');
+        return;
+    }
+    saveQuick('quickNoteModal',
+              "{{ url_for('companies.append_journey_note', company_id=project.company.id) }}",
+              { content: quickNoteContent, project_name: QUICK_PROJECT_NAME },
+              'quickNoteError', this);
+});
+
+document.getElementById('quickJournalSave').addEventListener('click', function () {
+    if (!blocknoteHasText(quickJournalContent)) {
+        showQuickError('quickJournalError', 'Please write something first.');
+        return;
+    }
+    saveQuick('quickJournalModal', "{{ url_for('portfolio.quick_add_note') }}", {
+        company_id: QUICK_COMPANY_ID,
+        content: quickJournalContent,
+        entry_type: document.getElementById('quickJournalType').value,
+        sentiment: document.getElementById('quickJournalSentiment').value
+    }, 'quickJournalError', this);
+});
+{% endif %}
+
 // Thesis modal BlockNote editor
 let thesisModalContent = '';
 const thesisModalEl = document.getElementById('thesisModal');

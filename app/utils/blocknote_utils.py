@@ -258,3 +258,47 @@ def blocknote_preview(content, max_length=120):
         truncated = truncated[:last_space]
 
     return truncated + '...'
+
+
+def _as_blocks(content):
+    """
+    Coerce a stored value into a list of BlockNote blocks.
+
+    Content that isn't a JSON array — NULL, empty, plain text from an older
+    write, or malformed JSON — becomes a single paragraph so nothing is
+    discarded.
+    """
+    if not content or not str(content).strip():
+        return []
+
+    def _para(value):
+        return {'type': 'paragraph', 'props': {},
+                'content': [{'type': 'text', 'text': value, 'styles': {}}]}
+
+    try:
+        parsed = json.loads(content)
+        return parsed if isinstance(parsed, list) else [_para(content)]
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return [_para(content)]
+
+
+def append_note(content, note, heading):
+    """
+    Append a dated note to a BlockNote document, returning the new document.
+
+    The note keeps whatever formatting the editor produced — lists, bold,
+    links — because its blocks are appended as-is rather than flattened to
+    text. Plain strings are still accepted and become one paragraph.
+
+    Args:
+        content (str|None): existing BlockNote document
+        note (str): the note to append, as BlockNote JSON or plain text
+        heading (str): dated heading, e.g. '4 Aug 2026 — Deep Dive'
+
+    Returns:
+        str: JSON text of the combined document
+    """
+    heading_block = {'type': 'heading', 'props': {'level': 2},
+                     'content': [{'type': 'text', 'text': heading, 'styles': {}}]}
+
+    return json.dumps(_as_blocks(content) + [heading_block] + _as_blocks(note))
