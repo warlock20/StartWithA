@@ -919,15 +919,58 @@
         top: var(--topbar-height);
         right: 0;
         flex: 0 0 0;
+        /* dvh tracks the *dynamic* viewport as mobile browser chrome shows and
+           hides. With 100vh the rail is sized to the URL-bar-retracted viewport,
+           so its footer — the composer — sits below the fold behind the chrome.
+           The vh line stays as the fallback for browsers without dvh. */
+        height: calc(100vh - var(--topbar-height));
+        height: calc(100dvh - var(--topbar-height));
         box-shadow: -8px 0 28px rgba(0, 0, 0, 0.10);
-        z-index: 1045;   /* under the Bootstrap modal backdrop (1050) */
+        /* Under .mobile-overlay (1045) and the mobile sidebar (1050), so an open
+           sidebar dims the rail instead of the rail punching through the scrim. */
+        z-index: 1040;
+    }
+
+    /* The rail no longer reserves width, so the collapsed 44px strip would sit on
+       top of the content's right edge. Pad it back — but only where a rail is
+       actually mounted (pages can opt out, and it never renders logged out). */
+    .app-layout:has(.companion-rail) .app-main {
+        padding-right: var(--rail-collapsed-width);
     }
 }
 
-@media (max-width: 480px) {
+/* Full-width at the app's own mobile breakpoint, not 480px. Between the two a
+   380px panel floats over a ~600px page with no way to read what's behind it. */
+@media (max-width: 768px) {
     .companion-rail:not(.collapsed) {
         width: 100%;
     }
+
+    /* Keep the composer clear of the home indicator on notched phones. */
+    .companion-rail-footer {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* Tap target for dismissing a full-screen rail. Sits under the rail (1040)
+       and above the page. */
+    body.companion-open .companion-scrim {
+        display: block;
+        position: fixed;
+        inset: 0;
+        top: var(--topbar-height);
+        background: rgba(0, 0, 0, 0.35);
+        z-index: 1039;
+    }
+
+    /* Don't scroll the page behind a rail that's covering it. */
+    body.companion-open {
+        overflow: hidden;
+    }
+}
+
+/* Inert by default — the scrim only exists for the full-screen mobile case. */
+.companion-scrim {
+    display: none;
 }
 
 /* =============================================================================
