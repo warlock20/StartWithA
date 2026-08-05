@@ -38,6 +38,7 @@ local_backup_*
 #docs/
 mockups/
 docs/superpowers/*
+.superpowers/
 
 # ── Local utilities ──
 config_backup.py

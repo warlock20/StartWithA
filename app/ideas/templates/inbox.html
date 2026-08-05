@@ -155,6 +155,16 @@ let currentEvalUrl = null;
 let currentChecklistId = defaultChecklistId;
 const savedAnswers = {};
 
+/* ── HTML escaping — formatters build markup by concatenation ── */
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 /* ── Modal lifecycle: reset button + save answers on every hide ── */
 document.getElementById('evaluateModal').addEventListener('hidden.bs.modal', function() {
     if (currentEvalIdeaId) {
@@ -179,8 +189,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     widthGrow: 2,
                     formatter: function(cell) {
                         const row = cell.getRow().getData();
-                        const ticker = row.ticker ? '<br><span class="rcl-cell-ticker">' + row.ticker + '</span>' : '';
-                        return '<strong>' + cell.getValue() + '</strong>' + ticker;
+                        const ticker = row.ticker
+                            ? '<br><span class="rcl-cell-ticker">' + escapeHtml(row.ticker) + '</span>'
+                            : '';
+                        return '<strong>' + escapeHtml(cell.getValue()) + '</strong>' + ticker;
                     }
                 },
                 {
@@ -252,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     formatter: function(cell) {
                         const val = cell.getValue();
                         if (!val) return '<span class="table-cell-muted">&mdash;</span>';
-                        return '<span class="idea-source-cell">' + val + '</span>';
+                        return '<span class="idea-source-cell">' + escapeHtml(val) + '</span>';
                     }
                 },
                 {
@@ -267,17 +279,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         var html = '<div class="idea-actions" style="justify-content: flex-end;">';
 
                         if (action.type === 'evaluate') {
-                            html += '<button class="idea-action-btn action-kill" onclick="openEvaluateModal(' + row.id + ', \'' + row.name.replace(/'/g, "\\'") + '\', \'' + action.url + '\')">';
-                            html += '<i class="bi ' + action.icon + '"></i> ' + action.label;
+                            html += '<button type="button" class="idea-action-btn action-kill" data-evaluate-id="' + row.id + '">';
+                            html += '<i class="bi ' + escapeHtml(action.icon) + '"></i> ' + escapeHtml(action.label);
                             html += '</button>';
                         } else {
-                            var btnClass = 'action-promote';
-                            html += '<a href="' + action.url + '" class="idea-action-btn ' + btnClass + '">';
-                            html += '<i class="bi ' + action.icon + '"></i> ' + action.label;
+                            html += '<a href="' + escapeHtml(action.url) + '" class="idea-action-btn action-promote">';
+                            html += '<i class="bi ' + escapeHtml(action.icon) + '"></i> ' + escapeHtml(action.label);
                             html += '</a>';
                         }
 
-                        html += '<a href="' + row.edit_url + '" class="idea-action-btn action-edit">';
+                        html += '<a href="' + escapeHtml(row.edit_url) + '" class="idea-action-btn action-edit">';
                         html += '<i class="bi bi-pencil"></i>';
                         html += '</a>';
                         html += '</div>';
@@ -295,6 +306,15 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('inbox-search').addEventListener('input', applyFilters);
         document.getElementById('inbox-state-filter').addEventListener('change', applyFilters);
         document.getElementById('inbox-purpose-filter').addEventListener('change', applyFilters);
+
+        /* Delegated — Tabulator rebuilds rows on sort/filter/paginate. */
+        document.getElementById('inbox-table').addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-evaluate-id]');
+            if (!btn) return;
+            var id = parseInt(btn.getAttribute('data-evaluate-id'), 10);
+            var row = ideasData.filter(function(d) { return d.id === id; })[0];
+            if (row) openEvaluateModal(row.id, row.name, row.action.url);
+        });
 
         function applyFilters() {
             var searchVal = document.getElementById('inbox-search').value.toLowerCase().trim();
