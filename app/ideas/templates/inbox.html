@@ -145,6 +145,7 @@
 {% include 'components/_tabulator_js.html' %}
 {% if idea_count > 0 %}
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script src="{{ url_for('static', filename='js/thesis-hover-card.js') }}"></script>
 <script>
 const ideasData = {{ ideas_json|safe }};
 const checklistsData = {{ checklists_json|safe }};
@@ -251,9 +252,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     minWidth: 180,
                     widthGrow: 2,
                     formatter: function(cell) {
+                        const row = cell.getRow().getData();
                         const val = cell.getValue();
-                        if (!val) return '<span class="table-cell-muted">&mdash;</span>';
-                        return '<span class="idea-thesis-cell">' + val + '</span>';
+                        const hasDetail = !!(val || row.notes);
+                        if (!hasDetail) return '<span class="table-cell-muted">&mdash;</span>';
+                        // An idea can carry notes without a thesis — still worth opening.
+                        const preview = val || 'Notes only';
+                        return '<span class="idea-thesis-cell has-detail"' +
+                               ' data-idea-id="' + row.id + '"' +
+                               ' tabindex="0" role="button" aria-expanded="false"' +
+                               ' aria-controls="thesis-hover-card"' +
+                               ' aria-label="Show thesis and notes for ' + escapeHtml(row.name) + '">' +
+                               escapeHtml(preview) + '</span>';
                     }
                 },
                 {
@@ -316,6 +326,23 @@ document.addEventListener('DOMContentLoaded', function() {
             if (row) openEvaluateModal(row.id, row.name, row.action.url);
         });
 
+        /* ── Thesis hover card ── */
+        const ideaMap = {};
+        ideasData.forEach(function(d) {
+            ideaMap[d.id] = { thesis: d.thesis, notes: d.notes };
+        });
+
+        const thesisCard = initThesisHoverCard({
+            container: '#inbox-table',
+            lookup: function(id) { return ideaMap[id]; }
+        });
+
+        // Sorting, filtering and paging rebuild rows — drop the card rather
+        // than leave it floating over whatever now occupies that position.
+        inboxTable.on('renderComplete', function() {
+            if (thesisCard) thesisCard.close();
+        });
+
         function applyFilters() {
             var searchVal = document.getElementById('inbox-search').value.toLowerCase().trim();
             var stateVal = document.getElementById('inbox-state-filter').value;
@@ -328,6 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     data.name.toLowerCase().indexOf(searchVal) !== -1 ||
                     (data.ticker && data.ticker.toLowerCase().indexOf(searchVal) !== -1) ||
                     (data.thesis && data.thesis.toLowerCase().indexOf(searchVal) !== -1) ||
+                    (data.notes && data.notes.toLowerCase().indexOf(searchVal) !== -1) ||
                     (data.source && data.source.toLowerCase().indexOf(searchVal) !== -1);
                 return stateMatch && purposeMatch && searchMatch;
             });

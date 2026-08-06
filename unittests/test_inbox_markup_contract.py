@@ -55,3 +55,50 @@ def test_idea_name_is_not_interpolated_into_an_inline_onclick():
     s = _inbox()
     assert 'onclick="openEvaluateModal(' not in s
     assert 'data-evaluate-id=' in s
+
+
+def test_hover_card_script_is_loaded():
+    assert "filename='js/thesis-hover-card.js'" in _inbox()
+
+
+def test_hover_card_is_initialised_against_the_table():
+    s = _inbox()
+    assert 'initThesisHoverCard(' in s
+    assert "container: '#inbox-table'" in s
+
+
+def test_thesis_cell_carries_the_id_and_accessibility_hooks():
+    s = _inbox()
+    assert 'idea-thesis-cell has-detail' in s
+    assert 'data-idea-id=' in s
+    assert 'tabindex="0"' in s
+    assert 'aria-expanded="false"' in s
+    assert 'aria-controls="thesis-hover-card"' in s
+
+
+def test_card_closes_when_tabulator_rebuilds_rows():
+    """A sort or filter would otherwise strand the card over the wrong row."""
+    s = _inbox()
+    assert "'renderComplete'" in s
+    assert 'thesisCard.close()' in s
+
+
+def test_notes_are_searchable():
+    assert 'data.notes.toLowerCase().indexOf(searchVal)' in _inbox()
+
+
+def test_ideas_with_neither_thesis_nor_notes_are_inert():
+    """No affordance when there is nothing to show."""
+    assert 'const hasDetail = !!(val || row.notes);' in _inbox()
+
+
+def test_thesis_formatter_escapes_all_user_text():
+    """The thesis cell was the last unescaped XSS sink on this page.
+
+    Both interpolations are user-controlled: the preview text is the idea's
+    own thesis, and the aria-label carries the idea name. Dropping either
+    escapeHtml call reopens the hole, so pin both.
+    """
+    s = _inbox()
+    assert 'escapeHtml(preview)' in s
+    assert 'aria-label="Show thesis and notes for \' + escapeHtml(row.name)' in s
