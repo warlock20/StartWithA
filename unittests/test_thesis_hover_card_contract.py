@@ -32,6 +32,14 @@ def _js():
     return open(JS, encoding='utf-8').read()
 
 
+CSS = os.path.join(
+    os.path.dirname(__file__), '..', 'app/static/css/modules/_idea-inbox.css')
+
+
+def _css():
+    return open(CSS, encoding='utf-8').read()
+
+
 def test_exposes_the_init_entry_point():
     assert 'window.initThesisHoverCard' in _js()
 
@@ -99,3 +107,27 @@ def test_escape_refocus_cannot_re_pin_the_card():
     assert 'suppressFocusPin' in s
     assert 'suppressFocusPin = true;' in s
     assert 'suppressFocusPin = false;' in s
+
+
+def test_scroll_region_is_capped_so_the_card_never_exceeds_the_viewport():
+    assert 'max-height: 320px' in _css()
+
+
+def test_trigger_signals_that_it_is_interactive():
+    s = _css()
+    assert '.idea-thesis-cell.has-detail' in s
+    assert 'cursor: help' in s
+    assert 'text-decoration-style: dotted' in s
+
+
+def test_card_sits_below_the_bootstrap_modal_layer():
+    """Bootstrap's modal backdrop is 1050 — the card must never cover it."""
+    assert 'z-index: 1040' in _css()
+
+
+def test_keyboard_focus_is_visible_on_the_trigger():
+    assert ':focus-visible' in _css()
+
+
+def test_motion_is_suppressed_when_the_user_asks_for_it():
+    assert 'prefers-reduced-motion' in _css()
