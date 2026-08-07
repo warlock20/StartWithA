@@ -170,12 +170,16 @@ def inbox():
             'purpose': idea.idea_purpose or 'investment',
             'state': display_state,
             'age_days': idea_ages.get(idea.id, 0),
-            'thesis': (idea.thesis_summary[:80] + '...') if idea.thesis_summary and len(idea.thesis_summary) > 80 else (idea.thesis_summary or ''),
+            'thesis': idea.thesis_summary or '',
+            'notes': idea.initial_notes or '',
             'source': idea.source or '',
             'action': action,
             'edit_url': url_for('ideas.edit_idea', idea_id=idea.id),
         })
-    ideas_json = json.dumps(ideas_data)
+    # Escape '<' so a thesis/name/notes value containing '</script>' cannot
+    # terminate the inline <script> block this is rendered into. json.dumps
+    # does not do this, and the page CSP allows unsafe-inline.
+    ideas_json = json.dumps(ideas_data).replace('<', '\\u003c')
 
     # Serialize ALL checklists for the evaluation modal (pro users can switch)
     checklists_json = json.dumps({
@@ -190,6 +194,7 @@ def inbox():
             } for c in cl.criteria.order_by(KillCriterion.order).all()]
         } for cl in all_kill_checklists
     })
+    checklists_json = checklists_json.replace('<', '\\u003c')
 
     response = make_response(render_template('inbox.html',
                           title="Idea Inbox",

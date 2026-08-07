@@ -145,6 +145,7 @@
 {% include 'components/_tabulator_js.html' %}
 {% if idea_count > 0 %}
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script src="{{ url_for('static', filename='js/thesis-hover-card.js') }}"></script>
 <script>
 const ideasData = {{ ideas_json|safe }};
 const checklistsData = {{ checklists_json|safe }};
@@ -154,6 +155,16 @@ let currentEvalIdeaId = null;
 let currentEvalUrl = null;
 let currentChecklistId = defaultChecklistId;
 const savedAnswers = {};
+
+/* ── HTML escaping — formatters build markup by concatenation ── */
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 /* ── Modal lifecycle: reset button + save answers on every hide ── */
 document.getElementById('evaluateModal').addEventListener('hidden.bs.modal', function() {
@@ -179,8 +190,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     widthGrow: 2,
                     formatter: function(cell) {
                         const row = cell.getRow().getData();
-                        const ticker = row.ticker ? '<br><span class="rcl-cell-ticker">' + row.ticker + '</span>' : '';
-                        return '<strong>' + cell.getValue() + '</strong>' + ticker;
+                        const ticker = row.ticker
+                            ? '<br><span class="rcl-cell-ticker">' + escapeHtml(row.ticker) + '</span>'
+                            : '';
+                        return '<strong>' + escapeHtml(cell.getValue()) + '</strong>' + ticker;
                     }
                 },
                 {
@@ -239,9 +252,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     minWidth: 180,
                     widthGrow: 2,
                     formatter: function(cell) {
+                        const row = cell.getRow().getData();
                         const val = cell.getValue();
-                        if (!val) return '<span class="table-cell-muted">&mdash;</span>';
-                        return '<span class="idea-thesis-cell">' + val + '</span>';
+                        const hasDetail = !!(val || row.notes);
+                        if (!hasDetail) return '<span class="table-cell-muted">&mdash;</span>';
+                        // An idea can carry notes without a thesis — still worth opening.
+                        const preview = val || 'Notes only';
+                        // No aria-label: on role="button" it would override
+                        // name-from-content, and the cell's text IS the thesis —
+                        // screen readers must keep announcing it.
+                        return '<span class="idea-thesis-cell has-detail"' +
+                               ' data-idea-id="' + row.id + '"' +
+                               ' tabindex="0" role="button" aria-expanded="false"' +
+                               ' aria-controls="thesis-hover-card">' +
+                               escapeHtml(preview) + '</span>';
                     }
                 },
                 {
@@ -252,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     formatter: function(cell) {
                         const val = cell.getValue();
                         if (!val) return '<span class="table-cell-muted">&mdash;</span>';
-                        return '<span class="idea-source-cell">' + val + '</span>';
+                        return '<span class="idea-source-cell">' + escapeHtml(val) + '</span>';
                     }
                 },
                 {
@@ -267,17 +291,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         var html = '<div class="idea-actions" style="justify-content: flex-end;">';
 
                         if (action.type === 'evaluate') {
-                            html += '<button class="idea-action-btn action-kill" onclick="openEvaluateModal(' + row.id + ', \'' + row.name.replace(/'/g, "\\'") + '\', \'' + action.url + '\')">';
-                            html += '<i class="bi ' + action.icon + '"></i> ' + action.label;
+                            html += '<button type="button" class="idea-action-btn action-kill" data-evaluate-id="' + row.id + '">';
+                            html += '<i class="bi ' + escapeHtml(action.icon) + '"></i> ' + escapeHtml(action.label);
                             html += '</button>';
                         } else {
-                            var btnClass = 'action-promote';
-                            html += '<a href="' + action.url + '" class="idea-action-btn ' + btnClass + '">';
-                            html += '<i class="bi ' + action.icon + '"></i> ' + action.label;
+                            html += '<a href="' + escapeHtml(action.url) + '" class="idea-action-btn action-promote">';
+                            html += '<i class="bi ' + escapeHtml(action.icon) + '"></i> ' + escapeHtml(action.label);
                             html += '</a>';
                         }
 
-                        html += '<a href="' + row.edit_url + '" class="idea-action-btn action-edit">';
+                        html += '<a href="' + escapeHtml(row.edit_url) + '" class="idea-action-btn action-edit">';
                         html += '<i class="bi bi-pencil"></i>';
                         html += '</a>';
                         html += '</div>';
@@ -296,6 +319,32 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('inbox-state-filter').addEventListener('change', applyFilters);
         document.getElementById('inbox-purpose-filter').addEventListener('change', applyFilters);
 
+        /* Delegated — Tabulator rebuilds rows on sort/filter/paginate. */
+        document.getElementById('inbox-table').addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-evaluate-id]');
+            if (!btn) return;
+            var id = parseInt(btn.getAttribute('data-evaluate-id'), 10);
+            var row = ideasData.filter(function(d) { return d.id === id; })[0];
+            if (row) openEvaluateModal(row.id, row.name, row.action.url);
+        });
+
+        /* ── Thesis hover card ── */
+        const ideaMap = {};
+        ideasData.forEach(function(d) {
+            ideaMap[d.id] = { thesis: d.thesis, notes: d.notes };
+        });
+
+        const thesisCard = initThesisHoverCard({
+            container: '#inbox-table',
+            lookup: function(id) { return ideaMap[id]; }
+        });
+
+        // Sorting, filtering and paging rebuild rows — drop the card rather
+        // than leave it floating over whatever now occupies that position.
+        inboxTable.on('renderComplete', function() {
+            if (thesisCard) thesisCard.close();
+        });
+
         function applyFilters() {
             var searchVal = document.getElementById('inbox-search').value.toLowerCase().trim();
             var stateVal = document.getElementById('inbox-state-filter').value;
@@ -308,6 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     data.name.toLowerCase().indexOf(searchVal) !== -1 ||
                     (data.ticker && data.ticker.toLowerCase().indexOf(searchVal) !== -1) ||
                     (data.thesis && data.thesis.toLowerCase().indexOf(searchVal) !== -1) ||
+                    (data.notes && data.notes.toLowerCase().indexOf(searchVal) !== -1) ||
                     (data.source && data.source.toLowerCase().indexOf(searchVal) !== -1);
                 return stateMatch && purposeMatch && searchMatch;
             });
@@ -345,7 +395,7 @@ function openEvaluateModal(ideaId, ideaName, url) {
         var html = '';
         for (var clId in checklistsData) {
             var selected = (clId === currentChecklistId) ? ' selected' : '';
-            html += '<option value="' + clId + '"' + selected + '>' + checklistsData[clId].name + '</option>';
+            html += '<option value="' + clId + '"' + selected + '>' + escapeHtml(checklistsData[clId].name) + '</option>';
         }
         selectEl.innerHTML = html;
     }
@@ -378,10 +428,10 @@ function renderCriteria(ideaId, checklistId) {
         html += '<div class="' + cardClass + '" data-criterion-id="' + c.id + '">';
         html += '  <div class="eval-criterion-header">';
         html += '    <span class="eval-criterion-number">' + (i + 1) + '</span>';
-        html += '    <span class="eval-criterion-question">' + c.question + '</span>';
+        html += '    <span class="eval-criterion-question">' + escapeHtml(c.question) + '</span>';
         html += '  </div>';
         if (c.help_text) {
-            html += '  <div class="eval-criterion-help"><i class="bi bi-info-circle"></i> ' + c.help_text + '</div>';
+            html += '  <div class="eval-criterion-help"><i class="bi bi-info-circle"></i> ' + escapeHtml(c.help_text) + '</div>';
         }
         html += '  <div class="eval-criterion-actions">';
         html += '    <label class="eval-toggle eval-toggle-pass">';
@@ -393,7 +443,7 @@ function renderCriteria(ideaId, checklistId) {
         html += '      <span><i class="bi bi-x-circle"></i> Fail</span>';
         html += '    </label>';
         html += '  </div>';
-        html += '  <textarea class="eval-notes" placeholder="Notes (optional)" data-criterion-id="' + c.id + '">' + notesVal + '</textarea>';
+        html += '  <textarea class="eval-notes" placeholder="Notes (optional)" data-criterion-id="' + c.id + '">' + escapeHtml(notesVal) + '</textarea>';
         html += '</div>';
     });
 
@@ -405,7 +455,7 @@ function renderCriteria(ideaId, checklistId) {
     html += '  </button>';
     html += '  <div class="eval-quick-kill-form" id="quick-kill-form">';
     html += '    <label>Why are you killing this idea?</label>';
-    html += '    <textarea class="eval-quick-kill-reason" id="quick-kill-reason" placeholder="e.g. CEO just resigned, regulatory risk too high, lost conviction...">' + savedQuickKill + '</textarea>';
+    html += '    <textarea class="eval-quick-kill-reason" id="quick-kill-reason" placeholder="e.g. CEO just resigned, regulatory risk too high, lost conviction...">' + escapeHtml(savedQuickKill) + '</textarea>';
     html += '    <button class="eval-quick-kill-btn" id="quick-kill-btn" onclick="submitQuickKill()">';
     html += '      <i class="bi bi-x-circle"></i> Kill Idea';
     html += '    </button>';
