@@ -92,13 +92,30 @@ def test_ideas_with_neither_thesis_nor_notes_are_inert():
     assert 'const hasDetail = !!(val || row.notes);' in _inbox()
 
 
-def test_thesis_formatter_escapes_all_user_text():
-    """The thesis cell was the last unescaped XSS sink on this page.
+def test_thesis_formatter_escapes_the_preview_text():
+    """The thesis cell was the last unescaped sink among the formatters.
 
-    Both interpolations are user-controlled: the preview text is the idea's
-    own thesis, and the aria-label carries the idea name. Dropping either
-    escapeHtml call reopens the hole, so pin both.
+    The preview is the idea's own thesis. Dropping this escapeHtml call
+    reopens the hole, so pin it.
     """
+    assert 'escapeHtml(preview)' in _inbox()
+
+
+def test_thesis_trigger_has_no_aria_label():
+    """aria-label on role="button" overrides name-from-content.
+
+    The cell's text IS the thesis, so an aria-label would stop screen readers
+    announcing it — strictly less access than before this feature existed.
+    """
+    assert 'aria-label="Show thesis and notes for' not in _inbox()
+
+
+def test_evaluate_modal_escapes_user_text():
+    """The modal render path builds innerHTML by concatenation too."""
     s = _inbox()
-    assert 'escapeHtml(preview)' in s
-    assert 'aria-label="Show thesis and notes for \' + escapeHtml(row.name)' in s
+    for expr in ('escapeHtml(checklistsData[clId].name)',
+                 'escapeHtml(c.question)',
+                 'escapeHtml(c.help_text)',
+                 'escapeHtml(notesVal)',
+                 'escapeHtml(savedQuickKill)'):
+        assert expr in s, f'unescaped sink: {expr}'

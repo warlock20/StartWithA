@@ -95,6 +95,12 @@ def test_focus_pin_is_suppressed_during_a_mouse_click():
     assert 'pointerDown = true;' in s
     assert re.search(r'if \(pinned \|\| pointerDown[^)]*\) return;', s), \
         'the focusin guard must still consult pointerDown'
+    # Without every reset, the flag sticks true and keyboard-arrival pinning
+    # dies silently — the suite would stay green.
+    for reset in ("document.addEventListener('pointerup'",
+                  "document.addEventListener('pointercancel'",
+                  "window.addEventListener('blur'"):
+        assert reset in s, f'missing pointerDown reset: {reset}'
 
 
 def test_escape_refocus_cannot_re_pin_the_card():
@@ -121,8 +127,17 @@ def test_trigger_signals_that_it_is_interactive():
 
 
 def test_card_sits_below_the_bootstrap_modal_layer():
-    """Bootstrap's modal backdrop is 1050 — the card must never cover it."""
-    assert 'z-index: 1040' in _css()
+    """Bootstrap's modal backdrop is 1050 — the card must never cover it.
+
+    Pin the invariant, not the literal. The exact value may legitimately move
+    (it was raised from 1040 to clear the topbar and companion rail), but it
+    must stay under the backdrop or the card floats over the evaluate modal.
+    """
+    match = re.search(r'\.thesis-card\s*\{[^}]*?z-index:\s*(\d+)', _css(), re.S)
+    assert match, '.thesis-card must declare a z-index'
+    z_index = int(match.group(1))
+    assert 1040 <= z_index < 1050, (
+        f'z-index {z_index} must clear the 1040 tier but stay below the 1050 backdrop')
 
 
 def test_keyboard_focus_is_visible_on_the_trigger():
@@ -131,3 +146,14 @@ def test_keyboard_focus_is_visible_on_the_trigger():
 
 def test_motion_is_suppressed_when_the_user_asks_for_it():
     assert 'prefers-reduced-motion' in _css()
+
+
+def test_scroll_region_is_keyboard_reachable():
+    """A non-focusable scroll region cannot be scrolled by keyboard in Chromium.
+
+    The card sits at the end of <body>, so Tab never reaches it either — focus
+    has to be handed over explicitly when the content overflows.
+    """
+    s = _js()
+    assert 'class="tc-scroll" tabindex="0"' in s
+    assert 'scrollEl.focus();' in s

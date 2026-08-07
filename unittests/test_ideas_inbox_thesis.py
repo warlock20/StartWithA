@@ -102,3 +102,22 @@ def test_absent_thesis_and_notes_become_empty_strings(inbox_client):
 
     assert ideas[0]['thesis'] == ''
     assert ideas[0]['notes'] == ''
+
+
+def test_script_tag_in_user_text_cannot_break_out_of_the_json_block(inbox_client):
+    """json.dumps does not escape '<', and the payload renders inside <script>.
+
+    Without escaping, an idea named 'x</script>...' terminates the script
+    element and anything after it executes.
+    """
+    client, user_id = inbox_client
+    db.session.add(IdeaPipeline(
+        user_id=user_id, name='x</script><script>alert(1)</script>',
+        status='inbox', thesis_summary='</script> in the thesis too'))
+    db.session.commit()
+
+    html = client.get('/ideas/inbox').get_data(as_text=True)
+
+    # The raw sequence must not survive into the rendered page at all.
+    assert '</script><script>alert(1)' not in html
+    assert '\\u003c/script>' in html

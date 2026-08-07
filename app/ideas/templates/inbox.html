@@ -258,11 +258,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (!hasDetail) return '<span class="table-cell-muted">&mdash;</span>';
                         // An idea can carry notes without a thesis — still worth opening.
                         const preview = val || 'Notes only';
+                        // No aria-label: on role="button" it would override
+                        // name-from-content, and the cell's text IS the thesis —
+                        // screen readers must keep announcing it.
                         return '<span class="idea-thesis-cell has-detail"' +
                                ' data-idea-id="' + row.id + '"' +
                                ' tabindex="0" role="button" aria-expanded="false"' +
-                               ' aria-controls="thesis-hover-card"' +
-                               ' aria-label="Show thesis and notes for ' + escapeHtml(row.name) + '">' +
+                               ' aria-controls="thesis-hover-card">' +
                                escapeHtml(preview) + '</span>';
                     }
                 },
@@ -393,7 +395,7 @@ function openEvaluateModal(ideaId, ideaName, url) {
         var html = '';
         for (var clId in checklistsData) {
             var selected = (clId === currentChecklistId) ? ' selected' : '';
-            html += '<option value="' + clId + '"' + selected + '>' + checklistsData[clId].name + '</option>';
+            html += '<option value="' + clId + '"' + selected + '>' + escapeHtml(checklistsData[clId].name) + '</option>';
         }
         selectEl.innerHTML = html;
     }
@@ -426,10 +428,10 @@ function renderCriteria(ideaId, checklistId) {
         html += '<div class="' + cardClass + '" data-criterion-id="' + c.id + '">';
         html += '  <div class="eval-criterion-header">';
         html += '    <span class="eval-criterion-number">' + (i + 1) + '</span>';
-        html += '    <span class="eval-criterion-question">' + c.question + '</span>';
+        html += '    <span class="eval-criterion-question">' + escapeHtml(c.question) + '</span>';
         html += '  </div>';
         if (c.help_text) {
-            html += '  <div class="eval-criterion-help"><i class="bi bi-info-circle"></i> ' + c.help_text + '</div>';
+            html += '  <div class="eval-criterion-help"><i class="bi bi-info-circle"></i> ' + escapeHtml(c.help_text) + '</div>';
         }
         html += '  <div class="eval-criterion-actions">';
         html += '    <label class="eval-toggle eval-toggle-pass">';
@@ -441,7 +443,7 @@ function renderCriteria(ideaId, checklistId) {
         html += '      <span><i class="bi bi-x-circle"></i> Fail</span>';
         html += '    </label>';
         html += '  </div>';
-        html += '  <textarea class="eval-notes" placeholder="Notes (optional)" data-criterion-id="' + c.id + '">' + notesVal + '</textarea>';
+        html += '  <textarea class="eval-notes" placeholder="Notes (optional)" data-criterion-id="' + c.id + '">' + escapeHtml(notesVal) + '</textarea>';
         html += '</div>';
     });
 
@@ -453,7 +455,7 @@ function renderCriteria(ideaId, checklistId) {
     html += '  </button>';
     html += '  <div class="eval-quick-kill-form" id="quick-kill-form">';
     html += '    <label>Why are you killing this idea?</label>';
-    html += '    <textarea class="eval-quick-kill-reason" id="quick-kill-reason" placeholder="e.g. CEO just resigned, regulatory risk too high, lost conviction...">' + savedQuickKill + '</textarea>';
+    html += '    <textarea class="eval-quick-kill-reason" id="quick-kill-reason" placeholder="e.g. CEO just resigned, regulatory risk too high, lost conviction...">' + escapeHtml(savedQuickKill) + '</textarea>';
     html += '    <button class="eval-quick-kill-btn" id="quick-kill-btn" onclick="submitQuickKill()">';
     html += '      <i class="bi bi-x-circle"></i> Kill Idea';
     html += '    </button>';

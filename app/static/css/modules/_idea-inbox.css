@@ -594,7 +594,7 @@
 
 .thesis-card {
     position: fixed;
-    z-index: 1040;
+    z-index: 1041;   /* above the topbar/companion rail (1040), below the modal backdrop (1050) */
     width: 360px;
     max-width: calc(100vw - 2rem);
     background: #fff;
@@ -623,7 +623,13 @@
 .thesis-card .tc-scroll {
     max-height: 320px;
     overflow-y: auto;
+    overscroll-behavior: contain;   /* don't chain to the page at the end of the scroll */
     padding: 0.9rem 1rem;
+}
+
+.thesis-card .tc-scroll:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: -2px;
 }
 
 .thesis-card .tc-sec + .tc-sec {
@@ -646,7 +652,8 @@
     font-size: 0.8125rem;
     line-height: 1.65;
     color: var(--gray-700);
-    white-space: pre-wrap;   /* capture-time line breaks are meaningful */
+    white-space: pre-wrap;        /* capture-time line breaks are meaningful */
+    overflow-wrap: anywhere;      /* a pasted URL must not force a sideways scrollbar */
 }
 
 .thesis-card .tc-foot {

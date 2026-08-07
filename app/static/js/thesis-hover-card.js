@@ -60,7 +60,7 @@
             card.setAttribute('role', 'dialog');
             card.setAttribute('aria-label', 'Idea thesis and notes');
             card.innerHTML =
-                '<div class="tc-scroll"></div>' +
+                '<div class="tc-scroll" tabindex="0"></div>' +
                 '<div class="tc-foot">' +
                 '<span class="tc-hint"></span>' +
                 '<button type="button" class="tc-close">Close</button>' +
@@ -84,6 +84,7 @@
 
         function render(trigger) {
             var data = lookup(trigger.getAttribute('data-idea-id')) || {};
+            if (!data.thesis && !data.notes) return false;
             var html = '';
             if (data.thesis) {
                 html += '<div class="tc-sec">' +
@@ -99,6 +100,7 @@
             }
             scrollEl.innerHTML = html;
             scrollEl.scrollTop = 0;
+            return true;
         }
 
         function updateFooter() {
@@ -138,6 +140,11 @@
 
         function open(trigger) {
             clearTimeout(closeTimer);
+            // Render FIRST. With nothing to show, leave every bit of state
+            // untouched — marking the trigger active and aria-expanded with no
+            // card visible would strand it, and activeTrigger would keep the
+            // scroll handler repositioning a hidden card.
+            if (!render(trigger)) return false;
             if (activeTrigger && activeTrigger !== trigger) {
                 activeTrigger.classList.remove('is-active');
                 activeTrigger.setAttribute('aria-expanded', 'false');
@@ -145,12 +152,12 @@
             activeTrigger = trigger;
             trigger.classList.add('is-active');
             trigger.setAttribute('aria-expanded', 'true');
-            render(trigger);
             card.classList.add('is-open');
             // Footer first: it changes the card's height, and place() must flip
             // against the final height or a card near the bottom edge overflows.
             updateFooter();
             place(trigger);
+            return true;
         }
 
         function close() {
@@ -171,7 +178,13 @@
             // Both flags set before open(), so its updateFooter()/place() pass
             // sees the final pinned geometry and needs no second correction.
             card.classList.add('is-pinned');
-            open(trigger);
+            if (!open(trigger)) {
+                // Nothing to show. Roll back, or pinned stays true forever and
+                // the pointerover handler's early return kills hover for good.
+                pinned = false;
+                pinnedByFocus = false;
+                card.classList.remove('is-pinned');
+            }
         }
 
         function triggerFrom(event) {
@@ -216,7 +229,15 @@
             var trigger = triggerFrom(e);
             if (!trigger) return;
             e.preventDefault();
-            toggle(trigger);
+            if (pinned && trigger === activeTrigger) {
+                close();
+                return;
+            }
+            pin(trigger, false);
+            // A non-focusable scroll region cannot be scrolled by keyboard, and
+            // the card sits at the end of <body> so Tab never reaches it. Hand
+            // focus over when there is more content than fits.
+            if (pinned && scrollEl.scrollHeight > scrollEl.clientHeight + 1) scrollEl.focus();
         });
 
         // A mouse click focuses the trigger too (it is tabindex="0"), and the
@@ -276,9 +297,17 @@
             }
         });
 
-        // Capture phase: the table body scrolls independently of the window.
+        // Capture phase so this still works if the card is ever reused inside a
+        // scrolling container. Close rather than let the card drift off-screen
+        // when its trigger scrolls out of view.
         window.addEventListener('scroll', function () {
-            if (activeTrigger) place(activeTrigger);
+            if (!activeTrigger) return;
+            var rect = activeTrigger.getBoundingClientRect();
+            if (rect.bottom < 0 || rect.top > window.innerHeight) {
+                close();
+                return;
+            }
+            place(activeTrigger);
         }, true);
 
         return { close: close, element: card };
