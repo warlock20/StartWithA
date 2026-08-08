@@ -58,3 +58,11 @@ scripts/*
 # `git update-index --skip-worktree <file>` for local-override workflows
 # instead of listing a tracked path here.
 stratergy.md
+
+# Auth0 credentials
+.auth0-mcp-state.json
+.auth0-mcp-writes.log
+
+# Auth0 CLI tenant config — holds tenant client secrets. Must stay out of the
+# `railway up` upload tarball as well as out of git.
+.config/
