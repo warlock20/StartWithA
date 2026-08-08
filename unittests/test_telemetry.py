@@ -116,6 +116,17 @@ def test_clarity_origins_reach_the_csp():
     assert 'https://c.bing.com' in p['connect_src']
 
 
+def test_clarity_allows_the_recorder_not_just_the_bootstrap():
+    """Regression: script-src once listed only https://www.clarity.ms, the
+    origin of the /tag/<id> URL. That bootstrap injects the real recorder from
+    https://scripts.clarity.ms/<version>/clarity.js, so the narrow policy let
+    the tag load and then blocked the script that does the actual recording —
+    Clarity looked installed and captured nothing. Asserted as a wildcard
+    because Microsoft owns the subdomain and version."""
+    p = get_active_provider(cfg())
+    assert 'https://*.clarity.ms' in p['script_src']
+
+
 def test_self_hosted_url_replaces_vendor_origins():
     """A self-hoster talks only to their own box — don't widen the CSP to a CDN
     they deliberately opted out of."""

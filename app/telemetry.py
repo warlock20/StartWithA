@@ -58,7 +58,15 @@ PROVIDERS = {
         'script': 'https://www.clarity.ms/tag/{site_id}',
         'attrs': {},
         'queue_global': 'clarity',
-        'script_src': ['https://www.clarity.ms'],
+        # The /tag/<id> URL is only a bootstrap: it injects a SECOND script,
+        # currently https://scripts.clarity.ms/<version>/clarity.js, which is
+        # what actually records. Allowing only the tag's own origin loads the
+        # bootstrap and then blocks the recorder — Clarity appears installed
+        # and collects nothing. The subdomain and version are Microsoft's to
+        # change, so match the whole zone rather than pinning one host.
+        'script_src': ['https://*.clarity.ms'],
+        # Uploads go to b.clarity.ms/collect; c.bing.com covers the Bing UET
+        # cookies (_uetmsclkid/_uetvid) the tag declares.
         'connect_src': ['https://*.clarity.ms', 'https://c.bing.com'],
         'sets_cookies': True,   # _clck / _clsk, plus session replay
     },
