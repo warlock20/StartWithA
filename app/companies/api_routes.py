@@ -28,6 +28,7 @@ from app.utils.company_identity import company_identity_key
 from app.services.currency_service import CurrencyService
 from app.utils.response_utils import json_error, json_not_found
 from app.utils.time_utils import now_utc
+from app.utils.blocknote_utils import append_note, blocknote_to_text
 
 logger = logging.getLogger(__name__)
 
@@ -338,6 +339,38 @@ def save_journey_notes(company_id):
         return json_error('No content provided')
 
     company.journey_notes = data['content']
+    company.journey_notes_updated_at = now_utc()
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
+@companies_bp.route('/api/<int:company_id>/journey-notes/append', methods=['POST'])
+@login_required
+def append_journey_note(company_id):
+    """Append a dated note to a company's notes without loading the editor.
+
+    Used by the quick Add Note button on the research project page. The heading
+    names the project when one is given, so you can tell which research session
+    produced the note.
+    """
+    company = Company.query.filter_by(id=company_id, user_id=current_user.id).first()
+    if not company:
+        return json_not_found('Company not found')
+
+    data = request.get_json() or {}
+    note = data.get('content') or data.get('text') or ''
+    # The editor always sends a document, so emptiness is about the text inside
+    # it, not the string being blank.
+    if not blocknote_to_text(note).strip():
+        return json_error('Note text is required')
+
+    heading = now_utc().strftime('%d %b %Y').lstrip('0')
+    project_name = (data.get('project_name') or '').strip()
+    if project_name:
+        heading = f'{heading} — {project_name}'
+
+    company.journey_notes = append_note(company.journey_notes, note, heading)
     company.journey_notes_updated_at = now_utc()
     db.session.commit()
 

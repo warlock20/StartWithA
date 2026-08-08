@@ -144,14 +144,40 @@
     background: var(--success-500);
 }
 
-/* Thesis preview */
+/* Thesis preview — also the trigger for the hover card */
 .idea-thesis-cell {
+    /* display:block makes the whole cell a hover target. It also activates
+       overflow/text-overflow, which do not apply to inline boxes — so the
+       ellipsis is now drawn here, at the true cell width. No max-width: the
+       Thesis column uses widthGrow:2, and a fixed cap would truncate short of
+       the column edge and leave dead space. */
+    display: block;
     font-size: 0.8125rem;
     color: var(--gray-500);
-    max-width: 280px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* Only cells that actually have a thesis or notes read as interactive. */
+.idea-thesis-cell.has-detail {
+    cursor: help;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: var(--gray-400);
+    text-underline-offset: 3px;
+}
+
+.idea-thesis-cell.has-detail:hover,
+.idea-thesis-cell.has-detail.is-active {
+    color: var(--gray-900);
+    text-decoration-color: var(--accent-color);
+}
+
+.idea-thesis-cell.has-detail:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+    border-radius: 2px;
 }
 
 /* Age cell */
@@ -557,4 +583,114 @@
 .eval-quick-kill-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* ── THESIS HOVER CARD ───────────────────────────── */
+/*
+   Mounted on <body>, not inside the cell — Tabulator sets overflow:hidden on
+   .tabulator-cell, which would clip it. z-index sits below Bootstrap's modal
+   backdrop (1050) so the card can never float over the evaluate modal.
+*/
+
+.thesis-card {
+    position: fixed;
+    z-index: 1041;   /* above the topbar/companion rail (1040), below the modal backdrop (1050) */
+    width: 360px;
+    max-width: calc(100vw - 2rem);
+    background: #fff;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 12px 32px rgba(17, 24, 39, 0.16),
+                0 2px 6px rgba(17, 24, 39, 0.06);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.thesis-card.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.thesis-card.is-pinned {
+    border-color: var(--accent-color);
+    box-shadow: 0 12px 32px rgba(45, 106, 79, 0.20),
+                0 0 0 3px rgba(45, 106, 79, 0.10);
+}
+
+.thesis-card .tc-scroll {
+    max-height: 320px;
+    overflow-y: auto;
+    overscroll-behavior: contain;   /* don't chain to the page at the end of the scroll */
+    padding: 0.9rem 1rem;
+}
+
+.thesis-card .tc-scroll:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: -2px;
+}
+
+.thesis-card .tc-sec + .tc-sec {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--border-light);
+}
+
+.thesis-card .tc-label {
+    margin: 0 0 0.35rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--gray-400);
+}
+
+.thesis-card .tc-body {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.65;
+    color: var(--gray-700);
+    white-space: pre-wrap;        /* capture-time line breaks are meaningful */
+    overflow-wrap: anywhere;      /* a pasted URL must not force a sideways scrollbar */
+}
+
+.thesis-card .tc-foot {
+    display: none;           /* JS switches to flex when pinned or overflowing */
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem 0.55rem;
+    border-top: 1px solid var(--border-light);
+    background: var(--gray-50);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.thesis-card .tc-hint {
+    font-size: 0.6875rem;
+    color: var(--gray-500);
+}
+
+.thesis-card .tc-close {
+    padding: 0.25rem 0.55rem;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    background: #fff;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    cursor: pointer;
+}
+
+.thesis-card .tc-close:hover {
+    background: var(--gray-100);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .thesis-card,
+    .thesis-card.is-open {
+        transition: none;
+        transform: none;
+    }
 }

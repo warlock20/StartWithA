@@ -92,6 +92,10 @@
         this.setDeep(false);
       }
       this.root.classList.toggle('collapsed', !open);
+      // Drives the mobile scrim and the background scroll lock. Set at every
+      // width — the CSS that reads it is scoped to the mobile breakpoint, so a
+      // docked rail is unaffected and a resize needs no re-sync.
+      document.body.classList.toggle('companion-open', open);
       try {
         sessionStorage.setItem(this.keys.open, open ? '1' : '');
       } catch (e) { /* storage disabled — non-fatal */ }

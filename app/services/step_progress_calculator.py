@@ -297,12 +297,24 @@ def calculate_thesis_progress(project, step, step_index):
     """
     Calculate progress for a thesis writing step.
 
-    Binary: 100% if investment_thesis has content, 0% otherwise.
+    Binary: 100% if investment_thesis has content the user actually wrote,
+    0% otherwise.
+
+    Starting research from an idea copies the idea's thesis_summary into
+    investment_thesis as a starting point. That's not work done on this step —
+    counting it made brand-new projects open at partial progress — so a thesis
+    still identical to the seed reads as untouched.
     """
     try:
-        if project.investment_thesis:
-            return 100.0
-        return 0.0
+        thesis = project.investment_thesis
+        if not thesis:
+            return 0.0
+
+        idea = project.idea
+        if idea and idea.thesis_summary and thesis.strip() == idea.thesis_summary.strip():
+            return 0.0
+
+        return 100.0
     except Exception as e:
         logger.error(f"Error calculating thesis progress for project {project.id}, step {step_index}: {e}")
         return 0.0

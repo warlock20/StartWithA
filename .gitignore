@@ -37,6 +37,8 @@ local_backup_*
 *.woff2
 #docs/
 mockups/
+docs/superpowers/*
+.superpowers/
 
 # ── Local utilities ──
 config_backup.py

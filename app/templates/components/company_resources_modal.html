@@ -23,15 +23,9 @@
                         </button>
                     </li>
                     <li class="nav-item">
-                        <button class="nav-link" id="cr-tab-upload" data-bs-toggle="tab"
-                                data-bs-target="#cr-upload-pane" type="button">
-                            <i class="bi bi-cloud-upload me-1"></i>Upload File
-                        </button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link" id="cr-tab-link" data-bs-toggle="tab"
-                                data-bs-target="#cr-link-pane" type="button">
-                            <i class="bi bi-link-45deg me-1"></i>Save Link
+                        <button class="nav-link" id="cr-tab-add" data-bs-toggle="tab"
+                                data-bs-target="#cr-add-pane" type="button">
+                            <i class="bi bi-plus-lg me-1"></i>Add
                         </button>
                     </li>
                 </ul>
@@ -64,8 +58,22 @@
                         </div>
                     </div>
 
-                    <!-- Upload File Tab -->
-                    <div class="tab-pane fade" id="cr-upload-pane">
+                    <!-- Add Tab: file or link, chosen by the toggle -->
+                    <div class="tab-pane fade" id="cr-add-pane">
+                        <div class="btn-group w-100 mb-3" role="group" aria-label="Resource type">
+                            <input type="radio" class="btn-check" name="crResourceType"
+                                   id="cr-type-file" value="file" checked>
+                            <label class="btn btn-outline-primary" for="cr-type-file">
+                                <i class="bi bi-cloud-upload me-1"></i>File
+                            </label>
+                            <input type="radio" class="btn-check" name="crResourceType"
+                                   id="cr-type-link" value="link">
+                            <label class="btn btn-outline-primary" for="cr-type-link">
+                                <i class="bi bi-link-45deg me-1"></i>Link
+                            </label>
+                        </div>
+
+                        <div id="cr-file-form">
                         <div class="mb-3">
                             <label class="form-label">File <span class="text-danger">*</span></label>
                             <input type="file" class="form-control" id="cr-upload-file" accept=".pdf,.txt">
@@ -97,10 +105,9 @@
                         </button>
                         <div class="alert alert-danger d-none mt-2" id="cr-upload-error"></div>
                         <div class="alert alert-success d-none mt-2" id="cr-upload-success"></div>
-                    </div>
+                        </div>
 
-                    <!-- Save Link Tab -->
-                    <div class="tab-pane fade" id="cr-link-pane">
+                        <div id="cr-link-form" class="d-none">
                         <div class="mb-3">
                             <label class="form-label">Title <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="cr-link-title"
@@ -133,6 +140,7 @@
                         </button>
                         <div class="alert alert-danger d-none mt-2" id="cr-link-error"></div>
                         <div class="alert alert-success d-none mt-2" id="cr-link-success"></div>
+                        </div>
                     </div>
                 </div>
 
