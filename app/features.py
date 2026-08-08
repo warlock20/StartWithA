@@ -19,7 +19,14 @@ Feature gating system for progressive disclosure.
 
 Single source of truth for which features are visible to which users.
 Features not listed here default to 'core' (always visible).
+
+Gating is disabled by default (FEATURE_GATING_ENABLED, see config.py): every
+user gets every feature immediately. The tables and unlock service below are
+kept intact rather than deleted so the behaviour is one env var away from
+coming back, and so recorded unlock progress is not lost in the meantime.
 """
+
+from flask import current_app, has_app_context
 
 # Maps feature keys to their required tier.
 # 'core' = visible to everyone, 'pro' = hidden for amateur users.
@@ -75,17 +82,39 @@ for _group, _features in FEATURE_GROUPS.items():
         FEATURE_TO_GROUP[_feat] = _group
 
 
+def gating_enabled():
+    """
+    Whether progressive unlocking is in force. False by default.
+
+    Read through has_app_context() so this stays a plain function that can be
+    called from a script or a test with no app pushed — outside an app context
+    there is no config to consult, and the packaged default is ungated.
+    """
+    if not has_app_context():
+        return False
+    return bool(current_app.config.get('FEATURE_GATING_ENABLED', False))
+
+
 def user_has_feature(user, feature_name):
     """
     Check if a user can access a given feature.
 
-    Returns True if ANY of these conditions is met:
+    With gating disabled (the default) this is unconditionally True.
+
+    Otherwise returns True if ANY of these conditions is met:
     1. The feature is 'core' tier (always visible)
     2. The user's subscription_tier grants access
     3. The user has toggled 'show_advanced_features'
     4. The feature was individually unlocked for this user
     5. The feature's unlock group was unlocked for this user
     """
+    # Single choke point: every gate in the app — the require_feature
+    # decorator, the has_feature() template helper, the sidebar, the inline
+    # checks in utility_routes — resolves through this call, so short-circuiting
+    # here opens everything without touching the individual call sites.
+    if not gating_enabled():
+        return True
+
     feature_tier = FEATURE_TIERS.get(feature_name, 'core')
 
     # Core features are always visible

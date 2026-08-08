@@ -79,6 +79,18 @@ class Config:
     # 8. BUSINESS LOGIC
     DEFAULT_USER_TIER = os.environ.get('DEFAULT_USER_TIER', 'amateur')
 
+    # Progressive feature unlocking — currently OFF, so every user sees every
+    # feature from first login. The unlock machinery (app/features.py,
+    # app/services/feature_unlock_service.py) is intact and still records
+    # progress; this only stops it being used to hide anything. Set
+    # FEATURE_GATING_ENABLED=True to restore the gated experience.
+    #
+    # Note this is deliberately the opposite polarity to most flags here: the
+    # default is the *ungated* behaviour, because that is the current product
+    # decision rather than an opt-in extra.
+    FEATURE_GATING_ENABLED = os.environ.get(
+        'FEATURE_GATING_ENABLED', 'False').lower() == 'true'
+
     # 8b. BRAND: Single source of truth for the product name/tagline.
     # Defined once here so the name can be changed in one place.
     APP_NAME = os.environ.get('APP_NAME', 'Start with A')

@@ -20,6 +20,7 @@ from flask_login import current_user, login_required
 from app.models import Company, ResearchProject, ResearchSettings, IdeaPipeline, DestinationCheckpoint, PortfolioPosition
 from app.services.research_priority import ResearchPriorityService
 from app.services.feature_unlock_service import FeatureUnlockService
+from app.features import gating_enabled
 from . import dashboard_bp
 from datetime import timedelta
 from app.utils.time_utils import now_utc
@@ -93,9 +94,11 @@ def index():
         ).order_by(DestinationCheckpoint.target_date.asc()).limit(5).all()
 
     # --- Unlock Progress (free-tier users only) ---
+    # Empty while gating is off: the "Feature Unlocks" strip would show progress
+    # bars toward features the user can already open.
     unlock_progress = []
     tier = current_user.subscription_tier or 'amateur'
-    if tier == 'amateur' and not current_user.show_advanced_features:
+    if gating_enabled() and tier == 'amateur' and not current_user.show_advanced_features:
         unlock_progress = FeatureUnlockService.get_unlock_progress(current_user)
 
     return render_template(

@@ -29,7 +29,7 @@ from flask_caching import Cache
 from config import Config
 from celery_app import celery
 from app.assets import init_assets
-from app.features import user_has_feature
+from app.features import user_has_feature, gating_enabled
 from app.telemetry import get_active_provider
 
 db = SQLAlchemy()
@@ -284,12 +284,22 @@ def create_app(config_class=Config):
         def is_newly_unlocked(feature_name):
             if not current_user.is_authenticated:
                 return False
+            # check_and_unlock() still runs at login and still records unlocks,
+            # so without this a user would get "NEW" badges on features that
+            # were never hidden from them in the first place.
+            if not gating_enabled():
+                return False
             newly = getattr(current_user, 'newly_unlocked_features', None) or {}
             group = FEATURE_TO_GROUP.get(feature_name)
             return group is not None and group in newly
 
         def get_tier_info():
             if not current_user.is_authenticated:
+                return None
+            # Drives the "AMATEUR / N to unlock" topbar badge and its progress
+            # popover. With gating off nothing is locked, so the badge would be
+            # counting down to something the user already has.
+            if not gating_enabled():
                 return None
             tier = current_user.subscription_tier or 'amateur'
             if tier != 'amateur' or current_user.show_advanced_features:
