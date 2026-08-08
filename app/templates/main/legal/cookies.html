@@ -18,11 +18,25 @@
     <!-- What we use -->
     <section class="mb-5">
         <h2 class="h4">Cookies We Use</h2>
+        {# The blanket "no analytics cookies" claim below is only true while
+           ANALYTICS_PROVIDER is unset or names a cookieless provider. A
+           cookie-setting provider (Clarity) makes it false, so the claim is
+           conditional on the live config rather than hardcoded. See
+           app/telemetry.py. #}
+        {% if analytics and analytics.sets_cookies %}
+        <p>
+            We use <strong>strictly necessary cookies</strong> that are essential for the
+            Platform to function, and <strong>analytics cookies</strong> set by
+            {{ analytics.label }}, which we use to measure how the Platform is used.
+            We do <strong>not</strong> use advertising or third-party marketing cookies.
+        </p>
+        {% else %}
         <p>
             We only use <strong>strictly necessary cookies</strong> that are essential for the
             Platform to function. We do <strong>not</strong> use any analytics, tracking,
             advertising, or third-party marketing cookies.
         </p>
+        {% endif %}
 
         <div class="table-responsive">
             <table class="table table-bordered table-sm">
@@ -54,6 +68,28 @@
                         <td>30 days</td>
                         <td>This Platform</td>
                     </tr>
+                    {% if analytics and analytics.key == 'clarity' %}
+                    {# Names and lifetimes per Microsoft's Clarity cookie list. #}
+                    <tr>
+                        <td><code>_clck</code>, <code>_clsk</code></td>
+                        <td>
+                            Set by {{ analytics.label }} to identify a returning browser and to
+                            group the page views of a single visit, so usage and session replays
+                            can be measured.
+                        </td>
+                        <td><code>_clck</code> 1 year; <code>_clsk</code> 1 day</td>
+                        <td>Microsoft</td>
+                    </tr>
+                    <tr>
+                        <td><code>_uetvid</code>, <code>_uetmsclkid</code></td>
+                        <td>
+                            Set by Microsoft's advertising tag, which {{ analytics.label }} loads
+                            alongside its own script.
+                        </td>
+                        <td>Up to 1 year</td>
+                        <td>Microsoft</td>
+                    </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
@@ -80,6 +116,33 @@
     <!-- Legal basis -->
     <section class="mb-5">
         <h2 class="h4">Legal Basis</h2>
+        {% if analytics and analytics.sets_cookies %}
+        <p>
+            The session cookies this Platform sets itself are <strong>strictly necessary</strong>
+            for its operation. Under § 25(2) TDDDG (German Telecommunications Digital Services
+            Data Protection Act) and Art. 5(3) of the ePrivacy Directive, strictly necessary
+            cookies are exempt from the consent requirement.
+        </p>
+        <p>
+            The {{ analytics.label }} analytics cookies described above are
+            <strong>not</strong> strictly necessary and do not fall under that exemption.
+        </p>
+        {% if analytics.needs_consent %}
+        <p>
+            They are therefore set only after you accept them via the banner shown on your first
+            visit. Declining leaves them unset; the Platform functions the same either way.
+        </p>
+        {% else %}
+        {# ANALYTICS_REQUIRE_CONSENT=False — deliberate operator choice. State the
+           position plainly rather than implying an exemption that does not apply. #}
+        <p>
+            This deployment has been configured to load them without a consent prompt. If you
+            operate this Platform for users in the EU/EEA or Germany, note that § 25(1) TDDDG
+            and Art. 6(1)(a) GDPR require prior opt-in for cookies of this kind; set
+            <code>ANALYTICS_REQUIRE_CONSENT=True</code> to restore the consent gate.
+        </p>
+        {% endif %}
+        {% else %}
         <p>
             All cookies used by this Platform are <strong>strictly necessary</strong> for its
             operation. Under § 25(2) TDDDG (German Telecommunications Digital Services Data
@@ -90,6 +153,7 @@
             This means we do not need to show a cookie consent banner for these cookies. However,
             we provide this policy for full transparency about what is stored on your device.
         </p>
+        {% endif %}
     </section>
 
     <!-- Managing cookies -->

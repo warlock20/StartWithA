@@ -60,7 +60,15 @@
     <div class="cookie-notice-inner">
         <div class="cookie-notice-text">
             <i class="bi bi-shield-check me-2"></i>
-            {% if analytics %}
+            {% if analytics and analytics.sets_cookies %}
+            {# Cookie-setting provider with ANALYTICS_REQUIRE_CONSENT=False: the
+               operator has chosen to run it without a gate. Do not reuse the
+               cookieless wording below — it would assert something untrue, and
+               a notice that misdescribes the cookies is worse than none. #}
+            This site uses essential cookies required for the platform to function,
+            and {{ analytics.label }} to measure how the app is used. {{ analytics.label }}
+            sets its own cookies and records how you interact with pages.
+            {% elif analytics %}
             {# Cookieless provider: no consent needed, but say it's there rather
                than claiming outright that nothing measures usage. #}
             This site uses only essential cookies required for the platform to function.
