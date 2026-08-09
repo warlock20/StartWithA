@@ -21,7 +21,7 @@
             <li><a href="#research">Research & Investment Data</a></li>
             <li><a href="#ai">AI-Powered Features & Third-Party Processing</a></li>
             <li><a href="#hosting">Hosting & Infrastructure</a></li>
-            <li><a href="#cookies">Cookies & Session Data</a></li>
+            <li><a href="#cookies">Cookies, Analytics & Session Data</a></li>
             <li><a href="#legal-basis">Legal Basis for Processing</a></li>
             <li><a href="#rights">Your Rights (GDPR Art. 12-23)</a></li>
             <li><a href="#retention">Data Retention</a></li>
@@ -56,6 +56,7 @@
             <li><strong>AI interaction data</strong> — questions and answers exchanged with our AI research assistant</li>
             <li><strong>Usage data</strong> — preferences, settings, and platform interaction metadata</li>
             <li><strong>Technical data</strong> — session cookies, IP address (in server logs)</li>
+            <li><strong>Analytics data</strong> — session recordings and heatmaps captured by Microsoft Clarity during the beta (see section 7)</li>
         </ul>
     </section>
 
@@ -179,6 +180,14 @@
             and not retained beyond 30 days.
         </p>
         <p>
+            <strong>Processing in the United States:</strong> Railway is a US company and the
+            application, its database, and its server logs are hosted on infrastructure located in
+            the United States. Your data is therefore transferred to and processed in the US. This
+            is a transfer to a third country within the meaning of Art. 44 et seq. GDPR: US
+            authorities may under certain conditions access data stored there, and the legal
+            remedies available against such access are not equivalent to those under EU law.
+        </p>
+        <p>
             <strong>Legal basis:</strong> Legitimate interest (Art. 6(1)(f) GDPR) — necessary for
             platform operation and security.
         </p>
@@ -186,7 +195,7 @@
 
     <!-- 7. Cookies -->
     <section class="mb-5" id="cookies">
-        <h2 class="h4">7. Cookies & Session Data</h2>
+        <h2 class="h4">7. Cookies, Analytics & Session Data</h2>
         <p>We use the following cookies:</p>
 
         <div class="table-responsive">
@@ -212,18 +221,53 @@
                         <td>30 days</td>
                         <td>Functional</td>
                     </tr>
+                    <tr>
+                        <td><code>_clck</code>, <code>_clsk</code></td>
+                        <td>
+                            Set by Microsoft Clarity to recognise a returning browser and group the
+                            page views of a single visit, so usage and session replays can be measured
+                        </td>
+                        <td><code>_clck</code> 1 year; <code>_clsk</code> 1 day</td>
+                        <td>Analytics</td>
+                    </tr>
+                    <tr>
+                        <td><code>_uetvid</code>, <code>_uetmsclkid</code></td>
+                        <td>Set by the Microsoft advertising tag that Clarity loads alongside its own script</td>
+                        <td>Up to 1 year</td>
+                        <td>Analytics</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
 
+        <h3 class="h6 mt-4">Microsoft Clarity</h3>
         <p>
-            We do <strong>not</strong> use any analytics, tracking, or advertising cookies.
-            All cookies are strictly necessary for platform functionality.
+            During the beta we use <strong>Microsoft Clarity</strong> (Microsoft Ireland Operations
+            Limited, One Microsoft Place, South County Business Park, Leopardstown, Dublin 18,
+            Ireland; parent company Microsoft Corporation, One Microsoft Way, Redmond, WA 98052, USA)
+            to understand how the platform is actually used — which features people reach for and
+            where they get stuck — so we can improve it.
         </p>
         <p>
-            <strong>Legal basis:</strong> Legitimate interest (Art. 6(1)(f) GDPR) — session cookies
-            are technically necessary and exempt from consent requirements under § 25(2) TDDDG
+            Clarity <strong>records your session</strong> (page views, mouse movement, clicks and
+            scrolling) and builds session replays and heatmaps from it. It sets the cookies listed
+            above and also collects your IP address, device type, browser and operating system.
+            This data is transmitted to Microsoft in the United States (Art. 44 et seq. GDPR).
+        </p>
+        <p>
+            We do <strong>not</strong> use advertising or third-party marketing cookies, and we do
+            not sell any of this data.
+        </p>
+        <p>
+            <strong>Legal basis — session cookies:</strong> Legitimate interest (Art. 6(1)(f) GDPR).
+            These are technically necessary and exempt from consent requirements under § 25(2) TDDDG
             (German Telecommunications Digital Services Data Protection Act).
+        </p>
+        <p>
+            <strong>Legal basis — Clarity:</strong> Consent (Art. 6(1)(a) GDPR and § 25(1) TDDDG).
+            Clarity cookies are not strictly necessary and do not fall under that exemption. You can
+            withdraw your consent at any time with effect for the future; the platform works exactly
+            the same either way.
         </p>
     </section>
 
@@ -254,6 +298,10 @@
                     <tr>
                         <td>Session cookies</td>
                         <td>Art. 6(1)(f) — Legitimate interest</td>
+                    </tr>
+                    <tr>
+                        <td>Analytics &amp; session replay (Microsoft Clarity)</td>
+                        <td>Art. 6(1)(a) — Consent</td>
                     </tr>
                     <tr>
                         <td>Server logs (IP, timestamps)</td>
