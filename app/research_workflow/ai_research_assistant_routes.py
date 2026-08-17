@@ -38,6 +38,7 @@ from app import db
 from app.research_workflow import research_workflow_bp
 from app.models import ChecklistAnalysis, AIResearchFeedback
 from app.constants import ANONYMIZED_PLACEHOLDER
+from config import Config
 from app.services.background_tasks import BackgroundTaskService
 from app.utils.decorators import require_ai_tokens
 
@@ -180,6 +181,10 @@ def ai_assist_status(task_id):
         "feedback_id": 789
     }
     """
+    # A task the worker never consumed would otherwise stay 'pending' forever,
+    # making the client wait out its entire poll budget on a dead job.
+    BackgroundTaskService.fail_if_stalled(task_id, Config.AI_ASSIST_HARD_TIME_LIMIT)
+
     task_status = BackgroundTaskService.get_task_status(task_id)
 
     if not task_status:

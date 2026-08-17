@@ -102,6 +102,37 @@ class BackgroundTaskService:
         return task_id
 
     @staticmethod
+    def fail_if_stalled(task_id, max_age_seconds):
+        """Mark a task failed if it outlived the time limit without finishing.
+
+        A task the worker never consumed stays 'pending' forever: the Celery
+        soft limit only fires once a task is actually running, so nothing
+        reconciles a job that was dropped because the worker was down. The row
+        then sits there until some later request happens to supersede it, and
+        meanwhile the UI waits out its whole poll budget on a job that is dead.
+
+        Called from the status endpoint so the state self-heals on the next poll.
+        """
+        task = BackgroundTask.query.get(task_id)
+        if not task or task.status not in ('pending', 'running'):
+            return
+
+        age = (now_utc().replace(tzinfo=None) - task.created_at).total_seconds()
+        if age < max_age_seconds:
+            return
+
+        task.status = 'failed'
+        task.completed_at = now_utc()
+        task.error_message = (
+            'Task did not complete within {}s. It was never picked up by a '
+            'worker, or the worker stopped before finishing.'.format(int(max_age_seconds))
+        )
+        db.session.commit()
+        logger.warning(
+            f"Reconciled stalled task {task_id} ({int(age)}s old) as failed"
+        )
+
+    @staticmethod
     def get_task_status(task_id):
         """Get current status of a background task"""
         task = BackgroundTask.query.get(task_id)

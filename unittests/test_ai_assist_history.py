@@ -29,8 +29,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import datetime
 
 from app import db
-from app.models import (AIResearchFeedback, Checklist, ChecklistAnalysis,
-                        ChecklistItem, Company, User)
+from app.models import (AIResearchFeedback, BackgroundTask, Checklist,
+                        ChecklistAnalysis, ChecklistItem, Company, User)
 
 
 def _seed(user_id, answer='the original answer'):
@@ -128,3 +128,33 @@ def test_empty_when_nothing_stored(client_logged_in):
 
     assert resp.status_code == 200
     assert resp.get_json()['responses'] == {}
+
+
+def test_status_reconciles_a_task_no_worker_ever_took(client_logged_in):
+    """A dropped task stayed 'pending' forever, so the UI waited out its whole
+    poll budget on a job that was already dead."""
+    client, uid = client_logged_in
+    stalled = BackgroundTask(
+        id='stalled-1', user_id=uid, task_type='ai_research_assist', status='pending')
+    db.session.add(stalled)
+    db.session.flush()
+    stalled.created_at = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+    db.session.commit()
+
+    resp = client.get('/research/workflow/ai_assist/status/stalled-1')
+
+    assert resp.get_json()['state'] == 'FAILED'
+    assert 'worker' in resp.get_json()['error']
+    assert db.session.get(BackgroundTask, 'stalled-1').status == 'failed'
+
+
+def test_status_leaves_a_recent_pending_task_alone(client_logged_in):
+    client, uid = client_logged_in
+    db.session.add(BackgroundTask(
+        id='fresh-1', user_id=uid, task_type='ai_research_assist', status='pending'))
+    db.session.commit()
+
+    resp = client.get('/research/workflow/ai_assist/status/fresh-1')
+
+    assert resp.get_json()['state'] == 'PENDING'
+    assert db.session.get(BackgroundTask, 'fresh-1').status == 'pending'

@@ -223,7 +223,7 @@
 {% include 'components/blocknote_editor_include.html' %}
 <!-- AI Research Assistant -->
 <!-- Shared AI response formatter (must load before ai-research-assistant.js) -->
-<script defer src="{{ url_for('static', filename='js/dist/ai-response-format.bundle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dist/ai-response-format.bundle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}"></script>
 <!-- Send to Sector -->
 <script src="{{ url_for('static', filename='js/send-to-sector.js') }}"></script>
