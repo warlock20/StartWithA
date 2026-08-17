@@ -222,6 +222,8 @@
 <!-- BlockNote Editor -->
 {% include 'components/blocknote_editor_include.html' %}
 <!-- AI Research Assistant -->
+<!-- Shared AI response formatter (must load before ai-research-assistant.js) -->
+<script defer src="{{ url_for('static', filename='js/dist/ai-response-format.bundle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}"></script>
 <!-- Send to Sector -->
 <script src="{{ url_for('static', filename='js/send-to-sector.js') }}"></script>
@@ -809,7 +811,6 @@ const FreeResearch = {
             <div class="ai-response-text" style="font-size: 0.9rem; line-height: 1.6;">
                 ${this.formatAIResponse(responseText)}
             </div>
-            ${aiDisclaimer()}
             <div class="d-flex gap-2 mt-3 pt-2 border-top">
                 <button class="btn btn-sm btn-outline-success" onclick="FreeResearch.submitAIFeedback(${questionId}, ${feedbackId}, 'helpful')">
                     <i class="bi bi-hand-thumbs-up"></i> Helpful
@@ -825,10 +826,13 @@ const FreeResearch = {
     },
 
     formatAIResponse(text) {
-        // Convert markdown-style formatting to HTML
-        return text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\n/g, '<br>');
+        // Shared implementation (frontend/src/lib/formatAIResponse.js) — it also
+        // escapes HTML, which this copy never did, and appends the disclaimer.
+        if (typeof window.formatAIResponse !== 'function') {
+            console.error('ai-response-format.bundle.js is not loaded');
+            return text;
+        }
+        return window.formatAIResponse(text);
     },
 
     dismissAI(questionId) {

@@ -161,6 +161,16 @@ PRICE_CACHE_TTL_MINUTES = 15
 """How long to cache stock prices before refreshing"""
 
 # ============================================================================
+# GDPR DATA RETENTION
+# ============================================================================
+ANONYMIZED_PLACEHOLDER = "[anonymized]"
+"""Replaces free-text fields once a record passes the retention cutoff.
+
+Shared by the retention task that writes it and by read paths that must filter
+such records out — if the two ever disagree, anonymized rows leak to the UI.
+"""
+
+# ============================================================================
 # RATE LIMITING
 # ============================================================================
 RATELIMIT_DEFAULT = "200 per minute"

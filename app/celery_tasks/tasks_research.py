@@ -30,6 +30,8 @@ from flask import current_app
 from app import db, create_app
 from app.models import Company, BackgroundTask, WorkSession, User, ResearchProject, BiasCheckResult, ChecklistItem, ChecklistAnalysis, CompanyResource, AIResearchFeedback
 from celery_app import celery
+from celery.exceptions import SoftTimeLimitExceeded
+from config import Config
 
 from app.services.ai import generate_text, ai_service
 from app.services.ai.prompt_service import get_competitor_analysis_prompt, prompt_service, resolve_model_provider
@@ -527,7 +529,18 @@ def checklist_item_analyze_task(self, task_id, user_id, analysis_id, item_id, se
 # AI Research Assistant (Challenge / Elaboration / Fact-Check)
 # =========================================================================
 
-@celery.task(bind=True)
+# Bounded so a hung provider call cannot leave the row in 'running' forever.
+# Without a limit, nothing ever reconciled a stalled task: the row stayed
+# 'running' until a later request superseded it, and the UI had no way to learn
+# the truth. Limits live in Config (env-overridable) and are shared with the
+# browser's poll budget so both sides give up at the same point.
+AI_ASSIST_SOFT_TIME_LIMIT = Config.AI_ASSIST_SOFT_TIME_LIMIT
+AI_ASSIST_HARD_TIME_LIMIT = Config.AI_ASSIST_HARD_TIME_LIMIT
+
+
+@celery.task(bind=True,
+             soft_time_limit=AI_ASSIST_SOFT_TIME_LIMIT,
+             time_limit=AI_ASSIST_HARD_TIME_LIMIT)
 def ai_research_assist_task(self, task_id, user_id, mode, question_text, answer_text,
                             company_name, use_google_search, analysis_id, item_id):
     """
@@ -628,6 +641,24 @@ def ai_research_assist_task(self, task_id, user_id, mode, question_text, answer_
                 f"feedback_id={feedback_record.id}, tokens={ai_response.tokens_used}"
             )
             return {"status": "success", "tokens_used": ai_response.tokens_used}
+
+        except SoftTimeLimitExceeded:
+            # Caught before the generic handler so the user gets a real reason
+            # rather than an empty exception string.
+            message = (
+                f'Analysis timed out after {AI_ASSIST_SOFT_TIME_LIMIT}s. '
+                'The AI provider did not respond in time — please try again.'
+            )
+            logger.error(f"TASK {self.request.id}: AI research assist ({mode}) hit soft time limit")
+
+            task = BackgroundTask.query.get(task_id)
+            if task:
+                task.status = 'failed'
+                task.completed_at = now_utc()
+                task.error_message = message
+                db.session.commit()
+
+            return {"status": "failed", "message": message}
 
         except Exception as e:
             logger.error(f"TASK {self.request.id}: AI research assist ({mode}) failed - {e}", exc_info=True)

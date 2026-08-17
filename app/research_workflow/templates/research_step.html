@@ -415,6 +415,9 @@
                 },
                 hasLlmPrompt: {{ 'true' if current_item.llm_prompt else 'false' }},
                 analysisId: {{ session.id }},
+                // Keeps the browser poll budget tied to the Celery soft time
+                // limit — configure both via AI_ASSIST_SOFT_TIME_LIMIT.
+                aiTimeoutSeconds: {{ config.AI_ASSIST_SOFT_TIME_LIMIT }},
             });
         }
 

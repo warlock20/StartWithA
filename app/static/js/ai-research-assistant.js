@@ -610,33 +610,16 @@ AIResearchAssistant._questionPolls = {};
 
 /**
  * Format AI response text to HTML (shared by instance and static callers).
- * Converts bold, paragraphs, bullet/numbered lists. Appends AI disclaimer.
+ * Delegates to the shared formatter so every surface renders the same markdown.
  */
 AIResearchAssistant.formatResponseText = function (text) {
-    var formatted = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-    var paragraphs = formatted.split('\n\n');
-    formatted = paragraphs.map(function (p) {
-        if (p.includes('\n- ') || p.includes('\n* ') || p.match(/^\d+\./m)) {
-            var listContent = p.replace(/^- /gm, '<li>').replace(/^\* /gm, '<li>');
-            listContent = listContent.replace(/^\d+\. /gm, '<li>');
-            if (p.match(/^\d+\./m)) {
-                return '<ol>' + listContent.split('\n').map(function (line) { return line.startsWith('<li>') ? line + '</li>' : line; }).join('') + '</ol>';
-            } else {
-                return '<ul>' + listContent.split('\n').map(function (line) { return line.startsWith('<li>') ? line + '</li>' : line; }).join('') + '</ul>';
-            }
-        } else {
-            return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
-        }
-    }).join('');
-
-    formatted += (typeof aiDisclaimer === 'function') ? aiDisclaimer() : '';
-    return formatted;
+    // Single implementation, shared with the React island — see
+    // frontend/src/lib/formatAIResponse.js. Loaded by ai-response-format.bundle.js.
+    if (typeof window.formatAIResponse !== 'function') {
+        console.error('ai-response-format.bundle.js must be loaded before ai-research-assistant.js');
+        return text;
+    }
+    return window.formatAIResponse(text);
 };
 
 /**

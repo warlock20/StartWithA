@@ -31,6 +31,8 @@ const MODE_LOADING = {
  *   hasLlmPrompt: boolean
  *   analysisId: number
  *   apiEndpoint, statusEndpoint, feedbackEndpoint, regenerateEndpoint
+ *   aiTimeoutSeconds: server-side AI_ASSIST_SOFT_TIME_LIMIT (poll budget is derived from it)
+ *   historyEndpoint: GET prefix for saved responses
  */
 export function AIAssistant({ config }) {
   const [expanded, setExpanded] = useState(false);
@@ -44,10 +46,19 @@ export function AIAssistant({ config }) {
     statusEndpoint: config.statusEndpoint,
     feedbackEndpoint: config.feedbackEndpoint,
     regenerateEndpoint: config.regenerateEndpoint,
+    historyEndpoint: config.historyEndpoint,
+    timeoutSeconds: config.aiTimeoutSeconds,
   });
 
   const feedbackEndpoint =
     config.feedbackEndpoint || '/research/workflow/ai_assist/feedback';
+
+  // Saved responses for the item open at mount, so a reload or a return to this
+  // page can show work that was already generated and paid for.
+  useEffect(() => {
+    ai.loadHistory(config.analysisId, contextRef.current?.item_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.analysisId]);
 
   // ------------------------------------------------------------------
   // Expose global API
@@ -63,6 +74,8 @@ export function AIAssistant({ config }) {
         setHasLlmPrompt(!!data.has_llm_prompt);
         ai.resetState();
         setExpanded(false);
+        // resetState clears the previous item's cache; load this item's own.
+        ai.loadHistory(config.analysisId, data.item_id);
       },
       triggerMode: (m) => handleTriggerMode(m),
       formatResponse: formatAIResponse,
@@ -244,8 +257,22 @@ export function AIAssistant({ config }) {
             {/* Error */}
             {ai.status === 'failed' && ai.error && (
               <div className="alert alert-danger">
-                <i className="bi bi-exclamation-circle me-2" />
-                {ai.error}
+                <div>
+                  <i className="bi bi-exclamation-circle me-2" />
+                  {ai.error}
+                </div>
+                {/* The task outlives the client's poll budget, so a timeout is
+                    recoverable — let the user pick up a result that landed late
+                    instead of paying to run the analysis again. */}
+                {ai.canCheckAgain && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger mt-2"
+                    onClick={ai.checkAgain}
+                  >
+                    <i className="bi bi-arrow-clockwise me-1" /> Check again
+                  </button>
+                )}
               </div>
             )}
 
