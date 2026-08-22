@@ -46,7 +46,7 @@ TOKEN_PRICING = {
     'gemini-2.5-flash': {'input': 0.15, 'output': 0.60},
     'gemini-2.5-pro': {'input': 1.25, 'output': 10.00},
     'gemini-3-flash-preview': {'input': 0.15, 'output': 0.60},
-    'gemini-3-pro-preview': {'input': 1.25, 'output': 10.00},
+    'gemini-3.1-pro-preview': {'input': 1.25, 'output': 10.00},
     # DeepSeek
     'deepseek-chat': {'input': 0.27, 'output': 1.10},       # V3 pricing
     'deepseek-reasoner': {'input': 0.55, 'output': 2.19},   # R1 pricing

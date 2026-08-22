@@ -8,7 +8,7 @@ category: "checkpoint"
 
 # AI Provider Configuration
 preferred_provider: "gemini"
-model: "gemini-3-pro-preview"
+model: "gemini-3-flash-preview"
 max_tokens: 1500
 temperature: 0.4
 

@@ -71,7 +71,7 @@ class AIModel(Enum):
     """
     # Gemini 3.x models (Preview - Latest as of Jan 2026)
     GEMINI_3_FLASH = ("gemini-3-flash-preview", AIProvider.GEMINI)      # Latest Flash with Pro-grade reasoning
-    GEMINI_3_PRO = ("gemini-3-pro-preview", AIProvider.GEMINI)          # Latest Pro for agentic workflows
+    GEMINI_3_PRO = ("gemini-3.1-pro-preview", AIProvider.GEMINI)        # Latest Pro for agentic workflows
 
     # Gemini 2.5 models (Stable)
     GEMINI_FLASH_25 = ("gemini-2.5-flash", AIProvider.GEMINI)           # Stable version - fast & intelligent
@@ -120,6 +120,10 @@ class AIModel(Enum):
             # Gemini 3.x (Latest Preview)
             'gemini-3-flash-preview': cls.GEMINI_3_FLASH,
             'gemini-3-flash': cls.GEMINI_3_FLASH,  # Alias
+            'gemini-3.1-pro-preview': cls.GEMINI_3_PRO,
+            'gemini-3.1-pro': cls.GEMINI_3_PRO,  # Alias
+            # Retired by the API (404s). Kept as an alias so any stored string
+            # or stale config resolves to the current Pro instead of failing.
             'gemini-3-pro-preview': cls.GEMINI_3_PRO,
             'gemini-3-pro': cls.GEMINI_3_PRO,  # Alias
 

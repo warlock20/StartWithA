@@ -344,7 +344,11 @@ class AIResearchAssistant:
                     'question_length': len(question_text),
                     'answer_length': len(user_answer),
                     'provider': provider_str or 'gemini',
-                    'model': model_str or 'gemini-flash',
+                    # What actually ran, not what the template asked for — the
+                    # two disagreed until model selection was honoured, which
+                    # left the stored model and the cost figures wrong.
+                    'model': self.ai_service.resolve_model_id(
+                        provider=provider_enum, model=model_enum) or model_str,
                 }
             )
 

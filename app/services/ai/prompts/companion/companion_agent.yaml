@@ -4,7 +4,7 @@ version: "1.0"
 category: "companion"
 
 preferred_provider: "gemini"
-model: "gemini-3-pro-preview"
+model: "gemini-3-flash-preview"
 # Per-turn output budget. Tool-call turns are naturally short; this headroom is for
 # the final answer when a question spans several sources and needs real synthesis.
 max_tokens: 4096

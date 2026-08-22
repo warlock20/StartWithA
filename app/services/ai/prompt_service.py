@@ -390,7 +390,7 @@ def resolve_model_provider(
 # Display-friendly model names (model_id → label)
 _MODEL_DISPLAY_NAMES = {
     'gemini-3-flash-preview': 'Gemini 3 Flash',
-    'gemini-3-pro-preview': 'Gemini 3 Pro',
+    'gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
     'gemini-2.5-flash': 'Gemini 2.5 Flash',
     'gemini-2.5-pro': 'Gemini 2.5 Pro',
     'gemini-2.5-flash-lite': 'Gemini 2.5 Flash Lite',
