@@ -30,6 +30,16 @@
             {{ analytics.label }}, which we use to measure how the Platform is used.
             We do <strong>not</strong> use advertising or third-party marketing cookies.
         </p>
+        {% elif analytics %}
+        {# Cookieless provider: no analytics COOKIES, but analytics all the same.
+           Saying "we use no analytics" here would be untrue — mirror the wording
+           in _cookie_notice.html. #}
+        <p>
+            We only use <strong>strictly necessary cookies</strong> that are essential for the
+            Platform to function. We measure usage with {{ analytics.label }}, which sets
+            <strong>no cookies</strong> and does not track you across sites. We do
+            <strong>not</strong> use advertising or third-party marketing cookies.
+        </p>
         {% else %}
         <p>
             We only use <strong>strictly necessary cookies</strong> that are essential for the
@@ -153,6 +163,13 @@
             This means we do not need to show a cookie consent banner for these cookies. However,
             we provide this policy for full transparency about what is stored on your device.
         </p>
+        {% if analytics %}
+        <p>
+            {{ analytics.label }} stores nothing on your device, so § 25 TDDDG does not apply to it.
+            The usage statistics it produces are processed on the basis of legitimate interest
+            (Art. 6(1)(f) GDPR).
+        </p>
+        {% endif %}
         {% endif %}
     </section>
 

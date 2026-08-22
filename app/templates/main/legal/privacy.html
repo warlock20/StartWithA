@@ -21,7 +21,7 @@
             <li><a href="#research">Research & Investment Data</a></li>
             <li><a href="#ai">AI-Powered Features & Third-Party Processing</a></li>
             <li><a href="#hosting">Hosting & Infrastructure</a></li>
-            <li><a href="#cookies">Cookies & Session Data</a></li>
+            <li><a href="#cookies">Cookies{% if analytics %}, Analytics{% endif %} & Session Data</a></li>
             <li><a href="#legal-basis">Legal Basis for Processing</a></li>
             <li><a href="#rights">Your Rights (GDPR Art. 12-23)</a></li>
             <li><a href="#retention">Data Retention</a></li>
@@ -55,6 +55,15 @@
             <li><strong>AI interaction data</strong> — questions and answers exchanged with our AI research assistant</li>
             <li><strong>Usage data</strong> — preferences, settings, and platform interaction metadata</li>
             <li><strong>Technical data</strong> — session cookies, IP address (in server logs)</li>
+            {# Only claim to collect analytics data if a provider is actually
+               configured, and describe what THAT provider does — session replay
+               is a Clarity behaviour, not a property of analytics in general.
+               See app/telemetry.py. #}
+            {% if analytics and analytics.key == 'clarity' %}
+            <li><strong>Analytics data</strong> — session recordings and heatmaps captured by {{ analytics.label }} (see section 7)</li>
+            {% elif analytics %}
+            <li><strong>Analytics data</strong> — aggregate page-view statistics collected by {{ analytics.label }} (see section 7)</li>
+            {% endif %}
         </ul>
     </section>
 
@@ -178,6 +187,14 @@
             and not retained beyond 30 days.
         </p>
         <p>
+            <strong>Processing in the United States:</strong> Railway is a US company and the
+            application, its database, and its server logs are hosted on infrastructure located in
+            the United States. Your data is therefore transferred to and processed in the US. This
+            is a transfer to a third country within the meaning of Art. 44 et seq. GDPR: US
+            authorities may under certain conditions access data stored there, and the legal
+            remedies available against such access are not equivalent to those under EU law.
+        </p>
+        <p>
             <strong>Legal basis:</strong> Legitimate interest (Art. 6(1)(f) GDPR) — necessary for
             platform operation and security.
         </p>
@@ -185,7 +202,7 @@
 
     <!-- 7. Cookies -->
     <section class="mb-5" id="cookies">
-        <h2 class="h4">7. Cookies & Session Data</h2>
+        <h2 class="h4">7. Cookies{% if analytics %}, Analytics{% endif %} & Session Data</h2>
         <p>We use the following cookies:</p>
 
         <div class="table-responsive">
@@ -211,19 +228,104 @@
                         <td>30 days</td>
                         <td>Functional</td>
                     </tr>
+                    {% if analytics and analytics.key == 'clarity' %}
+                    {# Names and lifetimes per Microsoft's Clarity cookie list. The
+                       other registered providers are cookieless, so they add no
+                       rows here. #}
+                    <tr>
+                        <td><code>_clck</code>, <code>_clsk</code></td>
+                        <td>
+                            Set by {{ analytics.label }} to recognise a returning browser and group the
+                            page views of a single visit, so usage and session replays can be measured
+                        </td>
+                        <td><code>_clck</code> 1 year; <code>_clsk</code> 1 day</td>
+                        <td>Analytics</td>
+                    </tr>
+                    <tr>
+                        <td><code>_uetvid</code>, <code>_uetmsclkid</code></td>
+                        <td>Set by the Microsoft advertising tag that {{ analytics.label }} loads alongside its own script</td>
+                        <td>Up to 1 year</td>
+                        <td>Analytics</td>
+                    </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
 
+        {# Everything below depends on which provider (if any) is live, so the
+           policy describes the deployment the reader is actually on. With
+           ANALYTICS_PROVIDER unset the page keeps its original "no analytics
+           cookies" statement, which stays true. See app/telemetry.py. #}
+        {% if analytics and analytics.key == 'clarity' %}
+        <h3 class="h6 mt-4">{{ analytics.label }}</h3>
+        <p>
+            We use <strong>{{ analytics.label }}</strong> (Microsoft Ireland Operations
+            Limited, One Microsoft Place, South County Business Park, Leopardstown, Dublin 18,
+            Ireland; parent company Microsoft Corporation, One Microsoft Way, Redmond, WA 98052, USA)
+            to understand how the platform is actually used — which features people reach for and
+            where they get stuck — so we can improve it.
+        </p>
+        <p>
+            {{ analytics.label }} <strong>records your session</strong> (page views, mouse movement,
+            clicks and scrolling) and builds session replays and heatmaps from it. It sets the
+            cookies listed above and also collects your IP address, device type, browser and
+            operating system. This data is transmitted to Microsoft in the United States
+            (Art. 44 et seq. GDPR).
+        </p>
+        <p>
+            We do <strong>not</strong> use advertising or third-party marketing cookies, and we do
+            not sell any of this data.
+        </p>
+        {% elif analytics %}
+        <h3 class="h6 mt-4">{{ analytics.label }}</h3>
+        <p>
+            We use <strong>{{ analytics.label }}</strong> to measure how the platform is used, so we
+            can improve it. It sets no cookies, does not record your session, and does not track you
+            across other websites — it collects aggregate page-view statistics only.
+        </p>
+        <p>
+            We do <strong>not</strong> use advertising or third-party marketing cookies, and we do
+            not sell any of this data.
+        </p>
+        {% else %}
         <p>
             We do <strong>not</strong> use any analytics, tracking, or advertising cookies.
             All cookies are strictly necessary for platform functionality.
         </p>
+        {% endif %}
+
         <p>
-            <strong>Legal basis:</strong> Legitimate interest (Art. 6(1)(f) GDPR) — session cookies
-            are technically necessary and exempt from consent requirements under § 25(2) TDDDG
-            (German Telecommunications Digital Services Data Protection Act).
+            <strong>Legal basis{% if analytics %} — session cookies{% endif %}:</strong> Legitimate
+            interest (Art. 6(1)(f) GDPR). These are technically necessary and exempt from consent
+            requirements under § 25(2) TDDDG (German Telecommunications Digital Services Data
+            Protection Act).
         </p>
+        {% if analytics and analytics.needs_consent %}
+        <p>
+            <strong>Legal basis — {{ analytics.label }}:</strong> Consent (Art. 6(1)(a) GDPR and
+            § 25(1) TDDDG). These cookies are not strictly necessary and do not fall under that
+            exemption, so they are set only after you accept them via the banner shown on your first
+            visit. You can withdraw your consent at any time with effect for the future; the platform
+            works exactly the same either way.
+        </p>
+        {% elif analytics and analytics.sets_cookies %}
+        {# ANALYTICS_REQUIRE_CONSENT=False — a deliberate operator choice. Say so
+           plainly rather than claiming a consent gate that is not running. #}
+        <p>
+            <strong>Legal basis — {{ analytics.label }}:</strong> These cookies are not strictly
+            necessary and do not fall under the § 25(2) TDDDG exemption. This deployment has been
+            configured to load them without a consent prompt. If you operate this platform for users
+            in the EU/EEA or Germany, note that § 25(1) TDDDG and Art. 6(1)(a) GDPR require prior
+            opt-in for cookies of this kind; set <code>ANALYTICS_REQUIRE_CONSENT=True</code> to
+            restore the consent gate.
+        </p>
+        {% elif analytics %}
+        <p>
+            <strong>Legal basis — {{ analytics.label }}:</strong> Legitimate interest
+            (Art. 6(1)(f) GDPR). {{ analytics.label }} stores nothing on your device, so no consent
+            is required under § 25 TDDDG.
+        </p>
+        {% endif %}
     </section>
 
     <!-- 8. Legal Basis Summary -->
@@ -254,6 +356,23 @@
                         <td>Session cookies</td>
                         <td>Art. 6(1)(f) — Legitimate interest</td>
                     </tr>
+                    {% if analytics and analytics.key == 'clarity' %}
+                    <tr>
+                        <td>Analytics &amp; session replay ({{ analytics.label }})</td>
+                        <td>
+                            {%- if analytics.needs_consent -%}
+                            Art. 6(1)(a) — Consent
+                            {%- else -%}
+                            Art. 6(1)(a) — Consent (gate disabled in this deployment)
+                            {%- endif -%}
+                        </td>
+                    </tr>
+                    {% elif analytics %}
+                    <tr>
+                        <td>Analytics ({{ analytics.label }}, cookieless)</td>
+                        <td>Art. 6(1)(f) — Legitimate interest</td>
+                    </tr>
+                    {% endif %}
                     <tr>
                         <td>Server logs (IP, timestamps)</td>
                         <td>Art. 6(1)(f) — Legitimate interest</td>
