@@ -79,6 +79,58 @@ Styles for the unified AI Research Assistant accordion section
     color: inherit;
 }
 
+/* Markdown emitted by the assistant: headings, tables, rules and italics.
+   Fact-check responses with web search produce all of these. Sized down from
+   browser defaults because they render inside a panel, not a page. */
+.ai-response-content .ai-response-heading {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 1rem 0 0.5rem;
+    line-height: 1.4;
+    color: inherit;
+}
+
+.ai-response-content .ai-response-heading:first-child {
+    margin-top: 0;
+}
+
+.ai-response-content em {
+    font-style: italic;
+}
+
+.ai-response-content .ai-response-rule {
+    margin: 1rem 0;
+    border: 0;
+    border-top: 1px solid var(--border-color, #dee2e6);
+    opacity: 1;
+}
+
+/* Wide tables scroll inside their own container rather than stretching the panel. */
+.ai-response-content .table-responsive {
+    overflow-x: auto;
+    margin-bottom: 0.75rem;
+}
+
+.ai-response-content .ai-response-table {
+    width: 100%;
+    font-size: 0.85rem;
+    margin-bottom: 0;
+    border-collapse: collapse;
+}
+
+.ai-response-content .ai-response-table th,
+.ai-response-content .ai-response-table td {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border-color, #dee2e6);
+    text-align: left;
+    vertical-align: top;
+}
+
+.ai-response-content .ai-response-table th {
+    font-weight: 600;
+    background: var(--bg-subtle, #f8f9fa);
+}
+
 /* Alert variations for different modes */
 .ai-response-content .alert {
     margin-bottom: 0;

@@ -26,11 +26,12 @@ from app.services.ai.tool_calling import ToolCall
 from app.services.argos.tools import COMPANION_TOOLS, ToolExecutor
 
 
-def test_tool_registry_has_six_tools():
+def test_tool_registry_has_the_expected_tools():
     names = {t.name for t in COMPANION_TOOLS}
     assert names == {
         'get_portfolio_overview', 'get_company_context', 'get_research_project',
-        'search_my_knowledge', 'get_resource', 'get_mistakes_and_patterns',
+        'get_checklist_progress', 'search_my_knowledge', 'get_resource',
+        'get_mistakes_and_patterns',
     }
 
 

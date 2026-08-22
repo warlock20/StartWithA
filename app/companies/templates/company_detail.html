@@ -398,6 +398,8 @@ window.companyConfig = {
 };
 </script>
 {# ---- External scripts (vanilla, still needed) ---- #}
+<!-- Shared AI response formatter (must load before ai-research-assistant.js) -->
+<script defer src="{{ url_for('static', filename='js/dist/ai-response-format.bundle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}" defer></script>
 {# ---- React island bundles ---- #}
 <script defer src="{{ url_for('static', filename='js/dist/company-dashboard-tabs.bundle.js') }}"></script>

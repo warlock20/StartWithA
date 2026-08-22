@@ -11,6 +11,7 @@
   // 'general' thread across unfocused pages reads as intentional, not a glitch.
   // Generic (scope type only) — no per-page wiring.
   const scopeLabel = (f) => {
+    if (f.analysis_id) return { icon: 'bi-list-check', text: 'This checklist run' };
     if (f.project_id) return { icon: 'bi-search', text: 'This research session' };
     if (f.company_id) return { icon: 'bi-building', text: 'Focused on this company' };
     if (f.type === 'portfolio') return { icon: 'bi-pie-chart', text: 'Across your portfolio' };
@@ -39,6 +40,13 @@
       { label: 'Gaps?', icon: 'bi-search',
         prefill: 'What gaps remain in my research for this step?' },
       { label: 'Wrap Up', icon: 'bi-flag', action: 'wrapup' },
+      { label: 'Capture', icon: 'bi-bookmark-plus', action: 'capture' },
+    ],
+    checklist: [
+      { label: 'This question?', icon: 'bi-question-circle',
+        prefill: 'Which checklist question am I on right now, and what have I answered for it so far?' },
+      { label: "What's left?", icon: 'bi-list-check',
+        prefill: 'Which questions in this checklist run are still unanswered?' },
       { label: 'Capture', icon: 'bi-bookmark-plus', action: 'capture' },
     ],
     default: [

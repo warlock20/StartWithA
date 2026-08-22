@@ -111,6 +111,22 @@ class Config:
         and AUTH0_DOMAIN != 'your-tenant.auth0.com'
     )
 
+    # 9c. AI ASSIST TIMEOUTS
+    # Single source of truth for how long an AI Research Assistant analysis may
+    # run. The Celery soft limit and the browser's poll budget are both derived
+    # from AI_ASSIST_SOFT_TIME_LIMIT so the two sides give up at the same point:
+    # if the client quits first the finished answer is stranded, and if the
+    # worker quits first the user waits on a task that is already dead.
+    #
+    # Sized from observed runs — the slowest completed analysis took 272s after
+    # waiting 5-36s for a worker. Raise it if grounded fact-checks get slower.
+    AI_ASSIST_SOFT_TIME_LIMIT = int(os.environ.get('AI_ASSIST_SOFT_TIME_LIMIT', 420))
+    # Hard limit: the grace period after the soft limit in which the task can
+    # still record a clean failure before Celery kills the worker process.
+    AI_ASSIST_HARD_TIME_LIMIT = int(
+        os.environ.get('AI_ASSIST_HARD_TIME_LIMIT', AI_ASSIST_SOFT_TIME_LIMIT + 60)
+    )
+
     # 10. RATE LIMITING: Protection against brute force and abuse
     # Uses Redis if available, otherwise in-memory storage
     # Specific rate limits are defined in app/constants.py
@@ -118,3 +134,27 @@ class Config:
     RATELIMIT_STRATEGY = 'fixed-window'
     RATELIMIT_DEFAULT = '200 per minute'
     RATELIMIT_HEADERS_ENABLED = True
+
+    # The limiter runs in preprocess_request, so a Redis hiccup took down every
+    # route: a connection idled out by the provider surfaced as
+    # "BrokenPipeError -> ConnectionError" and flask-limiter re-raises storage
+    # errors by default, turning it into a 500 on requests as ordinary as
+    # GET /dashboard/.
+    #
+    # health_check_interval retires a stale connection before it is used rather
+    # than discovering it mid-command; keepalive stops idle sockets being reaped
+    # silently. Redis-only — the memory:// backend takes no client kwargs.
+    RATELIMIT_STORAGE_OPTIONS = {
+        'health_check_interval': 30,
+        'socket_keepalive': True,
+        'socket_connect_timeout': 5,
+        'socket_timeout': 5,
+        'retry_on_timeout': True,
+    } if os.environ.get('REDIS_URL') else {}
+
+    # Degrade instead of failing: fall back to in-memory counters when the store
+    # is unreachable (flask-limiter probes it and switches back on recovery).
+    # Rate limiting is a protection mechanism, not a serving dependency — failing
+    # open beats 500-ing the whole site.
+    RATELIMIT_IN_MEMORY_FALLBACK_ENABLED = True
+    RATELIMIT_SWALLOW_ERRORS = True

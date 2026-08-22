@@ -28,6 +28,7 @@ from app import db, create_app
 from celery_app import celery
 from app.models import AIResearchFeedback
 from app.models.prompt_management import PromptUsageLog
+from app.constants import ANONYMIZED_PLACEHOLDER
 from app.utils.time_utils import now_utc
 
 logger = logging.getLogger(__name__)
@@ -55,11 +56,11 @@ def anonymize_ai_interactions(self):
             # --- AIResearchFeedback: anonymize raw Q&A text ---
             feedback_count = AIResearchFeedback.query.filter(
                 AIResearchFeedback.created_at < cutoff,
-                AIResearchFeedback.question_text != '[anonymized]',
+                AIResearchFeedback.question_text != ANONYMIZED_PLACEHOLDER,
             ).update({
-                AIResearchFeedback.question_text: '[anonymized]',
-                AIResearchFeedback.user_answer: '[anonymized]',
-                AIResearchFeedback.ai_response: '[anonymized]',
+                AIResearchFeedback.question_text: ANONYMIZED_PLACEHOLDER,
+                AIResearchFeedback.user_answer: ANONYMIZED_PLACEHOLDER,
+                AIResearchFeedback.ai_response: ANONYMIZED_PLACEHOLDER,
                 AIResearchFeedback.revised_answer: None,
                 AIResearchFeedback.company_name: None,
             }, synchronize_session=False)

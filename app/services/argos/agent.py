@@ -56,6 +56,10 @@ def _render_focus(focus):
         lines.append(f"Company id: {focus['company_id']}")
     if focus.get('project_id'):
         lines.append(f"Research project id: {focus['project_id']}")
+    if focus.get('analysis_id'):
+        lines.append(f"Checklist analysis id: {focus['analysis_id']}")
+    if focus.get('item_id'):
+        lines.append(f"Checklist item id: {focus['item_id']}")
     return "\n".join(lines) if lines else "No page context provided."
 
 

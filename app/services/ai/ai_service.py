@@ -146,17 +146,21 @@ class AIService:
         Raises:
             RuntimeError: If no suitable provider available
         """
-        # If specific provider requested
-        if provider is not None:
-            if provider in self._providers and self._providers[provider].is_available():
-                return self._providers[provider]
-            raise RuntimeError(f"Requested provider {provider.value} is not available")
-        
-        # If specific model requested
+        # A requested model is honoured whether or not a provider was named.
+        # This branch used to sit *after* the provider check, so every caller
+        # that passed both — which is all of them, since each prompt YAML
+        # carries `preferred_provider` next to `model` — silently got the
+        # default model and the requested one was dropped.
         if model is not None:
             provider_type = model.provider
+            if provider is not None and provider != provider_type:
+                raise RuntimeError(
+                    f"Model {model.model_id} belongs to {provider_type.value}, "
+                    f"but provider {provider.value} was requested"
+                )
             if provider_type in self._providers:
-                # Create new provider instance with specific model
+                # A provider instance is bound to one model, so a non-default
+                # model needs its own instance rather than the shared one.
                 if provider_type == AIProvider.GEMINI:
                     return GeminiProvider(model=model)
                 elif provider_type == AIProvider.CLAUDE:
@@ -164,6 +168,12 @@ class AIService:
                 elif provider_type == AIProvider.DEEPSEEK:
                     return DeepseekProvider(model=model)
             raise RuntimeError(f"Provider for model {model.model_id} is not available")
+
+        # If specific provider requested
+        if provider is not None:
+            if provider in self._providers and self._providers[provider].is_available():
+                return self._providers[provider]
+            raise RuntimeError(f"Requested provider {provider.value} is not available")
         
         # Route based on task type
         if task is not None:
@@ -190,6 +200,28 @@ class AIService:
     # ============================================================
     # Core Generation Methods
     # ============================================================
+
+    def resolve_model_id(
+        self,
+        task: Optional[AITaskType] = None,
+        provider: Optional[AIProvider] = None,
+        model: Optional[AIModel] = None
+    ) -> Optional[str]:
+        """
+        The model id a call with these arguments would actually use.
+
+        Callers persist the model alongside the response for cost tracking and
+        auditing. Recording the prompt template's requested model instead was
+        wrong whenever routing chose something else, so ask the resolver rather
+        than repeating the request back.
+
+        Returns None when no provider can serve the request — recording a model
+        that never ran is worse than recording nothing.
+        """
+        try:
+            return self._get_provider(task, provider, model).model_name
+        except RuntimeError:
+            return None
 
     def generate_text(
         self,

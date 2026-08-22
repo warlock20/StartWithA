@@ -37,6 +37,8 @@ from flask_login import current_user, login_required
 from app import db
 from app.research_workflow import research_workflow_bp
 from app.models import ChecklistAnalysis, AIResearchFeedback
+from app.constants import ANONYMIZED_PLACEHOLDER
+from config import Config
 from app.services.background_tasks import BackgroundTaskService
 from app.utils.decorators import require_ai_tokens
 
@@ -179,6 +181,10 @@ def ai_assist_status(task_id):
         "feedback_id": 789
     }
     """
+    # A task the worker never consumed would otherwise stay 'pending' forever,
+    # making the client wait out its entire poll budget on a dead job.
+    BackgroundTaskService.fail_if_stalled(task_id, Config.AI_ASSIST_HARD_TIME_LIMIT)
+
     task_status = BackgroundTaskService.get_task_status(task_id)
 
     if not task_status:
@@ -205,6 +211,68 @@ def ai_assist_status(task_id):
         response['error'] = task_status.get('error', 'AI analysis failed')
 
     return jsonify(response)
+
+
+@research_workflow_bp.route('/ai_assist/history/<int:analysis_id>/<int:item_id>')
+@login_required
+def ai_assist_history(analysis_id, item_id):
+    """
+    Return the most recent AI response for each mode on a checklist item.
+
+    Responses were always written to ai_research_feedback but nothing could read
+    them back, so switching modes (or leaving the item) discarded work the user
+    had already paid for. The stored `user_answer` is returned alongside each
+    response so the client can compare it with the current editor text: if they
+    match, the saved response still applies and there is no reason to spend
+    tokens regenerating it.
+
+    Response (JSON):
+    {
+        "responses": {
+            "factcheck": {
+                "response": "...", "feedback_id": 12, "user_answer": "...",
+                "mode": "factcheck", "created_at": "..."
+            },
+            ...
+        }
+    }
+    """
+    analysis = ChecklistAnalysis.query.filter_by(
+        id=analysis_id,
+        user_id=current_user.id  # Authorization check
+    ).first()
+
+    if not analysis:
+        return jsonify({
+            'success': False,
+            'error': 'Invalid or unauthorized analysis_id'
+        }), 403
+
+    records = AIResearchFeedback.query.filter(
+        AIResearchFeedback.user_id == current_user.id,
+        AIResearchFeedback.analysis_id == analysis_id,
+        AIResearchFeedback.item_id == item_id,
+        # Dismissing is an explicit "I don't want this" — don't resurrect it.
+        db.or_(AIResearchFeedback.feedback.is_(None),
+               AIResearchFeedback.feedback != 'dismissed'),
+        # GDPR retention blanks old text; there is nothing left to restore.
+        AIResearchFeedback.ai_response != ANONYMIZED_PLACEHOLDER,
+    ).order_by(AIResearchFeedback.created_at.desc()).all()
+
+    responses = {}
+    for record in records:
+        # Ordered newest first, so the first hit per mode is the one to keep.
+        if record.mode in responses:
+            continue
+        responses[record.mode] = {
+            'mode': record.mode,
+            'response': record.ai_response,
+            'feedback_id': record.id,
+            'user_answer': record.user_answer,
+            'created_at': record.created_at.isoformat() if record.created_at else None,
+        }
+
+    return jsonify({'responses': responses})
 
 
 @research_workflow_bp.route('/ai_assist/feedback', methods=['POST'])
