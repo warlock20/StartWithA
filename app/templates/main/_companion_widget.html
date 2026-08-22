@@ -13,7 +13,7 @@
     {% set companion_focus = {
         'type': 'research'|'company'|'portfolio'|'checklist',
         'company_id': ..., 'project_id': ..., 'step': ...,
-        'analysis_id': ..., 'item_id': ...,   {# checklist run + the question on screen #}
+        'analysis_id': ..., 'item_id': ...,   (checklist run + the question on screen)
         'chips': [{'icon': 'bi-building', 'label': company.ticker_symbol, 'kind': 'mine'}]} %}
   Chips are optional; a page that declares none falls back to an account-wide chip.
   See app/services/argos/page_context.py.
