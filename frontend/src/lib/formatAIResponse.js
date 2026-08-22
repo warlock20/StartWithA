@@ -65,8 +65,19 @@ function renderTable(rows) {
   );
 }
 
-export function formatAIResponse(text) {
-  const lines = escapeHtml(text).split('\n');
+/** Leading whitespace marks content nested under the list item above it. */
+const INDENTED = /^\s{2,}\S/;
+
+/** Remove one level of indentation so a nested block can be parsed on its own. */
+function dedent(lines) {
+  const widths = lines
+    .filter((l) => l.trim())
+    .map((l) => l.match(/^\s*/)[0].length);
+  const smallest = widths.length ? Math.min(...widths) : 0;
+  return lines.map((l) => l.slice(smallest));
+}
+
+function renderBlocks(lines) {
   const blocks = [];
   let i = 0;
 
@@ -104,19 +115,60 @@ export function formatAIResponse(text) {
       continue;
     }
 
-    // Consecutive list items only. Prose that happens to sit in the same
-    // paragraph becomes its own block instead of a bare text child of <ul>,
-    // which was invalid HTML and ran the lines together on screen.
+    // Prose that happens to sit in the same paragraph becomes its own block
+    // instead of a bare text child of <ul>, which was invalid HTML and ran the
+    // lines together on screen.
     const isOrdered = ORDERED_ITEM.test(line);
     if (isOrdered || LIST_ITEM.test(line)) {
       const pattern = isOrdered ? ORDERED_ITEM : LIST_ITEM;
       const items = [];
-      while (i < lines.length && pattern.test(lines[i])) {
-        items.push(`<li>${inline(lines[i].match(pattern)[1])}</li>`);
-        i += 1;
+      while (i < lines.length) {
+        if (pattern.test(lines[i])) {
+          items.push(inline(lines[i].match(pattern)[1]));
+          i += 1;
+          continue;
+        }
+        // Indented content belongs to the item above it. Ending the list here
+        // restarted the numbering, so a "2." with nested bullets showed as "1.".
+        if (items.length && INDENTED.test(lines[i])) {
+          const nested = [];
+          while (i < lines.length && (INDENTED.test(lines[i]) || !lines[i].trim())) {
+            // A blank line only continues the nested block if more nested
+            // content follows; otherwise it belongs to the outer list.
+            if (!lines[i].trim()) {
+              let j = i;
+              while (j < lines.length && !lines[j].trim()) j += 1;
+              if (j >= lines.length || !INDENTED.test(lines[j])) break;
+            }
+            nested.push(lines[i]);
+            i += 1;
+          }
+          items[items.length - 1] += renderBlocks(dedent(nested));
+          continue;
+        }
+        // Elaboration mode separates its items with a blank line. Ending the
+        // list there opens a new <ol> per item, and every one restarts at "1".
+        // Only a blank run that is *not* followed by another item ends the list.
+        if (!lines[i].trim()) {
+          let j = i;
+          while (j < lines.length && !lines[j].trim()) j += 1;
+          if (j < lines.length && pattern.test(lines[j])) {
+            i = j;
+            continue;
+          }
+        }
+        break;
       }
-      const tag = isOrdered ? 'ol' : 'ul';
-      blocks.push(`<${tag}>${items.join('')}</${tag}>`);
+      const listItems = items.map((html) => `<li>${html}</li>`).join('');
+
+      if (isOrdered) {
+        // Respect a list that deliberately starts partway through.
+        const first = parseInt(line.match(/^\s*(\d+)/)[1], 10);
+        const startAttr = first > 1 ? ` start="${first}"` : '';
+        blocks.push(`<ol${startAttr}>${listItems}</ol>`);
+      } else {
+        blocks.push(`<ul>${listItems}</ul>`);
+      }
       continue;
     }
 
@@ -139,7 +191,11 @@ export function formatAIResponse(text) {
     if (paragraph.length) blocks.push(`<p>${paragraph.join('<br>')}</p>`);
   }
 
-  let formatted = blocks.join('');
+  return blocks.join('');
+}
+
+export function formatAIResponse(text) {
+  let formatted = renderBlocks(escapeHtml(text).split('\n'));
 
   // AI disclaimer (if globally defined by the platform)
   if (typeof window !== 'undefined' && typeof window.aiDisclaimer === 'function') {

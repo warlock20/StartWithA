@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from app.services.argos import agent as agent_mod
 from app.services.argos.agent import CompanionAgent
+from app.services.argos.tools import COMPANION_TOOLS
 from app.services.ai.tool_calling import ToolLoopResult
 
 
@@ -45,8 +46,9 @@ def test_agent_ask_assembles_system_tools_and_messages(monkeypatch, app_context,
     assert 'opinions are yours' in captured['system'].lower()
     # The account map (holdings) must be embedded in the system prompt.
     assert 'portfolio' in captured['system'].lower()
-    # All six tools offered.
-    assert len(captured['tools']) == 6
+    # The whole registry is offered — asserted against it rather than a literal
+    # count, which silently goes stale every time a tool is added.
+    assert captured['tools'] == COMPANION_TOOLS
     # The user's question is the final message.
     assert captured['messages'][-1] == {'role': 'user', 'content': 'what did I miss?'}
 

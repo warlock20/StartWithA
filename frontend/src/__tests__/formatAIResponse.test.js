@@ -96,4 +96,51 @@ describe('formatAIResponse', () => {
     expect(html).toContain('<p>First para.</p>');
     expect(html).toContain('<p>Second para.</p>');
   });
+
+  // Elaboration mode returns "1.\n\n2.\n\n3." — blank lines between items are
+  // spacing, not the end of the list. Splitting there restarts every <ol>, so
+  // all five questions rendered as "1.".
+  it('keeps a blank-line-separated numbered list as one list', () => {
+    const html = formatAIResponse('1. first\n\n2. second\n\n3. third');
+    expect((html.match(/<ol/g) || []).length).toBe(1);
+    expect(html).toContain('<li>first</li>');
+    expect(html).toContain('<li>second</li>');
+    expect(html).toContain('<li>third</li>');
+  });
+
+  it('keeps a blank-line-separated bullet list as one list', () => {
+    const html = formatAIResponse('- one\n\n- two');
+    expect((html.match(/<ul/g) || []).length).toBe(1);
+  });
+
+  it('preserves a list that does not start at 1', () => {
+    const html = formatAIResponse('3. third\n\n4. fourth');
+    expect(html).toContain('start="3"');
+  });
+
+  // Fact-check nests detail under each numbered point. Treating the indented
+  // bullets as the end of the list restarted the numbering, so "2." showed as "1.".
+  it('keeps numbering across items that contain nested bullets', () => {
+    const src = [
+      '1. First point',
+      '   - nested detail',
+      '   - another nested detail',
+      '2. Second point',
+      '   - more nested detail',
+    ].join('\n');
+    const html = formatAIResponse(src);
+
+    expect((html.match(/<ol/g) || []).length).toBe(1);
+    expect(html).toContain('First point');
+    expect(html).toContain('Second point');
+    // The nested detail survives, inside the item it belongs to.
+    expect(html).toMatch(/<li>[\s\S]*?<ul>[\s\S]*?nested detail/);
+  });
+
+  it('still ends the list when prose follows', () => {
+    const html = formatAIResponse('1. first\n\n2. second\n\nA closing thought.');
+    expect((html.match(/<ol/g) || []).length).toBe(1);
+    expect(html).toContain('<p>A closing thought.</p>');
+    expect(html).not.toMatch(/<li>A closing thought/);
+  });
 });

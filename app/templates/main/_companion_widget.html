@@ -11,8 +11,9 @@
   A page declares what it's showing — ids for grounding, chips for the context
   strip — with:
     {% set companion_focus = {
-        'type': 'research'|'company'|'portfolio',
+        'type': 'research'|'company'|'portfolio'|'checklist',
         'company_id': ..., 'project_id': ..., 'step': ...,
+        'analysis_id': ..., 'item_id': ...,   {# checklist run + the question on screen #}
         'chips': [{'icon': 'bi-building', 'label': company.ticker_symbol, 'kind': 'mine'}]} %}
   Chips are optional; a page that declares none falls back to an account-wide chip.
   See app/services/argos/page_context.py.
@@ -34,6 +35,8 @@
        data-focus-company-id="{{ _focus.company_id | default('') }}"
        data-focus-project-id="{{ _focus.project_id | default('') }}"
        data-focus-step="{{ _focus.step | default('') }}"
+       data-focus-analysis-id="{{ _focus.analysis_id | default('') }}"
+       data-focus-item-id="{{ _focus.item_id | default('') }}"
        data-endpoint-base="/companion">
 
     {# Collapsed: a 44px pulse rail. Present and silent — it never

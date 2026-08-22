@@ -36,7 +36,8 @@ from app.services.argos.core import ArgosService
 from app.services.argos.knowledge_search import search_my_knowledge, get_resource
 from app.services.portfolio_intelligence import PortfolioIntelligenceService
 from app.models.company import Company
-from app.models.research import ResearchProject
+from app.models.research import ChecklistAnalysis, ChecklistAnswer, ResearchProject
+from app.utils.checklist_utils import get_all_ordered_items_for_checklist
 from app.models.journal import PatternRecognition
 from app.models.idea_pipeline import MistakeLog
 
@@ -64,6 +65,17 @@ COMPANION_TOOLS = [
         {'type': 'object',
          'properties': {'project_id': {'type': 'integer'}},
          'required': ['project_id']},
+    ),
+    ToolSpec(
+        'get_checklist_progress',
+        "The state of one checklist run: which company and checklist it is, how far "
+        "through it is, and — given `item_id` — the exact question the user is on "
+        "plus their answer so far. Use for the checklist run page. `analysis_id` and "
+        "`item_id` are given in CURRENT PAGE; never take them from a URL.",
+        {'type': 'object',
+         'properties': {'analysis_id': {'type': 'integer'},
+                        'item_id': {'type': 'integer'}},
+         'required': ['analysis_id']},
     ),
     ToolSpec(
         'search_my_knowledge',
@@ -154,6 +166,67 @@ class ToolExecutor:
         label = project.project_name or (
             project.company.name if project.company else 'Research project')
         data['citation'] = self._cite('project', project.id, label)
+        return data
+
+    def _get_checklist_progress(self, args):
+        analysis = ChecklistAnalysis.query.filter_by(
+            id=args.get('analysis_id'), user_id=self.user_id).first()
+        if not analysis:
+            return {'error': 'Checklist run not found or access denied'}
+
+        # Same ordering the page numbers items by, so "question 9" means the same
+        # thing to the model as it does on screen.
+        items = get_all_ordered_items_for_checklist(analysis.checklist_id)
+        answers = {a.checklist_item_id: a for a in ChecklistAnswer.query.filter_by(
+            checklist_analysis_id=analysis.id).all()}
+        numbers = {item.id: n for n, item in enumerate(items, start=1)}
+
+        def answered(item):
+            answer = answers.get(item.id)
+            return bool(answer and (answer.answer_text or '').strip())
+
+        company = analysis.company
+        checklist = analysis.checklist
+        data = {
+            'analysis_id': analysis.id,
+            'company': company.name if company else None,
+            'ticker': company.ticker_symbol if company else None,
+            'company_id': analysis.company_id,
+            'checklist_name': checklist.name if checklist else None,
+            'status': analysis.status,
+            'total_items': len(items),
+            'answered_items': sum(1 for item in items if answered(item)),
+            'current_item': None,
+            'items': [{'number': numbers[item.id], 'item_id': item.id,
+                       'question': item.text, 'answered': answered(item)}
+                      for item in items],
+        }
+
+        # An item_id from a different checklist is a wrong question, not another
+        # one — report the run without it rather than answering about the wrong
+        # question. Mirrors the page's own check.
+        item_id = args.get('item_id')
+        if item_id:
+            item = next((i for i in items if i.id == item_id), None)
+            if item is None:
+                data['item_error'] = (
+                    f'Item {item_id} does not belong to this checklist run.')
+            else:
+                answer = answers.get(item.id)
+                data['current_item'] = {
+                    'item_id': item.id,
+                    'number': numbers[item.id],
+                    'question': item.text,
+                    'description': item.description,
+                    'answer': answer.answer_text if answer else None,
+                    'satisfaction_status': (
+                        answer.satisfaction_status if answer else None),
+                }
+
+        label = company.name if company else 'Checklist run'
+        if checklist:
+            label = f'{label} — {checklist.name}'
+        data['citation'] = self._cite('checklist', analysis.id, label)
         return data
 
     def _get_portfolio_overview(self, args):

@@ -1,4 +1,20 @@
 {% extends "main/_base_companies.html" %}
+{# Opt in to the global companion (rendered by _base.html).
+   The URL here is /checklist/<analysis_id>/item/<item_id>, and BOTH numbers collide
+   with ids in other tables — a research project with the same number is a different
+   company entirely. So the ids are stated explicitly rather than left to be read off
+   the URL. Deliberately no 'project_id': a ChecklistAnalysis has no link to a
+   ResearchProject, and claiming one is exactly the mix-up this declaration prevents. #}
+{% set companion_focus = {
+    'type': 'checklist', 'company_id': session.company_id,
+    'analysis_id': session.id, 'item_id': current_item.id,
+    'chips': [
+        {'icon': 'bi-building', 'kind': 'mine',
+         'label': (session.company.ticker_symbol or session.company.name) if session.company else ''},
+        {'icon': 'bi-list-check', 'kind': 'mine',
+         'label': session.checklist.name if session.checklist else ''},
+        {'icon': 'bi-signpost', 'label': 'Question %d of %d' % (current_item_number, total_items)},
+    ]} %}
 
 {% block content %}
 <div class="container-fluid mt-4">

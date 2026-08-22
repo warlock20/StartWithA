@@ -7,12 +7,16 @@
  * must load after this one (deferred scripts run in document order).
  *
  * Config is read from the #companionRail dataset so the rail can be mounted on
- * any page. Focus is a page hint: {type, company_id?, project_id?, step?}.
+ * any page. Focus is a page hint: {type, company_id?, project_id?, step?,
+ * analysis_id?, item_id?}. Ids are declared by the page, never parsed off the URL —
+ * the same number is a different record in each table.
  *   data-endpoint-base       — global companion API base (default: /companion)
  *   data-focus-type          — 'company' | 'research' | 'portfolio' | ''
  *   data-focus-company-id    — company id (or empty)
  *   data-focus-project-id    — research project id (or empty)
  *   data-focus-step          — research step index (or empty)
+ *   data-focus-analysis-id   — checklist analysis (run) id (or empty)
+ *   data-focus-item-id       — checklist item id: the question on screen (or empty)
  *
  * History is one rolling thread per browser tab, kept in sessionStorage.
  */
@@ -26,6 +30,7 @@
   // research project (which belongs to a company) keeps its own thread, distinct
   // from the company page and the portfolio. Unfocused pages share 'general'.
   const focusKey = (f) => {
+    if (f.analysis_id) return 'checklist:' + f.analysis_id;
     if (f.project_id) return 'project:' + f.project_id;
     if (f.company_id) return 'company:' + f.company_id;
     if (f.type === 'portfolio') return 'portfolio';
@@ -40,6 +45,8 @@
       company_id: toInt(root.dataset.focusCompanyId),
       project_id: toInt(root.dataset.focusProjectId),
       step: toInt(root.dataset.focusStep),
+      analysis_id: toInt(root.dataset.focusAnalysisId),
+      item_id: toInt(root.dataset.focusItemId),
       // Which page the user is actually on, so the agent can answer "what is this
       // page?" instead of guessing from the account-wide map.
       path: window.location.pathname,
