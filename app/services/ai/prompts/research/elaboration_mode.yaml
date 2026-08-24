@@ -6,8 +6,7 @@ description: "Generates follow-up questions and suggests deeper areas to explore
 version: "1.0"
 category: "research"
 
-preferred_provider: "gemini"
-model: "gemini-3-flash-preview"
+model: "quality"
 max_tokens: 10000
 temperature: 0.4
 

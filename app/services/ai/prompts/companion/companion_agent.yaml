@@ -3,8 +3,7 @@ description: "Global agentic companion — answers grounded in the user's own ac
 version: "1.0"
 category: "companion"
 
-preferred_provider: "gemini"
-model: "gemini-3-flash-preview"
+model: "quality"
 # Per-turn output budget. Tool-call turns are naturally short; this headroom is for
 # the final answer when a question spans several sources and needs real synthesis.
 max_tokens: 4096

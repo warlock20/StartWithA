@@ -471,6 +471,27 @@ class AIConfig:
 _config: Optional[AIConfig] = None
 
 
+# Symbolic tiers a prompt YAML can name instead of a concrete model id.
+# Hardcoding ids in ~20 prompt files made retiring a model a sweep across all of
+# them; naming a tier keeps the id in AIConfig, where one edit moves everything.
+MODEL_TIERS = ('default', 'quality', 'fast')
+
+
+def resolve_model_name(name: str) -> 'AIModel':
+    """Resolve a prompt's ``model`` field to an AIModel.
+
+    Accepts a tier (``default`` / ``quality`` / ``fast``), which is looked up on
+    the active config, or a concrete model id / alias.
+
+    Raises ValueError or KeyError for anything unrecognised, matching
+    ``AIModel.from_string`` so callers keep one error path.
+    """
+    key = (name or '').strip().lower()
+    if key in MODEL_TIERS:
+        return getattr(get_ai_config(), f'{key}_model')
+    return AIModel.from_string(name)
+
+
 def get_ai_config() -> AIConfig:
     """
     Get the singleton AI configuration instance.

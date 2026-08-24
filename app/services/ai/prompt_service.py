@@ -45,10 +45,26 @@ import re
 import logging
 from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
-from app.services.ai.config import AIModel, AIProvider as AIProviderEnum, get_ai_config
+from app.services.ai.config import (AIModel, AIProvider as AIProviderEnum,
+                                     get_ai_config, resolve_model_name)
 from app.models.user_ai_preferences import UserAIPreference
 
 logger = logging.getLogger(__name__)
+
+
+def _provider_for_display(prompt_data: Dict[str, Any]) -> Optional[str]:
+    """Provider name for the settings UI, derived from the prompt's model.
+
+    Prompts no longer declare a provider — the model carries it — but the
+    settings screens still want to show one.
+    """
+    model_str = prompt_data.get('model')
+    if model_str:
+        try:
+            return resolve_model_name(model_str).provider.value
+        except (ValueError, KeyError):
+            pass
+    return prompt_data.get('preferred_provider')
 
 
 class PromptService:
@@ -206,7 +222,7 @@ class PromptService:
             'category': category,
             'max_tokens': prompt_data.get('max_tokens', 2000),
             'temperature': prompt_data.get('temperature', 0.7),
-            'preferred_provider': prompt_data.get('preferred_provider'),
+            'preferred_provider': _provider_for_display(prompt_data),
             'model': prompt_data.get('model'),
             'required_variables': self._extract_variables(template),
             'has_system_context': 'system_context' in prompt_data,
@@ -373,10 +389,19 @@ def resolve_model_provider(
     model_str = metadata.get('model')
     if model_str:
         try:
-            model_enum = AIModel.from_string(model_str)
+            # Tier names ('quality', 'fast', ...) resolve through AIConfig, so a
+            # prompt does not have to name a concrete model id.
+            model_enum = resolve_model_name(model_str)
         except (ValueError, KeyError):
             logger.warning(f"Unknown model in prompt metadata: {model_str}")
 
+    # The provider comes from the model, which already carries it. A prompt that
+    # also declared `preferred_provider` could contradict its own model, and once
+    # prompts name a tier the YAML cannot know what that tier resolves to.
+    if model_enum is not None:
+        return model_enum, model_enum.provider
+
+    # No model named: a bare provider still selects one, using its default model.
     provider_str = metadata.get('preferred_provider')
     if provider_str:
         try:
@@ -445,7 +470,7 @@ def get_effective_model_display(
                 info = prompt_service.get_prompt_info(prompt_category, prompts[0])
                 model_str = info.get('model')
                 if model_str:
-                    model = AIModel.from_string(model_str)
+                    model = resolve_model_name(model_str)
                     return _MODEL_DISPLAY_NAMES.get(model.model_id, model.model_id)
             except (ValueError, KeyError):
                 pass

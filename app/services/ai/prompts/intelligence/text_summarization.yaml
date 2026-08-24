@@ -7,8 +7,7 @@ version: "1.0"
 category: "intelligence"
 
 # AI Provider Configuration
-preferred_provider: "gemini"  # Cost-effective for summarization
-model: "gemini-2.5-flash"
+model: "fast"
 max_tokens: 800
 temperature: 0.3
 

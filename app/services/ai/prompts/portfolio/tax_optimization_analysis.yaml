@@ -7,8 +7,7 @@ description: "Tax optimization analysis adapted to investor's tax residence, wit
 version: "1.0"
 category: "portfolio"
 
-preferred_provider: "gemini"
-model: "gemini-3-flash-preview"
+model: "quality"
 max_tokens: 10000
 temperature: 0.3
 

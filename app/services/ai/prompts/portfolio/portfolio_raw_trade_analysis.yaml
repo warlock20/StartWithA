@@ -6,8 +6,7 @@ description: "Deep behavioral analysis from raw transactions with tax context, F
 version: "1.0"
 category: "portfolio"
 
-preferred_provider: "gemini"
-model: "gemini-3-flash-preview"
+model: "quality"
 max_tokens: 65000
 temperature: 0.3
 

@@ -3,8 +3,7 @@ description: "Compress one piece of a user's research knowledge into a short, em
 version: "1.0"
 category: "companion"
 
-preferred_provider: "gemini"
-model: "gemini-3-flash-preview"
+model: "fast"
 max_tokens: 120
 temperature: 0.2
 
