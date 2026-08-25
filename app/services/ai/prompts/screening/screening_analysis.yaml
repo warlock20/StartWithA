@@ -6,8 +6,7 @@ description: "Analyze kill checklist history to surface patterns and improvement
 version: "1.0"
 category: "screening"
 
-preferred_provider: "gemini"
-model: "gemini-2.5-flash"
+model: "fast"
 max_tokens: 4000
 temperature: 0.3
 

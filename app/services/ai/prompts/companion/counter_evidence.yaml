@@ -3,8 +3,7 @@ description: "Surface disconfirming evidence and questions that challenge a rese
 version: "1.0"
 category: "companion"
 
-preferred_provider: "gemini"
-model: "gemini-3-flash-preview"
+model: "quality"
 max_tokens: 6000
 temperature: 0.3
 

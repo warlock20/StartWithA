@@ -59,7 +59,7 @@ from dataclasses import dataclass
 
 from app.services.ai import ai_service
 from app.services.ai.prompt_service import prompt_service
-from app.services.ai.config import AIProvider, AIModel
+from app.services.ai.config import AIProvider, AIModel, resolve_model_name
 
 logger = logging.getLogger(__name__)
 
@@ -292,21 +292,20 @@ class AIResearchAssistant:
             prompt_text = prompt_data['prompt']
             metadata = prompt_data['metadata']
 
-            # Convert provider and model from strings to enums
-            provider_str = metadata.get('preferred_provider')
+            # Convert the prompt's model to an enum. The provider is not read
+            # from the prompt — the model already carries it, and a separately
+            # declared provider could contradict it.
             model_str = metadata.get('model')
 
             provider_enum = None
             model_enum = None
 
-            if provider_str:
-                try:
-                    provider_enum = AIProvider(provider_str)
-                except ValueError:
-                    logger.warning(f"Invalid provider '{provider_str}', using default")
-
             if model_str:
-                model_enum = AIModel.from_string(model_str)
+                # Prompts name a tier ('quality'/'fast'), not a model id.
+                model_enum = resolve_model_name(model_str)
+                provider_enum = model_enum.provider
+
+            provider_str = provider_enum.value if provider_enum else None
 
             logger.info(
                 f"Generating {mode} response for question: {question_text[:50]}... "

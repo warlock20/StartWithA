@@ -6,8 +6,7 @@ description: "AI-powered analysis of portfolio data to extract behavioral insigh
 version: "1.0"
 category: "intelligence"
 
-preferred_provider: "gemini"
-model: "gemini-3-flash-preview"
+model: "quality"
 max_tokens: 10000
 temperature: 0.5
 

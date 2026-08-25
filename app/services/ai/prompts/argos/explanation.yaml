@@ -6,8 +6,7 @@ description: "Generates detailed explanation for a specific Argos insight"
 version: "1.0"
 category: "argos"
 
-preferred_provider: "gemini"
-model: "gemini-3-flash-preview"
+model: "quality"
 max_tokens: 5500
 temperature: 0.5
 
