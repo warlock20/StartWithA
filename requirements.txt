@@ -26,7 +26,7 @@ beautifulsoup4
 weasyprint
 
 # APIs & Integrations
-google-genai
+google-genai==2.19.0
 openai
 anthropic>=0.40.0
 requests

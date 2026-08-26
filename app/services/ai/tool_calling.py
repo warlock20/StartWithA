@@ -101,6 +101,15 @@ class Message:
     content: str = ''
     tool_calls: List["ToolCall"] = field(default_factory=list)
     tool_call_id: Optional[str] = None
+    raw: Any = None
+    """The provider's own rendering of a model turn, opaque to this module.
+
+    Rebuilding a model turn from its ToolCalls loses whatever else the provider
+    put in it. Gemini's grounded turns carry extra parts alongside the function
+    call, each with a thought_signature, and it rejects the next request unless
+    the turn is replayed exactly as sent. Providers that need this store the
+    turn here and replay it; the rest leave it None.
+    """
 
     @classmethod
     def coerce(cls, m: Any) -> "Message":
@@ -112,6 +121,7 @@ class Message:
             content=m.get('content', '') or '',
             tool_calls=m.get('tool_calls', []) or [],
             tool_call_id=m.get('tool_call_id'),
+            raw=m.get('raw'),
         )
 
 
@@ -132,10 +142,13 @@ class TurnResult:
     """One model turn: either prose `text`, or `tool_calls` requesting execution."""
     text: Optional[str]
     tool_calls: List[ToolCall] = field(default_factory=list)
+    raw: Any = None
+    """The provider's own turn object, for verbatim replay. See Message.raw."""
 
 
 def run_tool_loop(provider, messages, tools, executor,
-                  system=None, max_hops=5, max_tokens=1024, temperature=0.3) -> ToolLoopResult:
+                  system=None, max_hops=5, max_tokens=1024, temperature=0.3,
+                  google_search: bool = False) -> ToolLoopResult:
     """
     Drive an agentic tool-calling conversation.
 
@@ -153,19 +166,21 @@ def run_tool_loop(provider, messages, tools, executor,
         executor:    ToolExecutorFn mapping a ToolCall to a ToolResult
         system:      optional system prompt
         max_hops:    maximum tool-execution rounds before forcing an answer
+        google_search: ground every turn on Google's built-in search alongside `tools`
     """
     transcript: List[Message] = [Message.coerce(m) for m in messages]
     all_calls: List[ToolCall] = []
     hops = 0
     while True:
         turn = provider.generate_turn(transcript, tools, system=system,
-                                      max_tokens=max_tokens, temperature=temperature)
+                                      max_tokens=max_tokens, temperature=temperature,
+                                      google_search=google_search)
 
         # Model wants to call tools and we still have budget: execute + continue.
         if turn.tool_calls and hops < max_hops:
             hops += 1
             transcript.append(Message(role='assistant', content=turn.text or '',
-                                      tool_calls=turn.tool_calls))
+                                      tool_calls=turn.tool_calls, raw=turn.raw))
             for call in turn.tool_calls:
                 all_calls.append(call)
                 res = executor(call)
@@ -181,7 +196,8 @@ def run_tool_loop(provider, messages, tools, executor,
                 "forcing a final answer")
             transcript.append(Message(role='user', content=_FINAL_TURN_INSTRUCTION))
             final = provider.generate_turn(transcript, [], system=system,
-                                           max_tokens=max_tokens, temperature=temperature)
+                                           max_tokens=max_tokens, temperature=temperature,
+                                           google_search=google_search)
             return ToolLoopResult(text=_answer_text(final), hops=hops, calls=all_calls)
 
         # Model returned prose: done.
