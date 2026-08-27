@@ -71,6 +71,10 @@ export function useAIAssistant({
   // A timeout is worth retrying; a provider error (429/503) is not — re-polling
   // would just re-read the same terminal failure.
   const [recoverable, setRecoverable] = useState(false);
+  // A stored answer shown instantly looks identical to a fast fresh run, so the
+  // UI has to say which it is — and when the stored one was generated.
+  const [reused, setReused] = useState(false);
+  const [reusedAt, setReusedAt] = useState(null);
 
   // Keep mode in a ref so polling callbacks see the latest value
   const modeRef = useRef(null);
@@ -103,6 +107,7 @@ export function useAIAssistant({
           response: text,
           feedback_id: result.feedback_id || null,
           user_answer: pendingAnswerRef.current,
+          created_at: new Date().toISOString(),
         };
       }
       if (result.tokens_used) {
@@ -131,6 +136,8 @@ export function useAIAssistant({
     setPollUrl(null);
     setPollBudget(fastPathBudget);
     setRecoverable(false);
+    setReused(false);
+    setReusedAt(null);
     historyRef.current = {};
     pendingAnswerRef.current = null;
   }, [fastPathBudget]);
@@ -192,6 +199,8 @@ export function useAIAssistant({
       setError(null);
       setTokenLimitData(null);
       setRecoverable(false);
+      setReused(true);
+      setReusedAt(cached.created_at || null);
       setStatus('completed');
       return true;
     }
@@ -203,6 +212,8 @@ export function useAIAssistant({
 
     const ctx = contextRef?.current || {};
     pendingAnswerRef.current = answerText;
+    setReused(false);
+    setReusedAt(null);
     setMode(m);
     modeRef.current = m;
     setStatus('loading');
@@ -279,6 +290,8 @@ export function useAIAssistant({
     // rather than being shadowed by the old one on the next mode switch.
     if (mode) delete historyRef.current[mode];
     pendingAnswerRef.current = getAnswerText();
+    setReused(false);
+    setReusedAt(null);
     setStatus('loading');
     setResponse(null);
 
@@ -327,6 +340,8 @@ export function useAIAssistant({
     error,
     tokenLimitData,
     canCheckAgain: !!pollUrl && recoverable,
+    reused,
+    reusedAt,
 
     // Actions
     triggerMode,

@@ -223,6 +223,11 @@ class GeminiProvider(AIProvider):
                         name=msg.tool_call_id or 'tool',
                         response={'result': msg.content})]))
             elif msg.role == 'assistant':
+                if msg.raw is not None:
+                    # Replay exactly what the model sent; rebuilding it from the
+                    # tool calls alone drops parts the API requires back.
+                    contents.append(msg.raw)
+                    continue
                 parts = []
                 if msg.content:
                     parts.append(genai_types.Part(text=msg.content))
@@ -242,17 +247,33 @@ class GeminiProvider(AIProvider):
                     role='user', parts=[genai_types.Part(text=msg.content)]))
         return contents
 
-    def generate_turn(self, messages, tools, system=None, max_tokens=1024, temperature=0.3):
-        """One turn of a tool-calling conversation. Returns a TurnResult."""
+    def generate_turn(self, messages, tools, system=None, max_tokens=1024,
+                      temperature=0.3, google_search=False):
+        """One turn of a tool-calling conversation. Returns a TurnResult.
+
+        `google_search` adds Google's built-in search alongside the caller's
+        functions. Mixing a built-in tool with function declarations requires
+        `include_server_side_tool_invocations`; without it the API rejects the
+        request outright.
+        """
         contents = self._messages_to_gemini(messages)
         config_dict = {'temperature': temperature, 'max_output_tokens': max_tokens}
         if system:
             config_dict['system_instruction'] = system
+
+        tool_list = []
+        if google_search:
+            tool_list.append(genai_types.Tool(google_search=genai_types.GoogleSearch()))
         if tools:
-            config_dict['tools'] = [genai_types.Tool(function_declarations=[
+            tool_list.append(genai_types.Tool(function_declarations=[
                 genai_types.FunctionDeclaration(
                     name=t.name, description=t.description, parameters=t.parameters)
-                for t in tools])]
+                for t in tools]))
+        if tool_list:
+            config_dict['tools'] = tool_list
+        if google_search:
+            config_dict['tool_config'] = {
+                'include_server_side_tool_invocations': True}
 
         response = self._client.models.generate_content(
             model=self._model_enum.model_id, contents=contents, config=config_dict)
@@ -270,7 +291,11 @@ class GeminiProvider(AIProvider):
                     signature=getattr(part, 'thought_signature', None)))
             elif getattr(part, 'text', None):
                 text = (text or '') + part.text
-        return TurnResult(text=text, tool_calls=calls)
+        # Keep the turn itself: a grounded response carries search parts beside
+        # the function call, and the API rejects the follow-up unless the whole
+        # turn is replayed as it was sent.
+        return TurnResult(text=text, tool_calls=calls,
+                          raw=candidate.content if candidate else None)
 
     def generate_json(
         self,

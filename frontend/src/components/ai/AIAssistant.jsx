@@ -285,6 +285,8 @@ export function AIAssistant({ config }) {
                 onRegenerate={ai.mode !== 'runprompt' ? handleRegenerate : null}
                 onDismiss={ai.dismiss}
                 feedbackEndpoint={feedbackEndpoint}
+                reused={ai.reused}
+                reusedAt={ai.reusedAt}
               />
             )}
           </div>

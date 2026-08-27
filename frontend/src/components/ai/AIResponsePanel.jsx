@@ -13,6 +13,20 @@ const MODE_CONFIG = {
  * AI response display panel with feedback buttons.
  * Renders the formatted response in a Bootstrap alert with mode-specific styling.
  */
+/** "3 days ago" style age, or null when the timestamp is unknown/unusable. */
+function describeAge(iso) {
+  if (!iso) return null;
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return null;
+  const mins = Math.max(0, Math.round((Date.now() - then.getTime()) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
 export function AIResponsePanel({
   mode,
   responseText,
@@ -20,12 +34,15 @@ export function AIResponsePanel({
   onRegenerate,
   onDismiss,
   feedbackEndpoint,
+  reused = false,
+  reusedAt = null,
 }) {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(null);
   const [copyLabel, setCopyLabel] = useState('Copy');
 
   const config = MODE_CONFIG[mode] || MODE_CONFIG.challenge;
   const formattedHtml = formatAIResponse(responseText);
+  const reusedAge = describeAge(reusedAt);
 
   async function handleFeedback(value) {
     if (!feedbackId) return;
@@ -61,6 +78,14 @@ export function AIResponsePanel({
         <div className="d-flex align-items-center mb-2">
           <i className={`bi ${config.icon} me-2`} style={{ fontSize: '1.2rem' }} />
           <strong>{config.title}</strong>
+          {/* A stored answer appears as fast as a fresh one, so say which it is
+              — otherwise a stale verdict reads as a current one. */}
+          {reused && (
+            <span className="ai-response-reused badge bg-secondary-subtle text-secondary-emphasis ms-2">
+              <i className="bi bi-clock-history me-1" />
+              Saved answer{reusedAge ? ` · ${reusedAge}` : ''}
+            </span>
+          )}
         </div>
         {/* eslint-disable-next-line react/no-danger */}
         <div dangerouslySetInnerHTML={{ __html: formattedHtml }} />

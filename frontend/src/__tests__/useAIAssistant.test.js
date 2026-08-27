@@ -53,6 +53,44 @@ describe('useAIAssistant saved responses', () => {
     expect(result.current.feedbackId).toBe(7);
   });
 
+  it('marks a reused answer, with when it was generated', async () => {
+    // An instant stored answer is otherwise indistinguishable from a fast fresh
+    // run, which misrepresents how current the analysis is.
+    apiGet.mockResolvedValue({
+      responses: {
+        factcheck: {
+          mode: 'factcheck',
+          response: 'the saved fact-check',
+          feedback_id: 7,
+          user_answer: ANSWER,
+          created_at: '2026-08-20T09:00:00',
+        },
+      },
+    });
+    const { result } = renderHook(() => useAIAssistant());
+
+    await act(async () => { await result.current.loadHistory(1, 2); });
+    await act(async () => {
+      await result.current.triggerMode('factcheck', { contextRef: { current: {} } });
+    });
+
+    expect(result.current.reused).toBe(true);
+    expect(result.current.reusedAt).toBe('2026-08-20T09:00:00');
+  });
+
+  it('does not mark a freshly generated answer as reused', async () => {
+    apiGet.mockResolvedValue({ responses: {} });
+    apiPost.mockResolvedValue({ success: true, task_id: 'task-9' });
+    const { result } = renderHook(() => useAIAssistant());
+
+    await act(async () => { await result.current.loadHistory(1, 2); });
+    await act(async () => {
+      await result.current.triggerMode('factcheck', { contextRef: { current: {} } });
+    });
+
+    expect(result.current.reused).toBe(false);
+  });
+
   it('ignores whitespace-only differences in the answer', async () => {
     apiGet.mockResolvedValue(savedFactcheck);
     const { result } = renderHook(() => useAIAssistant());

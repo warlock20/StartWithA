@@ -311,6 +311,7 @@ class AIService:
         max_hops=5,
         max_tokens=1024,
         temperature=0.3,
+        google_search=False,
     ):
         """
         Run an agentic tool-calling loop.
@@ -326,6 +327,9 @@ class AIService:
             system: optional system prompt
             task/provider/model: routing controls (as for generate_text)
             max_hops: maximum tool-execution rounds
+            google_search: also ground the conversation on Google Search.
+                Off by default, so callers that do not ask for it send exactly
+                what they sent before.
 
         Returns:
             ToolLoopResult(text, hops, calls)
@@ -341,7 +345,8 @@ class AIService:
         return run_tool_loop(
             ai_provider, messages, tools, executor,
             system=system, max_hops=max_hops,
-            max_tokens=max_tokens, temperature=temperature)
+            max_tokens=max_tokens, temperature=temperature,
+            google_search=google_search)
 
     def generate_json(
         self,
