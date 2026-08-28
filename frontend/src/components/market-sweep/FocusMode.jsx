@@ -8,12 +8,14 @@ import { useState, useEffect, useRef } from 'react';
  * I (Inbox), K (Kill), S (Skip).
  *
  * Props:
- *   companies: Array<{ id, company_name, ticker, sector_label, market_cap, exchange, decision }>
+ *   companies: Array<{ id, company_name, ticker, isin, sector_label, market_cap, exchange, decision }>
  *   onDecide: (companyId, decision) => void
  *   onOpenKill: (companyId, companyName) => void
  *   disabled: boolean — when true, keyboard shortcuts are suppressed (e.g. modal open)
+ *   isAdmin: boolean — whether the current user may enter an ISIN
+ *   onSaveIsin: (companyId, rawIsin) => void
  */
-export function FocusMode({ companies, onDecide, onOpenKill, disabled }) {
+export function FocusMode({ companies, onDecide, onOpenKill, disabled, isAdmin, onSaveIsin }) {
   var [skippedIds, setSkippedIds] = useState([]);
   var stateRef = useRef({});
 
@@ -143,6 +145,27 @@ export function FocusMode({ companies, onDecide, onOpenKill, disabled }) {
                 <span className="sweep-focus__detail-value">{current.exchange}</span>
               </div>
             )}
+            <div className="sweep-focus__detail">
+              <span className="sweep-focus__detail-label">ISIN</span>
+              {current.isin ? (
+                <span className="sweep-focus__detail-value">{current.isin}</span>
+              ) : isAdmin ? (
+                <input
+                  key={current.id}
+                  className="sweep-focus__isin-input"
+                  type="text"
+                  maxLength={12}
+                  placeholder="add ISIN"
+                  defaultValue=""
+                  onBlur={(e) => onSaveIsin(current.id, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.target.blur();
+                  }}
+                />
+              ) : (
+                <span className="sweep-focus__detail-value">{'—'}</span>
+              )}
+            </div>
           </div>
 
           <div className="sweep-focus__actions">

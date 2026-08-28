@@ -16,6 +16,24 @@
     font-weight: 500;
 }
 
+/* ISIN badge - sits next to the ticker in the subtitle */
+.journey-isin {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    background: var(--gray-50);
+    color: var(--gray-600);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    font-size: var(--font-size-xs);
+    margin-left: 0.35rem;
+}
+
+.journey-isin--empty {
+    color: var(--gray-400);
+    font-style: italic;
+    font-weight: 400;
+}
+
 /* =============================================================================
    STAT CONTENT STYLES - Used inside dashboard-metrics-strip
    ============================================================================= */

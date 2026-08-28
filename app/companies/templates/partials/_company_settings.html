@@ -85,6 +85,15 @@
                             <div class="form-text">To change the ticker, use <a href="#" class="unified-link" onclick="document.querySelector('[data-settings-section=data-sources]').click(); return false;">Data Sources</a> to validate first</div>
                         </div>
                         <div class="col-md-6">
+                            <label for="isin" class="settings-field-label">
+                                ISIN <span class="text-muted">(optional)</span>
+                            </label>
+                            <input type="text" class="form-control" id="isin" name="isin" maxlength="12"
+                                   value="{{ company.isin or '' }}" placeholder="e.g. BE0003789063"
+                                   style="font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px;">
+                            <div class="form-text">Stable identity for this security, independent of ticker or exchange</div>
+                        </div>
+                        <div class="col-md-6">
                             <label for="sector" class="settings-field-label">Sector</label>
                             <select class="form-select" id="sectorSelect" name="sector">
                                 <option value="">-- No sector --</option>

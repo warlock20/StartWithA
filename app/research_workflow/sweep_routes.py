@@ -38,6 +38,7 @@ from app.services.sector_service import SectorService
 from app.services.ai.embedding_service import embed
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_error
+from app.utils.isin import is_valid_isin, normalize_isin
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ def _build_sweep_stats(sweep, user_id):
                 MarketSweepDecision.user_id == user_id,
             )
         ),
-    ).order_by(MarketSweepCompany.sort_order).first()
+    ).order_by(MarketSweepCompany.sort_order, MarketSweepCompany.company_name).first()
     current_letter = (
         first_unreviewed.company_name[0].upper()
         if first_unreviewed and first_unreviewed.company_name
@@ -220,7 +221,7 @@ def sweep_companies(sweep_id):
         )
     ).filter(
         MarketSweepCompany.sweep_id == sweep_id
-    ).order_by(MarketSweepCompany.sort_order).all()
+    ).order_by(MarketSweepCompany.sort_order, MarketSweepCompany.company_name).all()
 
     companies = []
     for company, decision in rows:
@@ -228,6 +229,7 @@ def sweep_companies(sweep_id):
             'id': company.id,
             'company_name': company.company_name,
             'ticker': company.ticker,
+            'isin': company.isin,
             'sector_label': company.sector_label,
             'market_cap': company.market_cap,
             'exchange': company.exchange,
@@ -249,6 +251,37 @@ def sweep_companies(sweep_id):
         },
         'companies': companies,
     })
+
+
+@research_workflow_bp.route('/api/sweep/company/<int:sweep_company_id>/isin',
+                            methods=['POST'])
+@login_required
+def sweep_company_isin(sweep_company_id):
+    """Record the ISIN for a sweep row.
+
+    Sweep rows are global -- shared by every user -- so writing one is an admin
+    action even though every user can see the value. ISINs are typed by a human
+    and never inferred; automated lookup was measured at roughly 20% silent
+    errors, and a wrong ISIN is worse than a missing one because it links
+    confidently to the wrong company.
+    """
+    if not current_user.is_admin:
+        return json_error('Only an admin can set the ISIN on a sweep row',
+                          status_code=403)
+
+    sweep_company = MarketSweepCompany.query.get_or_404(sweep_company_id)
+    isin = normalize_isin((request.get_json() or {}).get('isin'))
+
+    if isin is not None and not is_valid_isin(isin):
+        return json_error(
+            f'"{isin}" is not a valid ISIN. It must be 12 characters with a '
+            f'correct check digit.'
+        )
+
+    sweep_company.isin = isin
+    db.session.commit()
+
+    return jsonify({'success': True, 'isin': sweep_company.isin})
 
 
 def _resolve_or_create_company(sweep_company, sector_id):
