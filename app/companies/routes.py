@@ -25,6 +25,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from app.utils.time_utils import now_utc
 from app.utils.auth_utils import get_user_resource_or_403
+from app.utils.isin import is_valid_isin, normalize_isin
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify, Response, Response
 from flask_login import current_user, login_required
 from app import db, cache
@@ -991,6 +992,37 @@ def edit_company(company_id):
     sector_name = request.form.get('sector', '').strip()
     industry = request.form.get('industry', '').strip()
 
+    # ISIN is optional and stays optional -- most companies will never have one
+    # recorded. What is not optional is that a stored value is well formed: a
+    # mistyped ISIN is a valid-looking identifier for the wrong company.
+    #
+    # The field is only touched when the form actually submits it. An
+    # explicitly-submitted empty string still clears the value (isin_provided
+    # is True, isin normalizes to None) -- but a form that omits the field
+    # entirely must leave whatever is already stored alone, not wipe it.
+    isin_provided = 'isin' in request.form
+    isin = normalize_isin(request.form.get('isin')) if isin_provided else None
+    if isin_provided and isin is not None and not is_valid_isin(isin):
+        message = (f'"{isin}" is not a valid ISIN. It must be 12 characters '
+                   f'with a correct check digit.')
+        if is_ajax:
+            return jsonify({'success': False, 'error': message}), 400
+        flash(message, 'error')
+        return redirect(url_for('companies.company_detail', company_id=company_id))
+
+    if isin_provided and isin is not None:
+        clash = Company.query.filter(
+            Company.user_id == current_user.id,
+            Company.isin == isin,
+            Company.id != company.id,
+        ).first()
+        if clash:
+            message = f'ISIN {isin} is already assigned to {clash.name}.'
+            if is_ajax:
+                return jsonify({'success': False, 'error': message}), 400
+            flash(message, 'error')
+            return redirect(url_for('companies.company_detail', company_id=company_id))
+
     # Validate required fields
     if not name or not ticker_symbol:
         if is_ajax:
@@ -1039,6 +1071,8 @@ def edit_company(company_id):
     company.ticker_symbol = ticker_symbol
     company.summary = summary if summary else None
     company.industry = industry if industry else None
+    if isin_provided:
+        company.isin = isin
 
     # Update reporting currency when ticker changes
     if ticker_changed and new_currency:
@@ -1082,6 +1116,7 @@ def edit_company(company_id):
                 'message': msg,
                 'name': company.name,
                 'ticker_symbol': company.ticker_symbol,
+                'isin': company.isin,
                 'sector_name': (company.sector.display_name or company.sector.name) if company.sector else None
             })
 

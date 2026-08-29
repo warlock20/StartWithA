@@ -41,6 +41,11 @@
                     </div>
                     <p class="dashboard-subtitle">
                         <span class="journey-ticker">{{ company.ticker_symbol }}</span>
+                        {% if company.isin %}
+                            <span class="journey-isin" title="ISIN">{{ company.isin }}</span>
+                        {% else %}
+                            <span class="journey-isin journey-isin--empty" title="No ISIN recorded">ISIN not set</span>
+                        {% endif %}
                         {% if company.sector %} &middot; {{ company.sector.name }}{% endif %}
                     </p>
                 </div>

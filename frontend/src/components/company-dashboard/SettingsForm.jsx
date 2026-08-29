@@ -75,8 +75,13 @@ export function SettingsForm({ currencySymbol }) {
             if (subtitleEl) {
               var tickerSpan =
                 '<span class="journey-ticker">' + escapeHtml(data.ticker_symbol || '') + '</span>';
+              var isinSpan = data.isin
+                ? '<span class="journey-isin" title="ISIN">' + escapeHtml(data.isin) + '</span>'
+                : '<span class="journey-isin journey-isin--empty" title="No ISIN recorded">ISIN not set</span>';
               subtitleEl.innerHTML =
-                tickerSpan + (data.sector_name ? ' &middot; ' + escapeHtml(data.sector_name) : '');
+                tickerSpan +
+                isinSpan +
+                (data.sector_name ? ' &middot; ' + escapeHtml(data.sector_name) : '');
             }
             // If new sector was created, add it to the dropdown
             if (sectorSel && data.sector_name) {

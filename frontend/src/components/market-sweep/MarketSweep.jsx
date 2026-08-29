@@ -29,8 +29,9 @@ function setDomText(id, text) {
  * Props (via config):
  *   sectors: Array<{ id, name }> — available sectors for inbox assignment
  *   sweepId: number — sweep to load (always provided from sweep view route)
+ *   isAdmin: boolean — whether the current user may edit sweep-row ISINs
  */
-export function MarketSweep({ sectors, sweepId }) {
+export function MarketSweep({ sectors, sweepId, isAdmin }) {
   const [view, setView] = useState(sweepId ? 'sweep' : 'picker');
   const [viewMode, setViewMode] = useState('focus');
   const [sweeps, setSweeps] = useState([]);
@@ -553,6 +554,30 @@ export function MarketSweep({ sectors, sweepId }) {
     setKillTarget({ id: companyId, name: companyName });
   }
 
+  async function handleSaveIsin(companyId, rawIsin) {
+    try {
+      var data = await apiPost(
+        '/research/workflow/api/sweep/company/' + companyId + '/isin',
+        { isin: rawIsin }
+      );
+      for (var i = 0; i < companiesRef.current.length; i++) {
+        if (companiesRef.current[i].id === companyId) {
+          companiesRef.current[i].isin = data.isin;
+          break;
+        }
+      }
+      // companiesRef is a ref, not state — mutating it doesn't trigger a
+      // re-render. updateStats() calls setStats(), which forces MarketSweep
+      // (and its children, including FocusMode) to re-render with the
+      // mutated array so the saved ISIN shows up without a page reload.
+      updateStats();
+      if (window.showToast) window.showToast('ISIN saved', 'success');
+    } catch (err) {
+      if (window.showToast) window.showToast(err.message || 'Could not save ISIN', 'danger');
+      console.error('Save ISIN error:', err);
+    }
+  }
+
   // ------------------------------------------------------------------
   // Kill modal callbacks
   // ------------------------------------------------------------------
@@ -647,6 +672,8 @@ export function MarketSweep({ sectors, sweepId }) {
               onDecide={handleDecide}
               onOpenKill={handleOpenKill}
               disabled={!!killTarget}
+              isAdmin={isAdmin}
+              onSaveIsin={handleSaveIsin}
             />
           )}
 

@@ -53,6 +53,10 @@ class MarketSweepCompany(db.Model):
     exchange = db.Column(db.String(100))
     sort_order = db.Column(db.Integer, default=0, index=True)
 
+    # ISIN of this listing. Nullable permanently -- most rows will never have
+    # one, and a guessed value is worse than a missing one.
+    isin = db.Column(db.String(12), nullable=True, index=True)
+
     decisions = db.relationship('MarketSweepDecision', backref='sweep_company', lazy='dynamic',
                                 cascade='all, delete-orphan')
 

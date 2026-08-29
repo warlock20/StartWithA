@@ -43,7 +43,7 @@ from app.models import (
     MarketSweep,
     MarketSweepCompany,
 )
-from app.services.market_sweep_service import parse_companies_file
+from app.services.market_sweep_service import parse_companies_file, upsert_sweep_companies
 
 
 class SecureAdminIndexView(AdminIndexView):
@@ -270,34 +270,23 @@ class MarketSweepAdminView(SecureModelView):
             flash(f'Error reading file: {str(e)}', 'error')
             return redirect(self.get_url('.edit_view', id=sweep_id))
 
-        # Clear existing companies
-        MarketSweepCompany.query.filter_by(sweep_id=sweep_id).delete()
+        try:
+            report = upsert_sweep_companies(sweep_id, rows)
+        except ValueError as e:
+            db.session.rollback()
+            flash(str(e), 'error')
+            return redirect(self.get_url('.edit_view', id=sweep_id))
 
-        if rows:
-            sample_keys = list(rows[0].keys())
-            flash(f'Detected columns: {sample_keys}', 'info')
-
-        count = 0
-        for idx, row in enumerate(rows):
-            name = str(row.get('company_name') or '').strip()
-            if not name:
-                continue
-            company = MarketSweepCompany(
-                sweep_id=sweep_id,
-                company_name=name,
-                ticker=str(row.get('ticker') or '').strip() or None,
-                sector_label=str(row.get('sector') or '').strip() or None,
-                market_cap=str(row.get('market_cap') or '').strip() or None,
-                exchange=str(row.get('exchange') or '').strip() or None,
-                sort_order=idx,
-            )
-            db.session.add(company)
-            count += 1
-
-        sweep.total_companies = count
+        sweep.total_companies = MarketSweepCompany.query.filter_by(
+            sweep_id=sweep_id).count()
         db.session.commit()
 
-        flash(f'Uploaded {count} companies to "{sweep.name}"', 'success')
+        flash(
+            f'"{sweep.name}": {report["updated"]} updated, '
+            f'{report["inserted"]} added, {report["absent"]} left untouched '
+            f'(present in the sweep but not in this file). Nothing was deleted.',
+            'success',
+        )
         return redirect(self.get_url('.edit_view', id=sweep_id))
 
 

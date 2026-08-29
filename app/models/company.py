@@ -33,6 +33,10 @@ class Company(db.Model):
     is_in_portfolio = db.Column(db.Boolean, default=False, nullable=False, index=True)
     reporting_currency = db.Column(db.String(3), nullable=True)  # Stock's native trading currency (e.g., USD, EUR)
 
+    # ISIN — the only stable cross-system identity for a security. Entered by
+    # hand, never inferred: automated lookup was measured at ~20% silent errors.
+    isin = db.Column(db.String(12), nullable=True, index=True)
+
     # Company Journey persistent wiki-style notes (BlockNote JSON)
     journey_notes = db.Column(db.Text, nullable=True)
     journey_notes_updated_at = db.Column(db.DateTime, nullable=True)
@@ -41,6 +45,9 @@ class Company(db.Model):
         # One company per ticker per user. Application-level guards existed on
         # every creation path but duplicates still got through.
         db.UniqueConstraint('user_id', 'ticker_symbol', name='uq_company_user_ticker'),
+        # One company per ISIN per user. Postgres permits many NULLs under a
+        # unique constraint, so unfilled rows are unconstrained.
+        db.UniqueConstraint('user_id', 'isin', name='uq_company_user_isin'),
         # Dashboard filter_by(user_id=..., is_in_portfolio=True)
         db.Index('idx_company_user_portfolio', 'user_id', 'is_in_portfolio'),
     )

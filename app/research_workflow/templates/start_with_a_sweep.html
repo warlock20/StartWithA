@@ -63,7 +63,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.initMarketSweep) {
         window.initMarketSweep('market-sweep-mount', {
             sectors: {{ sectors_json|tojson }},
-            sweepId: {{ sweep.id }}
+            sweepId: {{ sweep.id }},
+            isAdmin: {{ current_user.is_admin|tojson }}
         });
     }
 });
