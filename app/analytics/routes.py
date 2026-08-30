@@ -27,6 +27,7 @@ from app.analytics.utils import (update_user_metrics, analyze_idea_sources,
                                 get_time_allocation_data, log_research_activity)
 from app.services.too_hard_service import TooHardBasketService
 from app.services.background_tasks import BackgroundTaskService
+from app.services.company_state import company_states
 from app.services.screening_analysis_service import ScreeningAnalysisService
 from app.services.ai.prompt_service import prompt_service
 from app.constants import RATELIMIT_AI
@@ -75,9 +76,12 @@ def dashboard():
         1 for s in kill_sessions
         if s.idea and s.idea.status == 'killed'
     )
-    research_kills_count = ResearchProject.query.filter_by(
-        user_id=current_user.id, status='killed'
-    ).count()
+    # Read through the ladder, not ResearchProject.status='killed' directly --
+    # a kill in research gets recorded three different ways depending on
+    # which path wrote it (see company_state.resolve_state), so the raw
+    # status filter has displayed 0 for this route's entire existence.
+    states = company_states(current_user.id)
+    research_kills_count = sum(1 for s in states.values() if s.key == 'killed_research')
 
     kill_stages = []
     if kill_screening_count > 0:
@@ -136,9 +140,12 @@ def dashboard():
     projects_invested = ResearchProject.query.filter_by(
         user_id=current_user.id, decision='invest'
     ).count()
-    projects_passed = ResearchProject.query.filter_by(
-        user_id=current_user.id, decision='pass'
-    ).count()
+    # Count of dead companies at the research stage, not raw decision='pass'
+    # projects -- a research kill can be recorded without decision ever being
+    # set to 'pass' (see research_kills_count above). 'killed_research' is
+    # the only is_dead state with stage == 'research', so this is that count.
+    projects_passed = sum(
+        1 for s in states.values() if s.is_dead and s.stage == 'research')
 
     completion_rate = round(projects_decided / total_projects * 100) if total_projects > 0 else 0
     total_decisions = projects_invested + projects_passed

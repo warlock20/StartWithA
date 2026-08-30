@@ -21,6 +21,7 @@ from sqlalchemy.orm import joinedload
 from app import db, cache
 from app.models import (User, ResearchMetrics, IdeaPipeline, ResearchProject,
                        WorkSession, ResearchLog, IdeaSourceAnalysis)
+from app.services.company_state import company_states
 from app.utils.time_utils import now_utc
 
 def update_user_metrics(user_id):
@@ -44,8 +45,15 @@ def update_user_metrics(user_id):
     # Update idea pipeline metrics (single query instead of 4 separate counts + 1 filter)
     all_ideas = user.idea_pipeline.all()
     metrics.total_ideas_captured = len(all_ideas)
-    metrics.ideas_killed = sum(1 for i in all_ideas if i.status == 'killed')
-    metrics.ideas_promoted = sum(1 for i in all_ideas if i.status == 'promoted')
+
+    # Counted through the ladder, not the idea row: an idea's terminal status is
+    # 'promoted' even when the company was killed in research afterwards.
+    # Counting the idea alone reported 38 promoted when 12 of them were dead.
+    states = company_states(user.id)
+    metrics.ideas_promoted = sum(1 for s in states.values() if s.key == 'promoted')
+    metrics.ideas_killed = sum(
+        1 for s in states.values()
+        if s.key in ('killed_pipeline', 'killed_research'))
     metrics.ideas_in_pipeline = sum(1 for i in all_ideas if i.status == 'inbox')
 
     # Calculate kill rate
@@ -206,6 +214,11 @@ def analyze_idea_sources(user_id):
     for idea in all_ideas:
         ideas_by_source[idea.source].append(idea)
 
+    # Ladder states for every company these ideas reference (explicit id list,
+    # not every company the user owns -- see company_states' docstring).
+    source_company_ids = {idea.company_id for idea in all_ideas if idea.company_id}
+    states = company_states(user_id, company_ids=source_company_ids) if source_company_ids else {}
+
     # Batch load all invested company IDs (single query instead of per-source)
     all_promoted_ids = [
         idea.promoted_to_company_id for idea in all_ideas
@@ -242,7 +255,13 @@ def analyze_idea_sources(user_id):
         # Calculate metrics (in-memory, no queries)
         analysis.total_ideas = len(source_ideas)
         analysis.ideas_killed = sum(1 for i in source_ideas if i.status == 'killed')
-        analysis.ideas_promoted = sum(1 for i in source_ideas if i.status == 'promoted')
+
+        # Counted through the ladder, not the idea row: an idea's terminal
+        # status is 'promoted' even when the company was killed in research
+        # afterwards. See update_user_metrics() above for the same fix.
+        analysis.ideas_promoted = sum(
+            1 for i in source_ideas
+            if i.company_id in states and states[i.company_id].key == 'promoted')
 
         if analysis.total_ideas > 0:
             analysis.survival_rate = (analysis.ideas_promoted / analysis.total_ideas) * 100

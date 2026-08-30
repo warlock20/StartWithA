@@ -41,6 +41,24 @@ import yaml
 from sqlalchemy import func
 
 
+def has_live_idea(user_id, company_id):
+    """Whether this company already has an idea that has not been closed out.
+
+    'killed' and 'someday' are closed; re-raising such a company is a legitimate
+    new idea. Anything else is still in flight, and a second idea for it would
+    produce two rows competing to describe one company.
+    """
+    if not company_id:
+        return False
+    return db.session.query(
+        IdeaPipeline.query.filter(
+            IdeaPipeline.user_id == user_id,
+            IdeaPipeline.company_id == company_id,
+            IdeaPipeline.status.notin_(['killed', 'someday']),
+        ).exists()
+    ).scalar()
+
+
 def ensure_default_checklist(user):
     """Create a default kill checklist from YAML config if the user has none.
 
@@ -324,6 +342,10 @@ def add_idea():
 
         # Set status based on action - 'start_research' skips inbox/kill room
         initial_status = 'promoted' if submit_action == 'start_research' else 'inbox'
+
+        if has_live_idea(current_user.id, company_id):
+            flash('This company already has an open idea in your pipeline.', 'warning')
+            return redirect(url_for('ideas.inbox'))
 
         new_idea = IdeaPipeline(
             author=current_user, name=name, idea_type=idea_type, idea_purpose=idea_purpose,

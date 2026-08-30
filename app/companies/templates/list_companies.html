@@ -43,19 +43,16 @@
                 <option value="{{ sector }}">{{ sector }}</option>
                 {% endfor %}
             </select>
+            {# Options come from LIST_STATUS_OPTIONS in app/companies/routes.py --
+               the single source of truth for every string list_companies()'s
+               `status` field can hold (see _list_status_label there). Do not
+               hardcode <option> values here again; that's exactly what drifted
+               out of sync with the code before. #}
             <select id="companies-status-filter" class="rcl-filter-select">
                 <option value="all">All Status</option>
-                <option value="Portfolio">Portfolio</option>
-                <option value="Invested">Invested</option>
-                <option value="Watchlist">Watchlist</option>
-                <option value="On Watch">On Watch</option>
-                <option value="Researching">Researching</option>
-                <option value="Completed">Completed</option>
-                <option value="Passed">Passed</option>
-                <option value="Too Hard">Too Hard</option>
-                <option value="Killed">Killed</option>
-                <option value="Review">Review</option>
-                <option value="Tracked">Tracked</option>
+                {% for status in status_options %}
+                <option value="{{ status }}">{{ status }}</option>
+                {% endfor %}
             </select>
             <div class="rcl-view-toggle">
                 <button type="button" class="rcl-action" id="view-table" title="Table view">

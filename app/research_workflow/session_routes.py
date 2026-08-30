@@ -98,6 +98,21 @@ def advance_or_complete_project(project, step_index):
         project.completed_at = now_utc()
 
 
+def _apply_screening_kill(project, step_notes):
+    """Record a kill at the research screening step.
+
+    Sets decision as well as status: only 2 readers in the codebase look at
+    ResearchProject.status == 'killed', while 11 read decision == 'pass' --
+    including the Too-Hard Basket, the dashboard's too-hard rate and total, and
+    every per-sector statistic. status alone leaves the kill almost unread.
+    """
+    project.status = 'killed'
+    project.decision = 'pass'
+    project.decision_date = now_utc()
+    project.completed_at = now_utc()
+    project.kill_reason = f"Failed screening: {step_notes}"
+
+
 @research_workflow_bp.route('/research_sessions/<int:session_id>/delete', methods=['POST'])
 @login_required
 def delete_research_session(session_id):
@@ -307,9 +322,7 @@ def complete_kill_checklist_step(project_id, session_id):
     complete_project_step(project, session.step_index, notes=step_notes, results=kill_checklist_results)
 
     if overall_result == 'kill':
-        project.status = 'killed'
-        project.completed_at = now_utc()
-        project.kill_reason = f"Failed screening: {step_notes}"
+        _apply_screening_kill(project, step_notes)
 
         # Auto-log to company journal
         if project.company_id:

@@ -1,0 +1,37 @@
+{
+  "idea": {
+    "id": "89",
+    "user_id": "1",
+    "name": "Shimano",
+    "idea_type": "company",
+    "idea_purpose": "investment",
+    "ticker_symbol": "7309.T",
+    "company_id": "178",
+    "sector_id": "None",
+    "source": "Self",
+    "thesis_summary": "",
+    "initial_notes": "",
+    "status": "killed",
+    "kill_reason": "Is this business available for attractive price?",
+    "failed_criterion_id": "17",
+    "within_circle_of_competence": "None",
+    "created_at": "2026-05-21 14:07:53.213703",
+    "killed_at": "2026-07-30 11:41:01.557508",
+    "promoted_at": "None",
+    "last_reviewed_at": "None",
+    "priority": "0",
+    "promoted_to_company_id": "None"
+  },
+  "kill_sessions": [
+    {
+      "id": "34",
+      "user_id": "1",
+      "idea_id": "89",
+      "kill_checklist_id": "1",
+      "started_at": "2026-07-30 11:40:58.462032",
+      "completed_at": "2026-07-30 11:41:01.557519",
+      "outcome": "killed",
+      "time_taken_seconds": "None"
+    }
+  ]
+}

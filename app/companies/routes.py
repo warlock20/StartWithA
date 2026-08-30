@@ -45,6 +45,7 @@ from app.services.financial_data import FinancialDataService
 from app.services.price_service import PriceService
 from app.models import PortfolioPosition
 from app.services.currency_service import CurrencyService
+from app.services.company_state import company_state, company_states
 
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,56 @@ def get_financial_service():
     if _financial_service is None:
         _financial_service = FinancialDataService()
     return _financial_service
+
+_LADDER_TO_LIST_STATUS = {
+    'held': 'Portfolio',
+    'invest_decided': 'Invested',
+    'watchlist': 'On Watch',
+    'researching': 'Researching',
+    'killed_pipeline': 'Killed',
+    'killed_sweep': 'Killed',
+}
+
+
+def _list_status_label(state):
+    """Map a ladder CompanyState to the /companies/list status vocabulary.
+
+    'Too Hard' vs 'Passed' is a distinction the ladder itself doesn't keep
+    (both are 'killed_research') -- reason text ~= too_hard_reason was set,
+    which is the same signal the old per-page logic used to split them.
+    States with no existing bucket here (promoted, someday, in_inbox,
+    skipped, exited, untracked) fall back to the ladder's own label. The
+    card/badge JS maps in list_companies.html degrade gracefully to default
+    styling for a string they don't recognise, so a fallback label here
+    never breaks rendering -- but LIST_STATUS_OPTIONS below MUST list every
+    string this function (plus the two direct 'Portfolio'/'Watchlist'
+    assignments in list_companies()) can return, because the status
+    *filter* matches on exact string equality: a value with no matching
+    <option> is simply unreachable by the filter, not just unstyled. Keep
+    the two in sync.
+    """
+    if state is None:
+        return 'Tracked'
+    if state.key == 'killed_research':
+        return 'Too Hard' if state.reason else 'Passed'
+    return _LADDER_TO_LIST_STATUS.get(state.key, state.label)
+
+
+# Every value list_companies()'s `status` can take, in dropdown order:
+# 'Portfolio' and 'Watchlist' are assigned directly (portfolio/favorite
+# membership, checked before the ladder); everything else is whatever
+# _list_status_label() above can return, including its 'Tracked' fallback
+# for the (practically unreachable) case where a company has no ladder
+# state at all. Single source of truth for the status-filter <option> list
+# in list_companies.html, which loops over this instead of hardcoding
+# <option> tags -- when _list_status_label or _LADDER_TO_LIST_STATUS
+# changes what it can emit, update this list too.
+LIST_STATUS_OPTIONS = [
+    'Portfolio', 'Invested', 'Watchlist', 'On Watch', 'Researching',
+    'Promoted', 'In inbox', 'Someday', 'Passed', 'Too Hard', 'Killed',
+    'Skipped at sweep', 'Exited', 'Untracked', 'Tracked',
+]
+
 
 # You can define this dictionary at the top of your routes.py file
 EXCHANGES = {
@@ -110,14 +161,16 @@ def list_companies():
     swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
     dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
 
-    # Pre-fetch latest research project per company (for richer status)
+    # Pre-fetch research projects (active_projects_map below needs the rows)
     all_projects = ResearchProject.query.filter_by(
         user_id=current_user.id
     ).order_by(ResearchProject.created_at.desc()).all()
-    latest_project_map = {}
-    for p in all_projects:
-        if p.company_id not in latest_project_map:
-            latest_project_map[p.company_id] = p
+
+    # One ladder pass for every company's display status (5 queries total,
+    # not per-company) -- replaces a hand-rolled if/elif over the latest
+    # research project plus a separate killed-idea lookup that missed
+    # sweep kills and screening kills recorded without decision='pass'.
+    states = company_states(current_user.id, [c.id for c in companies])
 
     # Batch compute project counts per company (single query instead of N)
     project_counts = dict(
@@ -141,16 +194,6 @@ def list_companies():
         if p.status == 'active' and p.company_id not in active_projects_map:
             active_projects_map[p.company_id] = p
 
-    # Pre-fetch company IDs with killed ideas (Too Hard at idea/sweep stage, no ResearchProject)
-    killed_idea_company_ids = {
-        cid for cid, in db.session.query(IdeaPipeline.company_id)
-        .filter(
-            IdeaPipeline.user_id == current_user.id,
-            IdeaPipeline.status == 'killed',
-            IdeaPipeline.company_id.isnot(None)
-        ).distinct().all()
-    }
-
     # Build enriched data for Jinja card view + JSON for Tabulator
     companies_data_list = []
     companies_json_list = []
@@ -160,36 +203,14 @@ def list_companies():
         doc_count = resource_counts.get(company.id, 0)
         active_project = active_projects_map.get(company.id)
 
-        # Derive status from portfolio, favorites, and research project state
+        # Derive status from portfolio, favorites (bookmarks -- not part of
+        # the ladder), and the company-state ladder for everything else.
         if company.id in portfolio_ids:
             status = 'Portfolio'
         elif company.id in favorite_ids:
             status = 'Watchlist'
         else:
-            lp = latest_project_map.get(company.id)
-            if lp and lp.status == 'active' and lp.decision == 'watchlist':
-                status = 'On Watch'
-            elif lp and lp.status == 'active':
-                status = 'Researching'
-            elif lp and lp.status == 'completed':
-                if lp.decision == 'pass' and lp.too_hard_reason:
-                    status = 'Too Hard'
-                elif lp.decision == 'pass':
-                    status = 'Passed'
-                elif lp.decision == 'invest':
-                    status = 'Invested'
-                elif lp.decision == 'watchlist':
-                    status = 'On Watch'
-                elif lp.decision == 'needs_more_work':
-                    status = 'Review'
-                else:
-                    status = 'Completed'
-            elif lp and lp.status == 'killed':
-                status = 'Killed'
-            elif company.id in killed_idea_company_ids:
-                status = 'Killed'
-            else:
-                status = 'Tracked'
+            status = _list_status_label(states.get(company.id))
 
         # Compute progress from stored columns (no DB queries)
         progress = 0
@@ -245,6 +266,7 @@ def list_companies():
                          portfolio_ids=portfolio_ids,
                          favorite_ids=favorite_ids,
                          sectors=sectors,
+                         status_options=LIST_STATUS_OPTIONS,
                          title="All Companies")
 
 
@@ -655,6 +677,15 @@ def company_detail(company_id):
     # User's sectors for the settings dropdown
     user_sectors = SectorService.get_user_sectors_list(current_user.id)
 
+    # Ladder state for the header badge -- single lookup, not a loop (one
+    # company per page load). `company_state` (the 3-way portfolio/
+    # watchlist/new local var from journey_data) drives which UI sections
+    # render and is left untouched; this is the same-named ladder function,
+    # aliased on import, that answers "what state is this company in" from
+    # all four tables so a killed-in-research company reads as killed here
+    # instead of silently reading as 'new'.
+    ladder_state = company_state(current_user.id, company_id)
+
     return render_template(
         'company_detail.html',
         company=company,
@@ -668,6 +699,7 @@ def company_detail(company_id):
         currency_symbol=currency_symbol,
         resource_count=resource_count,
         user_sectors=user_sectors,
+        ladder_state=ladder_state,
         # Journey data
         company_state=journey_data['company_state'],
         position=journey_data['position'],

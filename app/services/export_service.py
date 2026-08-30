@@ -35,6 +35,10 @@ from app.models import (
     Transaction, DecisionJournal, JournalEntry,
 )
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
+# Aliased: this module's own functions take a `company_state` parameter (the
+# 3-way portfolio/watchlist/new bucket used to gate export components), which
+# would otherwise shadow this import inside every function that has it.
+from app.services.company_state import company_state as ladder_company_state
 
 logger = logging.getLogger(__name__)
 
@@ -732,12 +736,22 @@ def build_journey_notes_md(journey_notes, company_name):
     return f"# Company Notes — {company_name}\n\n{md}\n"
 
 
-def build_journey_overview_md(company, company_state, counts):
+def build_journey_overview_md(company, company_state, counts, ladder_label=None):
     """
     Build the README/overview file for a journey export.
 
     counts is a dict with keys:
         thesis, checkpoints, transactions, decisions, journal, research
+
+    company_state is the 3-way portfolio/watchlist/new bucket (favorited vs.
+    held vs. neither) that also gates which components this export includes
+    -- see export_company_journey. It has no research-kill/promotion concept,
+    so it is left alone for that gating. ladder_label is the company's actual
+    state from the state ladder (e.g. 'Killed in research', 'Promoted') and,
+    when given, is what the "State:" line displays instead -- otherwise a
+    company killed at any stage reads as "New" or "Watchlist" here, which is
+    exactly the kind of silent staleness the ladder exists to fix. Optional
+    and defaults to the old behaviour so no other caller breaks.
     """
     lines = []
     lines.append(f"# Company Journey: {company.name}")
@@ -745,7 +759,7 @@ def build_journey_overview_md(company, company_state, counts):
         lines.append(f"**Ticker:** {company.ticker_symbol}")
     if company.sector:
         lines.append(f"**Sector:** {company.sector.name}")
-    lines.append(f"**State:** {company_state.replace('_', ' ').title()}")
+    lines.append(f"**State:** {ladder_label or company_state.replace('_', ' ').title()}")
     lines.append(f"**Export Date:** {now_utc().strftime('%Y-%m-%d')}")
     lines.append("")
 
@@ -914,8 +928,14 @@ def export_company_journey(company, user_id, components, company_state):
                 if decision_md:
                     zf.writestr(f"{prefix}/decision.md", decision_md)
 
-        # Overview as the root README (always included)
-        overview = build_journey_overview_md(company, company_state, counts)
+        # Overview as the root README (always included). The ladder's label
+        # is what a company killed at any stage should read as here; the
+        # 3-way company_state bucket above stays as-is since it also gates
+        # which components are included and the ladder has no equivalent of
+        # "favorited but not researched".
+        ladder_label = ladder_company_state(user_id, company.id).label
+        overview = build_journey_overview_md(company, company_state, counts,
+                                             ladder_label=ladder_label)
         zf.writestr(f"{folder_name}/00_README.md", overview)
 
     buf.seek(0)

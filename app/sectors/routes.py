@@ -24,6 +24,7 @@ from app.models import (SectorAnalysis, QuestionBankItem, SectorResearchSection,
 from app.models.associations import sector_note_companies, sector_snippet_companies
 from app.services.sector_service import SectorService
 from app.services.too_hard_service import TooHardBasketService
+from app.services.company_state import company_states
 from app.utils.time_utils import now_utc
 from sqlalchemy import func
 import re
@@ -210,8 +211,13 @@ def _get_sector_and_analysis(sector_name, user_id):
     return sector, analysis, False
 
 
-def _enrich_company(company, user_id, user_favorites):
-    """Enrich single company with project and status info."""
+def _enrich_company(company, user_id, user_favorites, state):
+    """Enrich single company with project and status info.
+
+    active_project / completed_project stay direct ResearchProject lookups
+    -- the template links to those actual rows (e.g. "Continue Research"),
+    which is a different question from "what state is this company in".
+    """
     active_project = ResearchProject.query.filter_by(
         user_id=user_id,
         company_id=company.id,
@@ -229,14 +235,18 @@ def _enrich_company(company, user_id, user_favorites):
         'active_project': active_project,
         'completed_project': completed_project,
         'is_in_watchlist': company in user_favorites,
-        'is_in_portfolio': company.is_in_portfolio
+        'is_in_portfolio': company.is_in_portfolio,
+        'state': state,
     }
 
 
 def _get_companies_data(analysis, user_id, user_favorites):
     """Get companies in sector with enriched data."""
     companies = Company.query.filter_by(user_id=user_id, sector_id=analysis.sector_id).all()
-    return [_enrich_company(c, user_id, user_favorites) for c in companies]
+    # One ladder pass for the whole sector (5 queries total), not one
+    # company_state() call per company.
+    states = company_states(user_id, [c.id for c in companies])
+    return [_enrich_company(c, user_id, user_favorites, states.get(c.id)) for c in companies]
 
 
 def _get_other_companies(sector_id, user_id):
@@ -248,12 +258,23 @@ def _get_other_companies(sector_id, user_id):
 
 
 def _calculate_sector_metrics(companies_data):
-    """Calculate sector metrics from companies data."""
+    """Calculate sector metrics from companies data.
+
+    'total' is a plain row count and 'watchlist' is the favorites bookmark
+    -- neither is a ladder question. 'researched' and 'portfolio' ask what
+    state the company is in, so they read the ladder: researched counts
+    every company whose state has reached the research stage or later
+    (watchlist/researching/invest_decided/killed_research/held/exited),
+    which also now counts a company killed mid-research and one actively
+    being researched -- both of which the old completed-project-only check
+    missed.
+    """
     return {
         'total': len(companies_data),
-        'researched': sum(1 for c in companies_data if c['completed_project']),
+        'researched': sum(1 for c in companies_data
+                           if c['state'] and c['state'].stage in ('research', 'portfolio')),
         'watchlist': sum(1 for c in companies_data if c['is_in_watchlist']),
-        'portfolio': sum(1 for c in companies_data if c['is_in_portfolio'])
+        'portfolio': sum(1 for c in companies_data if c['state'] and c['state'].key == 'held')
     }
 
 

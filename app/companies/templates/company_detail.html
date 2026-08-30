@@ -38,6 +38,11 @@
                             <i class="bi bi-inbox"></i> New
                             {% endif %}
                         </span>
+                        {% if ladder_state.is_dead %}
+                        <span class="research-project-badge killed" title="{{ ladder_state.reason or '' }}">
+                            <i class="bi bi-slash-circle"></i> {{ ladder_state.label }}
+                        </span>
+                        {% endif %}
                     </div>
                     <p class="dashboard-subtitle">
                         <span class="journey-ticker">{{ company.ticker_symbol }}</span>

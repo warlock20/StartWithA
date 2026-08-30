@@ -21,8 +21,10 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from app import cache
 from app.models.idea_pipeline import IdeaPipeline
+from app.models.market_sweep import MarketSweepDecision
 from app.models.research import ResearchProject
 from app.models.company import Company
+from app.services.company_state import company_states
 
 
 @dataclass
@@ -66,81 +68,149 @@ class TooHardBasketService:
         """
         items = []
 
-        # 1. Get killed ideas from Kill Checklist
-        killed_ideas = IdeaPipeline.query.filter_by(
-            user_id=user_id,
-            status='killed'
-        ).all()
+        # One ladder pass instead of two independent queries unioned by this
+        # service's own rules -- that union is how a screening kill (a
+        # ResearchProject left status='killed' with no decision='pass' and no
+        # too_hard_reason) went missing from the basket entirely.
+        states = company_states(user_id)
+        dead = {cid: s for cid, s in states.items() if s.is_dead}
 
-        for idea in killed_ideas:
-            # Get sector info
-            sector = None
-            if idea.sector_id:
-                sector = idea.sector.display_name if idea.sector else None
+        idea_ids = [s.source[1] for s in dead.values()
+                    if s.source and s.source[0] == 'idea_pipeline']
+        project_ids = [s.source[1] for s in dead.values()
+                       if s.source and s.source[0] == 'research_project']
+        sweep_ids = [s.source[1] for s in dead.values()
+                     if s.source and s.source[0] == 'market_sweep_decision']
 
-            items.append(TooHardItem(
-                company_name=idea.name,
-                ticker=idea.ticker_symbol,
-                sector=sector,
-                rejection_stage='kill_checklist',
-                rejection_date=idea.killed_at,
-                time_invested_hours=0.5,  # Avg kill checklist time
-                reason=idea.kill_reason,
-                within_coc=idea.within_circle_of_competence,
-                notes=idea.initial_notes,
-                source_type='IdeaPipeline',
-                source_id=idea.id,
-                company_id=idea.company_id
-            ))
+        ideas_by_id = {}
+        if idea_ids:
+            ideas_by_id = {i.id: i for i in
+                           IdeaPipeline.query.filter(IdeaPipeline.id.in_(idea_ids)).all()}
 
-        # 2. Get all passed research projects (decision='pass')
-        # This includes both mid-research passes (too hard) and full analysis passes
-        passed_projects = ResearchProject.query.filter_by(
-            user_id=user_id,
-            decision='pass'
-        ).all()
+        projects_by_id = {}
+        if project_ids:
+            projects_by_id = {p.id: p for p in
+                              ResearchProject.query.filter(ResearchProject.id.in_(project_ids)).all()}
 
-        for project in passed_projects:
-            # Get sector info
-            sector = None
-            if project.sector_id:
-                sector = project.sector.display_name if project.sector else None
-            elif project.company and project.company.sector_id:
-                sector = project.company.sector.display_name if project.company.sector else None
+        sweeps_by_id = {}
+        if sweep_ids:
+            sweeps_by_id = {d.id: d for d in
+                            MarketSweepDecision.query.filter(MarketSweepDecision.id.in_(sweep_ids)).all()}
 
-            # Determine if this was a mid-research pass (too hard) or full analysis pass
-            is_mid_research = bool(project.too_hard_reason)
+        companies_by_id = {}
+        if sweep_ids:
+            # Only the sweep branch needs the Company row directly -- idea and
+            # project rows carry their own name/ticker/sector.
+            companies_by_id = {c.id: c for c in
+                               Company.query.filter(Company.id.in_(list(dead.keys()))).all()}
 
-            if is_mid_research:
+        for company_id, state in dead.items():
+            table, row_id = state.source
+
+            if table == 'idea_pipeline':
+                # 1. Killed in the pipeline (Kill Checklist).
+                idea = ideas_by_id.get(row_id)
+                if not idea:
+                    continue
+                sector = idea.sector.display_name if idea.sector_id and idea.sector else None
+
                 items.append(TooHardItem(
-                    company_name=project.company.name if project.company else 'Unknown',
-                    ticker=project.company.ticker_symbol if project.company else None,
+                    company_name=idea.name,
+                    ticker=idea.ticker_symbol,
                     sector=sector,
-                    rejection_stage='mid_research',
-                    rejection_date=project.abandoned_at or project.decision_date,
-                    time_invested_hours=project.total_hours_spent or 0,
-                    reason=project.too_hard_reason,
-                    within_coc=project.within_circle_of_competence,
-                    notes=project.too_hard_notes,
-                    source_type='ResearchProject',
-                    source_id=project.id,
-                    company_id=project.company_id
+                    rejection_stage='kill_checklist',
+                    rejection_date=idea.killed_at,
+                    time_invested_hours=0.5,  # Avg kill checklist time
+                    reason=idea.kill_reason,
+                    within_coc=idea.within_circle_of_competence,
+                    notes=idea.initial_notes,
+                    source_type='IdeaPipeline',
+                    source_id=idea.id,
+                    company_id=idea.company_id
                 ))
-            else:
+
+            elif table == 'research_project':
+                # 2. Killed in research -- covers every way a kill got recorded
+                # there (status='killed', decision='pass', or too_hard_reason
+                # set), not just decision='pass' as before.
+                project = projects_by_id.get(row_id)
+                if not project:
+                    continue
+                sector = None
+                if project.sector_id:
+                    sector = project.sector.display_name if project.sector else None
+                elif project.company and project.company.sector_id:
+                    sector = project.company.sector.display_name if project.company.sector else None
+
+                # Determine if this was a mid-research pass (too hard) or full analysis pass
+                is_mid_research = bool(project.too_hard_reason)
+
+                if is_mid_research:
+                    items.append(TooHardItem(
+                        company_name=project.company.name if project.company else 'Unknown',
+                        ticker=project.company.ticker_symbol if project.company else None,
+                        sector=sector,
+                        rejection_stage='mid_research',
+                        rejection_date=project.abandoned_at or project.decision_date,
+                        time_invested_hours=project.total_hours_spent or 0,
+                        reason=project.too_hard_reason,
+                        within_coc=project.within_circle_of_competence,
+                        notes=project.too_hard_notes,
+                        source_type='ResearchProject',
+                        source_id=project.id,
+                        company_id=project.company_id
+                    ))
+                else:
+                    items.append(TooHardItem(
+                        company_name=project.company.name if project.company else 'Unknown',
+                        ticker=project.company.ticker_symbol if project.company else None,
+                        sector=sector,
+                        rejection_stage='full_analysis',
+                        rejection_date=project.decision_date,
+                        time_invested_hours=project.total_hours_spent or 0,
+                        reason='Completed full analysis',
+                        within_coc=project.within_circle_of_competence,
+                        confidence=project.decision_confidence,
+                        notes=project.decision_notes,
+                        source_type='ResearchProject',
+                        source_id=project.id,
+                        company_id=project.company_id
+                    ))
+
+            elif table == 'market_sweep_decision':
+                # 3. Killed at the sweep stage, never promoted into an idea.
+                # In practice sweep_routes.sweep_decide() always creates a
+                # killed IdeaPipeline row alongside a 'killed' sweep decision,
+                # so that idea wins this company's state first (see the
+                # ladder's ordering) and this branch stays a defensive
+                # fallback rather than a live path.
+                decision = sweeps_by_id.get(row_id)
+                if not decision:
+                    continue
+                company = companies_by_id.get(company_id)
+                sector = decision.sector.display_name if decision.sector_id and decision.sector else None
+                reasons = decision.kill_reasons
+                if isinstance(reasons, list):
+                    reason = '; '.join(
+                        r.get('reason') or r.get('question') or str(r) if isinstance(r, dict) else str(r)
+                        for r in reasons
+                    ) or None
+                else:
+                    reason = reasons
+
                 items.append(TooHardItem(
-                    company_name=project.company.name if project.company else 'Unknown',
-                    ticker=project.company.ticker_symbol if project.company else None,
+                    company_name=company.name if company else 'Unknown',
+                    ticker=company.ticker_symbol if company else None,
                     sector=sector,
-                    rejection_stage='full_analysis',
-                    rejection_date=project.decision_date,
-                    time_invested_hours=project.total_hours_spent or 0,
-                    reason='Completed full analysis',
-                    within_coc=project.within_circle_of_competence,
-                    confidence=project.decision_confidence,
-                    notes=project.decision_notes,
-                    source_type='ResearchProject',
-                    source_id=project.id,
-                    company_id=project.company_id
+                    rejection_stage='kill_checklist',
+                    rejection_date=decision.decided_at,
+                    time_invested_hours=0.5,
+                    reason=reason,
+                    within_coc=None,
+                    notes=decision.notes,
+                    source_type='MarketSweepDecision',
+                    source_id=decision.id,
+                    company_id=company_id
                 ))
 
         # Apply filters if provided

@@ -37,6 +37,21 @@ from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.services.export_service import resolve_checklist_id
 from app.services.research_quality import calculate_research_quality
 
+
+def _apply_completion_status(project):
+    """Mark a project completed, unless it was killed.
+
+    A killed project is already finished. Overwriting its status with
+    'completed' erases the kill -- the project keeps its kill_reason while no
+    longer reading as killed anywhere.
+    """
+    if project.status == 'killed':
+        return
+    if project.status != 'completed':
+        project.status = 'completed'
+        project.completed_at = now_utc()
+
+
 @research_workflow_bp.route('/projects/<int:project_id>/summary')
 @login_required
 def project_summary(project_id):
@@ -153,9 +168,7 @@ def save_project_decision(project_id):
             project.watch_notes = None
 
         # Mark as completed if not already
-        if project.status != 'completed':
-            project.status = 'completed'
-            project.completed_at = now_utc()
+        _apply_completion_status(project)
 
         # Auto-log decision to company journal
         if project.company_id:
