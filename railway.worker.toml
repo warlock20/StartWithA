@@ -1,0 +1,27 @@
+# Railway Build Configuration — Celery worker service
+# https://docs.railway.com/reference/config-as-code
+#
+# The worker runs the same image as the web service but consumes the Celery
+# queue instead of serving HTTP. It needs a config file of its own because
+# railway.toml declares `healthcheckPath = "/health"`: a worker listens on no
+# port, so that healthcheck can never pass and the deploy would be failed after
+# healthcheckTimeout. Point this service at this file via
+# Settings -> Config as code -> railway.worker.toml.
+
+[build]
+builder = "dockerfile"
+
+[deploy]
+# docker-entrypoint.sh skips `flask db upgrade` when $1 is "celery", so the web
+# service stays the only one migrating the database.
+#
+# --concurrency is pinned rather than left to default (one child per host CPU),
+# which on a shared Railway host spawns far more children than the memory
+# allowance covers. --max-tasks-per-child recycles a child periodically:
+# every task builds a fresh app via create_app() and nothing disposes the
+# SQLAlchemy engine, so a long-lived child accumulates connection pools.
+startCommand = "./docker-entrypoint.sh celery -A celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=20"
+
+# No healthcheckPath — this service serves no HTTP.
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
