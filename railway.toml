@@ -2,6 +2,12 @@
 # https://docs.railway.com/reference/config-as-code
 
 # Using Dockerfile for build (no nixpacks config needed)
+#
+# This file configures the WEB service only. The Celery worker runs the same
+# image with a different command and can't share this config (a worker serves
+# no HTTP, so healthcheckPath below would fail its deploy) — see
+# railway.worker.toml. The Procfile is not consulted at all under the
+# dockerfile builder, so its `worker:` line configures nothing.
 [build]
 builder = "dockerfile"
 
