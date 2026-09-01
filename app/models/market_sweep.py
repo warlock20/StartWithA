@@ -87,3 +87,43 @@ class MarketSweepDecision(db.Model):
 
     def __repr__(self):
         return f'<MarketSweepDecision {self.decision}>'
+
+
+class CompanySweepLink(db.Model):
+    """Which of this user's companies a sweep row is.
+
+    A sweep row is global; a company belongs to one user. The answer therefore
+    differs per user and cannot live on the row.
+
+    Stored, never re-derived. Identity is a judgement about the world, not a
+    computation over the user's own records: re-running it can change the answer
+    when a row is renamed or a matching rule is tuned, so it is remembered
+    instead. (State, which is a computation, is derived on read and never
+    stored -- see app/services/company_state.py.)
+    """
+    __tablename__ = 'company_sweep_link'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'sweep_company_id',
+                            name='_user_sweep_company_link_uc'),
+    )
+
+    #: The user decided on the row; the link follows from that decision.
+    ORIGIN_DECISION = 'decision'
+    #: Both sides carry the same ISIN. Exact, no judgement involved.
+    ORIGIN_ISIN = 'isin'
+    #: A human accepted a suggestion. Equal in standing to the other two.
+    ORIGIN_CONFIRMED = 'confirmed'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+                        nullable=False, index=True)
+    sweep_company_id = db.Column(
+        db.Integer, db.ForeignKey('market_sweep_company.id', ondelete='CASCADE'),
+        nullable=False, index=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id', ondelete='CASCADE'),
+                           nullable=False, index=True)
+    origin = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+
+    def __repr__(self):
+        return f'<CompanySweepLink {self.sweep_company_id}->{self.company_id}>'
