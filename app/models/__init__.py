@@ -120,6 +120,7 @@ from .market_sweep import (
     MarketSweep,
     MarketSweepCompany,
     MarketSweepDecision,
+    CompanySweepLink,
 )
 from .user_ai_preferences import (
     UserAIPreference,
@@ -227,6 +228,7 @@ __all__ = [
     'MarketSweep',
     'MarketSweepCompany',
     'MarketSweepDecision',
+    'CompanySweepLink',
     # User AI Preferences
     'UserAIPreference',
     # Companion knowledge index

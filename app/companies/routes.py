@@ -46,6 +46,7 @@ from app.services.price_service import PriceService
 from app.models import PortfolioPosition
 from app.services.currency_service import CurrencyService
 from app.services.company_state import company_state, company_states
+from app.services.sweep_link import link_from_isin
 
 
 logger = logging.getLogger(__name__)
@@ -1105,6 +1106,20 @@ def edit_company(company_id):
     company.industry = industry if industry else None
     if isin_provided:
         company.isin = isin
+        if isin is not None:
+            # A newly-entered ISIN may match sweep rows the user has already
+            # seen. Those links are secondary to saving the company, and this
+            # sits outside the try/except below that answers XHR callers in
+            # JSON -- so a savepoint contains any failure here rather than
+            # letting it surface as an HTML 500 to a caller expecting JSON.
+            # begin_nested() flushes first, so the ISIN itself is already
+            # written and survives a rollback of the savepoint.
+            try:
+                with db.session.begin_nested():
+                    link_from_isin(current_user.id, isin)
+            except Exception as e:
+                logger.warning(f'Sweep link from ISIN failed for company '
+                               f'{company_id}: {e}')
 
     # Update reporting currency when ticker changes
     if ticker_changed and new_currency:

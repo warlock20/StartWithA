@@ -35,6 +35,7 @@ from app.models import (
 from app.research_workflow import research_workflow_bp
 from app.services.currency_service import CurrencyService
 from app.services.sector_service import SectorService
+from app.services.sweep_link import link_from_decision, link_sweep_row_by_isin
 from app.services.ai.embedding_service import embed
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_error
@@ -279,6 +280,20 @@ def sweep_company_isin(sweep_company_id):
         )
 
     sweep_company.isin = isin
+    # A new ISIN may identify a company someone already holds an opinion on --
+    # and the row is global, so it may do that for several users at once, not
+    # just the admin typing it.
+    #
+    # Use a savepoint: the ISIN is what the admin asked for and the links are
+    # a consequence, so a failure to record them must not discard the value.
+    if isin:
+        try:
+            with db.session.begin_nested():
+                link_sweep_row_by_isin(sweep_company)
+        except Exception as e:
+            current_app.logger.warning(
+                f'Sweep link from ISIN on row {sweep_company_id} failed: {e}'
+            )
     db.session.commit()
 
     return jsonify({'success': True, 'isin': sweep_company.isin})
@@ -510,14 +525,15 @@ def sweep_decide():
 
     # Upsert decision
     if existing:
-        existing.decision = decision_type
-        existing.notes = notes
-        existing.kill_reasons = kill_reasons
-        existing.sector_id = sector_id
-        existing.promoted_idea_id = promoted_idea_id
-        existing.decided_at = now_utc()
+        decision_row = existing
+        decision_row.decision = decision_type
+        decision_row.notes = notes
+        decision_row.kill_reasons = kill_reasons
+        decision_row.sector_id = sector_id
+        decision_row.promoted_idea_id = promoted_idea_id
+        decision_row.decided_at = now_utc()
     else:
-        db.session.add(MarketSweepDecision(
+        decision_row = MarketSweepDecision(
             user_id=current_user.id,
             sweep_company_id=sweep_company_id,
             decision=decision_type,
@@ -526,7 +542,22 @@ def sweep_decide():
             sector_id=sector_id,
             promoted_idea_id=promoted_idea_id,
             decided_at=now_utc(),
-        ))
+        )
+        db.session.add(decision_row)
+
+    # Deciding on a row states which company it is. Record that as a link so
+    # every other surface can reach the company from the row (#330 step 2).
+    #
+    # Use a savepoint: the link is secondary to the decision, and losing the
+    # link must never cost the user the decision they actually made.
+    db.session.flush()
+    try:
+        with db.session.begin_nested():
+            link_from_decision(decision_row)
+    except Exception as e:
+        current_app.logger.warning(
+            f'Sweep link from decision on row {sweep_company_id} failed: {e}'
+        )
 
     db.session.commit()
 
