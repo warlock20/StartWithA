@@ -6,23 +6,27 @@
     {% if model.id %}
     <div class="card mt-4">
         <div class="card-header">
-            <h5 class="mb-0">Upload Companies (CSV/Excel)</h5>
+            <h5 class="mb-0">Companies</h5>
         </div>
         <div class="card-body">
             <p class="text-muted">
-                Upload a CSV or Excel file with columns:
-                <code>company_name</code>, <code>ticker</code>, <code>sector</code>,
-                <code>market_cap</code>, <code>exchange</code>
+                Edit this sweep by exporting it, changing the spreadsheet, and
+                uploading it back. Columns:
+                <code>id</code>, <code>company_name</code>, <code>ticker</code>,
+                <code>isin</code>, <code>sector</code>, <code>market_cap</code>,
+                <code>exchange</code>
             </p>
             <p class="text-muted small">
-                Only <code>company_name</code> is required. Companies are sorted alphabetically on upload.
+                Rows are matched by <code>id</code>, so names and tickers can be
+                edited freely. Rows in the file are updated, rows missing from it
+                are left alone, and <strong>nothing is deleted</strong>. A file
+                whose rows carry no <code>id</code> — the column missing, or every
+                cell cleared — is refused, because it can only add duplicates;
+                export first to get the ids. A blank <code>id</code> on a single
+                row still adds that row.
             </p>
-            {% if model.total_companies > 0 %}
-            <div class="alert alert-warning">
-                This sweep already has <strong>{{ model.total_companies }}</strong> companies.
-                Uploading a new file will <strong>replace all existing companies</strong>.
-            </div>
-            {% endif %}
+            <a href="{{ url_for('marketsweep.export_companies', sweep_id=model.id) }}"
+               class="btn btn-outline-secondary mb-3">Export Companies</a>
             <form method="POST" enctype="multipart/form-data"
                   action="{{ url_for('marketsweep.upload_companies', sweep_id=model.id) }}">
                 <div class="mb-3">

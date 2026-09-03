@@ -29,7 +29,8 @@ import os
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_login import current_user
-from flask import flash, redirect, url_for, request
+from flask import current_app, flash, redirect, url_for, request, Response
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
 from app.models import (
@@ -43,7 +44,7 @@ from app.models import (
     MarketSweep,
     MarketSweepCompany,
 )
-from app.services.market_sweep_service import parse_companies_file, upsert_sweep_companies
+from app.services.market_sweep_service import build_sweep_export, link_imported_isins, parse_companies_file, upsert_sweep_companies
 
 
 class SecureAdminIndexView(AdminIndexView):
@@ -251,6 +252,24 @@ class MarketSweepAdminView(SecureModelView):
         if is_created:
             model.uploaded_by = current_user.id
 
+    @expose('/export-companies/<int:sweep_id>')
+    def export_companies(self, sweep_id):
+        """Download the sweep as the file its own upload accepts.
+
+        Editing a market list means editing rows that already carry user
+        decisions, so the file has to identify them. That is what the exported
+        id column is for, and why a hand-made file is refused.
+        """
+        sweep = MarketSweep.query.get_or_404(sweep_id)
+        payload = build_sweep_export(sweep_id)
+        filename = f'{sweep.country}_sweep.xlsx'
+
+        return Response(
+            payload,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+        )
+
     @expose('/upload-companies/<int:sweep_id>', methods=['POST'])
     def upload_companies(self, sweep_id):
         """Handle CSV/Excel upload for a sweep."""
@@ -270,21 +289,43 @@ class MarketSweepAdminView(SecureModelView):
             flash(f'Error reading file: {str(e)}', 'error')
             return redirect(self.get_url('.edit_view', id=sweep_id))
 
+        # The upsert itself writes nothing to the database -- the first flush
+        # is the autoflush behind the count below, and the commit is what
+        # lands it. A cell the schema rejects (an over-long value, say)
+        # therefore surfaces here, not above, so the whole write region is
+        # guarded: an edited spreadsheet is operator input like any other and
+        # deserves an explanation rather than a 500.
+        linked = 0
         try:
             report = upsert_sweep_companies(sweep_id, rows)
+
+            sweep.total_companies = MarketSweepCompany.query.filter_by(
+                sweep_id=sweep_id).count()
+
+            # An imported ISIN identifies the company for every user who holds
+            # it. A link failure must not cost an import of thousands of rows.
+            try:
+                with db.session.begin_nested():
+                    linked = link_imported_isins(report['isin_changed'])
+            except Exception as e:
+                current_app.logger.warning('Sweep import ISIN linking failed: %s', e)
+
+            db.session.commit()
         except ValueError as e:
             db.session.rollback()
             flash(str(e), 'error')
             return redirect(self.get_url('.edit_view', id=sweep_id))
-
-        sweep.total_companies = MarketSweepCompany.query.filter_by(
-            sweep_id=sweep_id).count()
-        db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            current_app.logger.warning('Sweep import failed for sweep %s: %s', sweep_id, e)
+            flash(f'Error saving companies: {str(e)}', 'error')
+            return redirect(self.get_url('.edit_view', id=sweep_id))
 
         flash(
             f'"{sweep.name}": {report["updated"]} updated, '
             f'{report["inserted"]} added, {report["absent"]} left untouched '
-            f'(present in the sweep but not in this file). Nothing was deleted.',
+            f'(present in the sweep but not in this file). Nothing was deleted. '
+            f'{linked} company link(s) created from ISINs.',
             'success',
         )
         return redirect(self.get_url('.edit_view', id=sweep_id))
