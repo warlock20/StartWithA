@@ -779,6 +779,29 @@
     border-color: var(--primary-600);
 }
 
+/* ── ISIN column (table view) ── */
+/* Tabular figures and even spacing so a mistyped character is visible when
+   scanning a column of them -- the check digit catches transpositions, but
+   only once the value has been submitted. */
+.sweep-isin-cell {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.03em;
+    color: var(--text-primary);
+}
+
+/* Reads as an invitation rather than a value. Shown only to an admin, who is
+   the only one who can act on it. */
+.sweep-isin-cell--add {
+    font-size: var(--font-size-xs);
+    font-style: italic;
+    border-bottom: 1px dashed var(--border-medium);
+}
+
+.sweep-isin-col input {
+    text-transform: uppercase;
+}
+
 /* ── Focus action buttons ── */
 .sweep-focus__actions {
     display: flex;

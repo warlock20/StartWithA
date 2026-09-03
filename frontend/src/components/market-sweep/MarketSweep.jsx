@@ -79,6 +79,23 @@ export function missingDataHint(row) {
   return 'No ISIN — matched by name only';
 }
 
+// What a typed ISIN cell should do, decided before any request is made.
+//
+// The value is normalised the way the server normalises it, so re-typing the
+// same identifier in a different case never becomes a write.
+//
+// Clearing is refused rather than saved. No other path in this feature erases a
+// stored ISIN -- a blank cell in an uploaded file means "unknown", never "delete
+// what is stored" -- and an ISIN that has already been used to link rows would
+// leave those links behind with nothing left to justify them.
+export function isinEditOutcome(oldValue, newValue) {
+  var next = String(newValue == null ? '' : newValue).trim().toUpperCase();
+  var prev = String(oldValue == null ? '' : oldValue).trim().toUpperCase();
+  if (next === prev) return { action: 'none', value: prev };
+  if (!next) return { action: 'refused', value: prev };
+  return { action: 'save', value: next };
+}
+
 // The server decides why confirmation is needed -- a normalised-name match,
 // or since #330 step 4a, an ISIN match -- and sends a basis-specific reason
 // in the decide response's `error`. Prefer that; fall back to the generic
@@ -508,6 +525,30 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
           },
         },
         {
+          // Sweep rows are global, so the value is visible to everyone and
+          // editable only by an admin. A non-admin gets the column read-only
+          // rather than not at all: the table already tells them when an ISIN
+          // is missing, so hiding the ones that exist made the gap look larger
+          // than it is.
+          title: 'ISIN',
+          field: 'isin',
+          sorter: 'string',
+          hozAlign: 'center',
+          minWidth: 130,
+          cssClass: 'sweep-isin-col',
+          editor: isAdmin ? 'input' : false,
+          cellEdited: function (cell) {
+            handleIsinCellEdit(cell);
+          },
+          formatter: function (cell) {
+            var val = cell.getValue();
+            if (val) return '<span class="sweep-isin-cell">' + escapeHtml(val) + '</span>';
+            return isAdmin
+              ? '<span class="table-cell-muted sweep-isin-cell--add">add ISIN</span>'
+              : '<span class="table-cell-muted">&mdash;</span>';
+          },
+        },
+        {
           title: 'Sector',
           field: 'sector_label',
           sorter: 'string',
@@ -788,28 +829,54 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
     setKillTarget({ id: companyId, name: companyName });
   }
 
+  // Returns the stored ISIN on success, or null if the server refused it, so a
+  // table cell can put back the value the edit tried to replace.
   async function handleSaveIsin(companyId, rawIsin) {
+    var data;
     try {
-      var data = await apiPost(
+      data = await apiPost(
         '/research/workflow/api/sweep/company/' + companyId + '/isin',
         { isin: rawIsin }
       );
-      for (var i = 0; i < companiesRef.current.length; i++) {
-        if (companiesRef.current[i].id === companyId) {
-          companiesRef.current[i].isin = data.isin;
-          break;
-        }
-      }
-      // companiesRef is a ref, not state — mutating it doesn't trigger a
-      // re-render. updateStats() calls setStats(), which forces MarketSweep
-      // (and its children, including FocusMode) to re-render with the
-      // mutated array so the saved ISIN shows up without a page reload.
-      updateStats();
-      if (window.showToast) window.showToast('ISIN saved', 'success');
     } catch (err) {
       if (window.showToast) window.showToast(err.message || 'Could not save ISIN', 'danger');
       console.error('Save ISIN error:', err);
+      return null;
     }
+    // The ISIN is not the only thing that can change here. Sweep rows are
+    // global, so a saved identifier links the row for every user who owns a
+    // company carrying it -- possibly including this one, whose state and link
+    // then appear alongside it. Patching the single field would leave those
+    // stale, so refetch, as every other write in this component does.
+    await reloadCompanies();
+    if (window.showToast) window.showToast('ISIN saved', 'success');
+    return data.isin;
+  }
+
+  async function handleIsinCellEdit(cell) {
+    var outcome = isinEditOutcome(cell.getOldValue(), cell.getValue());
+
+    if (outcome.action === 'none') {
+      cell.restoreOldValue();
+      return;
+    }
+    if (outcome.action === 'refused') {
+      cell.restoreOldValue();
+      if (window.showToast) {
+        window.showToast(
+          'An ISIN can be corrected but not removed. Edit it to the right value instead.',
+          'warning'
+        );
+      }
+      return;
+    }
+
+    var companyId = cell.getRow().getData().id;
+    // Show the typed value while the request is in flight; reloadCompanies()
+    // replaces it with what was actually stored, and a refusal restores the old
+    // one. Either way the cell never keeps a value the server did not accept.
+    var saved = await handleSaveIsin(companyId, outcome.value);
+    if (saved === null) cell.restoreOldValue();
   }
 
   // ------------------------------------------------------------------
