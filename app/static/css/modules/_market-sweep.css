@@ -790,15 +790,38 @@
     color: var(--text-primary);
 }
 
-/* Reads as an invitation rather than a value. Shown only to an admin, who is
-   the only one who can act on it. */
+/* An empty cell is drawn as the field it becomes, so the column reads as
+   somewhere to type rather than as a value that happens to be missing. Shown
+   only to an admin, who is the only one who can act on it. */
 .sweep-isin-cell--add {
+    display: inline-block;
+    width: 100%;
+    font-family: var(--font-mono);
     font-size: var(--font-size-xs);
-    font-style: italic;
-    border-bottom: 1px dashed var(--border-medium);
+    text-align: left;
+    background: var(--background-white);
+    border: 1px dashed var(--border-medium);
+    border-radius: var(--radius-sm);
+    padding: 2px 6px;
+}
+
+/* Dashed to solid on hover: the box was always a field, and now it is the one
+   you are about to edit. */
+.sweep-isin-col--editable .sweep-isin-cell--add:hover {
+    border-style: solid;
+    border-color: var(--primary-600);
+    color: var(--text-secondary);
+}
+
+/* A stored ISIN is editable too -- correcting a wrong one matters more than
+   adding a missing one -- so the whole cell carries the caret. */
+.sweep-isin-col--editable {
+    cursor: text;
 }
 
 .sweep-isin-col input {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
 }
 

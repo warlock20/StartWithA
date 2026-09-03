@@ -535,7 +535,7 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
           sorter: 'string',
           hozAlign: 'center',
           minWidth: 130,
-          cssClass: 'sweep-isin-col',
+          cssClass: isAdmin ? 'sweep-isin-col sweep-isin-col--editable' : 'sweep-isin-col',
           editor: isAdmin ? 'input' : false,
           cellEdited: function (cell) {
             handleIsinCellEdit(cell);
