@@ -35,7 +35,11 @@ from app.models import (
 from app.research_workflow import research_workflow_bp
 from app.services.currency_service import CurrencyService
 from app.services.sector_service import SectorService
-from app.services.sweep_link import link_from_decision, link_sweep_row_by_isin
+from app.services.sweep_link import (
+    confirm as confirm_link, link_for, link_from_decision,
+    link_sweep_row_by_isin, suggest, unlink as unlink_row,
+)
+from app.services.sweep_display import sweep_row_display, EMPTY_ROW
 from app.services.ai.embedding_service import embed
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_error
@@ -224,8 +228,13 @@ def sweep_companies(sweep_id):
         MarketSweepCompany.sweep_id == sweep_id
     ).order_by(MarketSweepCompany.sort_order, MarketSweepCompany.company_name).all()
 
+    # The stored decision records an event; the company keeps moving afterwards.
+    # Resolve what the user actually thinks now, in batch (#330 step 4b).
+    display = sweep_row_display(current_user.id, sweep_id)
+
     companies = []
     for company, decision in rows:
+        row_display = display.get(company.id, EMPTY_ROW)
         companies.append({
             'id': company.id,
             'company_name': company.company_name,
@@ -240,6 +249,9 @@ def sweep_companies(sweep_id):
             'decision_notes': decision.notes if decision else None,
             'promoted_idea_id': decision.promoted_idea_id if decision else None,
             'decided_at': decision.decided_at.isoformat() if decision and decision.decided_at else None,
+            'state': row_display['state'],
+            'link': row_display['link'],
+            'suggestion': row_display['suggestion'],
         })
 
     return jsonify({
@@ -299,20 +311,37 @@ def sweep_company_isin(sweep_company_id):
     return jsonify({'success': True, 'isin': sweep_company.isin})
 
 
-def _resolve_or_create_company(sweep_company, sector_id):
-    """Find an existing Company for the current user or create one from the sweep row."""
-    existing_company = None
+def _exact_match(sweep_company):
+    """The current user's company this row is beyond argument, or None.
+
+    Exact ticker first, then exact lowercased name. Anything looser is a guess
+    and belongs to the confirmation gate instead.
+
+    Written once and called from both places that need it. When the gate and
+    the resolver each carry their own copy, loosening one of them lets the gate
+    ask about a company the resolver would never have chosen: the user answers
+    "no, not that one", and the resolver attaches the decision to it anyway.
+    """
     if sweep_company.ticker:
-        existing_company = Company.query.filter(
+        by_ticker = Company.query.filter(
             Company.user_id == current_user.id,
             Company.ticker_symbol == sweep_company.ticker,
         ).first()
-    if not existing_company:
-        existing_company = Company.query.filter(
-            Company.user_id == current_user.id,
-            func.lower(Company.name) == sweep_company.company_name.lower(),
-        ).first()
+        if by_ticker:
+            return by_ticker
 
+    return Company.query.filter(
+        Company.user_id == current_user.id,
+        func.lower(Company.name) == sweep_company.company_name.lower(),
+    ).first()
+
+
+def _resolve_or_create_company(sweep_company, sector_id, resolved_company_id=None):
+    """Find an existing Company for the current user or create one from the sweep row."""
+    if resolved_company_id:
+        return resolved_company_id
+
+    existing_company = _exact_match(sweep_company)
     if existing_company:
         return existing_company.id
 
@@ -398,6 +427,8 @@ def sweep_decide():
     idea_status = data.get('idea_status', 'inbox')  # 'survived' when kill checklist passed
     kill_mode = data.get('kill_mode', 'checklist')  # 'checklist' or 'easy'
     kill_reason_text = (data.get('kill_reason_text') or '').strip()
+    confirm_company_id = data.get('confirm_company_id')
+    create_new = bool(data.get('create_new'))
 
     if not sweep_company_id or decision_type not in ('inbox', 'killed'):
         return json_error('Invalid parameters')
@@ -406,6 +437,54 @@ def sweep_decide():
         return json_error('Easy kill requires a reason')
 
     sweep_company = MarketSweepCompany.query.get_or_404(sweep_company_id)
+
+    # Resolution order: a stored link, then exact ticker, then exact name,
+    # then ask -- with suggest() supplying what to ask about. Only a person may
+    # decide that a looser match is the same company (#330 step 4a) -- and once
+    # they have, that judgement is stored, so re-deciding the same row (e.g.
+    # Kill -> Undo -> Inbox) must reuse it rather than asking again.
+    resolved_company_id = None
+    if confirm_company_id:
+        # The user answering the gate is the event confirm() exists for: it
+        # checks ownership and stamps the link 'confirmed', so a later reader
+        # can tell a human's answer apart from a rule's guess.
+        try:
+            confirmed_link = confirm_link(
+                current_user.id, sweep_company_id, confirm_company_id)
+        except ValueError:
+            return json_error('That company does not belong to you')
+        resolved_company_id = confirmed_link.company_id
+    elif not create_new:
+        link = link_for(current_user.id, sweep_company_id)
+        if link:
+            resolved_company_id = link.company_id
+        elif not _exact_match(sweep_company):
+            # suggest() is the one answer to "which companies might this row
+            # be" -- stored link, then ISIN, then normalised name. Re-deriving
+            # half of it here would drop the ISIN basis, the strongest evidence
+            # there is, and silently duplicate on it.
+            candidates = suggest(current_user.id, sweep_company_id)
+            if candidates:
+                candidate = candidates[0]
+                company = Company.query.get(candidate['company_id'])
+                reason = (
+                    'This row carries the same ISIN as an existing company.'
+                    if candidate.get('basis') == 'isin'
+                    else 'This row matches an existing company by name only.'
+                )
+                return jsonify({
+                    'success': False,
+                    'error': (
+                        f'{reason} Confirm which company it is before '
+                        f'deciding.'
+                    ),
+                    'needs_confirmation': True,
+                    'candidate': {
+                        'id': candidate['company_id'],
+                        'name': candidate['name'],
+                        'ticker': company.ticker_symbol if company else None,
+                    },
+                })
 
     existing = MarketSweepDecision.query.filter_by(
         user_id=current_user.id,
@@ -419,7 +498,7 @@ def sweep_decide():
     promoted_idea_id = None
 
     if decision_type == 'inbox':
-        company_id = _resolve_or_create_company(sweep_company, sector_id)
+        company_id = _resolve_or_create_company(sweep_company, sector_id, resolved_company_id)
 
         # 'survived' = passed kill checklist → Ready state (skip kill room)
         pipeline_status = idea_status if idea_status in ('inbox', 'survived') else 'inbox'
@@ -455,7 +534,7 @@ def sweep_decide():
 
     elif decision_type == 'killed':
         # Create/update an IdeaPipeline row so the Too-Hard Basket picks this up
-        company_id = _resolve_or_create_company(sweep_company, sector_id)
+        company_id = _resolve_or_create_company(sweep_company, sector_id, resolved_company_id)
 
         if kill_mode == 'easy':
             computed_reason = kill_reason_text
@@ -598,6 +677,63 @@ def sweep_undo():
     db.session.commit()
 
     return jsonify({'success': True})
+
+
+def _row_id(raw):
+    """Coerce a posted id to int, or None if it is not one.
+
+    An id that never was a number must not reach the query -- the driver
+    raises there, and a caller's typo would come back as a 500 instead of the
+    400 it is.
+    """
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+@research_workflow_bp.route('/api/sweep/link', methods=['POST'])
+@login_required
+def sweep_link_confirm():
+    """Record the user's answer to "which company is this row"."""
+    data = request.get_json() or {}
+    sweep_company_id = _row_id(data.get('sweep_company_id'))
+    company_id = _row_id(data.get('company_id'))
+
+    if not sweep_company_id or not company_id:
+        return json_error('Invalid parameters')
+
+    # Same guard the decide route uses: an id for a row that does not exist is
+    # a 404, not a foreign-key violation surfacing as a 500.
+    MarketSweepCompany.query.get_or_404(sweep_company_id)
+
+    try:
+        link = confirm_link(current_user.id, sweep_company_id, company_id)
+    except ValueError as e:
+        return json_error(str(e))
+
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'link': {'company_id': link.company_id, 'origin': link.origin},
+    })
+
+
+@research_workflow_bp.route('/api/sweep/unlink', methods=['POST'])
+@login_required
+def sweep_link_remove():
+    """Forget which company a row is. The sweep decision is untouched."""
+    data = request.get_json() or {}
+    sweep_company_id = _row_id(data.get('sweep_company_id'))
+
+    if not sweep_company_id:
+        return json_error('Invalid parameters')
+
+    MarketSweepCompany.query.get_or_404(sweep_company_id)
+
+    removed = unlink_row(current_user.id, sweep_company_id)
+    db.session.commit()
+    return jsonify({'success': True, 'removed': removed})
 
 
 @research_workflow_bp.route('/api/sweep/kill-checklist')

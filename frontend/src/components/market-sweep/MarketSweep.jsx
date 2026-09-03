@@ -6,6 +6,7 @@ import { KillChecklistModal } from './KillChecklistModal';
 import { AlphabetProgress } from './AlphabetProgress';
 import { SessionTracker } from './SessionTracker';
 import { FocusMode } from './FocusMode';
+import { displayState, isHeld, statusLabel } from './rowState';
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -14,9 +15,163 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// escapeHtml covers &, < and > (it round-trips through a text node), which is
+// enough for element content but NOT for a value landing inside a double-quoted
+// attribute: an unescaped " closes the attribute early and everything after it
+// is parsed as further markup. Every attribute interpolation goes through this
+// one helper so the rule lives in a single place rather than being re-derived,
+// slightly differently, at each call site.
+function escapeAttr(value) {
+  return escapeHtml(value).replace(/"/g, '&quot;');
+}
+
 function setDomText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
+}
+
+// The Status column sorts by the label the badge actually shows, not by the
+// stored decision behind it: the stored value can contradict the derived state
+// (a row marked "inbox" whose company was later killed), and sorting by it
+// would group rows by something the user cannot see.
+export function statusSorter(a, b, aRow, bRow) {
+  return statusLabel(aRow.getData()).localeCompare(statusLabel(bRow.getData()));
+}
+
+// The stored decision records one moment. The state is derived on read from the
+// company the row is linked to, so it cannot go stale -- that staleness is the
+// defect this replaces. A row with no link has no state to show: a name match is
+// offered as a suggestion and never styled as though it were decided.
+export function statusBadge(row) {
+  var state = displayState(row);
+  if (state) {
+    var cls = 'sweep-state-badge sweep-state-badge--' + escapeAttr(state.stage) +
+      (state.is_dead ? ' sweep-state-badge--dead' : '');
+    var title = state.reason
+      ? ' title="' + escapeAttr(state.reason) + '"'
+      : '';
+    return '<span class="' + cls + '"' + title + '>' +
+      escapeHtml(state.label) + '</span>';
+  }
+
+  if (row.suggestion) {
+    var hint = missingDataHint(row);
+    var hintHtml = hint ? '<span class="sweep-suggestion">' + escapeHtml(hint) + '</span>' : '';
+    return '<span class="sweep-decision-badge sweep-decision-badge--pending">' +
+      'Pending</span><span class="sweep-suggestion">Maybe ' +
+      escapeHtml(row.suggestion.name) + '</span>' + hintHtml;
+  }
+
+  return '<span class="sweep-decision-badge sweep-decision-badge--pending">' +
+    'Pending</span>';
+}
+
+// One mechanism, not one badge per column: it answers "what is missing HERE, and
+// would it change anything?" Almost no row carries an ISIN, so flagging every row
+// that lacks one would be noise. It is worth saying only where the value would
+// have resolved the row outright -- i.e. where a name is currently the only
+// evidence there is.
+export function missingDataHint(row) {
+  if (row.link || row.state) return null;
+  if (!row.suggestion) return null;
+  if (row.suggestion.basis === 'isin') return null;
+  if (row.isin) return null;
+  return 'No ISIN — matched by name only';
+}
+
+// The server decides why confirmation is needed -- a normalised-name match,
+// or since #330 step 4a, an ISIN match -- and sends a basis-specific reason
+// in the decide response's `error`. Prefer that; fall back to the generic
+// phrasing below only when the server didn't send one. Either way the server
+// refuses to pick silently, so the user is asked before an existing company
+// is reused or a new one is created.
+export function confirmationMessage(row, candidate, serverMessage) {
+  var label = candidate.ticker
+    ? candidate.name + ' (' + candidate.ticker + ')'
+    : candidate.name;
+  // row lookup can fail (e.g. the sweep changed underneath an in-flight
+  // decide) — fall back to a neutral phrase instead of printing "undefined".
+  var rowLabel = row && row.company_name ? '"' + row.company_name + '"' : 'this row';
+  var reason = serverMessage || ('You already have ' + label + '.');
+  return reason + '\n\n' +
+    'Is the sweep row ' + rowLabel + ' the same company?\n\n' +
+    'OK reuses it. Cancel creates a new company. Which is it?';
+}
+
+// The actions column mirrors the row's linking state alongside its decision
+// state: a suggestion offers Confirm/Dismiss, an existing link offers Unlink
+// (labelled with where it came from, so the user isn't left guessing), and
+// the decide/undo controls are unchanged. A dead row keeps every action --
+// hiding them would leave a user who disagrees with the derived state no
+// recourse. The one exception is `held`: the user already owns that
+// company, so Kill is withheld.
+export function actionsCell(row) {
+  var html = '<div class="sweep-actions">';
+
+  if (row.suggestion && !row.link) {
+    html +=
+      '<button class="sweep-action-btn sweep-action-btn--inbox" onclick="MarketSweep.confirmLink(' +
+      row.id + ',' + row.suggestion.company_id + ')">Confirm</button>';
+    html +=
+      '<button class="sweep-action-btn sweep-action-btn--skip" onclick="MarketSweep.dismissSuggestion(' +
+      row.id + ')">Dismiss</button>';
+  }
+
+  if (row.link) {
+    var origin = escapeHtml(row.link.origin);
+    var originAttr = escapeAttr(row.link.origin);
+    html +=
+      '<button class="sweep-action-btn" onclick="MarketSweep.unlinkRow(' + row.id +
+      ')" title="Linked via ' + originAttr + '">Unlink (' + origin + ')</button>';
+  }
+
+  if (row.decision) {
+    if (row.decision === 'inbox' && row.promoted_idea_id) {
+      html +=
+        '<a href="/ideas/' + row.promoted_idea_id +
+        '/promote" class="sweep-action-btn sweep-action-btn--inbox">Start Research</a>';
+    } else {
+      html += '<button class="sweep-action-btn sweep-action-btn--done" disabled>Done</button>';
+    }
+    html +=
+      '<button class="sweep-action-btn" onclick="MarketSweep.undoDecision(' + row.id +
+      ')" title="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>';
+  } else {
+    // safeName lands inside a double-quoted HTML attribute AND inside a
+    // single-quoted JS string literal within it -- escapeHtml alone only
+    // covers &/</>, so \, " and ' each need explicit handling, IN THIS
+    // ORDER (order matters -- each later replacement must not touch a
+    // backslash a prior step just inserted):
+    //   1. \  -> \\   doubles every literal backslash FIRST. Skipping this
+    //      step lets an attacker-supplied backslash immediately before a
+    //      quote consume the *next* step's escaping backslash instead of
+    //      the quote -- e.g. name `x\' ); alert(1); //` would otherwise
+    //      produce `'x\\' ); alert(1); //'`: the JS parser reads that as
+    //      one literal backslash, then an unescaped `'` that closes the
+    //      string early, letting `alert(1);` run as a real statement.
+    //   2. "  -> &quot;  stops the HTML parser from treating a raw quote as
+    //      the attribute's closing delimiter (it decodes back to a literal
+    //      " inside the JS string, inert there since that string is
+    //      single-quoted).
+    //   3. '  -> \'   escapes the quote that actually delimits the JS
+    //      string literal -- safe now because step 1 already doubled any
+    //      backslash that could otherwise have swallowed this one.
+    var safeName = escapeHtml(row.company_name)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, "\\'");
+    html +=
+      '<button class="sweep-action-btn sweep-action-btn--inbox" onclick="MarketSweep.decide(' +
+      row.id + ',\'inbox\')">Inbox</button>';
+    if (!isHeld(row)) {
+      html +=
+        '<button class="sweep-action-btn sweep-action-btn--kill" onclick="MarketSweep.openKill(' +
+        row.id + ',\'' + safeName + '\')" title="Kill">Kill</button>';
+    }
+  }
+
+  html += '</div>';
+  return html;
 }
 
 /**
@@ -48,6 +203,11 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
   const companiesRef = useRef([]);
   const handlersRef = useRef({});
   const sessionStatsRef = useRef({ reviewed: 0, inbox: 0, killed: 0 });
+  // Tracks which sweep is currently loaded so reloadCompanies() can refetch
+  // it without an id argument (decide/undo handlers only know a company id).
+  const currentSweepIdRef = useRef(null);
+  // Sequences overlapping reloads — see reloadCompanies().
+  const reloadGenRef = useRef(0);
 
   // ------------------------------------------------------------------
   // Keep handler refs current so the global API always calls latest fns
@@ -58,6 +218,9 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
     updateSector: handleUpdateSector,
     openKill: handleOpenKill,
     showPicker: handleShowPicker,
+    confirmLink: handleConfirmLink,
+    unlinkRow: handleUnlinkRow,
+    dismissSuggestion: handleDismissSuggestion,
   };
 
   // ------------------------------------------------------------------
@@ -70,6 +233,9 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
       updateSector: (...args) => handlersRef.current.updateSector(...args),
       openKill: (...args) => handlersRef.current.openKill(...args),
       showPicker: () => handlersRef.current.showPicker(),
+      confirmLink: (...args) => handlersRef.current.confirmLink(...args),
+      unlinkRow: (...args) => handlersRef.current.unlinkRow(...args),
+      dismissSuggestion: (...args) => handlersRef.current.dismissSuggestion(...args),
     };
     return () => {
       delete window.MarketSweep;
@@ -227,23 +393,42 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
   // Sweep selection
   // ------------------------------------------------------------------
 
+  // Single loader for a sweep's companies. Used both on initial sweep
+  // selection and to refresh companiesRef (and the table) after a decide/
+  // undo, so the row's derived `state` never lags behind the action that
+  // just changed it -- /decide and /undo don't return `state` themselves.
+  async function reloadCompanies() {
+    const id = currentSweepIdRef.current;
+    if (!id) return;
+    // Two quick decisions put two GETs in flight at once, and responses can
+    // land in any order. Without this, whichever LANDS last wins rather than
+    // whichever was ISSUED last: an older reload's payload -- taken before the
+    // newer decision existed -- overwrites the newer one, so progress falls
+    // back and an already-decided row returns to the queue as pending. Stamp
+    // each request and let only the newest one write.
+    const gen = ++reloadGenRef.current;
+    const data = await apiGet('/research/workflow/api/sweep/' + id + '/companies');
+    if (gen !== reloadGenRef.current) return;
+    if (!data.success) return;
+    companiesRef.current = data.companies;
+    updateStats();
+    if (tableRef.current) {
+      await tableRef.current.replaceData(companiesRef.current);
+    }
+  }
+
   async function handleSelectSweep(id) {
     setView('sweep');
     setSearch('');
     setDecisionFilter('all');
     setTableLoading(true);
+    currentSweepIdRef.current = id;
 
     try {
-      const data = await apiGet('/research/workflow/api/sweep/' + id + '/companies');
-      if (!data.success) {
-        setTableLoading(false);
-        return;
-      }
-      companiesRef.current = data.companies;
-      updateStats();
-      setTableLoading(false);
+      await reloadCompanies();
     } catch (err) {
       console.error('Load companies error:', err);
+    } finally {
       setTableLoading(false);
     }
   }
@@ -362,31 +547,17 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
             if (!val) return '<span class="table-cell-muted">&mdash;</span>';
             var escaped = escapeHtml(val);
             var truncated = val.length > 50 ? escapeHtml(val.substring(0, 50)) + '&hellip;' : escaped;
-            return '<span class="sweep-notes-cell" title="' + escaped.replace(/"/g, '&quot;') + '">' + truncated + '</span>';
+            return '<span class="sweep-notes-cell" title="' + escapeAttr(val) + '">' + truncated + '</span>';
           },
         },
         {
           title: 'Status',
           field: 'decision',
-          sorter: 'string',
+          sorter: statusSorter,
           hozAlign: 'center',
           minWidth: 90,
           formatter: function (cell) {
-            var val = cell.getValue();
-            if (!val)
-              return '<span class="sweep-decision-badge sweep-decision-badge--pending">Pending</span>';
-            var map = {
-              inbox: 'sweep-decision-badge--inbox',
-              killed: 'sweep-decision-badge--killed',
-            };
-            var labels = { inbox: 'Inbox', killed: 'Killed' };
-            return (
-              '<span class="sweep-decision-badge ' +
-              (map[val] || '') +
-              '">' +
-              (labels[val] || val) +
-              '</span>'
-            );
+            return statusBadge(cell.getRow().getData());
           },
         },
         {
@@ -396,32 +567,7 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
           hozAlign: 'right',
           minWidth: 180,
           formatter: function (cell) {
-            var row = cell.getRow().getData();
-            if (row.decision) {
-              var html = '<div class="sweep-actions">';
-              if (row.decision === 'inbox' && row.promoted_idea_id) {
-                html +=
-                  '<a href="/ideas/' +
-                  row.promoted_idea_id +
-                  '/promote" class="sweep-action-btn sweep-action-btn--inbox">Start Research</a>';
-              } else {
-                html +=
-                  '<button class="sweep-action-btn sweep-action-btn--done" disabled>Done</button>';
-              }
-              html +=
-                '<button class="sweep-action-btn" onclick="MarketSweep.undoDecision(' +
-                row.id +
-                ')" title="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>';
-              html += '</div>';
-              return html;
-            }
-            var safeName = escapeHtml(row.company_name).replace(/'/g, "\\'");
-            return (
-              '<div class="sweep-actions">' +
-              '<button class="sweep-action-btn sweep-action-btn--inbox" onclick="MarketSweep.decide(' + row.id + ',\'inbox\')">Inbox</button>' +
-              '<button class="sweep-action-btn sweep-action-btn--kill" onclick="MarketSweep.openKill(' + row.id + ',\'' + safeName + '\')" title="Kill">Kill</button>' +
-              '</div>'
-            );
+            return actionsCell(cell.getRow().getData());
           },
         },
       ],
@@ -453,6 +599,20 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
 
     try {
       var data = await apiPost('/research/workflow/api/sweep/decide', payload);
+      if (data.needs_confirmation) {
+        var row = null;
+        for (var r = 0; r < companiesRef.current.length; r++) {
+          if (companiesRef.current[r].id === companyId) row = companiesRef.current[r];
+        }
+        var reuse = window.confirm(confirmationMessage(row || {}, data.candidate, data.error));
+        var followUp = Object.assign({}, payload);
+        if (reuse) {
+          followUp.confirm_company_id = data.candidate.id;
+        } else {
+          followUp.create_new = true;
+        }
+        data = await apiPost('/research/workflow/api/sweep/decide', followUp);
+      }
       if (!data.success) {
         if (window.showToast) window.showToast('Error: ' + (data.error || 'Unknown error'), 'danger');
         return;
@@ -488,6 +648,12 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
       }
       updateStats();
 
+      // The optimistic patch above only carries the fields /decide returns.
+      // The row's resolved `state` is derived server-side from the linked
+      // company and is not part of that response, so refetch to keep the
+      // badge from reading stale (e.g. still "Pending" right after a kill).
+      await reloadCompanies();
+
       var labels = { inbox: 'Sent to Inbox', killed: 'Killed' };
       if (window.showToast)
         window.showToast(labels[decision] || decision, decision === 'inbox' ? 'success' : 'info');
@@ -522,10 +688,70 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
         tableRef.current.redraw(true);
       }
       updateStats();
+
+      // Same reasoning as in handleDecide: /undo doesn't return `state`,
+      // so refetch to pick up the row's resolved state after the undo.
+      await reloadCompanies();
+
       if (window.showToast) window.showToast('Decision undone', 'info');
     } catch (err) {
       if (window.showToast) window.showToast('Network error \u2014 please try again', 'danger');
       console.error('Undo error:', err);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Linking (confirm a suggestion, dismiss it, or unlink a confirmed row)
+  // ------------------------------------------------------------------
+
+  // /link answers with 400 (or 404) on every refusal, and apiFetch turns any
+  // non-2xx into a thrown ApiError carrying the server's message -- so a
+  // resolved response here is always a success, and the refusal path is the
+  // catch below, not a `success: false` body.
+  async function handleConfirmLink(companyId, candidateId) {
+    try {
+      await apiPost('/research/workflow/api/sweep/link', {
+        sweep_company_id: companyId, company_id: candidateId,
+      });
+      // The badge and the actions column both depend on the row's resolved
+      // state/link, which /link doesn't return -- refetch, same reasoning as
+      // the post-decide reload above.
+      await reloadCompanies();
+      if (window.showToast) window.showToast('Linked', 'success');
+    } catch (e) {
+      if (window.showToast) window.showToast('Error: ' + e.message, 'danger');
+    }
+  }
+
+  async function handleUnlinkRow(companyId) {
+    try {
+      var data = await apiPost('/research/workflow/api/sweep/unlink', {
+        sweep_company_id: companyId,
+      });
+      if (window.showToast) {
+        window.showToast(data.removed ? 'Link removed' : 'Nothing to unlink',
+                         data.removed ? 'success' : 'info');
+      }
+      if (data.removed) await reloadCompanies();
+    } catch (e) {
+      if (window.showToast) window.showToast('Error: ' + e.message, 'danger');
+    }
+  }
+
+  // Dismissing a suggestion is a local-only "not now" -- nothing is posted,
+  // so the server's name-match logic is untouched and the same suggestion
+  // can resurface (e.g. after a reload). Only hide it from this session's
+  // table/companiesRef.
+  async function handleDismissSuggestion(companyId) {
+    for (var i = 0; i < companiesRef.current.length; i++) {
+      if (companiesRef.current[i].id === companyId) {
+        companiesRef.current[i].suggestion = null;
+        break;
+      }
+    }
+    if (tableRef.current) {
+      await tableRef.current.updateData([{ id: companyId, suggestion: null }]);
+      tableRef.current.redraw(true);
     }
   }
 
@@ -544,6 +770,14 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
           }
         }
         if (window.showToast) window.showToast('Sector updated', 'success');
+      } else if (data.needs_confirmation) {
+        if (window.showToast)
+          window.showToast(
+            'Set this row\u2019s decision first \u2014 the company needs to be confirmed before the sector can be applied.',
+            'warning'
+          );
+      } else {
+        if (window.showToast) window.showToast('Error: ' + (data.error || 'Unknown error'), 'danger');
       }
     } catch (err) {
       console.error('Update sector error:', err);

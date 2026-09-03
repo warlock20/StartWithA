@@ -31,6 +31,7 @@ import openpyxl
 from app import db
 from app.models.market_sweep import MarketSweep, MarketSweepCompany
 from app.models.user import User
+from app.services.sweep_link import link_sweep_row_by_isin
 from app.utils.isin import is_valid_isin, normalize_isin
 
 logger = logging.getLogger(__name__)
@@ -130,21 +131,28 @@ def upsert_sweep_companies(sweep_id, rows):
         for row in MarketSweepCompany.query.filter_by(sweep_id=sweep_id).all()
     }
 
-    # A file with no id column is fine for a brand-new sweep -- every row is
-    # necessarily new. But against a sweep that already has rows, an id-less
-    # file can't be matched to anything: every row falls through to the
-    # insert path and the sweep silently doubles, shadowing the rows that
-    # own the decisions. Reject the whole upload instead.
-    if existing and rows and 'id' not in rows[0]:
+    # A file carrying no ids is fine for a brand-new sweep -- every row is
+    # necessarily new. But against a sweep that already has rows, such a file
+    # can't be matched to anything: every row falls through to the insert path
+    # and the sweep silently doubles, shadowing the rows that own the
+    # decisions. Reject the whole upload instead.
+    #
+    # The test is the id VALUES, not the column: clearing the id cells of an
+    # export leaves the header in place and does exactly the same damage. A
+    # file that legitimately appends rows still carries the ids of the rows it
+    # already had, so appending is unaffected.
+    if existing and rows and not any(str(row.get('id') or '').strip() for row in rows):
         raise ValueError(
-            f'This sweep already has {len(existing)} companies, but the file '
-            f'has no "id" column. Uploading it would add duplicate rows '
+            f'This sweep already has {len(existing)} companies, but no row in '
+            f'the file carries an "id". Uploading it would add duplicate rows '
             f'instead of updating the existing ones. Export the sweep first '
             f'so each row carries its id.'
         )
 
     seen = set()
     updated = inserted = 0
+    isin_changed = []
+    inserted_with_isin = []
 
     for index, row in enumerate(rows):
         name = str(row.get('company_name') or '').strip()
@@ -183,25 +191,37 @@ def upsert_sweep_companies(sweep_id, rows):
             company.market_cap = market_cap
             company.exchange = exchange
             # A blank cell means "unknown", never "clear what is stored".
-            if isin is not None:
+            if isin is not None and isin != company.isin:
                 company.isin = isin
+                isin_changed.append(company.id)
             company.sort_order = index
 
             seen.add(row_id)
             updated += 1
         else:
-            db.session.add(MarketSweepCompany(
+            new_company = MarketSweepCompany(
                 sweep_id=sweep_id, company_name=name, ticker=ticker,
                 isin=isin, sector_label=sector, market_cap=market_cap,
                 exchange=exchange, sort_order=index,
-            ))
+            )
+            db.session.add(new_company)
+            if isin is not None:
+                inserted_with_isin.append(new_company)
             inserted += 1
+
+    # New rows only know their id once flushed, and the link pass needs those
+    # ids. Flush once for the whole batch rather than per row: a first import
+    # of thousands of rows would otherwise be thousands of single INSERTs.
+    if inserted_with_isin:
+        db.session.flush()
+        isin_changed.extend(company.id for company in inserted_with_isin)
 
     return {
         'updated': updated,
         'inserted': inserted,
         'absent': len(set(existing) - seen),
         'errors': [],
+        'isin_changed': isin_changed,
     }
 
 
@@ -210,7 +230,13 @@ def seed_market_sweeps(data_dir=None):
 
     Scans *data_dir* for .csv / .xlsx files.  Each filename is treated as
     the country name (e.g. ``Australia.csv`` → country "Australia").
-    Sweeps that already exist in the database are silently skipped.
+
+    **First run only.** A country already in the database is skipped, so
+    editing a file on disk never changes an existing sweep. That is deliberate:
+    sweep rows are shared and carry every user's decisions, and re-importing
+    from disk on each boot would give a process restart authority over them.
+    Changing an existing sweep goes through export → edit → upload in the admin,
+    which matches rows by id and deletes nothing.
 
     Called once during app startup — safe to call repeatedly.
     """
@@ -272,3 +298,63 @@ def seed_market_sweeps(data_dir=None):
 
     if created:
         logger.info("seed_market_sweeps: seeded %d new sweep(s)", created)
+
+
+#: The columns an uploadable file must carry, in the order the parser
+#: normalises them to. `id` is what makes a re-upload non-destructive: rows
+#: are matched by identity rather than by name, so names may be edited freely.
+EXPORT_COLUMNS = ['id', 'company_name', 'ticker', 'isin',
+                  'sector', 'market_cap', 'exchange']
+
+
+def build_sweep_export(sweep_id):
+    """Serialise a sweep's companies as an .xlsx payload.
+
+    The export is the supported source of an uploadable file. A hand-made file
+    carries no ids, and the upsert refuses it rather than silently inserting
+    duplicates alongside the rows that own the decisions.
+    """
+    companies = MarketSweepCompany.query.filter_by(
+        sweep_id=sweep_id,
+    ).order_by(MarketSweepCompany.sort_order).all()
+
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = 'companies'
+    sheet.append(EXPORT_COLUMNS)
+
+    for company in companies:
+        sheet.append([
+            company.id,
+            company.company_name,
+            company.ticker,
+            company.isin,
+            company.sector_label,
+            company.market_cap,
+            company.exchange,
+        ])
+
+    buf = io.BytesIO()
+    workbook.save(buf)
+    return buf.getvalue()
+
+
+def link_imported_isins(sweep_company_ids):
+    """Link every row whose ISIN an import just set, for every owning user.
+
+    An ISIN typed into a shared row answers "which company is this" for
+    everyone who holds that security, not only for the admin who uploaded the
+    file. Rows already linked are left alone.
+
+    Returns the number of links created. Does not commit.
+    """
+    if not sweep_company_ids:
+        return 0
+
+    created = 0
+    for row in MarketSweepCompany.query.filter(
+        MarketSweepCompany.id.in_(sweep_company_ids)
+    ).all():
+        created += len(link_sweep_row_by_isin(row))
+
+    return created

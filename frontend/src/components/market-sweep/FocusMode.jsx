@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { displayState, isHeld } from './rowState';
 
 /**
  * FocusMode — single-company decision view with UP NEXT sidebar.
@@ -7,8 +8,13 @@ import { useState, useEffect, useRef } from 'react';
  * queue of upcoming companies (right). Supports keyboard shortcuts
  * I (Inbox), K (Kill), S (Skip).
  *
+ * This is the default view, so the row's derived `state` has to reach it for
+ * the same reason it reaches the table — and the rule that a held company is
+ * not a kill candidate binds both the Kill button and the K shortcut, since
+ * each is a way of offering one.
+ *
  * Props:
- *   companies: Array<{ id, company_name, ticker, isin, sector_label, market_cap, exchange, decision }>
+ *   companies: Array<{ id, company_name, ticker, isin, sector_label, market_cap, exchange, decision, state }>
  *   onDecide: (companyId, decision) => void
  *   onOpenKill: (companyId, companyName) => void
  *   disabled: boolean — when true, keyboard shortcuts are suppressed (e.g. modal open)
@@ -39,10 +45,15 @@ export function FocusMode({ companies, onDecide, onOpenKill, disabled, isAdmin, 
   var current = available[0] || null;
   var currentIndex = current ? companies.indexOf(current) : -1;
   var upNext = available.slice(1, 8);
+  var currentState = displayState(current);
+  // A held company is not a kill candidate. The button and the K shortcut are
+  // the same offer, so one flag gates both.
+  var canKill = current ? !isHeld(current) : false;
 
   // Keep refs current for the stable keyboard handler
   stateRef.current = {
     current: current,
+    canKill: canKill,
     onDecide: onDecide,
     onOpenKill: onOpenKill,
     disabled: disabled,
@@ -66,6 +77,9 @@ export function FocusMode({ companies, onDecide, onOpenKill, disabled, isAdmin, 
         e.preventDefault();
         s.onDecide(s.current.id, 'inbox');
       } else if (key === 'k') {
+        // Not preventDefault'd when the row is held: there is no Kill button
+        // on screen either, so the key must simply do nothing.
+        if (!s.canKill) return;
         e.preventDefault();
         s.onOpenKill(s.current.id, s.current.company_name);
       } else if (key === 's') {
@@ -114,9 +128,21 @@ export function FocusMode({ companies, onDecide, onOpenKill, disabled, isAdmin, 
             <span className="sweep-focus__position">
               #{currentIndex + 1} of {companies.length}
             </span>
-            <span className="sweep-decision-badge sweep-decision-badge--pending">
-              PENDING
-            </span>
+            {currentState ? (
+              <span
+                className={
+                  'sweep-state-badge sweep-state-badge--' + currentState.stage +
+                  (currentState.is_dead ? ' sweep-state-badge--dead' : '')
+                }
+                title={currentState.reason || undefined}
+              >
+                {currentState.label}
+              </span>
+            ) : (
+              <span className="sweep-decision-badge sweep-decision-badge--pending">
+                PENDING
+              </span>
+            )}
           </div>
 
           <div className="sweep-focus__company-info">
@@ -178,15 +204,17 @@ export function FocusMode({ companies, onDecide, onOpenKill, disabled, isAdmin, 
               <i className="bi bi-inbox" /> Inbox
               <kbd className="sweep-focus__kbd">I</kbd>
             </button>
-            <button
-              className="sweep-focus__action-btn sweep-focus__action-btn--kill"
-              onClick={function () {
-                onOpenKill(current.id, current.company_name);
-              }}
-            >
-              <i className="bi bi-x-lg" /> Kill
-              <kbd className="sweep-focus__kbd">K</kbd>
-            </button>
+            {canKill && (
+              <button
+                className="sweep-focus__action-btn sweep-focus__action-btn--kill"
+                onClick={function () {
+                  onOpenKill(current.id, current.company_name);
+                }}
+              >
+                <i className="bi bi-x-lg" /> Kill
+                <kbd className="sweep-focus__kbd">K</kbd>
+              </button>
+            )}
             <button
               className="sweep-focus__action-btn sweep-focus__action-btn--skip"
               onClick={handleSkip}

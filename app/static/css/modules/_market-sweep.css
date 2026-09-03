@@ -278,6 +278,37 @@
 .sweep-decision-badge--inbox   { background: var(--success-50, #ecfdf5); color: var(--success-600, #059669); }
 .sweep-decision-badge--killed  { background: var(--danger-50, #fef2f2); color: var(--danger-600, #dc2626); }
 
+/* State resolved from the linked company, not from the stored sweep decision.
+   Stage picks the colour; is_dead mutes the row so a finished company reads as
+   finished at a glance. */
+.sweep-state-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+.sweep-state-badge--portfolio { background: var(--success-50, #ecfdf5); color: var(--success-600, #059669); }
+.sweep-state-badge--research  { background: var(--info-50, #eff6ff);   color: var(--info-600, #2563eb); }
+.sweep-state-badge--pipeline  { background: var(--gray-100);           color: var(--gray-600); }
+.sweep-state-badge--sweep     { background: var(--gray-100);           color: var(--gray-500); }
+.sweep-state-badge--none      { background: var(--gray-100);           color: var(--gray-500); }
+.sweep-state-badge--dead      { background: var(--danger-50, #fef2f2); color: var(--danger-600, #dc2626); }
+
+/* A candidate, not an answer -- deliberately quieter than any decided state. */
+.sweep-suggestion {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.6rem;
+    font-weight: 500;
+    color: var(--gray-500);
+    font-style: italic;
+}
+
 /* Action buttons inside table cells */
 .sweep-actions {
     display: flex;
