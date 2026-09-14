@@ -19,13 +19,18 @@ from flask import request, jsonify
 from flask_login import current_user, login_required
 from app import db
 from app.models import (Company)
+from app.models.market_sweep import (
+    CompanySweepLink, MarketSweep, MarketSweepCompany,
+)
 from app.models.research import FreeResearchQuestion
 from app.services.sector_service import SectorService
 from app.services.financial_data import FinancialDataService
 from app.companies import companies_bp
 from app.utils.ticker_validator import TickerValidator
-from app.utils.company_identity import company_identity_key
+from app.utils.company_identity import company_identity_key, normalize_company_name
+from app.utils.isin import is_valid_isin, isin_plausible_for_listing, normalize_isin
 from app.services.currency_service import CurrencyService
+from app.services.sweep_link import confirm as confirm_link, link_from_isin
 from app.utils.response_utils import json_error, json_not_found
 from app.utils.time_utils import now_utc
 from app.utils.blocknote_utils import append_note, blocknote_to_text
@@ -50,7 +55,45 @@ def _serialize_user_company(company):
         'ticker_symbol': company.ticker_symbol,
         'industry': company.industry,
         'sector': company.sector.display_name if company.sector else None,
+        'isin': company.isin,
         'source': 'existing'
+    }
+
+
+def _trusted_provider_isin(raw, ticker):
+    """A provider's ISIN, or None if it fails either check.
+
+    Two gates, both cheap and both necessary. is_valid_isin catches a mangled
+    string; isin_plausible_for_listing catches a well-formed ISIN belonging to
+    something else, which is the failure a check digit cannot see.
+
+    Applied on the way out of search AND again on the way into create. The
+    second is not redundant: the first ran on data the client then had a turn
+    with, and an ISIN accepted here is written as fact.
+    """
+    isin = normalize_isin(raw)
+    if not isin or not is_valid_isin(isin):
+        return None
+    if not isin_plausible_for_listing(isin, ticker):
+        logger.info(
+            'Discarded provider ISIN %s for %s: country prefix contradicts '
+            'the listing.', isin, ticker)
+        return None
+    return isin
+
+
+def _serialize_sweep_row(row, sweep):
+    """Shape a market-sweep row for the search response."""
+    return {
+        'sweep_company_id': row.id,
+        'company_name': row.company_name,
+        'ticker': row.ticker,
+        'isin': row.isin,
+        'sector_label': row.sector_label,
+        'exchange': row.exchange,
+        'sweep_name': sweep.name,
+        'sweep_country': sweep.country,
+        'source': 'market_sweep',
     }
 
 
@@ -60,7 +103,8 @@ def api_search_companies():
     """AJAX endpoint for searching companies - searches both user's companies and Yahoo Finance"""
     query = request.args.get('q', '').strip()
     if len(query) < 1:
-        return jsonify({'user_companies': [], 'yahoo_suggestions': []})
+        return jsonify({'user_companies': [], 'sweep_companies': [],
+                        'yahoo_suggestions': []})
 
     # Try to parse as ticker first
     normalized_ticker = None
@@ -118,9 +162,52 @@ def api_search_companies():
             )
         return True
 
+    # Market-sweep rows. These are the only records in the system carrying a
+    # human-entered ISIN, so they are searched before the provider and rank
+    # above it: a provider listing of the same company is the same company
+    # minus its identifier.
+    sweep_companies = []
+    sweep_identities = set()
+
+    linked_row_ids = {
+        row_id for (row_id,) in db.session.query(
+            CompanySweepLink.sweep_company_id
+        ).filter(CompanySweepLink.user_id == current_user.id).all()
+    }
+
+    sweep_rows = db.session.query(MarketSweepCompany, MarketSweep).join(
+        MarketSweep, MarketSweep.id == MarketSweepCompany.sweep_id
+    ).filter(
+        MarketSweep.is_active.is_(True),
+        db.or_(
+            MarketSweepCompany.company_name.ilike(f'%{query}%'),
+            MarketSweepCompany.ticker.ilike(f'%{query}%'),
+        )
+    ).order_by(MarketSweepCompany.company_name).limit(20).all()
+
+    for row, sweep in sweep_rows:
+        identity = company_identity_key(row.company_name, row.ticker)
+
+        # A row this user has already answered for -- by linking it, or by
+        # simply owning the company -- is settled. Offering it again is an
+        # invitation to create the duplicate this endpoint exists to prevent.
+        # The ISIN still reaches an owned-but-unlinked company, through the
+        # sweep-match banner rather than through a second creation.
+        if row.id in linked_row_ids or claim_owned_company(identity):
+            continue
+
+        if identity in sweep_identities:
+            continue
+        sweep_identities.add(identity)
+        sweep_companies.append(_serialize_sweep_row(row, sweep))
+        if len(sweep_companies) >= 5:
+            break
+
     # Try financial data service lookup - both by ticker AND by company name
     yahoo_suggestions = []
-    suggested_identities = set()
+    # Seeded with the sweep hits so the provider cannot re-offer a company the
+    # sweep already answered for, without its ISIN.
+    suggested_identities = set(sweep_identities)
     service = get_financial_service()
 
     # 1. If query is a valid ticker, look it up directly
@@ -131,8 +218,10 @@ def api_search_companies():
             if info and info.get('name'):
                 identity = company_identity_key(info.get('name'), normalized_ticker)
 
-                # Skip if the user already owns this company, under any ticker
-                if not claim_owned_company(identity):
+                # Skip if the user already owns this company, under any
+                # ticker, or a sweep row already covers it
+                if (identity not in suggested_identities
+                        and not claim_owned_company(identity)):
                     suggested_identities.add(identity)
                     yahoo_suggestions.append({
                         'ticker_symbol': normalized_ticker,
@@ -140,6 +229,10 @@ def api_search_companies():
                         'industry': info.get('industry') or '',
                         'sector': info.get('sector') or '',
                         'summary': '',
+                        # Optional in the provider contract; Yahoo never sets
+                        # it. See _trusted_provider_isin.
+                        'isin': _trusted_provider_isin(
+                            info.get('isin'), normalized_ticker),
                         'source': 'financial_data_service'
                     })
         except Exception:
@@ -167,6 +260,8 @@ def api_search_companies():
                     'industry': result.get('industry') or '',
                     'sector': result.get('sector') or '',
                     'summary': '',
+                    'isin': _trusted_provider_isin(
+                        result.get('isin'), ticker_symbol),
                     'source': 'financial_data_service'
                 })
         except Exception as e:
@@ -175,6 +270,7 @@ def api_search_companies():
 
     return jsonify({
         'user_companies': user_company_data,
+        'sweep_companies': sweep_companies,
         'yahoo_suggestions': yahoo_suggestions
     })
 
@@ -190,20 +286,38 @@ def api_create_company():
         industry = (data.get('industry') or '').strip() or None
         sector_name = (data.get('sector') or '').strip() or None
         summary = (data.get('summary') or '').strip() or None
+        sweep_company_id = data.get('sweep_company_id')
 
-        # Validate ticker format
-        validation = TickerValidator.parse_and_validate(ticker_input)
+        # The row the user picked, when they picked one. Its ISIN is the
+        # reason this branch exists: it is the only identifier in the system a
+        # human has actually vouched for.
+        sweep_company = None
+        if sweep_company_id is not None:
+            sweep_company = MarketSweepCompany.query.get(sweep_company_id)
+            if sweep_company is None:
+                return json_error('That market sweep company no longer exists')
+            if not ticker_input:
+                ticker_input = (sweep_company.ticker or '').strip()
 
-        if not validation['is_valid']:
-            return jsonify({
-                'success': False,
-                'error': validation['errors'][0],
-                'validation_errors': validation['errors'],
-                'ticker_input': ticker_input
-            })
+        # A sweep row with no ticker is still a real company, and the sweep's
+        # own promote path has always recorded it as UNKNOWN. Refusing it here
+        # would make the row unusable through the modal alone.
+        if sweep_company is not None and not ticker_input:
+            ticker_symbol = 'UNKNOWN'
+        else:
+            # Validate ticker format
+            validation = TickerValidator.parse_and_validate(ticker_input)
 
-        # Use normalized ticker (Yahoo Finance format)
-        ticker_symbol = validation['normalized_ticker']
+            if not validation['is_valid']:
+                return jsonify({
+                    'success': False,
+                    'error': validation['errors'][0],
+                    'validation_errors': validation['errors'],
+                    'ticker_input': ticker_input
+                })
+
+            # Use normalized ticker (Yahoo Finance format)
+            ticker_symbol = validation['normalized_ticker']
 
         if not name:
             return json_error('Company name is required')
@@ -232,6 +346,30 @@ def api_create_company():
                 auto_create=True
             )
 
+        # The row's ISIN travels with the company, but only if it is free:
+        # uq_company_user_isin allows a user one company per ISIN, and silently
+        # dropping it here would leave the user staring at a company that
+        # refuses to link to the row they just picked.
+        # A sweep ISIN was typed by a person and outranks anything a provider
+        # proposed; the provider's is re-checked here because the client had a
+        # turn with it in between.
+        isin = sweep_company.isin if sweep_company is not None else None
+        if isin is None:
+            isin = _trusted_provider_isin(data.get('provider_isin'), ticker_symbol)
+        if isin:
+            clash = Company.query.filter(
+                Company.user_id == current_user.id,
+                Company.isin == isin,
+            ).first()
+            if clash is not None:
+                return jsonify({
+                    'success': False,
+                    'error': (
+                        f'ISIN {isin} is already assigned to {clash.name}. '
+                        f'Link that company to this row instead.'
+                    ),
+                })
+
         # Create new company
         company = Company(
             user_id=current_user.id,
@@ -240,10 +378,22 @@ def api_create_company():
             industry=industry,
             sector_id=sector_obj.id if sector_obj else None,
             summary=summary,
+            isin=isin,
             reporting_currency=CurrencyService.detect_currency_from_ticker(ticker_symbol)
         )
 
         db.session.add(company)
+        db.session.flush()
+
+        if sweep_company is not None:
+            # Choosing the row is the judgement, so the link is 'confirmed'.
+            # link_from_isin then carries the same answer to every other row
+            # bearing this ISIN, where no judgement was made and the origin
+            # says so.
+            confirm_link(current_user.id, sweep_company.id, company.id)
+            if isin:
+                link_from_isin(current_user.id, isin)
+
         db.session.commit()
 
         return jsonify({
@@ -254,13 +404,136 @@ def api_create_company():
                 'ticker_symbol': company.ticker_symbol,
                 'industry': company.industry,
                 'sector': company.sector.display_name if company.sector else None,
-                'summary': company.summary
+                'summary': company.summary,
+                'isin': company.isin
             }
         })
 
     except Exception as e:
         db.session.rollback()
         return json_error(str(e))
+
+
+def _owned_company_or_404(company_id):
+    """This user's company, or None. Another user's is indistinguishable from
+    one that does not exist, which is the point."""
+    return Company.query.filter_by(
+        id=company_id, user_id=current_user.id).first()
+
+
+def _sweep_match_candidates(company):
+    """Sweep rows whose ISIN this company might be entitled to.
+
+    Exact ticker first, then normalised name -- the same ladder sweep_link.
+    suggest() climbs, and for the same reason: a name is a guess, so it ranks
+    below an identifier and never writes anything on its own.
+
+    A row whose ISIN the user already holds elsewhere is omitted. Offering it
+    would propose a change that uq_company_user_isin then refuses, which reads
+    to the user as the app being broken rather than as a real conflict.
+    """
+    if company.isin:
+        return []
+
+    held = {
+        isin for (isin,) in db.session.query(Company.isin).filter(
+            Company.user_id == current_user.id,
+            Company.isin.isnot(None),
+            Company.id != company.id,
+        ).all()
+    }
+
+    rows = db.session.query(MarketSweepCompany, MarketSweep).join(
+        MarketSweep, MarketSweep.id == MarketSweepCompany.sweep_id
+    ).filter(
+        MarketSweep.is_active.is_(True),
+        MarketSweepCompany.isin.isnot(None),
+    ).all()
+
+    normalized = normalize_company_name(company.name)
+    by_ticker, by_name = [], []
+
+    for row, sweep in rows:
+        if row.isin in held:
+            continue
+        if company.ticker_symbol and row.ticker == company.ticker_symbol:
+            target = by_ticker
+            basis = 'ticker'
+        elif normalized and normalize_company_name(row.company_name) == normalized:
+            target = by_name
+            basis = 'name'
+        else:
+            continue
+        hit = _serialize_sweep_row(row, sweep)
+        hit['basis'] = basis
+        target.append(hit)
+
+    return by_ticker + by_name
+
+
+@companies_bp.route('/api/companies/<int:company_id>/sweep-match')
+@login_required
+def api_company_sweep_match(company_id):
+    """Sweep rows carrying an ISIN that this ISIN-less company might be.
+
+    Read-only by design. The banner this feeds is the human gate: an ISIN
+    written here would travel to every user holding it, as a link claiming no
+    judgement was required.
+    """
+    company = _owned_company_or_404(company_id)
+    if company is None:
+        return json_not_found('Company not found')
+
+    return jsonify({
+        'success': True,
+        'matches': _sweep_match_candidates(company),
+    })
+
+
+@companies_bp.route('/api/companies/<int:company_id>/adopt-isin', methods=['POST'])
+@login_required
+def api_company_adopt_isin(company_id):
+    """Take the ISIN from a sweep row the user has just accepted.
+
+    The click is the judgement, so the link is stamped 'confirmed' exactly as
+    it is when the row is picked during creation.
+    """
+    company = _owned_company_or_404(company_id)
+    if company is None:
+        return json_not_found('Company not found')
+
+    sweep_company_id = (request.get_json() or {}).get('sweep_company_id')
+    sweep_company = MarketSweepCompany.query.get(sweep_company_id) \
+        if sweep_company_id is not None else None
+    if sweep_company is None:
+        return json_error('That market sweep company no longer exists')
+
+    if not sweep_company.isin:
+        return json_error('That market sweep row has no ISIN to take')
+
+    clash = Company.query.filter(
+        Company.user_id == current_user.id,
+        Company.isin == sweep_company.isin,
+        Company.id != company.id,
+    ).first()
+    if clash is not None:
+        return json_error(
+            f'ISIN {sweep_company.isin} is already assigned to {clash.name}.')
+
+    try:
+        company.isin = sweep_company.isin
+        confirm_link(current_user.id, sweep_company.id, company.id)
+        link_from_isin(current_user.id, company.isin)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception('Adopting ISIN from sweep row failed')
+        return json_error(str(exc))
+
+    return jsonify({
+        'success': True,
+        'company': {'id': company.id, 'isin': company.isin},
+    })
 
 
 @companies_bp.route('/api/lookup/<ticker>')

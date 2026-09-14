@@ -142,6 +142,24 @@ class FinancialDataProvider(ABC):
                 'exchange': 'NASDAQ',
                 'sector': 'Technology'
             }
+
+            May additionally carry 'isin', but ONLY where the provider is
+            itself authoritative for it. Omit the key otherwise; absent means
+            "unknown", which is correct, while a guess is not.
+
+            Yahoo does not supply ISINs -- quoteSummary has no such field --
+            and yfinance's Ticker.isin property is a scrape of an unrelated
+            site that returns '-' for most non-US listings and, for Toyota
+            (7203.T), returns CA89238H1091: a Canadian instrument's ISIN with
+            a correct check digit. Never wire that property in here.
+
+            Whatever a provider does return is re-checked before it is stored
+            (see _trusted_provider_isin in app/companies/api_routes.py):
+            check-digit validity, then agreement between the ISIN's country
+            prefix and the listing venue. A mismatch is discarded, because an
+            accepted ISIN propagates to every user holding it via
+            sweep_link.link_from_isin as a link claiming no judgement was
+            required.
         """
         pass
 
