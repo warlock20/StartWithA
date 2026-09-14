@@ -356,11 +356,29 @@ def _resolve_or_create_company(sweep_company, sector_id, resolved_company_id=Non
         )
 
     ticker = sweep_company.ticker or 'UNKNOWN'
+
+    # The row's ISIN was typed by a human and is the whole reason a company
+    # created here can be found again from the sweep. It travels with the
+    # company -- unless this user already has one holding it, which
+    # uq_company_user_isin forbids. The ordinary path never gets here (suggest()
+    # spots the shared ISIN and asks first), but create_new=True skips that
+    # gate, and a decision must not 500 because of it.
+    isin = sweep_company.isin
+    if isin and Company.query.filter_by(
+            user_id=current_user.id, isin=isin).first() is not None:
+        logger.info(
+            "Sweep row %s carries ISIN %s, which user %s already holds on "
+            "another company. New company created without it.",
+            sweep_company.id, isin, current_user.id,
+        )
+        isin = None
+
     new_company = Company(
         user_id=current_user.id,
         name=sweep_company.company_name,
         ticker_symbol=ticker,
         sector_id=sector_obj.id if sector_obj else None,
+        isin=isin,
         reporting_currency=CurrencyService.detect_currency_from_ticker(ticker) if ticker != 'UNKNOWN' else None,
     )
     db.session.add(new_company)

@@ -18,10 +18,12 @@ import { QuickAddForm } from './QuickAddForm';
 export function CompanySearchModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState({ yahoo: [], user: [] });
+  const [results, setResults] = useState({ yahoo: [], user: [], sweep: [] });
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [sweepMatch, setSweepMatch] = useState(null);
+  const [isAdopting, setIsAdopting] = useState(false);
 
   const callbackRef = useRef(null);
   const modalElRef = useRef(null);
@@ -76,7 +78,7 @@ export function CompanySearchModal() {
   useEffect(() => {
     if (!isOpen) return;
     if (debouncedQuery.length < 2) {
-      setResults({ yahoo: [], user: [] });
+      setResults({ yahoo: [], user: [], sweep: [] });
       setShowQuickAdd(false);
       return;
     }
@@ -89,13 +91,14 @@ export function CompanySearchModal() {
         if (cancelled) return;
         const yahoo = data.yahoo_suggestions || [];
         const user = data.user_companies || [];
-        setResults({ yahoo, user });
-        setShowQuickAdd(yahoo.length === 0 && user.length === 0);
+        const sweep = data.sweep_companies || [];
+        setResults({ yahoo, user, sweep });
+        setShowQuickAdd(yahoo.length === 0 && user.length === 0 && sweep.length === 0);
       })
       .catch((err) => {
         if (cancelled) return;
         console.error('Search error:', err);
-        setResults({ yahoo: [], user: [] });
+        setResults({ yahoo: [], user: [], sweep: [] });
       })
       .finally(() => {
         if (!cancelled) setIsSearching(false);
@@ -105,14 +108,41 @@ export function CompanySearchModal() {
   }, [debouncedQuery, isOpen]);
 
   // -----------------------------------------------------------------------
+  // Does the selected company match a sweep row that knows its ISIN?
+  //
+  // Only ever asked for a company that has none. Nothing is written here: the
+  // answer is a proposal, and the button below is the human gate. An ISIN
+  // written without that click would travel to every user holding it, as a
+  // link whose origin claims no judgement was needed.
+  // -----------------------------------------------------------------------
+  useEffect(() => {
+    if (!selectedCompany || !selectedCompany.id || selectedCompany.isin) {
+      setSweepMatch(null);
+      return;
+    }
+
+    let cancelled = false;
+    apiGet(`/companies/api/companies/${selectedCompany.id}/sweep-match`)
+      .then((data) => {
+        if (cancelled) return;
+        setSweepMatch((data.matches && data.matches[0]) || null);
+      })
+      .catch(() => { if (!cancelled) setSweepMatch(null); });
+
+    return () => { cancelled = true; };
+  }, [selectedCompany]);
+
+  // -----------------------------------------------------------------------
   // Handlers
   // -----------------------------------------------------------------------
   function resetState() {
     setQuery('');
-    setResults({ yahoo: [], user: [] });
+    setResults({ yahoo: [], user: [], sweep: [] });
     setSelectedCompany(null);
     setShowQuickAdd(false);
     setIsSearching(false);
+    setSweepMatch(null);
+    setIsAdopting(false);
     callbackRef.current = null;
   }
 
@@ -129,6 +159,10 @@ export function CompanySearchModal() {
         industry: suggestion.industry || null,
         sector: suggestion.sector || null,
         summary: suggestion.summary || null,
+        // Only ever set by a provider that is authoritative for ISINs; Yahoo
+        // is not, so this is null in practice today. The server re-checks it
+        // regardless -- see _trusted_provider_isin.
+        provider_isin: suggestion.isin || null,
       });
       if (result.success) {
         if (window.showToast) window.showToast('Company created', 'success');
@@ -144,6 +178,52 @@ export function CompanySearchModal() {
 
   function handleSelectUser(company) {
     setSelectedCompany(company);
+  }
+
+  async function handleSelectSweep(row) {
+    if (window.showToast) window.showToast('Creating\u2026', 'loading');
+    try {
+      // sweep_company_id is the whole point: the row carries an ISIN a person
+      // entered, and picking it is that person saying this is the company.
+      const result = await apiPost('/companies/api/companies/create', {
+        sweep_company_id: row.sweep_company_id,
+        ticker_symbol: row.ticker || '',
+        name: row.company_name,
+        sector: row.sector_label || null,
+      });
+      if (result.success) {
+        if (window.showToast) window.showToast('Company created', 'success');
+        setSelectedCompany(result.company);
+      } else if (window.showToast) {
+        window.showToast(result.error || 'Failed to create company', 'danger');
+      }
+    } catch (err) {
+      if (window.showToast) window.showToast('Error creating company', 'danger');
+      console.error('Error creating company:', err);
+    }
+  }
+
+  async function handleAdoptIsin() {
+    if (!selectedCompany || !sweepMatch) return;
+    setIsAdopting(true);
+    try {
+      const result = await apiPost(
+        `/companies/api/companies/${selectedCompany.id}/adopt-isin`,
+        { sweep_company_id: sweepMatch.sweep_company_id },
+      );
+      if (result.success) {
+        if (window.showToast) window.showToast('ISIN linked', 'success');
+        setSelectedCompany((prev) => ({ ...prev, isin: result.company.isin }));
+        setSweepMatch(null);
+      } else if (window.showToast) {
+        window.showToast(result.error || 'Could not link that ISIN', 'danger');
+      }
+    } catch (err) {
+      if (window.showToast) window.showToast('Could not link that ISIN', 'danger');
+      console.error('Error adopting ISIN:', err);
+    } finally {
+      setIsAdopting(false);
+    }
   }
 
   async function handleQuickAdd(formData) {
@@ -174,7 +254,8 @@ export function CompanySearchModal() {
   // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
-  const hasResults = results.yahoo.length > 0 || results.user.length > 0;
+  const hasResults = results.yahoo.length > 0 || results.user.length > 0
+    || results.sweep.length > 0;
 
   return (
     <div
@@ -231,8 +312,10 @@ export function CompanySearchModal() {
                   <SearchResults
                     yahooSuggestions={results.yahoo}
                     userCompanies={results.user}
+                    sweepCompanies={results.sweep}
                     onSelectYahoo={handleSelectYahoo}
                     onSelectUser={handleSelectUser}
+                    onSelectSweep={handleSelectSweep}
                   />
                 )}
 
@@ -257,22 +340,61 @@ export function CompanySearchModal() {
               </>
             ) : (
               /* Selected Company Display */
-              <div className="alert alert-success mb-0" id="selectedCompanyDisplay">
-                <h6>Selected Company:</h6>
-                <div id="modalSelectedCompanyInfo">
-                  <strong>{selectedCompany.name}</strong><br />
-                  <small>
-                    Ticker: {selectedCompany.ticker_symbol || 'N/A'} | Industry: {selectedCompany.industry || 'N/A'}
-                  </small>
+              <>
+                <div className="alert alert-success mb-0" id="selectedCompanyDisplay">
+                  <h6>Selected Company:</h6>
+                  <div id="modalSelectedCompanyInfo">
+                    <strong>{selectedCompany.name}</strong><br />
+                    <small>
+                      Ticker: {selectedCompany.ticker_symbol || 'N/A'} | Industry: {selectedCompany.industry || 'N/A'}
+                      {selectedCompany.isin && <> | ISIN: {selectedCompany.isin}</>}
+                    </small>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary mt-2"
+                    onClick={() => setSelectedCompany(null)}
+                  >
+                    Change Selection
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-secondary mt-2"
-                  onClick={() => setSelectedCompany(null)}
-                >
-                  Change Selection
-                </button>
-              </div>
+
+                {sweepMatch && (
+                  <div className="alert alert-info mt-3 mb-0" data-testid="sweep-match-banner">
+                    <h6 className="mb-1">This may be a company we already identify</h6>
+                    <p className="mb-2">
+                      <strong>{sweepMatch.company_name}</strong>
+                      {sweepMatch.ticker && <> ({sweepMatch.ticker})</>} in the{' '}
+                      {sweepMatch.sweep_country || sweepMatch.sweep_name} sweep carries
+                      ISIN <strong>{sweepMatch.isin}</strong>.
+                      {sweepMatch.basis === 'name' && (
+                        <>
+                          {' '}
+                          <span className="text-muted">
+                            Matched on name only — check it is the same company.
+                          </span>
+                        </>
+                      )}
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      data-testid="adopt-isin"
+                      disabled={isAdopting}
+                      onClick={handleAdoptIsin}
+                    >
+                      {isAdopting ? 'Linking\u2026' : 'Use this ISIN'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-link"
+                      onClick={() => setSweepMatch(null)}
+                    >
+                      Not the same company
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

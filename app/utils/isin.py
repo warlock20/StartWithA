@@ -79,3 +79,57 @@ def is_valid_isin(value):
         total += digit
 
     return (total + int(value[-1])) % 10 == 0
+
+
+# Exchanges where a listing reliably implies the issuer's domicile, and the
+# ISIN country prefix that domicile produces.
+#
+# Deliberately short. Most venues list foreign issuers as a matter of course --
+# Accenture is Irish (IE00B4BNMY34) on the NYSE, London is full of Jersey and
+# Guernsey domiciles, and Frankfurt cross-lists the world. Naming those here
+# would reject correct ISINs. Only markets that are closed to foreign primary
+# listings in practice belong.
+_STRICT_DOMICILE_EXCHANGES = {
+    '.T': 'JP',     # Tokyo
+    '.NS': 'IN',    # India, NSE
+    '.BO': 'IN',    # India, BSE
+    '.KS': 'KR',    # South Korea
+    '.KQ': 'KR',    # South Korea, KOSDAQ
+    '.SS': 'CN',    # Shanghai
+    '.SZ': 'CN',    # Shenzhen
+    '.TW': 'TW',    # Taiwan
+}
+
+
+def isin_plausible_for_listing(isin, ticker):
+    """May this machine-proposed ISIN be accepted for a listing on *ticker*?
+
+    False only when the ISIN's country prefix contradicts a venue that admits
+    no foreign issuers -- yfinance returning CA89238H1091 for Toyota on 7203.T,
+    a valid ISIN whose check digit proves nothing about whose it is.
+
+    The asymmetry is the point. A false reject leaves the company with no ISIN,
+    which is where it already was. A false accept writes an ISIN that
+    link_from_isin then fans out across every user who holds it, as a link
+    whose origin claims no judgement was needed. So a mismatch is evidence
+    against, while a match is no evidence for: anything unrecognised returns
+    True and leaves the decision to the human gate downstream.
+
+    Never consulted for an ISIN a person typed. Those are already judgements.
+    """
+    isin = normalize_isin(isin)
+    if not isin:
+        return False
+
+    if not ticker:
+        return True
+
+    _, dot, suffix = str(ticker).upper().rpartition('.')
+    if not dot:
+        return True
+
+    expected = _STRICT_DOMICILE_EXCHANGES.get('.' + suffix)
+    if expected is None:
+        return True
+
+    return isin[:2] == expected
