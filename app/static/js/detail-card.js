@@ -1,10 +1,10 @@
 /**
  * =============================================================================
- * THESIS HOVER CARD
+ * DETAIL CARD
  * =============================================================================
  *
- * Floating detail view for the idea inbox thesis column. Hover opens it,
- * click pins it (which is also the only way to reach it on touch).
+ * Floating detail view for a truncated preview cell. Hover opens it, click
+ * pins it (which is also the only way to reach it on touch).
  *
  * Two constraints drive the design:
  *
@@ -15,19 +15,38 @@
  *      scrolling destroy and rebuild row DOM. All listeners are delegated to
  *      a stable container so nothing ever needs re-binding.
  *
+ * Every section label and value is escaped here, never at the call site. A
+ * render-callback option was rejected for exactly that reason (#323).
+ *
  * Usage:
- *   var card = initThesisHoverCard({
- *       container: '#inbox-table',
- *       lookup: function (id) { return ideaMap[id]; }
+ *   var card = initDetailCard({
+ *       container: '#entries-table',
+ *       lookup: function (id) { return entryMap[id]; },
+ *       sections: [
+ *           { key: 'summary', label: 'Summary' },
+ *           { key: 'body',    label: 'Full entry' }
+ *       ],
+ *       label: 'Journal entry',        // optional card aria-label
+ *       trigger: '.detail-trigger'     // optional trigger selector
  *   });
  *   card.close();
+ *
+ * Trigger markup — the page's own class carries typography and truncation,
+ * .detail-trigger carries the shared affordance and the JS hook:
+ *   <span class="entry-preview-cell detail-trigger" data-detail-id="42"
+ *         tabindex="0" role="button" aria-expanded="false">…</span>
+ * The component sets aria-controls itself when the card opens.
  */
 (function (window, document) {
     'use strict';
 
     var CLOSE_DELAY = 120;   // ms grace to travel from cell to card
     var EDGE_GAP = 8;        // px clearance from the viewport edge
-    var TRIGGER = '.idea-thesis-cell.has-detail';
+    var DEFAULT_TRIGGER = '.detail-trigger';
+    var DEFAULT_LABEL = 'Details';
+
+    // Page-wide, so two cards on one page never share an id.
+    var instanceCount = 0;
 
     function escapeHtml(value) {
         return String(value == null ? '' : value)
@@ -38,13 +57,16 @@
             .replace(/'/g, '&#39;');
     }
 
-    function initThesisHoverCard(options) {
+    function initDetailCard(options) {
         var container = typeof options.container === 'string'
             ? document.querySelector(options.container)
             : options.container;
         if (!container) return null;
 
         var lookup = options.lookup;
+        var sections = options.sections || [];
+        var triggerSelector = options.trigger || DEFAULT_TRIGGER;
+        var cardLabel = options.label || DEFAULT_LABEL;
         var card, scrollEl, footEl, hintEl, closeBtn;
         var pinned = false;
         var pinnedByFocus = false;
@@ -54,23 +76,24 @@
         var suppressFocusPin = false;
 
         function build() {
+            instanceCount += 1;
             card = document.createElement('div');
-            card.className = 'thesis-card';
-            card.id = 'thesis-hover-card';
+            card.className = 'detail-card';
+            card.id = 'detail-card-' + instanceCount;
             card.setAttribute('role', 'dialog');
-            card.setAttribute('aria-label', 'Idea thesis and notes');
+            card.setAttribute('aria-label', cardLabel);
             card.innerHTML =
-                '<div class="tc-scroll" tabindex="0"></div>' +
-                '<div class="tc-foot">' +
-                '<span class="tc-hint"></span>' +
-                '<button type="button" class="tc-close">Close</button>' +
+                '<div class="dc-scroll" tabindex="0"></div>' +
+                '<div class="dc-foot">' +
+                '<span class="dc-hint"></span>' +
+                '<button type="button" class="dc-close">Close</button>' +
                 '</div>';
             document.body.appendChild(card);
 
-            scrollEl = card.querySelector('.tc-scroll');
-            footEl = card.querySelector('.tc-foot');
-            hintEl = card.querySelector('.tc-hint');
-            closeBtn = card.querySelector('.tc-close');
+            scrollEl = card.querySelector('.dc-scroll');
+            footEl = card.querySelector('.dc-foot');
+            hintEl = card.querySelector('.dc-hint');
+            closeBtn = card.querySelector('.dc-close');
 
             // Keep it open while the pointer is inside, so it can be scrolled.
             card.addEventListener('pointerenter', function () {
@@ -83,21 +106,17 @@
         }
 
         function render(trigger) {
-            var data = lookup(trigger.getAttribute('data-idea-id')) || {};
-            if (!data.thesis && !data.notes) return false;
+            var data = lookup(trigger.getAttribute('data-detail-id')) || {};
             var html = '';
-            if (data.thesis) {
-                html += '<div class="tc-sec">' +
-                        '<p class="tc-label">Initial thesis</p>' +
-                        '<p class="tc-body">' + escapeHtml(data.thesis) + '</p>' +
+            sections.forEach(function (section) {
+                var value = data[section.key];
+                if (!value) return;
+                html += '<div class="dc-sec">' +
+                        '<p class="dc-label">' + escapeHtml(section.label) + '</p>' +
+                        '<p class="dc-body">' + escapeHtml(value) + '</p>' +
                         '</div>';
-            }
-            if (data.notes) {
-                html += '<div class="tc-sec">' +
-                        '<p class="tc-label">Initial notes</p>' +
-                        '<p class="tc-body">' + escapeHtml(data.notes) + '</p>' +
-                        '</div>';
-            }
+            });
+            if (!html) return false;
             scrollEl.innerHTML = html;
             scrollEl.scrollTop = 0;
             return true;
@@ -152,6 +171,9 @@
             activeTrigger = trigger;
             trigger.classList.add('is-active');
             trigger.setAttribute('aria-expanded', 'true');
+            // Set here, not at init: Tabulator rebuilds trigger DOM on every
+            // sort, filter and page, and every reveal path runs through open().
+            trigger.setAttribute('aria-controls', card.id);
             card.classList.add('is-open');
             // Footer first: it changes the card's height, and place() must flip
             // against the final height or a card near the bottom edge overflows.
@@ -188,7 +210,7 @@
         }
 
         function triggerFrom(event) {
-            return event.target.closest ? event.target.closest(TRIGGER) : null;
+            return event.target.closest ? event.target.closest(triggerSelector) : null;
         }
 
         function toggle(trigger) {
@@ -275,7 +297,11 @@
 
         document.addEventListener('click', function (e) {
             if (!pinned || card.contains(e.target)) return;
-            if (e.target.closest && e.target.closest(TRIGGER)) return;
+            // Only this instance's own triggers are handled by the container
+            // listener above. A trigger that belongs to another card on the page
+            // is an outside click — otherwise both cards end up pinned at once.
+            var trigger = triggerFrom(e);
+            if (trigger && container.contains(trigger)) return;
             close();
         });
 
@@ -313,5 +339,5 @@
         return { close: close, element: card };
     }
 
-    window.initThesisHoverCard = initThesisHoverCard;
+    window.initDetailCard = initDetailCard;
 })(window, document);
