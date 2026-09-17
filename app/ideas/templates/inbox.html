@@ -145,7 +145,7 @@
 {% include 'components/_tabulator_js.html' %}
 {% if idea_count > 0 %}
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
-<script src="{{ url_for('static', filename='js/thesis-hover-card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/detail-card.js') }}"></script>
 <script>
 const ideasData = {{ ideas_json|safe }};
 const checklistsData = {{ checklists_json|safe }};
@@ -261,10 +261,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         // No aria-label: on role="button" it would override
                         // name-from-content, and the cell's text IS the thesis —
                         // screen readers must keep announcing it.
-                        return '<span class="idea-thesis-cell has-detail"' +
-                               ' data-idea-id="' + row.id + '"' +
-                               ' tabindex="0" role="button" aria-expanded="false"' +
-                               ' aria-controls="thesis-hover-card">' +
+                        return '<span class="idea-thesis-cell detail-trigger"' +
+                               ' data-detail-id="' + row.id + '"' +
+                               ' tabindex="0" role="button" aria-expanded="false">' +
                                escapeHtml(preview) + '</span>';
                     }
                 },
@@ -334,9 +333,14 @@ document.addEventListener('DOMContentLoaded', function() {
             ideaMap[d.id] = { thesis: d.thesis, notes: d.notes };
         });
 
-        const thesisCard = initThesisHoverCard({
+        const thesisCard = initDetailCard({
             container: '#inbox-table',
-            lookup: function(id) { return ideaMap[id]; }
+            lookup: function(id) { return ideaMap[id]; },
+            label: 'Idea thesis and notes',
+            sections: [
+                { key: 'thesis', label: 'Initial thesis' },
+                { key: 'notes',  label: 'Initial notes' }
+            ]
         });
 
         // Sorting, filtering and paging rebuild rows — drop the card rather
