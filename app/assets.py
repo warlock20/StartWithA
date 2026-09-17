@@ -75,6 +75,9 @@ css_core = Bundle(
     # Global companion widget (mounted in _base.html on any opted-in page).
     'css/modules/_companion.css',
 
+    # Reusable detail card for truncated preview cells (detail-card.js).
+    'css/modules/_detail-card.css',
+
     filters='rcssmin',
     output='css/gen/core.%(version)s.css',
 )
