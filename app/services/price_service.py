@@ -21,7 +21,6 @@ from datetime import timedelta
 from decimal import Decimal
 from app import db
 from app.models import PortfolioPosition
-from app.models.user import User
 from app.services.currency_service import CurrencyService
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 
@@ -231,66 +230,6 @@ class PriceService:
                 results['errors'].append(position.company.ticker_symbol)
 
         return results
-
-    @staticmethod
-    def get_portfolio_value(user_id):
-        """
-        Calculate total portfolio value for a user.
-        Updates prices if needed before calculating.
-
-        Args:
-            user_id: User ID
-
-        Returns:
-            dict: {
-                'total_value': Decimal,
-                'total_cost': Decimal,
-                'total_unrealized_gain_loss': Decimal,
-                'total_unrealized_gain_loss_pct': Decimal,
-                'positions_count': int
-            }
-        """
-        # Get all active positions
-        positions = PortfolioPosition.query.filter_by(
-            user_id=user_id,
-            is_active=True
-        ).all()
-
-        # Update prices if needed
-        for position in positions:
-            if PriceService.should_update_price(position):
-                PriceService.update_position_price(position)
-
-        # Calculate totals
-        total_value = Decimal('0.00')
-        total_cost = Decimal('0.00')
-        total_unrealized_gain_loss = Decimal('0.00')
-
-        for position in positions:
-            if position.current_value:
-                total_value += position.current_value
-            total_cost += position.total_cost
-            if position.unrealized_gain_loss:
-                total_unrealized_gain_loss += position.unrealized_gain_loss
-
-        # Calculate overall percentage
-        total_unrealized_gain_loss_pct = Decimal('0.00')
-        if total_cost > 0:
-            total_unrealized_gain_loss_pct = (total_unrealized_gain_loss / total_cost) * 100
-
-        # Include cash balance in total portfolio value
-        user = User.query.get(user_id)
-        cash_balance = Decimal(str(user.cash_balance)) if user and user.cash_balance else Decimal('0.00')
-
-        return {
-            'total_value': total_value + cash_balance,
-            'total_cost': total_cost,
-            'total_unrealized_gain_loss': total_unrealized_gain_loss,
-            'total_unrealized_gain_loss_pct': total_unrealized_gain_loss_pct,
-            'positions_count': len(positions),
-            'cash_balance': cash_balance,
-            'invested_value': total_value,
-        }
 
     @staticmethod
     def get_batch_prices(ticker_symbols):

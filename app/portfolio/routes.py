@@ -59,6 +59,7 @@ from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
 from app.services.ai.prompt_service import get_effective_model_display
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.cash_service import CashService
+from app.services.portfolio_performance import PortfolioPerformanceService
 
 import json
 # Import blueprint from current package (avoids circular import)
@@ -84,34 +85,9 @@ def dashboard():
         joinedload(PortfolioPosition.company).joinedload(Company.sector)
     ).all()
 
-    # Calculate portfolio totals from cached DB data (no API calls)
-    total_value = Decimal('0.00')
-    total_cost = Decimal('0.00')
-    total_unrealized = Decimal('0.00')
-    total_dividends = Decimal('0.00')
-
-    for pos in positions:
-        if pos.current_value:
-            total_value += pos.current_value
-        total_cost += pos.total_cost
-        if pos.unrealized_gain_loss:
-            total_unrealized += pos.unrealized_gain_loss
-        total_dividends += pos.total_dividends or Decimal('0.00')
-
-    total_return = total_unrealized + total_dividends
-    total_pct = (total_return / total_cost * 100) if total_cost > 0 else Decimal('0.00')
-    cash_balance = Decimal(str(current_user.cash_balance)) if current_user.cash_balance else Decimal('0.00')
-
-    portfolio_value = {
-        'total_value': total_value + cash_balance,
-        'total_cost': total_cost,
-        'total_return': total_return,
-        'total_return_pct': total_pct,
-        'total_dividends': total_dividends,
-        'positions_count': len(positions),
-        'cash_balance': cash_balance,
-        'invested_value': total_value,
-    }
+    # Portfolio totals from the single performance service (issue #336).
+    # Reads cached DB data only — no API calls on the render path.
+    portfolio_value = PortfolioPerformanceService.get_performance(current_user.id)
 
     # Identify stale positions for async refresh
     stale_company_ids = [
@@ -921,10 +897,11 @@ def intelligence_hub():
         joinedload(PortfolioPosition.company).joinedload(Company.sector)
     ).all()
     
-    # Calculate total return
-    total_value = sum(float(p.current_value or 0) for p in positions)
-    total_cost = sum(float(p.total_cost or 0) for p in positions)
-    total_return = ((total_value - total_cost) / total_cost * 100) if total_cost > 0 else 0
+    # Total return from the single performance service (issue #336) — measured
+    # against capital invested, so it agrees with the portfolio dashboard.
+    total_return = float(
+        PortfolioPerformanceService.get_performance(current_user.id)['total_return_pct']
+    )
     
     # Win rate from outcomes
     outcomes = ResearchOutcome.query.filter(

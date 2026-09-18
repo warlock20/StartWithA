@@ -42,7 +42,8 @@ from app.utils.time_utils import now_utc
 
 from app.models.portfolio import Transaction, PortfolioPosition
 from app.models.company import Company
-from app.utils.financial_utils import calculate_cagr, calculate_total_return
+from app.utils.financial_utils import calculate_cagr
+from app.services.portfolio_performance import PortfolioPerformanceService
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +260,7 @@ class PortfolioDataExtractor:
         total_closed = wins + losses
 
         # Calculate CAGR
-        cagr = self._calculate_portfolio_cagr(positions, transactions)
+        cagr = self._calculate_portfolio_cagr(transactions)
 
         return {
             'total_positions': len(active_positions),
@@ -830,9 +831,15 @@ class PortfolioDataExtractor:
             'avg_loser_hold_days': avg_loser_hold_days
         }
 
-    def _calculate_portfolio_cagr(self, positions: List[PortfolioPosition], transactions: List[Transaction]) -> float:
+    def _calculate_portfolio_cagr(self, transactions: List[Transaction]) -> float:
         """
-        Calculate portfolio-level CAGR using the existing financial utilities.
+        Calculate portfolio-level CAGR from the portfolio performance service.
+
+        Annualizes the same total return the dashboard shows (issue #336):
+        current value, cash included, measured against capital invested. The
+        previous version used buys-minus-sells as the investment base, which
+        collapsed once a winner was sold and could report a loss on a
+        profitable portfolio.
 
         Returns:
             CAGR as a percentage (e.g., 15.5 for 15.5%)
@@ -840,53 +847,10 @@ class PortfolioDataExtractor:
         if not transactions:
             return 0.0
 
-        # Get first and last transaction dates
-        sorted_transactions = sorted(transactions, key=lambda t: t.date)
-        first_date = sorted_transactions[0].date
-        last_date = sorted_transactions[-1].date
-        days_held = (last_date - first_date).days
+        dates = [t.date for t in transactions]
+        days_held = (max(dates) - min(dates)).days
 
-        # Calculate NET cash invested (money in - money out)
-        # This accounts for proceeds from sells being reinvested or withdrawn
-        total_buys = sum(
-            t.total_value
-            for t in transactions
-            if t.type == 'BUY'
-        )
-
-        total_sells = sum(
-            (float(t.quantity) * float(t.price_per_share))
-            for t in transactions
-            if t.type == 'SELL'
-        )
-
-        net_invested = total_buys - total_sells
-
-        # If net is negative or zero, user withdrew more than invested
-        if net_invested <= 0:
-            # Use total buys as baseline if user withdrew profits
-            net_invested = total_buys if total_buys > 0 else 1
-
-        # Calculate current portfolio value
-        # = market value of active positions + realized gains still in portfolio
-        active_value = sum(
-            float(p.current_value) if p.current_value else float(p.total_cost) if p.total_cost else 0
-            for p in positions if p.is_active
-        )
-
-        # Add back realized gains from closed positions (assuming not withdrawn)
-        # This represents profit that's either reinvested or held as cash
-        realized_gains = sum(
-            float(p.realized_gain_loss) if p.realized_gain_loss else 0
-            for p in positions if not p.is_active
-        )
-
-        ending_value = active_value + realized_gains
-
-        # Calculate total return percentage
-        total_return_pct = calculate_total_return(net_invested, ending_value)
-
-        # Calculate CAGR using the utility
-        cagr = calculate_cagr(total_return_pct, days_held)
+        perf = PortfolioPerformanceService.get_performance(self.user_id)
+        cagr = calculate_cagr(float(perf['total_return_pct']), days_held)
 
         return round(cagr, 1)
