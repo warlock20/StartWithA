@@ -33,36 +33,59 @@ tool call needs, plus a ``cite`` tuple ``(source_type, source_id, label)`` the
 tool layer turns into a citation number.
 """
 
-from datetime import timedelta
-
 from app.models.checklist import DestinationCheckpoint
 from app.models.idea_pipeline import KillAnswer, KillSession
 from app.models.portfolio import PortfolioPosition
 from app.models.research import ChecklistAnalysis, ChecklistAnswer, ResearchProject
+from app.services.config_service import ConfigKeys, get_config
 from app.services.portfolio_intelligence import PortfolioIntelligenceService
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
-from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.utils.time_utils import (
+    add_days, days_between, days_until, ensure_timezone_aware, now_utc)
 
-DEFAULT_HORIZON_DAYS = 30
-MAX_HORIZON_DAYS = 365
-# An active project untouched for this long counts as stalled.
-STALLED_AFTER_DAYS = 14
-# Per-section cap; totals are reported so the model knows when a list was cut.
-MAX_ITEMS = 15
+# Fallbacks when a key is missing from SystemConfig. The admin-editable values
+# (System Config, category 'companion') are seeded by the add_agenda_config
+# migration with these same defaults.
+_DEFAULTS = {
+    # Days ahead to look for due checkpoints when the model doesn't ask.
+    ConfigKeys.AGENDA_DEFAULT_HORIZON_DAYS: 30,
+    # Largest horizon the model may request.
+    ConfigKeys.AGENDA_MAX_HORIZON_DAYS: 365,
+    # An active project untouched for this long counts as stalled.
+    ConfigKeys.AGENDA_STALLED_AFTER_DAYS: 45,
+    # Per-section cap; totals are reported so the model knows when a list was cut.
+    ConfigKeys.AGENDA_MAX_ITEMS: 15,
+}
 # Thesis-reality statuses that mean "the position is not doing what you expected".
 _DRIFT_STATUSES = ('needs_attention', 'behind')
 
 
-def _clamp_horizon(horizon_days):
+def _as_positive_int(value, fallback):
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    return number if number >= 1 else fallback
+
+
+def _settings(user_id):
+    """Effective agenda thresholds for this user (system -> profile -> user)."""
+    return {key: _as_positive_int(get_config(key, user_id, default), default)
+            for key, default in _DEFAULTS.items()}
+
+
+def _clamp_horizon(horizon_days, settings):
+    default = settings[ConfigKeys.AGENDA_DEFAULT_HORIZON_DAYS]
     try:
         horizon = int(horizon_days)
     except (TypeError, ValueError):
-        return DEFAULT_HORIZON_DAYS
-    return max(1, min(horizon, MAX_HORIZON_DAYS))
+        return default
+    return max(1, min(horizon, settings[ConfigKeys.AGENDA_MAX_HORIZON_DAYS]))
 
 
-def _section(items):
-    return {'total': len(items), 'items': items[:MAX_ITEMS]}
+def _section(items, settings):
+    return {'total': len(items),
+            'items': items[:settings[ConfigKeys.AGENDA_MAX_ITEMS]]}
 
 
 def _company_label(company, fallback):
@@ -80,12 +103,12 @@ def _checkpoints(user_id, today, horizon):
     rows = (DestinationCheckpoint.query
             .filter(DestinationCheckpoint.user_id == user_id,
                     DestinationCheckpoint.status == 'Active',
-                    DestinationCheckpoint.target_date <= today + timedelta(days=horizon))
+                    DestinationCheckpoint.target_date <= add_days(today, horizon))
             .order_by(DestinationCheckpoint.target_date.asc())
             .all())
     items = []
     for cp in rows:
-        days_until = (cp.target_date - today).days
+        days_left = days_until(cp.target_date, today)
         company = cp.company
         items.append({
             'checkpoint_id': cp.id,
@@ -95,16 +118,16 @@ def _checkpoints(user_id, today, horizon):
             'metric': cp.metric,
             'expectation': cp.expectation,
             'target_date': cp.target_date.isoformat(),
-            'days_until': days_until,
-            'overdue': days_until < 0,
+            'days_until': days_left,
+            'overdue': days_left < 0,
             'cite': ('checkpoint', cp.id,
                      f'{_company_label(company, "Checkpoint")} — {cp.metric}'),
         })
     return items
 
 
-def _stalled_projects(user_id, now):
-    cutoff = now - timedelta(days=STALLED_AFTER_DAYS)
+def _stalled_projects(user_id, now, stalled_after_days):
+    cutoff = add_days(now, -stalled_after_days)
     items = []
     for project in ResearchProject.query.filter_by(user_id=user_id, status='active').all():
         last = project.last_worked_at or project.created_at
@@ -117,7 +140,7 @@ def _stalled_projects(user_id, now):
             'company': _company_label(project.company, None),
             'company_id': project.company_id,
             'last_worked_at': last.date().isoformat() if last else None,
-            'days_idle': (now - last).days if last else None,
+            'days_idle': days_between(last, now) if last else None,
             'cite': ('project', project.id, label),
         })
     # Longest idle first; never-dated projects sort last.
@@ -198,17 +221,25 @@ def _thesis_drift(user_id):
     return items
 
 
-def build_agenda(user_id, horizon_days=DEFAULT_HORIZON_DAYS):
-    """Everything waiting on the user, grouped by kind. All sections user-scoped."""
-    horizon = _clamp_horizon(horizon_days)
+def build_agenda(user_id, horizon_days=None):
+    """Everything waiting on the user, grouped by kind. All sections user-scoped.
+
+    ``horizon_days`` falls back to the configured default and is clamped to the
+    configured maximum.
+    """
+    settings = _settings(user_id)
+    horizon = _clamp_horizon(horizon_days, settings)
+    stalled_after = settings[ConfigKeys.AGENDA_STALLED_AFTER_DAYS]
     now = now_utc()
     today = now.date()
     return {
         'today': today.isoformat(),
         'horizon_days': horizon,
-        'checkpoints': _section(_checkpoints(user_id, today, horizon)),
-        'stalled_projects': _section(_stalled_projects(user_id, now)),
-        'open_checklist_runs': _section(_open_checklist_runs(user_id)),
-        'open_kill_sessions': _section(_open_kill_sessions(user_id)),
-        'thesis_drift': _section(_thesis_drift(user_id)),
+        'stalled_after_days': stalled_after,
+        'checkpoints': _section(_checkpoints(user_id, today, horizon), settings),
+        'stalled_projects': _section(
+            _stalled_projects(user_id, now, stalled_after), settings),
+        'open_checklist_runs': _section(_open_checklist_runs(user_id), settings),
+        'open_kill_sessions': _section(_open_kill_sessions(user_id), settings),
+        'thesis_drift': _section(_thesis_drift(user_id), settings),
     }

@@ -573,3 +573,9 @@ class ConfigKeys:
 
     # Performance
     CHART_DATA_CACHE_TTL_HOURS = 'chart_data_cache_ttl_hours'
+
+    # Companion agenda (get_agenda tool)
+    AGENDA_DEFAULT_HORIZON_DAYS = 'agenda_default_horizon_days'
+    AGENDA_MAX_HORIZON_DAYS = 'agenda_max_horizon_days'
+    AGENDA_STALLED_AFTER_DAYS = 'agenda_stalled_after_days'
+    AGENDA_MAX_ITEMS = 'agenda_max_items'

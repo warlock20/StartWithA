@@ -26,7 +26,6 @@ stays inside the horizon, and never shows another user's records.
 import os
 import sys
 import json
-from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -40,9 +39,10 @@ from app.models.idea_pipeline import (
 from app.models.portfolio import PortfolioPosition
 from app.models.research import ChecklistAnalysis, ChecklistAnswer
 from app.services.ai.tool_calling import ToolCall
-from app.services.argos.agenda import STALLED_AFTER_DAYS
+from app.models.configuration import SystemConfig
+from app.services.config_service import ConfigKeys, ConfigService
 from app.services.argos.tools import ToolExecutor
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import add_days, now_utc
 from conftest import _make_company, _make_project, _make_user
 
 
@@ -50,10 +50,22 @@ def _checkpoint(user_id, company_id, days_from_today, status='Active', metric='E
     cp = DestinationCheckpoint(
         user_id=user_id, company_id=company_id, metric=metric,
         expectation='Beat estimates', status=status,
-        target_date=now_utc().date() + timedelta(days=days_from_today))
+        target_date=add_days(now_utc().date(), days_from_today))
     db.session.add(cp)
     db.session.flush()
     return cp
+
+
+# Built-in default; the admin can change it in System Config.
+STALLED_AFTER_DAYS = 45
+
+
+@pytest.fixture(autouse=True)
+def _fresh_config_cache():
+    """ConfigService caches system values at class level; don't leak across tests."""
+    ConfigService._invalidate_cache()
+    yield
+    ConfigService._invalidate_cache()
 
 
 def _agenda(user_id, **args):
@@ -126,7 +138,7 @@ def test_another_users_checkpoints_never_appear(app_context, user_with_holding):
 def test_idle_active_project_is_stalled(app_context, user_with_holding):
     uid, cid = user_with_holding
     project = _make_project(uid, cid)
-    project.last_worked_at = now_utc() - timedelta(days=STALLED_AFTER_DAYS + 5)
+    project.last_worked_at = add_days(now_utc(), -(STALLED_AFTER_DAYS + 5))
     db.session.commit()
 
     items = _agenda(uid)['stalled_projects']['items']
@@ -137,10 +149,45 @@ def test_idle_active_project_is_stalled(app_context, user_with_holding):
 def test_recently_worked_project_is_not_stalled(app_context, user_with_holding):
     uid, cid = user_with_holding
     project = _make_project(uid, cid)
-    project.last_worked_at = now_utc() - timedelta(days=1)
+    project.last_worked_at = add_days(now_utc(), -1)
     db.session.commit()
 
     assert _agenda(uid)['stalled_projects']['total'] == 0
+
+
+def test_project_idle_under_the_threshold_is_not_stalled(app_context, user_with_holding):
+    """30 idle days is normal research pace, not stalled."""
+    uid, cid = user_with_holding
+    project = _make_project(uid, cid)
+    project.last_worked_at = add_days(now_utc(), -30)
+    db.session.commit()
+
+    agenda = _agenda(uid)
+    assert agenda['stalled_after_days'] == STALLED_AFTER_DAYS
+    assert agenda['stalled_projects']['total'] == 0
+
+
+def test_admin_can_change_the_thresholds(app_context, user_with_holding):
+    uid, cid = user_with_holding
+    project = _make_project(uid, cid)
+    project.last_worked_at = add_days(now_utc(), -30)
+    for cp_days in (-3, -2, -1):
+        _checkpoint(uid, cid, cp_days)
+    db.session.add_all([
+        SystemConfig(key=ConfigKeys.AGENDA_STALLED_AFTER_DAYS, value=20,
+                     category='companion'),
+        SystemConfig(key=ConfigKeys.AGENDA_MAX_ITEMS, value=2, category='companion'),
+        SystemConfig(key=ConfigKeys.AGENDA_DEFAULT_HORIZON_DAYS, value=7,
+                     category='companion'),
+    ])
+    db.session.commit()
+    ConfigService._invalidate_cache()
+
+    agenda = _agenda(uid)
+    assert agenda['horizon_days'] == 7
+    assert agenda['stalled_projects']['total'] == 1       # 30 idle days > 20
+    assert agenda['checkpoints']['total'] == 3             # total is uncapped
+    assert len(agenda['checkpoints']['items']) == 2        # list is capped
 
 
 # --- checklist runs and kill sessions ---------------------------------------
@@ -201,7 +248,7 @@ def test_losing_position_shows_as_thesis_drift(app_context):
     db.session.add(PortfolioPosition(
         user_id=user.id, company_id=company.id, is_active=True,
         total_shares=10, current_value=5000, unrealized_gain_loss_pct=-30,
-        first_purchase_date=now_utc().date() - timedelta(days=400)))
+        first_purchase_date=add_days(now_utc().date(), -400)))
     db.session.commit()
 
     items = _agenda(user.id)['thesis_drift']['items']
