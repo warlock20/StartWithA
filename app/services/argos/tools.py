@@ -32,6 +32,7 @@ import logging
 import dataclasses
 
 from app.services.ai.tool_calling import ToolSpec, ToolResult
+from app.services.argos.agenda import STALLED_AFTER_DAYS, build_agenda
 from app.services.argos.core import ArgosService
 from app.services.argos.knowledge_search import search_my_knowledge, get_resource
 from app.services.portfolio_intelligence import PortfolioIntelligenceService
@@ -50,6 +51,17 @@ COMPANION_TOOLS = [
         "The user's portfolio: positions, weights, concentration, and how each "
         "holding's actual return compares to its original thesis.",
         {'type': 'object', 'properties': {}},
+    ),
+    ToolSpec(
+        'get_agenda',
+        "What is due, stalled, or unanswered across the user's account: destination "
+        "checkpoints overdue or due within `horizon_days` (default 30), active research "
+        f"projects idle for {STALLED_AFTER_DAYS}+ days, checklist runs and kill-checklist sessions with "
+        "unanswered questions, and held positions behind their original thesis. Use "
+        "for 'what's due / overdue / pending / stalled / needs attention' questions — "
+        "search_my_knowledge cannot answer those.",
+        {'type': 'object',
+         'properties': {'horizon_days': {'type': 'integer'}}},
     ),
     ToolSpec(
         'get_company_context',
@@ -147,6 +159,15 @@ class ToolExecutor:
             return ToolResult(call.id, json.dumps({'error': f'Tool failed: {e}'}))
 
     # --- handlers (each ownership-scoped to self.user_id) ----------------
+
+    def _get_agenda(self, args):
+        agenda = build_agenda(self.user_id, args.get('horizon_days'))
+        for section in agenda.values():
+            if not isinstance(section, dict):
+                continue
+            for item in section['items']:
+                item['citation'] = self._cite(*item.pop('cite'))
+        return agenda
 
     def _get_company_context(self, args):
         company = Company.query.filter_by(
