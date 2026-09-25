@@ -21,8 +21,8 @@ This module provides consistent timezone handling across the entire application.
 All time-related operations should use these utilities to ensure consistency.
 """
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import date, datetime, timedelta, timezone
+from typing import Optional, Union
 
 
 def now_utc() -> datetime:
@@ -264,3 +264,30 @@ def days_between(
 
     delta = end_date - start_date
     return abs(delta.days)
+
+
+def add_days(value: Union[date, datetime], days: int) -> Union[date, datetime]:
+    """
+    Shift a date or datetime by a number of days (negative goes back).
+
+    Example:
+        >>> add_days(date(2024, 1, 1), 14)
+        datetime.date(2024, 1, 15)
+    """
+    return value + timedelta(days=days)
+
+
+def days_until(target: date, from_date: Optional[date] = None) -> int:
+    """
+    Signed number of days from ``from_date`` (default: today, UTC) to ``target``.
+
+    Negative when ``target`` is in the past — unlike ``days_between``, which
+    is always non-negative.
+
+    Example:
+        >>> days_until(date(2024, 1, 10), date(2024, 1, 15))
+        -5
+    """
+    if from_date is None:
+        from_date = now_utc().date()
+    return (target - from_date).days
