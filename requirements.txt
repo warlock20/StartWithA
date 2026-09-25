@@ -2,6 +2,8 @@
 Flask==3.1.1
 flask_login==0.6.3
 flask_sqlalchemy==3.1.1
+# Pinned: SQLAlchemy 2.1 defaults postgresql:// to psycopg (v3); we ship psycopg2-binary
+SQLAlchemy==2.0.41
 Flask-Migrate
 Flask-Caching
 Flask-WTF
