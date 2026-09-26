@@ -235,6 +235,22 @@
                     <input type="hidden" id="template_id" name="template_id">
                     <p>Using template: <strong id="template_name_display"></strong></p>
 
+                    {% if context.company %}
+                    <input type="hidden" name="company_id" value="{{ context.company.id }}">
+                    {% if context.idea %}
+                    {# start_project() reads this optional field and links the
+                       project to the idea, copying its thesis_summary into
+                       investment_thesis. A reopened pipeline/sweep company
+                       arrives here with its idea already promoted; without this
+                       the link and the thesis are silently lost. #}
+                    <input type="hidden" name="idea_id" value="{{ context.idea.id }}">
+                    {% endif %}
+                    <p class="mb-0">
+                        Researching:
+                        <strong>{{ context.company.name }}{% if context.company.ticker_symbol %}
+                            ({{ context.company.ticker_symbol }}){% endif %}</strong>
+                    </p>
+                    {% else %}
                     <div class="mb-3">
                         <label for="company_id" class="form-label">Select Company to Research</label>
                         <select class="form-select" id="company_id" name="company_id" required>
@@ -247,6 +263,7 @@
                             {% endfor %}
                         </select>
                     </div>
+                    {% endif %}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

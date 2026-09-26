@@ -26,6 +26,7 @@ from app.models import (IdeaPipeline, KillChecklist, KillCriterion, ResearchTemp
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.decorators import require_feature
 from app.services.currency_service import CurrencyService
+from app.services.company_state import company_state
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.kill_checklist_analytics import KillChecklistAnalytics, SuggestionEngine
 from app.ideas import ideas_bp
@@ -756,17 +757,29 @@ def promote_idea(idea_id):
                     company_for_project = new_company
                     idea.promoted_to_company = new_company
 
-            # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY
+            # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY (regardless
+            # of status). Filtering to active/paused let a completed or killed
+            # project through to an insert that violates
+            # uq_research_project_user_company.
             if idea.idea_type == 'company' and company_for_project:
                 existing_project = ResearchProject.query.filter_by(
                     user_id=current_user.id,
                     company_id=company_for_project.id
-                ).filter(
-                    ResearchProject.status.in_(['active', 'paused'])
                 ).first()
 
                 if existing_project:
-                    flash(f'You already have a research project for {company_for_project.name}. Only one project per company is allowed.', 'error')
+                    # Same ladder check start_project() makes. Without it a
+                    # research-killed company lands on the killed project's
+                    # dashboard, which offers no way forward; the reopen flow
+                    # lives on the company page's research section and is the
+                    # only path that snapshots the rejection first.
+                    state = company_state(current_user.id, company_for_project.id)
+                    if state.is_dead:
+                        flash(f'{company_for_project.name} was passed on earlier. Reopen it to continue research.', 'warning')
+                        return redirect(url_for('companies.company_detail',
+                                                company_id=company_for_project.id)
+                                        + '#research/summary')
+                    flash(f'{company_for_project.name} already has a research project.', 'info')
                     return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
 
             # Ensure we have a company for the research project

@@ -671,9 +671,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     minWidth: 160,
                     widthGrow: 2,
                     formatter: function(cell) {
+                        // company_name and ticker are free-typed by the user who
+                        // marked this company too-hard -- built as DOM nodes, not
+                        // an HTML string, same reasoning as the action column below.
                         const row = cell.getRow().getData();
-                        const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${row.ticker}</span>` : '';
-                        return `<strong>${cell.getValue()}</strong>${ticker}`;
+                        const wrapper = document.createElement('span');
+                        const name = document.createElement('strong');
+                        name.textContent = cell.getValue();
+                        wrapper.appendChild(name);
+                        if (row.ticker) {
+                            wrapper.appendChild(document.createElement('br'));
+                            const ticker = document.createElement('span');
+                            ticker.className = 'rcl-cell-ticker';
+                            ticker.textContent = row.ticker;
+                            wrapper.appendChild(ticker);
+                        }
+                        return wrapper;
                     }
                 },
                 {
@@ -717,10 +730,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     minWidth: 180,
                     widthGrow: 2,
                     formatter: function(cell) {
+                        // reason is free-typed kill-reason text -- built as a DOM
+                        // node, not an HTML string. setAttribute('title', ...) does
+                        // not parse its argument as markup, unlike a template-literal
+                        // `title="${val}"` (which a `"` in val could break out of).
                         const val = cell.getValue();
-                        if (!val) return '<span class="table-cell-muted">--</span>';
+                        if (!val) {
+                            const muted = document.createElement('span');
+                            muted.className = 'table-cell-muted';
+                            muted.textContent = '--';
+                            return muted;
+                        }
                         const truncated = val.length > 60 ? val.substring(0, 60) + '...' : val;
-                        return `<span title="${val}">${truncated}</span>`;
+                        const span = document.createElement('span');
+                        span.setAttribute('title', val);
+                        span.textContent = truncated;
+                        return span;
                     },
                 },
                 {
@@ -738,16 +763,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     hozAlign: "right",
                     minWidth: 200,
                     formatter: function(cell) {
+                        // Built as real DOM nodes, not an HTML string: row.company_name
+                        // and row.reason are free-typed user text, and interpolating
+                        // them into markup (even with quote-escaping) is an XSS hole.
+                        // textContent/addEventListener never parse their input as HTML.
                         const row = cell.getRow().getData();
                         const url = cell.getValue();
-                        let html = '';
-                        if (row.reactivate_url) {
-                            html += `<a href="#" class="rcl-action" onclick="reactivateProject('${row.reactivate_url}', '${row.company_name.replace(/'/g, "\\'")}'); return false;"><i class="bi bi-arrow-counterclockwise"></i> Reactivate</a> `;
+                        const wrapper = document.createElement('span');
+
+                        if (row.company_id) {
+                            const reopenLink = document.createElement('a');
+                            reopenLink.href = '#';
+                            reopenLink.className = 'rcl-action';
+                            const reopenIcon = document.createElement('i');
+                            reopenIcon.className = 'bi bi-arrow-counterclockwise';
+                            reopenLink.appendChild(reopenIcon);
+                            reopenLink.appendChild(document.createTextNode(' Reopen'));
+                            reopenLink.addEventListener('click', function(event) {
+                                event.preventDefault();
+                                reopenResearch(row.company_id, row.company_name, row.reason);
+                            });
+                            wrapper.appendChild(reopenLink);
+                            wrapper.appendChild(document.createTextNode(' '));
                         }
+
                         if (url) {
-                            html += `<a href="${url}" class="rcl-action"><i class="bi bi-grid-1x2"></i> View</a>`;
+                            const viewLink = document.createElement('a');
+                            viewLink.href = url;
+                            viewLink.className = 'rcl-action';
+                            const viewIcon = document.createElement('i');
+                            viewIcon.className = 'bi bi-grid-1x2';
+                            viewLink.appendChild(viewIcon);
+                            viewLink.appendChild(document.createTextNode(' View'));
+                            wrapper.appendChild(viewLink);
                         }
-                        return html;
+
+                        return wrapper;
                     }
                 },
             ],
@@ -991,12 +1042,19 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     };
 
-    window.reactivateProject = function(url, companyName) {
-        if (!confirm(`Reactivate research on ${companyName}?`)) return;
-        // POST via hidden form
+    window.reopenResearch = function(companyId, companyName, reason) {
+        const detail = reason ? `\n\nYou passed on it before: ${reason}` : '';
+        const whatChanged = prompt(`Reopen research on ${companyName}?${detail}\n\nWhat changed? (optional)`);
+        if (whatChanged === null) return;  // Cancel, not an empty answer.
+
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = url;
+        form.action = `/companies/${companyId}/reopen-research`;
+        const field = document.createElement('input');
+        field.type = 'hidden';
+        field.name = 'what_changed';
+        field.value = whatChanged;
+        form.appendChild(field);
         document.body.appendChild(form);
         form.submit();
     };

@@ -30,7 +30,8 @@ This module handles all routes related to research template management including
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import current_user, login_required
 from app import db
-from app.models import ResearchTemplate, ResearchProject, Company, Checklist, ChecklistItem
+from app.models import (ResearchTemplate, ResearchProject, Company, Checklist,
+                        ChecklistItem, IdeaPipeline)
 from app.research_workflow import research_workflow_bp
 from app.utils.decorators import require_feature
 from app.utils.time_utils import now_utc
@@ -202,6 +203,21 @@ def template_list():
             context['company'] = company
             context['suggested'] = suggested
             context['new_company'] = new_company
+
+            # The promoted idea for this company, so the start-project modal can
+            # hand `idea_id` to start_project alongside company_id. Without it
+            # the new ResearchProject gets idea_id=None and no
+            # investment_thesis, which is exactly what happened to a
+            # pipeline/sweep reopen: ResearchReopenService promotes the idea and
+            # routes here, and the link was dropped on the way (spec #324 §2
+            # says routing links idea_id). 'promoted' is the status the service
+            # writes and the one ideas.promote_idea writes; a killed or inbox
+            # idea is deliberately not carried.
+            context['idea'] = (IdeaPipeline.query
+                               .filter_by(user_id=current_user.id,
+                                          company_id=company_id, status='promoted')
+                               .order_by(IdeaPipeline.id.desc())
+                               .first())
 
             # Add previous template usage for this company
             if not new_company:

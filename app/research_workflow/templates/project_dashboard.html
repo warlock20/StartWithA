@@ -87,7 +87,18 @@
                 <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="action-btn">
                     <i class="bi bi-archive"></i> Mark as Too Hard
                 </a>
-                {% elif project.decision == 'pass' %}
+                {% elif ladder_state and ladder_state.is_dead %}
+                {# Reopen, not Reactivate: the old form cleared too_hard_reason /
+                   too_hard_notes in place and lost why the company was passed on.
+                   Gated on the ladder, so a screening kill (status='killed', no
+                   decision) gets the control too, which the old elif missed. #}
+                <button type="button" class="action-btn"
+                        onclick="document.getElementById('reopenResearchModal').classList.add('show'); document.body.style.overflow='hidden';">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reopen Research
+                </button>
+                {% elif project.decision == 'pass' and not project.company_id %}
+                {# No company, so no ladder and nothing to snapshot against. This
+                   is the only path left to reactivate_project's legacy branch. #}
                 <form method="POST" action="{{ url_for('research_workflow.reactivate_project', project_id=project.id) }}" class="d-inline">
                     <button type="submit" class="action-btn" onclick="return confirm('Reactivate this research project?')">
                         <i class="bi bi-arrow-counterclockwise"></i> Reactivate Research
@@ -102,6 +113,19 @@
                 </a>
             </div>
         </header>
+
+        {% if reopening %}
+        <div class="dashboard-alerts-strip">
+            <div class="dashboard-alert-card dashboard-alert-card--warning" id="alert-reopening-{{ reopening.id }}">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                <span class="dashboard-alert-card__text">
+                    <strong>Reopened from the too-hard pile</strong><br>
+                    Passed on {{ reopening.prior_killed_at.strftime('%d %b %Y') if reopening.prior_killed_at else 'earlier' }}{% if reopening.prior_reason %} &mdash; {{ reopening.prior_reason.replace('_', ' ') }}{% endif %}.
+                    {% if reopening.what_changed %}<br>What changed: {{ reopening.what_changed }}{% endif %}
+                </span>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Main Content Grid -->
@@ -572,6 +596,14 @@
 ] %}
 {% include 'main/_tips_modal.html' %}
 {% include 'components/company_resources_modal.html' %}
+
+{% if company and ladder_state and ladder_state.is_dead %}
+{# Shared with the company page (app/companies/templates/partials/). Expects
+   company, prior_reason, prior_notes, reopen_count -- all supplied by
+   project_dashboard(). Posts to companies.reopen_research, which snapshots the
+   rejection before clearing it. #}
+{% include 'partials/_reopen_research_modal.html' %}
+{% endif %}
 
 {% endblock %}
 

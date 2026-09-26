@@ -65,6 +65,7 @@ from .research import (
     FreeResearchQuestion,
     ResearchSettings,
 )
+from .research_reopening import ResearchReopening
 from .sector import (
     Sector,
     SectorAnalysis,
@@ -181,6 +182,8 @@ __all__ = [
     'ResearchLog',
     'FreeResearchQuestion',
     'ResearchSettings',
+    # Research Reopening models
+    'ResearchReopening',
     # Sector models
     'Sector',
     'SectorAnalysis',

@@ -37,6 +37,21 @@ from app.services.sector_service import SectorService
 from app.services.research_priority import ResearchPriorityService
 
 
+def _html_safe_json(data):
+    """`json.dumps` output that gets embedded straight into a `<script>`
+    block via `|safe` (as every `*_data_json` blob is, in
+    projects_dashboard.html) does not escape '<', '>' or '&'. A free-typed
+    value -- a kill reason, a company name -- containing the literal text
+    '</script>' would close that block early and let the rest run as markup. Escaping those three
+    characters as unicode escapes (what Flask's own `tojson` filter does)
+    closes that without touching how the JSON parses on the other side.
+    """
+    return (json.dumps(data)
+            .replace('<', '\\u003c')
+            .replace('>', '\\u003e')
+            .replace('&', '\\u0026'))
+
+
 @research_workflow_bp.route('/my-projects')
 @login_required
 def my_projects():
@@ -184,7 +199,6 @@ def my_projects():
             company_url = url_for('companies.company_detail', company_id=item.company_id)
         else:
             company_url = None
-        reactivate_url = url_for('research_workflow.reactivate_project', project_id=item.source_id) if item.source_type == 'ResearchProject' and item.source_id else None
         too_hard_data.append({
             'company_name': item.company_name,
             'ticker': item.ticker or '',
@@ -197,7 +211,6 @@ def my_projects():
             'within_coc': item.within_coc or '',
             'company_id': item.company_id,
             'company_url': company_url,
-            'reactivate_url': reactivate_url,
         })
 
     # --- Invested (completed research with invest decision) ---
@@ -239,13 +252,13 @@ def my_projects():
     return render_template('projects_dashboard.html',
                           title="Company Research",
                           active_data=active_data,
-                          active_data_json=json.dumps(active_data),
+                          active_data_json=_html_safe_json(active_data),
                           watchlist_data=watchlist_data,
-                          watchlist_data_json=json.dumps(watchlist_data),
+                          watchlist_data_json=_html_safe_json(watchlist_data),
                           too_hard_data=too_hard_data,
-                          too_hard_data_json=json.dumps(too_hard_data),
+                          too_hard_data_json=_html_safe_json(too_hard_data),
                           invested_data=invested_data,
-                          invested_data_json=json.dumps(invested_data),
+                          invested_data_json=_html_safe_json(invested_data),
                           metrics={
                               'active_count': active_count,
                               'paused_count': paused_count,
@@ -256,7 +269,7 @@ def my_projects():
                               'project_limit': settings.active_project_limit,
                           },
                           alerts=alerts,
-                          alerts_json=json.dumps(alerts),
+                          alerts_json=_html_safe_json(alerts),
                           pipeline={
                               'idea_count': idea_count,
                               'active_count': active_count + paused_count,

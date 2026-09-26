@@ -47,6 +47,8 @@ from app.models import PortfolioPosition
 from app.services.currency_service import CurrencyService
 from app.services.company_state import company_state, company_states
 from app.services.sweep_link import link_from_isin
+from app.services.research_reopen_service import ReopenNotAllowed, ResearchReopenService
+from app.models.research_reopening import ResearchReopening
 
 
 logger = logging.getLogger(__name__)
@@ -687,6 +689,11 @@ def company_detail(company_id):
     # instead of silently reading as 'new'.
     ladder_state = company_state(current_user.id, company_id)
 
+    # How many times this company has been round the loop already. Shown in
+    # the reopen modal so a third or fourth attempt reads as the warning it is.
+    reopen_count = ResearchReopening.query.filter_by(
+        user_id=current_user.id, company_id=company_id).count()
+
     return render_template(
         'company_detail.html',
         company=company,
@@ -701,6 +708,7 @@ def company_detail(company_id):
         resource_count=resource_count,
         user_sectors=user_sectors,
         ladder_state=ladder_state,
+        reopen_count=reopen_count,
         # Journey data
         company_state=journey_data['company_state'],
         position=journey_data['position'],
@@ -722,6 +730,28 @@ def company_detail(company_id):
         price_stale=journey_data['price_stale'],
         title=f"{company.name}"
     )
+
+
+@companies_bp.route('/<int:company_id>/reopen-research', methods=['POST'])
+@login_required
+def reopen_research(company_id):
+    """Pull a rejected company back into research, from any kill stage."""
+    what_changed = request.form.get('what_changed', '')
+
+    try:
+        result = ResearchReopenService.reopen(current_user.id, company_id, what_changed)
+    except ReopenNotAllowed as exc:
+        flash(str(exc), 'warning')
+        return redirect(request.referrer or url_for('companies.company_detail',
+                                                    company_id=company_id))
+
+    if result.target == 'project':
+        flash('Research reopened. Your earlier reason for passing is kept on the project.', 'success')
+        return redirect(url_for('research_workflow.project_dashboard',
+                                project_id=result.project_id))
+
+    return redirect(url_for('research_workflow.intelligent_routing',
+                            company_id=company_id, source='reopen'))
 
 
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
