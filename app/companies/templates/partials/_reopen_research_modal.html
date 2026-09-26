@@ -1,0 +1,57 @@
+{# Reopen Research modal. Expects: company, prior_reason, prior_notes, reopen_count #}
+<div class="thesis-detail-modal" id="reopenResearchModal" onclick="hideReopenResearchModal(event)">
+    <div class="thesis-modal-content" onclick="event.stopPropagation()" style="max-width: 520px;">
+        <form method="POST" action="{{ url_for('companies.reopen_research', company_id=company.id) }}">
+            <div class="thesis-modal-header">
+                <div>
+                    <h3>Reopen research</h3>
+                    <p>Pick {{ company.name }} back up from the too-hard pile</p>
+                </div>
+                <button type="button" class="thesis-modal-close" onclick="hideReopenResearchModal()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="thesis-modal-body">
+                {% if prior_reason %}
+                <div class="journey-empty-state" style="text-align: left; padding: var(--space-md);">
+                    <strong>You passed on this before</strong>
+                    <p style="margin: 0.25rem 0 0;">{{ prior_reason }}</p>
+                    {% if prior_notes %}<p style="margin: 0.25rem 0 0; color: var(--text-secondary);">{{ prior_notes }}</p>{% endif %}
+                </div>
+                {% endif %}
+                {% if reopen_count %}
+                <p style="margin-top: var(--space-md); font-size: var(--font-size-sm); color: var(--warning-600, var(--text-secondary));">
+                    <i class="bi bi-arrow-repeat"></i>
+                    You've reopened {{ company.name }} {{ reopen_count }} time{{ 's' if reopen_count != 1 else '' }} before.
+                </p>
+                {% endif %}
+                <label for="what_changed" style="display: block; margin-top: var(--space-md); font-size: var(--font-size-sm); font-weight: 600;">
+                    What changed?
+                </label>
+                <p style="margin: 0.25rem 0 0.5rem; font-size: var(--font-size-sm); color: var(--text-secondary);">
+                    Optional, but it is what lets you check later whether reopening was worth it.
+                </p>
+                <textarea id="what_changed" name="what_changed" rows="3" style="width: 100%;"
+                          placeholder="New filings, a changed price, or you understand the business better now"></textarea>
+            </div>
+            <div class="thesis-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" class="action-btn" onclick="hideReopenResearchModal()">Cancel</button>
+                <button type="submit" class="action-btn primary">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reopen research
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function hideReopenResearchModal(event) {
+    if (!event || event.target.id === 'reopenResearchModal' ||
+        event.target.closest('.thesis-modal-close') ||
+        event.target.closest('.thesis-modal-footer button[type="button"]')) {
+        document.getElementById('reopenResearchModal').classList.remove('show');
+        document.body.style.overflow = '';
+    }
+}
+window.hideReopenResearchModal = hideReopenResearchModal;
+</script>

@@ -34,6 +34,7 @@ from app import db
 from app.models import (ResearchTemplate, ResearchProject, ResearchSettings, WorkSession,
                        Company, Checklist, KillChecklist, IdeaPipeline,
                        ChecklistAnalysis, ChecklistAnswer, ThesisEvolution, JournalEntry)
+from app.models.research_reopening import ResearchReopening
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from app.utils.time_utils import now_utc, ensure_timezone_aware, format_for_javascript
@@ -44,6 +45,8 @@ from app.research_workflow.session_routes import (
     advance_or_complete_project,
 )
 from app.services.sector_service import SectorService
+from app.services.company_state import company_state
+from app.services.research_reopen_service import ReopenNotAllowed, ResearchReopenService
 from sqlalchemy.orm.attributes import flag_modified
 import json
 import logging
@@ -82,21 +85,26 @@ def start_project():
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.template_list'))
 
-    # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY (regardless of template)
+    # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY (regardless of
+    # template or status). Filtering to active/paused let a completed or
+    # killed project through to an insert that violates
+    # uq_research_project_user_company.
     existing_project = ResearchProject.query.filter_by(
         user_id=current_user.id,
         company_id=company_id
-    ).filter(
-        ResearchProject.status.in_(['active', 'paused'])
     ).first()
 
     if existing_project:
-        if existing_project.status == 'active':
-            flash(f'You already have an active research project for {company.name}. Only one project per company is allowed.', 'error')
-            return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
-        elif existing_project.status == 'paused':
+        state = company_state(current_user.id, company_id)
+        if state.is_dead:
+            flash(f'{company.name} was passed on earlier. Reopen it to continue research.', 'warning')
+            return redirect(url_for('companies.company_detail', company_id=company_id)
+                            + '#research/summary')
+        if existing_project.status == 'paused':
             flash(f'You have a paused research project for {company.name}. Resume it or delete it to start a new one.', 'warning')
-            return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
+        else:
+            flash(f'You already have a research project for {company.name}. Only one project per company is allowed.', 'info')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
 
     # Create new project
     project = ResearchProject(
@@ -205,16 +213,50 @@ def project_dashboard(project_id):
     settings = ResearchSettings.get_or_create(current_user.id)
     is_pinned = settings.pinned_project_id == project.id
 
+    # Scoped by company, not project: _reopen_idea and _reopen_sweep write
+    # their ResearchReopening row before any project exists, so project_id
+    # is NULL on those rows and nothing ever backfills it once promotion
+    # creates the project. company_id is the durable key across all three
+    # kill stages (research/pipeline/sweep), and uq_research_project_user_company
+    # makes company<->project 1:1 anyway. The newest one: a company can be
+    # reopened more than once, and the latest decision is the one that
+    # explains the project's current state.
+    reopening = None
+    if project.company_id:
+        reopening = (ResearchReopening.query
+                     .filter_by(company_id=project.company_id, user_id=current_user.id)
+                     .order_by(ResearchReopening.reopened_at.desc())
+                     .first())
+
+    # The reopen flow, same shapes the company page uses (companies.company_detail):
+    # the ladder decides whether this company reads as dead (a killed project,
+    # a killed idea or a killed sweep row -- not just decision == 'pass'), and
+    # the shared modal partial needs company / prior_reason / prior_notes /
+    # reopen_count. A company-less project gets no ladder and no trigger; it
+    # keeps the legacy Reactivate form (see reactivate_project for why).
+    ladder_state = None
+    reopen_count = 0
+    if project.company_id:
+        ladder_state = company_state(current_user.id, project.company_id)
+        reopen_count = ResearchReopening.query.filter_by(
+            user_id=current_user.id, company_id=project.company_id).count()
+
     return render_template('project_dashboard.html',
                           title=f"Research: {project.project_name}",
                           project=project,
+                          company=project.company,
+                          ladder_state=ladder_state,
+                          reopen_count=reopen_count,
+                          prior_reason=ladder_state.reason if ladder_state else None,
+                          prior_notes=project.too_hard_notes,
                           recent_sessions=recent_sessions,
                           time_breakdown=time_breakdown,
                           next_steps=next_steps,
                           latest_research_session=latest_research_session,
                           days_since_last_work=days_since_last_work,
                           checklist_analyses=checklist_analyses,
-                          is_pinned=is_pinned)
+                          is_pinned=is_pinned,
+                          reopening=reopening)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/execute/<int:step_index>')
@@ -644,7 +686,16 @@ def mark_too_hard(project_id):
 @research_workflow_bp.route('/projects/<int:project_id>/reactivate', methods=['POST'])
 @login_required
 def reactivate_project(project_id):
-    """Reactivate a research project that was marked as too hard or passed"""
+    """Reactivate a passed project -- a thin wrapper over ResearchReopenService.
+
+    This used to clear `too_hard_reason`/`too_hard_notes` in place, destroying
+    the only record of why the company was passed on. That is the defect issue
+    #324 exists to remove, so the route now delegates to the one service that
+    snapshots the rejection into `research_reopenings` first. The endpoint
+    survives only so bookmarks and any caller still posting here get the safe
+    behaviour instead of the destructive one; the project dashboard's own
+    control is the Reopen modal.
+    """
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
@@ -655,6 +706,39 @@ def reactivate_project(project_id):
         flash('This project is not in a passed/too-hard state', 'warning')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
 
+    if project.company_id is not None:
+        company_name = project.company.name if project.company else project.project_name
+        try:
+            ResearchReopenService.reopen(current_user.id, project.company_id,
+                                         what_changed=None)
+        except ReopenNotAllowed as e:
+            flash(str(e), 'warning')
+            return redirect(url_for('research_workflow.project_dashboard',
+                                    project_id=project.id))
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f'Error reactivating project: {str(e)}')
+            flash(f'Error reactivating project: {str(e)}', 'error')
+            return redirect(request.referrer or url_for('research_workflow.my_projects'))
+
+        log_research_activity(
+            current_user.id,
+            'project_reactivated',
+            company_id=project.company_id,
+            project_id=project.id,
+            details={
+                'reactivated_from': 'too_hard'
+            }
+        )
+        flash(f'Research on {company_name} has been reactivated', 'success')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+    # No company: ResearchReopenService is keyed on one. It looks the company
+    # up to check ownership, walks the state ladder for it, and writes a
+    # snapshot row whose company_id is NOT NULL -- none of which is possible
+    # for a company-less project (a subject-only write-up). Rather than 500 on
+    # a missing company, such a project keeps the old in-place clear. There is
+    # nothing to snapshot against, and no company page to reopen from.
     try:
         project.status = 'active'
         project.decision = None

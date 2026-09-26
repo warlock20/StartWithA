@@ -32,6 +32,7 @@ from app.features import user_has_feature
 from app.research_workflow import research_workflow_bp
 from app.research_workflow.template_routes import ensure_default_template
 from app.analytics.utils import log_research_activity
+from app.services.company_state import company_state
 
 
 @research_workflow_bp.route('/intelligent-routing')
@@ -49,6 +50,15 @@ def intelligent_routing():
     if company.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('dashboard.main'))
+
+    # The ladder answers "is this company dead" across all four tables. The
+    # status queries below cannot: a screening kill leaves status='killed',
+    # which matches none of them and would fall through to "start fresh".
+    state = company_state(current_user.id, company_id)
+    if state.is_dead:
+        flash(f'{company.name} is in the too-hard pile. Reopen it to continue research.', 'info')
+        return redirect(url_for('companies.company_detail', company_id=company_id)
+                        + '#research/summary')
 
     # Check for existing active projects for this company
     active_projects = ResearchProject.query.filter_by(
@@ -108,6 +118,18 @@ def _auto_start_project(company, source):
     Used when a non-pro user reaches intelligent_routing without the
     research_templates feature — skips template selection entirely.
     """
+    # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY. The completed_projects
+    # branch above can land here with a non-dead completed project (e.g. an
+    # invest decision) still on file; without this guard the insert below
+    # raises IntegrityError against uq_research_project_user_company.
+    existing_project = ResearchProject.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id
+    ).first()
+    if existing_project:
+        flash(f'You already have a research project for {company.name}. Only one project per company is allowed.', 'info')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
+
     template, is_new = ensure_default_template(current_user)
 
     if is_new:
