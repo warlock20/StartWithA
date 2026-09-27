@@ -19,6 +19,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import QuestionBankItem, SectorAnalysis
 from app.models.sector import Sector
+from app.services.ai_check.context import ai_context_from_form, ai_context_status
 from . import question_bank_bp
 
 
@@ -50,6 +51,7 @@ def index():
                 llm_prompt=llm_prompt.strip() if llm_prompt and llm_prompt.strip() else None,
                 sector_id=sector_id,
                 category=category.strip() if category and category.strip() else None,
+                ai_context=({'method': llm_prompt.strip()} if llm_prompt and llm_prompt.strip() else None),
             )
             db.session.add(new_question)
             db.session.commit()
@@ -115,7 +117,7 @@ def edit_question(item_id):
             flash('Question text is required.', 'error')
         else:
             question.text = text.strip()
-            question.llm_prompt = llm_prompt.strip() if llm_prompt and llm_prompt.strip() else None
+            question.ai_context = ai_context_from_form(request.form)
             question.category = category.strip() if category and category.strip() else None
 
             # Look up Sector by display_name for proper FK
@@ -142,4 +144,5 @@ def edit_question(item_id):
     return render_template('edit_question.html',
                            title="Edit Question",
                            question=question,
-                           existing_sectors=existing_sectors)
+                           existing_sectors=existing_sectors,
+                           ai_status=ai_context_status(question.ai_context))

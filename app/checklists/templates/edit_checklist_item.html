@@ -37,9 +37,9 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="llm_prompt" class="form-label">Optional LLM Prompt</label>
-                        <textarea id="llm_prompt" name="llm_prompt" class="form-control" rows="3" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?">{{ request.form.llm_prompt if request.form else (item.llm_prompt if item.llm_prompt else '') }}</textarea>
-                        <small class="text-muted">Optional: AI analysis prompt to help answer this question automatically</small>
+                        {% with ctx=(item.ai_context if not request.form else ai_context_preview), ai_status=ai_status %}
+                          {% include 'components/_ai_context_fields.html' %}
+                        {% endwith %}
                     </div>
 
                     <div class="d-flex justify-content-between">
