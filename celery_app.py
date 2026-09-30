@@ -34,6 +34,7 @@ celery = Celery('app.celery_tasks',
                     'app.celery_tasks.tasks_checkpoint_analysis',  # Daily checkpoint analysis
                     'app.celery_tasks.tasks_screening',             # Screening analysis tasks
                     'app.celery_tasks.tasks_companion',             # Companion agentic chat tasks
+                    'app.celery_tasks.tasks_ai_check',              # AI check pipeline
                 ]
                 )
 
@@ -54,6 +55,10 @@ celery.conf.update(
         'checkpoint-daily-analysis': {
             'task': 'app.celery_tasks.tasks_checkpoint_analysis.analyze_all_checkpoints',
             'schedule': crontab(hour=20, minute=0),  # Daily at 20:00 UTC (end of US market day)
+        },
+        'ai-check-reap-stale-runs': {
+            'task': 'app.celery_tasks.tasks_ai_check.ai_check_reap_task',
+            'schedule': crontab(minute='*/10'),
         },
     },
 )

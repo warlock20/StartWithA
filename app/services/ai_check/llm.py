@@ -16,6 +16,7 @@
 
 """One place that talks to Claude for the AI check: params, pause handling, tool results, usage."""
 
+from dataclasses import dataclass
 from typing import Callable
 
 from app.services.ai.prompt_service import prompt_service
@@ -28,6 +29,17 @@ FALLBACK_BETA = 'server-side-fallback-2026-07-01'
 # A callable with the same shape as ClaudeProvider.create_message: one request in, the
 # final message dict out. Lets callers (and later tasks) type-hint without importing the provider.
 CreateMessage = Callable[[dict], dict]
+
+
+@dataclass
+class UsageTally:
+    """Usage spent during one stage, kept off the ORM row until the pipeline applies it atomically."""
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cache_read_tokens: int = 0
+    web_searches: int = 0
+    web_fetches: int = 0
+    cost_estimate: float = 0.0
 
 
 def build_params(prompt_data, content, tools):
