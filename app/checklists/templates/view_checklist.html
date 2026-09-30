@@ -164,7 +164,8 @@
                                                     <div class="checklist-view-pro-list-item" style="cursor: pointer;"
                                                          data-question-text="{{ question.text|replace('"', '&quot;') }}"
                                                          data-question-prompt="{{ question.llm_prompt|default('', true)|replace('"', '&quot;') }}"
-                                                         onclick="addQuestionToEditForm(this.getAttribute('data-question-text'), this.getAttribute('data-question-prompt'))">
+                                                         data-bank-item-id="{{ question.id }}"
+                                                         onclick="addQuestionToEditForm(this.getAttribute('data-question-text'), this.getAttribute('data-question-prompt'), this)">
                                                         <div class="list-item-content">
                                                             <div class="list-item-title">{{ question.text }}</div>
                                                             {% if question.llm_prompt %}
@@ -202,6 +203,7 @@
                                 <label for="llm_prompt_top" class="form-label fw-bold">Optional LLM Prompt</label>
                                 <textarea id="llm_prompt_top" name="llm_prompt" rows="2" class="form-control"
                                           placeholder="E.g., What are the key revenue drivers?"></textarea>
+                                <input type="hidden" name="bank_item_id" id="bank_item_id_top" value="">
                             </div>
                             <div class="action-grid">
                                 <button type="submit" class="btn btn-success">
@@ -320,10 +322,11 @@
 
     <script>
     // Function to add a question from Question Bank to the edit form
-    function addQuestionToEditForm(questionText, llmPrompt) {
+    function addQuestionToEditForm(questionText, llmPrompt, el) {
         // Fill in the form fields
         document.getElementById('item_text_top').value = questionText;
         document.getElementById('llm_prompt_top').value = llmPrompt || '';
+        document.getElementById('bank_item_id_top').value = (el && el.dataset.bankItemId) || '';
 
         // Close the question bank collapse
         const questionBankCollapse = document.getElementById('editQuestionBankCollapse');

@@ -69,6 +69,13 @@ from app.celery_tasks.tasks_companion import (
     companion_ask_task,
 )
 
+from app.celery_tasks.tasks_ai_check import (
+    ai_check_gather_task,
+    ai_check_extract_task,
+    ai_check_analyze_task,
+    ai_check_reap_task,
+)
+
 __all__ = [
     # Portfolio tasks
     'portfolio_ai_analysis_task',
@@ -97,4 +104,10 @@ __all__ = [
 
     # Companion tasks
     'companion_ask_task',
+
+    # AI check tasks
+    'ai_check_gather_task',
+    'ai_check_extract_task',
+    'ai_check_analyze_task',
+    'ai_check_reap_task',
 ]

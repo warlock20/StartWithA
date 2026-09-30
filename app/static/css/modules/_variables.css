@@ -51,6 +51,7 @@
     --warning-500: #f59e0b;      /* Warm amber */
     --warning-600: #d97706;      /* Warm amber hover */
     --warning-50: #fef3c7;       /* Warning background */
+    --warning-800: #92400e;       /* Amber text on light backgrounds (AA) */
 
     --danger-500: #dc2626;       /* Error red */
     --danger-600: #b91c1c;       /* Error red hover */

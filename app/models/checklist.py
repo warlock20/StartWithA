@@ -58,6 +58,10 @@ class ChecklistItem(db.Model):
     # and this text can be used as the basis for the LLM query
     llm_prompt = db.Column(db.Text, nullable=True, default=None)
 
+    # Structured AI context (method, where_to_look, worked_example, verdict_rubric,
+    # source_links). Replaces llm_prompt; see docs/superpowers/specs/2026-09-27-ai-check-design.md
+    ai_context = db.Column(db.JSON, nullable=True, default=None)
+
     # Relationship: A checklist item can have sub-items (children)
     children = db.relationship(
         "ChecklistItem",
@@ -79,6 +83,8 @@ class QuestionBankItem(db.Model):
 
     # An optional, reusable LLM prompt for this question
     llm_prompt = db.Column(db.Text, nullable=True)
+
+    ai_context = db.Column(db.JSON, nullable=True)
 
     # Foreign key to sector - can be null for general questions
     sector_id = db.Column(db.Integer, db.ForeignKey("sector.id"), nullable=True, index=True)

@@ -27,6 +27,7 @@ from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, Che
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_error, json_unauthorized
+from app.services.ai_check.context import has_ai_context
 
 # Import unified LLM service
 from app.services.ai import ai_service
@@ -194,7 +195,10 @@ def research_step(analysis_id, item_id):
         company_documents=company_documents_for_llm,
         research_context=research_context,
         all_items_in_order=all_items_in_order,
-        answers_map=answers_map
+        answers_map=answers_map,
+        has_ai_context=has_ai_context(current_item.ai_context),
+        ai_check_documents=[{'id': d.id, 'title': d.title, 'filename': d.original_filename or ''}
+                            for d in company_documents_for_llm],
     )
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/json', methods=['GET'])
@@ -264,6 +268,7 @@ def research_step_json(analysis_id, item_id):
         'description': current_item.description,
         'parent_text': current_item.parent.text if current_item.parent else None,
         'has_llm_prompt': bool(current_item.llm_prompt),
+        'has_ai_context': has_ai_context(current_item.ai_context),
         'answer_text': research_answer.answer_text if research_answer else '',
         'satisfaction_status': research_answer.satisfaction_status if research_answer else 'pending',
         'previous_item_id': previous_item_id,

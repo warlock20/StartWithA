@@ -1,0 +1,53 @@
+{% set ctx = ctx or {} %}
+{% set rubric = ctx.get('verdict_rubric') or {} %}
+<section class="aic-context-card" aria-labelledby="aic-context-title">
+  <div class="aic-context-head">
+    <div class="aic-context-head-left">
+      <i class="bi bi-stars" aria-hidden="true"></i>
+      <h2 id="aic-context-title" class="aic-context-title">AI context</h2>
+      {% if ai_status == 'complete' %}
+        <span class="aic-badge aic-badge--complete">Complete</span>
+      {% elif ai_status == 'method_only' %}
+        <span class="aic-badge aic-badge--partial">Method only</span>
+      {% else %}
+        <span class="aic-badge">No AI context</span>
+      {% endif %}
+    </div>
+    <span class="aic-context-hint">Used by “AI check” on the research step</span>
+  </div>
+  <div class="aic-context-body">
+    <div class="aic-field">
+      <label for="ai_method">Method <span class="aic-field-hint">— steps and formula the AI must follow</span></label>
+      <textarea id="ai_method" name="ai_method" rows="6" class="form-control">{{ ctx.get('method', '') }}</textarea>
+    </div>
+    <div class="aic-field">
+      <label for="ai_where_to_look">Where to look <span class="aic-field-hint">— filings, sections, footnotes</span></label>
+      <textarea id="ai_where_to_look" name="ai_where_to_look" rows="3" class="form-control">{{ ctx.get('where_to_look', '') }}</textarea>
+    </div>
+    <div class="aic-field">
+      <label for="ai_worked_example">Worked example <span class="aic-field-hint">— one real company, the AI copies this shape</span></label>
+      <textarea id="ai_worked_example" name="ai_worked_example" rows="3" class="form-control aic-field--muted">{{ ctx.get('worked_example', '') }}</textarea>
+    </div>
+    <fieldset class="aic-rubric">
+      <legend>Verdict rubric <span class="aic-field-hint">— when to suggest each verdict</span></legend>
+      <div class="aic-rubric-grid">
+        <div class="aic-field">
+          <label for="ai_rubric_satisfied" class="aic-rubric-label aic-rubric-label--satisfied">Satisfied</label>
+          <textarea id="ai_rubric_satisfied" name="ai_rubric_satisfied" rows="3" class="form-control aic-rubric-input aic-rubric-input--satisfied">{{ rubric.get('satisfied', '') }}</textarea>
+        </div>
+        <div class="aic-field">
+          <label for="ai_rubric_not_satisfied" class="aic-rubric-label aic-rubric-label--not-satisfied">Not satisfied</label>
+          <textarea id="ai_rubric_not_satisfied" name="ai_rubric_not_satisfied" rows="3" class="form-control aic-rubric-input aic-rubric-input--not-satisfied">{{ rubric.get('not_satisfied', '') }}</textarea>
+        </div>
+        <div class="aic-field">
+          <label for="ai_rubric_needs_attention" class="aic-rubric-label aic-rubric-label--attention">Needs attention</label>
+          <textarea id="ai_rubric_needs_attention" name="ai_rubric_needs_attention" rows="3" class="form-control aic-rubric-input aic-rubric-input--attention">{{ rubric.get('needs_attention', '') }}</textarea>
+        </div>
+      </div>
+    </fieldset>
+    <div class="aic-field">
+      <label for="ai_source_links">Source links <span class="aic-field-hint">— one per line</span></label>
+      <textarea id="ai_source_links" name="ai_source_links" rows="2" class="form-control">{{ (ctx.get('source_links') or [])|join('\n') }}</textarea>
+    </div>
+  </div>
+</section>

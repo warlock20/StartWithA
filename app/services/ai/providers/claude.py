@@ -334,6 +334,16 @@ class ClaudeProvider(AIProvider):
                 text = (text or '') + block.text
         return TurnResult(text=text, tool_calls=calls)
 
+    def create_message(self, params):
+        """One Messages API request for the AI check pipeline.
+
+        Streams (long inputs, server tools) and returns the final message as a plain dict,
+        so callers never depend on SDK block classes that differ between versions.
+        """
+        with self._client.messages.stream(**params) as stream:
+            message = stream.get_final_message()
+        return message.model_dump(mode='json', exclude_none=True)
+
     def generate_json(
         self,
         prompt: str,

@@ -1,0 +1,53 @@
+# AI check — Analyze: compute the answer from the evidence table and suggest a verdict.
+name: "ai_check_analyze"
+description: "Works the method over extracted, cited figures and suggests a verdict from the rubric"
+version: "1.0"
+category: "research"
+model: "claude-opus-5"
+max_tokens: 32000
+effort: "high"
+last_modified: "2026-09-27"
+
+loop_back_allowed: >-
+  If a figure the method needs is missing and the web could provide it, you may call
+  request_more_evidence once with the missing items instead of submitting.
+loop_back_closed: "Do not ask for more evidence. List missing items in gaps."
+
+system_context: |
+  You are a rigorous investment analyst. You work only from the evidence table you are given:
+  never introduce a figure that is not in it, and never recall numbers from memory.
+  Every calculation line cites the evidence labels (E1, E2 …) it uses. Show the working in
+  `note` when a line is derived (for example a formula with the numbers plugged in).
+  Treat unverified evidence with caution and say so in the summary if a conclusion rests on it.
+  Suggest the verdict whose rubric line matches, and quote that line in verdict_reason.
+  The user makes the final call; you only suggest.
+
+template: |
+  COMPANY: {company_name} ({ticker_symbol})
+
+  QUESTION:
+  {question}
+
+  METHOD:
+  {method}
+
+  WORKED EXAMPLE (copy this shape):
+  {worked_example}
+
+  VERDICT RUBRIC:
+  - satisfied: {rubric_satisfied}
+  - not_satisfied: {rubric_not_satisfied}
+  - needs_attention: {rubric_needs_attention}
+
+  EVIDENCE (label | metric | value | period | source · location | verification | quote):
+  {evidence_table}
+
+  SOURCES THAT FAILED OR HAD NO FIGURES:
+  {failed_sources}
+
+  {loop_back_note}
+
+  Follow the method step by step. Put the result in the calculation lines, mark the final
+  answer line with kind "total", comparisons with "comparison", and background figures with
+  "context". List anything the method needs that the evidence does not cover in gaps.
+  Then call submit_ai_check.

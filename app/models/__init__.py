@@ -66,6 +66,7 @@ from .research import (
     ResearchSettings,
 )
 from .research_reopening import ResearchReopening
+from .ai_check import AICheckRun, AICheckSource, AICheckEvidence
 from .sector import (
     Sector,
     SectorAnalysis,
@@ -184,6 +185,10 @@ __all__ = [
     'ResearchSettings',
     # Research Reopening models
     'ResearchReopening',
+    # AI Check models
+    'AICheckRun',
+    'AICheckSource',
+    'AICheckEvidence',
     # Sector models
     'Sector',
     'SectorAnalysis',

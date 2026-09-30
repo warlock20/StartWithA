@@ -95,6 +95,7 @@ css_companies = Bundle(
     'css/modules/_checkpoint-edit.css',
     'css/modules/_checklist-view.css',
     'css/modules/_checklist-verification.css',
+    'css/modules/_ai-check.css',
     'css/modules/_sector-analysis.css',
     'css/modules/_sector-research.css',
     'css/modules/_research-sources.css',

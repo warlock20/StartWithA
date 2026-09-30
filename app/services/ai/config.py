@@ -90,7 +90,9 @@ class AIModel(Enum):
     CLAUDE_HAIKU = ("claude-3-5-haiku-20241022", AIProvider.CLAUDE)     # Fast, cost-effective
     CLAUDE_SONNET = ("claude-sonnet-4-20250514", AIProvider.CLAUDE)     # Good balance (Sonnet 4)
     CLAUDE_OPUS = ("claude-opus-4-20250514", AIProvider.CLAUDE)         # Best quality (Opus 4)
-    
+    CLAUDE_SONNET_5 = ("claude-sonnet-5", AIProvider.CLAUDE)          # AI check: Gather/Extract
+    CLAUDE_OPUS_5 = ("claude-opus-5", AIProvider.CLAUDE)              # AI check: Analyze
+
     # OpenAI models (for future use)
     GPT4 = ("gpt-4", AIProvider.OPENAI)
     GPT4_TURBO = ("gpt-4-turbo", AIProvider.OPENAI)
@@ -153,6 +155,8 @@ class AIModel(Enum):
             'claude-opus': cls.CLAUDE_OPUS,
             'claude-opus-4': cls.CLAUDE_OPUS,
             'claude-opus-4-20250514': cls.CLAUDE_OPUS,
+            'claude-sonnet-5': cls.CLAUDE_SONNET_5,
+            'claude-opus-5': cls.CLAUDE_OPUS_5,
 
             # OpenAI
             'gpt-4': cls.GPT4,
