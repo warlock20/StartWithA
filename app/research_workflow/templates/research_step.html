@@ -124,6 +124,8 @@
                         </div>
                     </div>
 
+                    <div id="ai-check-mount"></div>
+
                     {% if current_item.description %}
                     <div class="cl-question-description" id="questionDescription" style="display: none;">
                         <div class="cl-question-description-content">
@@ -291,6 +293,7 @@
 {% block scripts %}
 {{ super() }}
 <script defer src="{{ url_for('static', filename='js/dist/ai-research-assistant.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/ai-check.bundle.js') }}"></script>
 
 <!-- BlockNote Editor -->
 {% include 'components/blocknote_editor_include.html' %}
@@ -434,6 +437,16 @@
                 // Keeps the browser poll budget tied to the Celery soft time
                 // limit — configure both via AI_ASSIST_SOFT_TIME_LIMIT.
                 aiTimeoutSeconds: {{ config.AI_ASSIST_SOFT_TIME_LIMIT }},
+            });
+        }
+
+        // Initialize AI check (React island)
+        if (window.initAICheck) {
+            window.initAICheck('ai-check-mount', {
+                analysisId: {{ session.id }},
+                itemId: {{ current_item.id }},
+                hasAiContext: {{ 'true' if has_ai_context else 'false' }},
+                documents: {{ ai_check_documents | tojson }},
             });
         }
 
@@ -831,6 +844,9 @@
         // Delegate to React island — handles context update, state reset, collapse
         if (window.aiAssistant && window.aiAssistant.updateContext) {
             window.aiAssistant.updateContext(data);
+        }
+        if (window.aiCheck && window.aiCheck.updateContext) {
+            window.aiCheck.updateContext({ itemId: data.item_id, hasAiContext: data.has_ai_context });
         }
     }
 
