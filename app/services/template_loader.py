@@ -25,6 +25,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from flask import current_app
 
+from app.services.ai_check.context import ai_context_from_data
+
 
 class TemplateValidationError(Exception):
     """Raised when a template fails validation"""
@@ -214,6 +216,7 @@ class ChecklistTemplateLoader:
             main_item = ChecklistItem(
                 text=item_data['text'],
                 llm_prompt=item_data.get('llm_prompt'),
+                ai_context=ai_context_from_data(item_data),
                 checklist=checklist,
                 parent_id=None,
                 order=order
@@ -228,6 +231,7 @@ class ChecklistTemplateLoader:
                 subitem = ChecklistItem(
                     text=subitem_data['text'],
                     llm_prompt=subitem_data.get('llm_prompt'),
+                    ai_context=ai_context_from_data(subitem_data),
                     checklist=checklist,
                     parent_id=main_item.id,
                     order=sub_order
@@ -269,6 +273,8 @@ class ChecklistTemplateLoader:
 
             if item.llm_prompt:
                 item_dict['llm_prompt'] = item.llm_prompt
+            if item.ai_context:
+                item_dict['ai_context'] = item.ai_context
 
             # Get subitems
             subitems = checklist.items.filter_by(parent_id=item.id).order_by('order').all()
@@ -278,6 +284,8 @@ class ChecklistTemplateLoader:
                     subitem_dict = {'text': subitem.text}
                     if subitem.llm_prompt:
                         subitem_dict['llm_prompt'] = subitem.llm_prompt
+                    if subitem.ai_context:
+                        subitem_dict['ai_context'] = subitem.ai_context
                     item_dict['subitems'].append(subitem_dict)
 
             template_dict['items'].append(item_dict)

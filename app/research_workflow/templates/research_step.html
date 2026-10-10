@@ -432,7 +432,6 @@
                     company_name: {{ session.company.name|tojson }},
                     question_text: {{ current_item.text|tojson }},
                 },
-                hasLlmPrompt: {{ 'true' if current_item.llm_prompt else 'false' }},
                 analysisId: {{ session.id }},
                 // Keeps the browser poll budget tied to the Celery soft time
                 // limit — configure both via AI_ASSIST_SOFT_TIME_LIMIT.

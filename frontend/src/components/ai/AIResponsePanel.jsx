@@ -6,7 +6,6 @@ const MODE_CONFIG = {
   challenge: { icon: 'bi-exclamation-diamond', color: 'danger', title: 'Challenge' },
   elaboration: { icon: 'bi-chat-dots', color: 'primary', title: 'Elaboration' },
   factcheck: { icon: 'bi-shield-exclamation', color: 'warning', title: 'Fact-Check' },
-  runprompt: { icon: 'bi-play-circle', color: 'info', title: 'AI Analysis' },
 };
 
 /**

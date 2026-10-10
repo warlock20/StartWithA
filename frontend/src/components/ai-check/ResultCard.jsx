@@ -5,7 +5,7 @@ import { MODE_LABELS, VERDICT_LABELS, formatDate } from './progress';
 const VERDICT_CLASS = { satisfied: 'satisfied', not_satisfied: 'not-satisfied', needs_attention: 'attention' };
 const STAGE_NAMES = { gathering: 'Gather', extracting: 'Extract', analyzing: 'Analyze' };
 
-export function ResultCard({ run, history, onRetry, onRerun }) {
+export function ResultCard({ run, history, onRetry, onRerun, busy = false }) {
   const [highlight, setHighlight] = useState([]);
   const [inserted, setInserted] = useState(false);
 
@@ -18,7 +18,7 @@ export function ResultCard({ run, history, onRetry, onRerun }) {
         {run.error && <p className="aic-muted">{run.error}</p>}
         <div className="aic-actions">
           {run.status === 'failed' && STAGE_NAMES[run.failed_stage] && (
-            <button type="button" className="btn btn-primary" onClick={onRetry}>
+            <button type="button" className="btn btn-primary" onClick={onRetry} disabled={busy}>
               Retry from {STAGE_NAMES[run.failed_stage]}
             </button>
           )}

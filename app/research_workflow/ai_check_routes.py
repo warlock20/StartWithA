@@ -18,17 +18,19 @@
 
 import logging
 
-from flask import jsonify, request
+from flask import current_app, jsonify, request
 from flask_login import current_user, login_required
 
+from app import limiter
 from app.celery_tasks.tasks_ai_check import (
     ai_check_analyze_task, ai_check_gather_task, claude_available, dispatch_extract_and_analyze,
 )
+from app.constants import RATELIMIT_AI
 from app.models import AICheckRun, ChecklistAnalysis, ChecklistItem
 from app.research_workflow import research_workflow_bp
-from app.services.ai_check import AICheckError
+from app.services.ai_check import AICheckError, AICheckRunLimitError
 from app.services.ai_check.pipeline import (
-    cancel_run, mark_failed, retry_run, serialize_history, serialize_run, start_run,
+    cancel_run, mark_failed, reap_stale_runs, retry_run, serialize_history, serialize_run, start_run,
 )
 from app.utils.response_utils import json_error, json_unauthorized
 
@@ -56,6 +58,7 @@ def _own_run(run_id):
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/ai_check', methods=['POST'])
 @login_required
+@limiter.limit(RATELIMIT_AI)
 def start_ai_check(analysis_id, item_id):
     session, item, error = _session_and_item(analysis_id, item_id)
     if error:
@@ -64,7 +67,10 @@ def start_ai_check(analysis_id, item_id):
         return json_error('Claude is not configured on the server.', status_code=503)
     data = request.get_json(silent=True) or {}
     try:
-        run, created = start_run(current_user.id, session, item, data.get('mode'), data.get('document_ids'))
+        run, created = start_run(current_user.id, session, item, data.get('mode'), data.get('document_ids'),
+                                 run_limit=current_app.config['AI_CHECK_MONTHLY_RUN_LIMIT'])
+    except AICheckRunLimitError as exc:
+        return json_error(str(exc), status_code=429)
     except AICheckError as exc:
         return json_error(str(exc))
     if created:
@@ -83,6 +89,7 @@ def ai_check_history(analysis_id, item_id):
     session, item, error = _session_and_item(analysis_id, item_id)
     if error:
         return error
+    reap_stale_runs()
     runs = AICheckRun.query.filter_by(
         user_id=current_user.id, company_id=session.company_id, checklist_item_id=item.id,
     ).order_by(AICheckRun.id.desc()).limit(HISTORY_LIMIT).all()
@@ -93,6 +100,7 @@ def ai_check_history(analysis_id, item_id):
 @research_workflow_bp.route('/ai_check/<int:run_id>')
 @login_required
 def ai_check_status(run_id):
+    reap_stale_runs()
     run, error = _own_run(run_id)
     if error:
         return error
@@ -111,6 +119,7 @@ def cancel_ai_check(run_id):
 
 @research_workflow_bp.route('/ai_check/<int:run_id>/retry', methods=['POST'])
 @login_required
+@limiter.limit(RATELIMIT_AI)
 def retry_ai_check(run_id):
     run, error = _own_run(run_id)
     if error:

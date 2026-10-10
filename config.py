@@ -127,6 +127,12 @@ class Config:
         os.environ.get('AI_ASSIST_HARD_TIME_LIMIT', AI_ASSIST_SOFT_TIME_LIMIT + 60)
     )
 
+    # 9d. AI CHECK RUN CAP
+    # AI check runs are large (hundreds of thousands of tokens), so they are not
+    # charged to the per-user AI token budget; instead each user may start at
+    # most this many runs in any rolling 30-day window.
+    AI_CHECK_MONTHLY_RUN_LIMIT = int(os.environ.get('AI_CHECK_MONTHLY_RUN_LIMIT', 20))
+
     # 10. RATE LIMITING: Protection against brute force and abuse
     # Uses Redis if available, otherwise in-memory storage
     # Specific rate limits are defined in app/constants.py

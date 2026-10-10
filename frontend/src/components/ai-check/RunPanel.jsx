@@ -6,9 +6,10 @@ const MODES = [
   { value: 'both', label: 'Both', hint: 'Your documents first; web only for gaps.' },
 ];
 
-export function RunPanel({ documents, onRun, onCancel }) {
+export function RunPanel({ documents, onRun, onCancel, busy = false }) {
   const [mode, setMode] = useState(documents.length ? 'both' : 'web');
-  const [picked, setPicked] = useState(documents.length ? [documents[0].id] : []);
+  // Only the server-suggested annual report is pre-ticked; with none, nothing is (Both then runs web-only).
+  const [picked, setPicked] = useState(() => documents.filter((d) => d.suggested).map((d) => d.id));
   const needsDocs = mode !== 'web';
   const canRun = mode !== 'documents' || picked.length > 0;
   const toggle = (id) => setPicked((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
@@ -47,7 +48,7 @@ export function RunPanel({ documents, onRun, onCancel }) {
         <span className="aic-muted">Gather → Extract → Analyze · usually 2–6 min · keeps running if you leave</span>
         <div className="aic-actions">
           <button type="button" className="btn btn-outline-secondary" onClick={onCancel}>Cancel</button>
-          <button type="button" className="btn btn-primary" disabled={!canRun}
+          <button type="button" className="btn btn-primary" disabled={!canRun || busy}
                   onClick={() => onRun(mode, needsDocs ? picked : [])}>Run AI check</button>
         </div>
       </div>

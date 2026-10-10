@@ -30,6 +30,14 @@ FALLBACK_BETA = 'server-side-fallback-2026-07-01'
 # final message dict out. Lets callers (and later tasks) type-hint without importing the provider.
 CreateMessage = Callable[[dict], dict]
 
+# Stop reasons that mean the answer is incomplete: never accept them as a result.
+TRUNCATION_ERRORS = {
+    'max_tokens': "Claude's answer was cut off (output limit reached).",
+    'model_context_window_exceeded': 'The source was too large for Claude to read in one request.',
+}
+# Server tool type prefix -> the usage.server_tool_use counter that tracks it.
+SERVER_TOOL_COUNTERS = {'web_search_': 'web_search_requests', 'web_fetch_': 'web_fetch_requests'}
+
 
 @dataclass
 class UsageTally:
@@ -72,6 +80,8 @@ def call_claude(create_message, params, on_usage):
         if stop == 'refusal':
             category = (message.get('stop_details') or {}).get('category') or 'unspecified'
             raise AICheckError(f'Claude declined this request (category: {category}).')
+        if stop in TRUNCATION_ERRORS:
+            raise AICheckError(TRUNCATION_ERRORS[stop])
         if stop != 'pause_turn':
             return message, messages, responses
         messages = messages + [{'role': 'assistant', 'content': message.get('content') or []}]
@@ -85,6 +95,23 @@ def _find_tool_call(message, names):
     return None
 
 
+def _remaining_tool_caps(tools, responses):
+    """New tool dicts for the reminder retry: each server tool's max_uses lowered by what the
+    first attempt (pause resumes included) already used. Never mutates `tools`. The floor is 1 so
+    the retry can still run, which means a run may exceed a stage's cap by at most 1."""
+    adjusted = []
+    for tool in tools:
+        counter = next((name for prefix, name in SERVER_TOOL_COUNTERS.items()
+                        if str(tool.get('type') or '').startswith(prefix)), None)
+        if counter is None or tool.get('max_uses') is None:
+            adjusted.append(tool)
+            continue
+        used = sum(((r.get('usage') or {}).get('server_tool_use') or {}).get(counter) or 0
+                   for r in responses)
+        adjusted.append({**tool, 'max_uses': max(1, tool['max_uses'] - used)})
+    return adjusted
+
+
 def call_for_tool(create_message, params, names, on_usage):
     """Run until Claude calls one of `names`; one reminder if it doesn't. Returns (name, input, responses)."""
     message, messages, responses = call_claude(create_message, params, on_usage)
@@ -93,7 +120,8 @@ def call_for_tool(create_message, params, names, on_usage):
         return found[0], found[1], responses
     tool_names = ' or '.join(sorted(names))
     reminder = prompt_service.get_prompt('research', 'ai_check_tool_reminder', tool_names=tool_names)
-    retry_params = {**params, 'messages': messages + [
+    retry_params = {**params, 'tools': _remaining_tool_caps(params.get('tools') or [], responses),
+                    'messages': messages + [
         {'role': 'assistant', 'content': message.get('content') or []},
         {'role': 'user', 'content': reminder},
     ]}

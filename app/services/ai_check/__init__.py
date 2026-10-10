@@ -19,3 +19,7 @@
 
 class AICheckError(Exception):
     """A user-facing failure: the message is shown in the UI as is."""
+
+
+class AICheckRunLimitError(AICheckError):
+    """The user has started their allowed number of AI check runs for the rolling window."""

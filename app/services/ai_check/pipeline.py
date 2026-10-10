@@ -21,8 +21,8 @@ from datetime import timedelta
 from sqlalchemy import func
 
 from app import db
-from app.models import AICheckRun, AICheckSource, CompanyResource, User
-from app.services.ai_check import AICheckError
+from app.models import AICheckRun, AICheckSource, CompanyResource
+from app.services.ai_check import AICheckError, AICheckRunLimitError
 from app.services.ai_check.context import context_snapshot, has_ai_context
 from app.services.ai_check.llm import UsageTally
 from app.services.ai_check.stages import (
@@ -31,6 +31,7 @@ from app.services.ai_check.stages import (
 from app.utils.time_utils import now_utc
 
 STALE_AFTER = timedelta(minutes=30)
+RUN_LIMIT_WINDOW = timedelta(days=30)
 STAGE_STATUS = {'gathering': 'gathering', 'extracting': 'extracting', 'analyzing': 'analyzing'}
 USAGE_FIELDS = ('tokens_in', 'tokens_out', 'cache_read_tokens', 'web_searches', 'web_fetches', 'cost_estimate')
 
@@ -63,7 +64,16 @@ def _document_ids(user_id, company_id, mode, raw_ids):
     return ids
 
 
-def start_run(user_id, analysis, item, mode, document_ids):
+def runs_in_window(user_id, now=None):
+    since = (now or now_utc()) - RUN_LIMIT_WINDOW
+    return AICheckRun.query.filter(AICheckRun.user_id == user_id, AICheckRun.created_at >= since).count()
+
+
+def start_run(user_id, analysis, item, mode, document_ids, run_limit=None):
+    """Return (run, created). An active run for the same question is returned as is; a new run
+    is refused with AICheckRunLimitError once the user has started `run_limit` runs in the last
+    30 days (None = no cap; the route passes AI_CHECK_MONTHLY_RUN_LIMIT)."""
+    reap_stale_runs()
     if mode not in AICheckRun.MODES:
         raise AICheckError('Unknown source mode.')
     if not has_ai_context(item.ai_context):
@@ -71,6 +81,8 @@ def start_run(user_id, analysis, item, mode, document_ids):
     active = active_run_for(user_id, analysis.company_id, item.id)
     if active:
         return active, False
+    if run_limit is not None and runs_in_window(user_id) >= run_limit:
+        raise AICheckRunLimitError(f'You have used all {run_limit} AI checks for the last 30 days.')
     run = AICheckRun(
         user_id=user_id, company_id=analysis.company_id, checklist_item_id=item.id,
         analysis_id=analysis.id, mode=mode,
@@ -82,23 +94,19 @@ def start_run(user_id, analysis, item, mode, document_ids):
     return run, True
 
 
-def _apply_usage(run_id, user_id, tally):
-    """Add one stage attempt's usage tally to the run and the user as atomic SQL-side
-    increments, so two writers touching the same row never lose each other's usage. The tally
+def _apply_usage(run_id, tally):
+    """Add one stage attempt's usage tally to the run as atomic SQL-side increments, so two writers touching the same row never lose each other's usage. The tally
     is a plain (non-mapped) object -- see stages.usage_tally -- so the run's own ORM columns
     are never touched by stage code, and there is nothing for an intervening autoflush to
-    write ahead of this update. Doesn't commit; the caller commits. Skips both updates when
-    the tally is all zeros."""
+    write ahead of this update. Doesn't commit; the caller commits. Skips the update when
+    the tally is all zeros. AI check usage is NOT charged to User.ai_tokens_used: runs are capped
+    by count instead (AI_CHECK_MONTHLY_RUN_LIMIT, see start_run)."""
     if not any(getattr(tally, field) for field in USAGE_FIELDS):
         return
     AICheckRun.query.filter_by(id=run_id).update(
         {getattr(AICheckRun, field): getattr(AICheckRun, field) + getattr(tally, field)
          for field in USAGE_FIELDS},
         synchronize_session=False)
-    tokens_delta = tally.tokens_in + tally.tokens_out
-    if tokens_delta:
-        User.query.filter_by(id=user_id).update(
-            {User.ai_tokens_used: User.ai_tokens_used + tokens_delta}, synchronize_session=False)
 
 
 def mark_failed(run, stage, message):
@@ -128,7 +136,7 @@ def do_gather(run_id, create_message, gaps=None, final_attempt=True):
     run = _live_run(run_id)
     if run is None:
         return []
-    run_id, user_id = run.id, run.user_id
+    run_id = run.id
     run.status = 'gathering'
     run.started_at = run.started_at or now_utc()
     run.models = {**(run.models or {}), 'gather': 'claude-sonnet-5'}
@@ -142,14 +150,14 @@ def do_gather(run_id, create_message, gaps=None, final_attempt=True):
     except AICheckError as exc:
         tally = usage_tally(run)
         db.session.rollback()
-        _apply_usage(run_id, user_id, tally)
+        _apply_usage(run_id, tally)
         db.session.commit()
         mark_failed(db.session.get(AICheckRun, run_id), 'gathering', str(exc))
         return []
     except Exception as exc:
         tally = usage_tally(run)
         db.session.rollback()
-        _apply_usage(run_id, user_id, tally)
+        _apply_usage(run_id, tally)
         db.session.commit()
         if not final_attempt:
             raise
@@ -161,17 +169,17 @@ def do_gather(run_id, create_message, gaps=None, final_attempt=True):
     live_status = db.session.query(AICheckRun.status).filter(AICheckRun.id == run_id).scalar()
     if live_status in AICheckRun.TERMINAL_STATUSES:
         db.session.rollback()
-        _apply_usage(run_id, user_id, tally)
+        _apply_usage(run_id, tally)
         db.session.commit()
         return []
 
     if gaps is None and not run.sources:
-        _apply_usage(run_id, user_id, tally)
+        _apply_usage(run_id, tally)
         db.session.commit()
         mark_failed(db.session.get(AICheckRun, run_id), 'gathering', 'No sources were found for this question.')
         return []
 
-    _apply_usage(run_id, user_id, tally)
+    _apply_usage(run_id, tally)
     run.status = 'extracting'
     db.session.commit()
     return queued_source_ids(run)
@@ -182,7 +190,7 @@ def do_extract(source_id, create_message, upload_folder, final_attempt=True):
     if source is None or source.run.is_terminal:
         return
     run = source.run
-    run_id, user_id = run.id, run.user_id
+    run_id = run.id
     source.extract_status, source.error = 'running', None
     run.models = {**(run.models or {}), 'extract': 'claude-sonnet-5'}
     db.session.commit()
@@ -192,21 +200,21 @@ def do_extract(source_id, create_message, upload_folder, final_attempt=True):
     except AICheckError as exc:
         tally = usage_tally(run)
         db.session.rollback()
-        _apply_usage(run_id, user_id, tally)
+        _apply_usage(run_id, tally)
         db.session.commit()
         _fail_source(source_id, str(exc))
         return
     except Exception as exc:
         tally = usage_tally(run)
         db.session.rollback()
-        _apply_usage(run_id, user_id, tally)
+        _apply_usage(run_id, tally)
         db.session.commit()
         if not final_attempt:
             raise
         _fail_source(source_id, f'Extraction failed: {exc}')
         return
     tally = usage_tally(run)
-    _apply_usage(run_id, user_id, tally)
+    _apply_usage(run_id, tally)
     source.extract_status = 'done' if evidence else 'no_figures'
     db.session.commit()
 
@@ -221,7 +229,7 @@ def do_analyze(run_id, create_message, final_attempt=True):
     run = _live_run(run_id)
     if run is None:
         return {'action': 'stop'}
-    run_id, user_id = run.id, run.user_id
+    run_id = run.id
     if not run.evidence:
         failed_count = sum(1 for s in run.sources if s.extract_status == 'failed')
         if failed_count:
@@ -240,14 +248,14 @@ def do_analyze(run_id, create_message, final_attempt=True):
     except AICheckError as exc:
         tally = usage_tally(run)
         db.session.rollback()
-        _apply_usage(run_id, user_id, tally)
+        _apply_usage(run_id, tally)
         db.session.commit()
         mark_failed(db.session.get(AICheckRun, run_id), 'analyzing', str(exc))
         return {'action': 'stop'}
     except Exception as exc:
         tally = usage_tally(run)
         db.session.rollback()
-        _apply_usage(run_id, user_id, tally)
+        _apply_usage(run_id, tally)
         db.session.commit()
         if not final_attempt:
             raise
@@ -259,18 +267,18 @@ def do_analyze(run_id, create_message, final_attempt=True):
     live_status = db.session.query(AICheckRun.status).filter(AICheckRun.id == run_id).scalar()
     if live_status in AICheckRun.TERMINAL_STATUSES:
         db.session.rollback()
-        _apply_usage(run_id, user_id, tally)
+        _apply_usage(run_id, tally)
         db.session.commit()
         return {'action': 'stop'}
 
     if outcome == 'more_evidence':
-        _apply_usage(run_id, user_id, tally)
+        _apply_usage(run_id, tally)
         run.loop_back_used, run.status = True, 'gathering'
         run.started_at = now_utc()  # a new pass begins; started_at marks the current pass, not run creation
         db.session.commit()
         return {'action': 'loop_back', 'gaps': payload}
 
-    _apply_usage(run_id, user_id, tally)
+    _apply_usage(run_id, tally)
     run.result, run.status, run.completed_at = payload, 'completed', now_utc()
     db.session.commit()
     return {'action': 'done'}
@@ -291,6 +299,8 @@ def retry_run(run):
 
 
 def reap_stale_runs(now=None):
+    """Fail runs stuck in a non-terminal status past STALE_AFTER. Cheap enough to call
+    opportunistically (start, status, history) as well as from beat; commits only when it reaps."""
     cutoff = (now or now_utc()) - STALE_AFTER
     stale = AICheckRun.query.filter(
         AICheckRun.status.notin_(AICheckRun.TERMINAL_STATUSES),
@@ -298,7 +308,8 @@ def reap_stale_runs(now=None):
     for run in stale:
         run.status, run.failed_stage = 'failed', run.status
         run.error, run.completed_at = 'The run took too long and was stopped.', now_utc()
-    db.session.commit()
+    if stale:
+        db.session.commit()
     return len(stale)
 
 

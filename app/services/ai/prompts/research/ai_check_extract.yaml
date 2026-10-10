@@ -7,7 +7,12 @@ model: "claude-sonnet-5"
 max_tokens: 16000
 effort: "medium"
 fetch_max_uses: 2
-last_modified: "2026-09-27"
+last_modified: "2026-10-06"
+
+# Fallback and per-source texts read by stages.py (kept here so no prompt text lives in Python).
+missing_value: "Not specified."
+document_instruction: "The document is attached above."
+url_instruction: "Fetch this URL with web_fetch and read it: {url}"
 
 system_context: |
   You extract figures from one financial source for an analyst.

@@ -19,7 +19,9 @@ export function AICheck({ config }) {
   const [run, setRun] = useState(null);
   const [history, setHistory] = useState([]);
   const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const itemRef = useRef(itemId);
+  const inFlight = useRef(false); // synchronous guard: state updates land too late for a double click
 
   const itemUrl = (id) => `${base}/checklist/${config.analysisId}/item/${id}/ai_check`;
 
@@ -69,7 +71,19 @@ export function AICheck({ config }) {
 
   const errorText = (e) => (e.data && (e.data.message || e.data.error)) || e.message;
 
+  const begin = () => {
+    if (inFlight.current) return false;
+    inFlight.current = true;
+    setSubmitting(true);
+    return true;
+  };
+  const finish = () => {
+    inFlight.current = false;
+    setSubmitting(false);
+  };
+
   const start = async (mode, documentIds) => {
+    if (!begin()) return;
     const forItem = itemId;
     setError(null);
     try {
@@ -79,9 +93,12 @@ export function AICheck({ config }) {
       setPanelOpen(false);
     } catch (e) {
       if (itemRef.current === forItem) setError(errorText(e));
+    } finally {
+      finish();
     }
   };
   const act = async (verb) => {
+    if (!begin()) return;
     const forItem = itemId;
     try {
       const data = await apiPost(`${base}/ai_check/${run.id}/${verb}`, {});
@@ -90,6 +107,8 @@ export function AICheck({ config }) {
       setRun(data.run);
     } catch (e) {
       if (itemRef.current === forItem) setError(errorText(e));
+    } finally {
+      finish();
     }
   };
 
@@ -103,12 +122,13 @@ export function AICheck({ config }) {
       </div>
       {error && <div className="aic-alert" role="alert">{error}</div>}
       {panelOpen && !runActive && (
-        <RunPanel documents={config.documents} onRun={start} onCancel={() => setPanelOpen(false)} />
+        <RunPanel documents={config.documents} onRun={start} onCancel={() => setPanelOpen(false)}
+                  busy={submitting} />
       )}
-      {run && !TERMINAL.includes(run.status) && <RunProgress run={run} onCancel={() => act('cancel')} />}
+      {run && !TERMINAL.includes(run.status) && <RunProgress run={run} onCancel={() => act('cancel')} busy={submitting} />}
       {run && TERMINAL.includes(run.status) && (
         <ResultCard run={run} history={history} onRetry={() => act('retry')}
-                    onRerun={() => setPanelOpen(true)} />
+                    onRerun={() => setPanelOpen(true)} busy={submitting} />
       )}
     </div>
   );

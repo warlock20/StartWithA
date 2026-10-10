@@ -34,7 +34,9 @@ from app.services.ai.document_processor import (
 from app.services.ai.config import AIProvider
 from app.services.template_loader import get_template_loader, TemplateValidationError
 from app.services.ai import get_available_providers
-from app.services.ai_check.context import ai_context_from_form, ai_context_status
+from app.services.ai_check.context import (
+    ai_context_from_data, ai_context_from_form, ai_context_from_llm_prompt, ai_context_status,
+)
 
 
 @checklists_bp.route('/')
@@ -340,14 +342,14 @@ def add_checklist_item(checklist_id):
 
 
 def _ai_context_for_new_item(bank_item_id, llm_prompt_text):
-    """A bank question brings its full AI context; a typed prompt seeds the method."""
+    """A bank question brings its own AI context (or none, if it was cleared -- the posted
+    llm_prompt may be the bank's stale legacy prompt, so it is never used then); a typed
+    prompt seeds the method otherwise."""
     if bank_item_id and bank_item_id.isdigit():
         bank = QuestionBankItem.query.filter_by(id=int(bank_item_id), user_id=current_user.id).first()
-        if bank and bank.ai_context:
-            return dict(bank.ai_context)
-    if llm_prompt_text and llm_prompt_text.strip():
-        return {'method': llm_prompt_text.strip()}
-    return None
+        if bank:
+            return dict(bank.ai_context) if bank.ai_context else None
+    return ai_context_from_llm_prompt(llm_prompt_text)
 
 
 # In app/checklists/routes.py
@@ -614,6 +616,7 @@ def process_document(import_id):
                 {
                     'text': item.text,
                     'llm_prompt': item.llm_prompt,
+                    'ai_context': item.ai_context,
                     'category': item.category,
                     'confidence': item.confidence,
                     'parent_id': item.parent_id,
@@ -709,7 +712,8 @@ def create_from_import(import_id):
                 text=item_data['text'],
                 checklist_id=new_checklist.id,
                 order=item_data.get('order', 0),
-                llm_prompt=item_data.get('llm_prompt')
+                llm_prompt=item_data.get('llm_prompt'),
+                ai_context=ai_context_from_data(item_data),
             )
             db.session.add(checklist_item)
 

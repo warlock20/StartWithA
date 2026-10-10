@@ -7,7 +7,11 @@ model: "claude-sonnet-5"
 max_tokens: 16000
 effort: "medium"
 search_max_uses: 5
-last_modified: "2026-09-27"
+last_modified: "2026-10-06"
+
+# Fallback texts read by stages.py.
+missing_value: "Not specified."
+empty_list: "none"
 
 system_context: |
   You locate primary sources for investment due-diligence questions.

@@ -2,7 +2,7 @@ import { stageStates, MODE_LABELS } from './progress';
 
 const STATUS_TEXT = { queued: 'Queued', running: 'Reading…', done: 'Done', no_figures: 'No figures', failed: 'Failed' };
 
-export function RunProgress({ run, onCancel }) {
+export function RunProgress({ run, onCancel, busy = false }) {
   const sources = run.sources || [];
   const extracted = sources.filter((s) => !['queued', 'running'].includes(s.extract_status)).length;
   return (
@@ -10,7 +10,8 @@ export function RunProgress({ run, onCancel }) {
       <div className="aic-panel-head">
         <span className="aic-spinner" aria-hidden="true" />
         <span className="aic-panel-title">AI check running · {MODE_LABELS[run.mode]}</span>
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onCancel}>Cancel run</button>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onCancel}
+                disabled={busy}>Cancel run</button>
       </div>
       <ol className="aic-stages">
         {stageStates(run).map((s) => (

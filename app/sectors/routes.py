@@ -22,6 +22,7 @@ from app.models import (SectorAnalysis, QuestionBankItem, SectorResearchSection,
                        Company, ResearchProject, SectorResearchSource, SectorResearchSnippet,
                        SectorSection, SectorNote)
 from app.models.associations import sector_note_companies, sector_snippet_companies
+from app.services.ai_check.context import ai_context_from_llm_prompt
 from app.services.sector_service import SectorService
 from app.services.too_hard_service import TooHardBasketService
 from app.services.company_state import company_states
@@ -467,6 +468,7 @@ def add_question_to_bank(sector_name):
             user_id=current_user.id,
             text=text,
             llm_prompt=llm_prompt.strip() if llm_prompt and llm_prompt.strip() else None,
+            ai_context=ai_context_from_llm_prompt(llm_prompt),
             sector_id=sector.id
         )
         db.session.add(new_question)
