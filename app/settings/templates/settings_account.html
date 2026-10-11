@@ -1,0 +1,102 @@
+{% extends "settings_layout.html" %}
+
+{% set section_title = 'Account' %}
+{% set section_intro = 'Who you are signed in as, your plan, and how your workspace is set up.' %}
+
+{% block settings_content %}
+{% set user = current_user %}
+{% set display_name = user.name or user.username or user.email.split('@')[0] %}
+
+<section class="settings-panel">
+    <div class="settings-identity">
+        {% if user.picture %}
+        <img src="{{ user.picture }}" alt="" class="settings-avatar">
+        {% else %}
+        <div class="settings-avatar" aria-hidden="true">{{ display_name[:2]|upper }}</div>
+        {% endif %}
+        <div>
+            <div class="settings-identity-name">{{ display_name }}</div>
+            <div class="settings-identity-meta">{{ user.email }}</div>
+            {% if user.auth_provider %}
+            <div class="settings-identity-meta">Signs in with {{ user.auth_provider|replace('-oauth2', '')|title }}</div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="settings-panel">
+    <div class="settings-panel-head">
+        <h3>Plan &amp; AI usage</h3>
+        <span class="settings-chip">{{ user.subscription_tier|replace('_', ' ')|title }}</span>
+    </div>
+    {% set token_percentage = user.get_token_usage_percentage() %}
+    <div class="settings-usage">
+        <div class="settings-usage-numbers">
+            <span><strong>{{ "{:,}".format(user.ai_tokens_used) }}</strong> of {{ "{:,}".format(user.ai_tokens_limit) }} tokens used</span>
+            <span>{{ "{:,}".format(user.get_tokens_remaining()) }} left</span>
+        </div>
+        <div class="settings-meter" role="progressbar" aria-valuenow="{{ token_percentage|round|int }}"
+             aria-valuemin="0" aria-valuemax="100" aria-label="AI tokens used">
+            <div class="settings-meter-fill{% if token_percentage >= 80 %} is-high{% elif token_percentage >= 50 %} is-mid{% endif %}"
+                 style="width: {{ [token_percentage, 100]|min }}%"></div>
+        </div>
+        <p class="settings-hint">
+            Tokens are spent when you use AI features such as the Research Assistant and Portfolio Analytics.
+            {% if user.ai_tokens_reset_date %}Your allowance resets on {{ user.ai_tokens_reset_date.strftime('%d %b %Y') }}.{% endif %}
+        </p>
+    </div>
+</section>
+
+<section class="settings-panel">
+    <div class="settings-panel-head">
+        <h3>Your setup at a glance</h3>
+    </div>
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>Base currency</strong>
+            <span>Portfolio values and analytics are shown in this currency</span>
+        </div>
+        <div class="settings-row-control">
+            <span class="settings-value">{{ user.base_currency }}</span>
+            <a href="{{ url_for('settings.preferences') }}" class="action-btn">Change</a>
+        </div>
+    </div>
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>Investor profile</strong>
+            <span>Sets research thresholds, portfolio warnings and behaviour checks</span>
+        </div>
+        <div class="settings-row-control">
+            <span class="settings-value">
+                {% if user_profile_info and user_profile_info.profile %}
+                    {{ user_profile_info.profile.display_name }}
+                    {% if user_profile_info.custom_override_count %}
+                    <small>+{{ user_profile_info.custom_override_count }} custom</small>
+                    {% endif %}
+                {% else %}Not chosen{% endif %}
+            </span>
+            <a href="{{ url_for('profile.profile_settings') }}" class="action-btn">Change</a>
+        </div>
+    </div>
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>AI features</strong>
+            <span>Whether your data may be sent to AI providers</span>
+        </div>
+        <div class="settings-row-control">
+            <span class="settings-value">{{ 'On' if user.ai_consent_given else 'Off' }}</span>
+            <a href="{{ url_for('ai_models.ai_model_settings') }}" class="action-btn">Change</a>
+        </div>
+    </div>
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>Feature visibility</strong>
+            <span>Show every feature, or unlock them as you use the platform</span>
+        </div>
+        <div class="settings-row-control">
+            <span class="settings-value">{{ 'All features' if user.show_advanced_features else 'Unlock as I go' }}</span>
+            <a href="{{ url_for('settings.preferences') }}" class="action-btn">Change</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
