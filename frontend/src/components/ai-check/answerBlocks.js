@@ -9,6 +9,7 @@ const heading = (text, level = 3) => ({ type: 'heading', props: { level }, conte
 export function buildAnswerBlocks(run) {
   const result = run.result || {};
   const blocks = [heading(`AI check · ${formatDate(run.created_at)} · ${MODE_LABELS[run.mode] || run.mode}`)];
+  if (result.headline) blocks.push(para(result.headline));
   if (result.summary) blocks.push(para(result.summary));
   (result.calculation || []).forEach((line) => {
     const refs = line.evidence && line.evidence.length ? ` [${line.evidence.join(', ')}]` : '';

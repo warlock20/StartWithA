@@ -127,7 +127,7 @@ export function AICheck({ config }) {
       )}
       {run && !TERMINAL.includes(run.status) && <RunProgress run={run} onCancel={() => act('cancel')} busy={submitting} />}
       {run && TERMINAL.includes(run.status) && (
-        <ResultCard run={run} history={history} onRetry={() => act('retry')}
+        <ResultCard key={run.id} run={run} history={history} onRetry={() => act('retry')}
                     onRerun={() => setPanelOpen(true)} busy={submitting} />
       )}
     </div>

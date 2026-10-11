@@ -71,22 +71,37 @@ _CALC_LINE = {
         'evidence': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Evidence labels, e.g. E2'},
         'note': {'type': ['string', 'null'], 'description': 'Formula or working, if any'},
         'kind': {'type': 'string', 'enum': ['line', 'total', 'comparison', 'context']},
+        'group': {'type': ['string', 'null'],
+                  'description': 'Period or section this line belongs to, e.g. FY2025; null if there is only one'},
     },
-    'required': ['label', 'value', 'evidence', 'note', 'kind'],
+    'required': ['label', 'value', 'evidence', 'note', 'kind', 'group'],
+    'additionalProperties': False,
+}
+
+_KEY_FIGURE = {
+    'type': 'object',
+    'properties': {
+        'label': {'type': 'string'},
+        'value': {'type': 'string'},
+        'evidence': {'type': 'array', 'items': {'type': 'string'}},
+    },
+    'required': ['label', 'value', 'evidence'],
     'additionalProperties': False,
 }
 
 SUBMIT_AI_CHECK_TOOL = _strict(
     'submit_ai_check', 'Submit the finished analysis.',
     {
+        'headline': {'type': 'string', 'description': 'One sentence with the key number'},
         'summary': {'type': 'string'},
+        'key_figures': {'type': 'array', 'items': _KEY_FIGURE, 'description': 'At most 3'},
         'calculation': {'type': 'array', 'items': _CALC_LINE},
         'suggested_verdict': {'type': 'string',
                               'enum': ['satisfied', 'not_satisfied', 'needs_attention']},
         'verdict_reason': {'type': 'string', 'description': 'Quote the rubric line it matched'},
         'gaps': {'type': 'array', 'items': {'type': 'string'}},
     },
-    ['summary', 'calculation', 'suggested_verdict', 'verdict_reason', 'gaps'])
+    ['headline', 'summary', 'key_figures', 'calculation', 'suggested_verdict', 'verdict_reason', 'gaps'])
 
 REQUEST_MORE_EVIDENCE_TOOL = _strict(
     'request_more_evidence', 'Ask for one more round of sources for the listed missing figures.',

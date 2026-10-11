@@ -213,7 +213,14 @@ def evidence_table(run):
     return '\n'.join(rows)
 
 
-def clean_result(args, labels):
+MAX_KEY_FIGURES = 3
+
+
+def _text(value):
+    return value.strip() if isinstance(value, str) else ''
+
+
+def clean_result(args, labels, rubric):
     calculation = []
     for line in args.get('calculation') or []:
         calculation.append({
@@ -222,13 +229,24 @@ def clean_result(args, labels):
             'evidence': [label for label in line.get('evidence') or [] if label in labels],
             'note': line.get('note') or None,
             'kind': line.get('kind') if line.get('kind') in CALC_KINDS else 'line',
+            'group': _text(line.get('group')) or None,
         })
+    key_figures = [
+        {'label': _text(fig.get('label')), 'value': _text(fig.get('value')),
+         'evidence': [label for label in fig.get('evidence') or [] if label in labels]}
+        for fig in args.get('key_figures') or [] if _text(fig.get('label')) and _text(fig.get('value'))
+    ][:MAX_KEY_FIGURES]
     verdict = args.get('suggested_verdict')
+    # A verdict only counts when the user wrote a rubric line for it; otherwise the model invented the rule.
+    if verdict not in VERDICTS or not _text((rubric or {}).get(verdict)):
+        verdict = None
     return {
+        'headline': _text(args.get('headline')),
         'summary': args.get('summary') or '',
+        'key_figures': key_figures,
         'calculation': calculation,
-        'suggested_verdict': verdict if verdict in VERDICTS else None,
-        'verdict_reason': args.get('verdict_reason') or '',
+        'suggested_verdict': verdict,
+        'verdict_reason': (args.get('verdict_reason') or '') if verdict else '',
         'gaps': [gap for gap in args.get('gaps') or [] if gap],
     }
 
@@ -248,6 +266,7 @@ def run_analyze(run, create_message):
         rubric_satisfied=rubric.get('satisfied') or missing,
         rubric_not_satisfied=rubric.get('not_satisfied') or missing,
         rubric_needs_attention=rubric.get('needs_attention') or missing,
+        missing_value=missing,
         evidence_table=evidence_table(run), failed_sources=_bullets(failed, data['empty_list']),
         loop_back_note=data['loop_back_allowed' if allow_more else 'loop_back_closed'])
     tools = [SUBMIT_AI_CHECK_TOOL] + ([REQUEST_MORE_EVIDENCE_TOOL] if allow_more else [])
@@ -260,4 +279,4 @@ def run_analyze(run, create_message):
             # An untargeted gather would just repeat the first pass; fail at analyzing (retryable).
             raise AICheckError('Claude asked for more evidence without naming what is missing.')
         return 'more_evidence', gaps[:5]
-    return 'submitted', clean_result(args, {e.label for e in run.evidence})
+    return 'submitted', clean_result(args, {e.label for e in run.evidence}, rubric)
