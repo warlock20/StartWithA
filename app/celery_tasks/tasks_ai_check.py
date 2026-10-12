@@ -28,7 +28,7 @@ from app.services.ai.providers.claude import ClaudeProvider
 from app.services.ai_check.adapters.claude import ClaudeAdapter
 from app.services.ai_check import AICheckError
 from app.services.ai_check.pipeline import (
-    do_analyze, do_extract, do_gather, mark_failed, reap_stale_runs,
+    do_analyze, do_extract, do_gather, mark_failed, reap_stale_runs, sweep_stale_run_files,
 )
 from celery_app import celery
 
@@ -171,4 +171,7 @@ def ai_check_reap_task():
         count = reap_stale_runs()
         if count:
             logger.info('AI check reaper failed %d stale run(s)', count)
+        swept = sweep_stale_run_files()
+        if swept:
+            logger.info('AI check reaper deleted downloads of %d run(s)', swept)
         return count

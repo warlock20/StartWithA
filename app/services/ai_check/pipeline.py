@@ -18,19 +18,22 @@
 
 from datetime import timedelta
 
+from flask import current_app
 from sqlalchemy import func
 
 from app import db
 from app.models import AICheckRun, AICheckSource, CompanyResource
 from app.services.ai_check import AICheckError, AICheckRunLimitError
 from app.services.ai_check.context import context_snapshot, has_ai_context
+from app.services.ai_check.fetch import clear_run_files, sweep_run_files
 from app.services.ai_check.llm import UsageTally
 from app.services.ai_check.stages import (
     MAX_SOURCES, create_document_sources, run_analyze, run_extract, run_gather, usage_tally,
 )
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import ensure_timezone_aware, now_utc
 
 STALE_AFTER = timedelta(minutes=30)
+FAILED_FILES_KEPT_FOR = timedelta(days=7)  # a failed run keeps its downloads so Retry reuses them
 RUN_LIMIT_WINDOW = timedelta(days=30)
 STAGE_STATUS = {'gathering': 'gathering', 'extracting': 'extracting', 'analyzing': 'analyzing'}
 USAGE_FIELDS = ('tokens_in', 'tokens_out', 'cache_read_tokens', 'web_searches', 'web_fetches', 'cost_estimate')
@@ -121,6 +124,24 @@ def cancel_run(run):
         return
     run.status, run.completed_at = 'cancelled', now_utc()
     db.session.commit()
+    _clear_files(run.id)
+
+
+def _clear_files(run_id):
+    clear_run_files(current_app.config['UPLOAD_FOLDER'], run_id)
+
+
+def sweep_stale_run_files(now=None):
+    """Delete downloaded web sources of runs that no longer need them: completed, cancelled,
+    failed more than FAILED_FILES_KEPT_FOR ago, or deleted. Returns how many folders went."""
+    cutoff = (now or now_utc()) - FAILED_FILES_KEPT_FOR
+
+    def keep(run_id):
+        run = db.session.get(AICheckRun, run_id)
+        if run is None or run.status in ('completed', 'cancelled'):
+            return False
+        return run.status != 'failed' or ensure_timezone_aware(run.completed_at or now_utc()) >= cutoff
+    return sweep_run_files(current_app.config['UPLOAD_FOLDER'], keep)
 
 
 def _live_run(run_id):
@@ -281,6 +302,7 @@ def do_analyze(run_id, adapter, final_attempt=True):
     _apply_usage(run_id, tally)
     run.result, run.status, run.completed_at = payload, 'completed', now_utc()
     db.session.commit()
+    _clear_files(run_id)
     return {'action': 'done'}
 
 
