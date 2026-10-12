@@ -145,6 +145,7 @@ def ai_model_settings():
 
     return render_template(
         'ai_model_settings.html',
+        active_section='ai',
         categories=categories,
         available_models=available_models,
         override_count=override_count,

@@ -104,35 +104,8 @@ def demo_login():
 @auth_bp.route('/account')
 @login_required
 def account_settings():
-    """Display user account settings page with basic information and account management"""
-    # Get user statistics from various modules for dashboard-like view
-    from app.journal_enhanced.utils import get_journal_statistics
-
-    # Gather some basic stats to show in profile
-    stats = {
-        'total_companies': current_user.companies.count(),
-        'total_research_projects': current_user.research_projects.count(),
-        'total_ideas': current_user.idea_pipeline.count(),
-        'total_checklists': current_user.checklists.count(),
-    }
-
-    # Get journal stats if available
-    try:
-        journal_stats = get_journal_statistics(current_user.id)
-        stats.update({
-            'total_journal_entries': journal_stats.get('total_entries', 0),
-            'pending_reviews': journal_stats.get('pending_reviews', 0)
-        })
-    except:
-        stats.update({
-            'total_journal_entries': 0,
-            'pending_reviews': 0
-        })
-
-    return render_template('account.html',
-                         title="Account Settings",
-                         user=current_user,
-                         stats=stats)
+    """Old account URL; settings now live under /settings."""
+    return redirect(url_for('settings.account'))
 
 
 @auth_bp.route('/update-settings', methods=['POST'])
@@ -150,7 +123,7 @@ def update_settings():
 
         if base_currency not in supported_currencies:
             flash(f'Invalid currency code: {base_currency}', 'error')
-            return redirect(url_for('auth.account_settings'))
+            return redirect(url_for('settings.preferences'))
 
         # Check if currency is changing
         old_currency = current_user.base_currency
@@ -172,7 +145,7 @@ def update_settings():
         db.session.rollback()
         flash(f'Error updating settings: {str(e)}', 'error')
 
-    return redirect(url_for('auth.account_settings'))
+    return redirect(url_for('settings.preferences'))
 
 
 @auth_bp.route('/update-feature-preferences', methods=['POST'])
@@ -182,7 +155,7 @@ def update_feature_preferences():
     current_user.show_advanced_features = 'show_advanced_features' in request.form
     db.session.commit()
     flash('Feature preferences updated.', 'success')
-    return redirect(url_for('auth.account_settings'))
+    return redirect(url_for('settings.preferences'))
 
 
 @auth_bp.route('/dismiss-new-feature/<group_name>', methods=['POST'])

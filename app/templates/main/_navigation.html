@@ -63,7 +63,7 @@
                     </div>
                 </div>
                 {% endfor %}
-                <a href="{{ url_for('auth.account_settings') }}" class="tier-popover-link">
+                <a href="{{ url_for('settings.preferences') }}" class="tier-popover-link">
                     <i class="bi bi-sliders me-1"></i>Show all features in Settings
                 </a>
             </div>
@@ -72,13 +72,13 @@
         <div class="dropdown topbar-dropdown">
             <button class="topbar-user dropdown-toggle" type="button" id="topbarUserDropdown"
                 data-bs-toggle="dropdown" aria-expanded="false">
-                <div class="topbar-user-avatar">{{ current_user.username[:2]|upper }}</div>
-                <span class="topbar-user-name">{{ current_user.username }}</span>
+                {% set topbar_name = current_user.username or current_user.email.split('@')[0] %}
+                <div class="topbar-user-avatar">{{ topbar_name[:2]|upper }}</div>
+                <span class="topbar-user-name">{{ topbar_name }}</span>
                 <i class="bi bi-chevron-down" style="font-size: 0.7rem; opacity: 0.6;"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="topbarUserDropdown">
-                <li><a class="dropdown-item" href="{{ url_for('auth.account_settings') }}">Account Settings</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('profile.profile_settings') }}">Profile Settings</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('settings.account') }}">Settings</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
             </ul>
