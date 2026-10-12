@@ -424,8 +424,10 @@ _MODEL_DISPLAY_NAMES = {
     'claude-sonnet-4-20250514': 'Claude Sonnet 4',
     'claude-opus-4-20250514': 'Claude Opus 4',
     'claude-3-5-haiku-20241022': 'Claude 3.5 Haiku',
-    'deepseek-chat': 'DeepSeek V3',
-    'deepseek-reasoner': 'DeepSeek R1',
+    'deepseek-flash': 'DeepSeek V4 Flash',
+    'deepseek-v4-pro': 'DeepSeek V4 Pro',
+    'claude-sonnet-5': 'Claude Sonnet 5',
+    'claude-opus-5': 'Claude Opus 5',
 }
 
 

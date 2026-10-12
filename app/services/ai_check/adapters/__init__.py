@@ -18,9 +18,11 @@
 
 from app.services.ai_check import AICheckError
 from app.services.ai_check.adapters.claude import ClaudeAdapter
+from app.services.ai_check.adapters.deepseek import DeepSeekAdapter
+from app.services.ai_check.adapters.gemini import GeminiAdapter
 from app.services.ai_check.pricing import provider_of
 
-ADAPTERS = {'claude': ClaudeAdapter}
+ADAPTERS = {'claude': ClaudeAdapter, 'gemini': GeminiAdapter, 'deepseek': DeepSeekAdapter}
 
 
 def get_adapter(model_id):

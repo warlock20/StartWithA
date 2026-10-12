@@ -20,6 +20,7 @@ import base64
 
 from app.services.ai.providers.claude import ClaudeProvider
 from app.services.ai_check import AICheckError
+from app.services.ai_check.adapters.base import ProviderAdapter
 from app.services.ai_check.llm import StageReply, Usage
 from app.services.ai_check.verify import fetched_texts
 
@@ -59,21 +60,20 @@ def _find_tool_call(message):
     return None, {}
 
 
-class ClaudeAdapter:
+class ClaudeAdapter(ProviderAdapter):
     provider = 'claude'
+    name = 'Claude'
+    can_search = True
+    can_fetch = True
 
     def __init__(self, create_message=None):
         """`create_message` sends one params dict and returns the final message as a dict
         (ClaudeProvider.create_message's shape). Tests inject a scripted one."""
-        self._create_message = create_message
+        super().__init__(client=create_message)
 
-    def _send(self, params):
-        if self._create_message is None:
-            provider = ClaudeProvider()
-            if not provider.is_available():
-                raise AICheckError('Claude is not configured on the server.')
-            self._create_message = provider.create_message
-        return self._create_message(params)
+    def _make_client(self):
+        provider = ClaudeProvider()
+        return provider.create_message if provider.is_available() else None
 
     def _params(self, call, messages):
         tools = list(call.tools)
@@ -96,21 +96,21 @@ class ClaudeAdapter:
             },
         }
 
-    def send(self, call, on_usage):
+    def _first_turn(self, call):
         if call.documents:
             content = [_document_block(doc) for doc in call.documents] + [{'type': 'text', 'text': call.text}]
         else:
             content = call.text
-        return self._run(call, [{'role': 'user', 'content': content}], on_usage)
+        return [{'role': 'user', 'content': content}]
 
-    def follow_up(self, call, transcript, text, on_usage):
-        return self._run(call, transcript + [{'role': 'user', 'content': text}], on_usage)
+    def _append_user(self, transcript, text):
+        return transcript + [{'role': 'user', 'content': text}]
 
-    def _run(self, call, messages, on_usage):
+    def _complete(self, call, messages, on_usage):
         """Send, resuming pause_turn up to MAX_PAUSE_RESUMES times."""
         usages, responses = [], []
         for _ in range(MAX_PAUSE_RESUMES + 1):
-            message = self._send(self._params(call, messages))
+            message = self.client()(self._params(call, messages))
             responses.append(message)
             usage = claude_usage(message, call.model)
             usages.append(usage)

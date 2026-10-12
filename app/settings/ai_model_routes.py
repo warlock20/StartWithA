@@ -92,8 +92,8 @@ def _get_available_models():
     # DeepSeek models
     if config.is_provider_available(AIProvider.DEEPSEEK):
         models.extend([
-            {'id': 'deepseek-chat', 'name': 'DeepSeek V3', 'provider': 'deepseek'},
-            {'id': 'deepseek-reasoner', 'name': 'DeepSeek R1 (Reasoning)', 'provider': 'deepseek'},
+            {'id': 'deepseek-flash', 'name': 'DeepSeek V4 Flash', 'provider': 'deepseek'},
+            {'id': 'deepseek-v4-pro', 'name': 'DeepSeek V4 Pro', 'provider': 'deepseek'},
         ])
 
     return models
