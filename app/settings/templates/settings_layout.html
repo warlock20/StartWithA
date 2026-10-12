@@ -1,0 +1,47 @@
+{% extends "main/_base.html" %}
+
+{% set settings_sections = [
+    ('account', url_for('settings.account'), 'bi-person-circle', 'Account', 'Plan and AI usage'),
+    ('preferences', url_for('settings.preferences'), 'bi-sliders', 'Preferences', 'Currency and features'),
+    ('profile', url_for('profile.profile_settings'), 'bi-person-badge', 'Investor Profile', 'Thresholds and warnings'),
+    ('ai', url_for('ai_models.ai_model_settings'), 'bi-cpu', 'AI', 'Consent and models'),
+    ('privacy', url_for('settings.privacy'), 'bi-shield-lock', 'Data & Privacy', 'Export or delete'),
+] %}
+
+{% block title %}{{ section_title }} · Settings{% endblock %}
+
+{% block content %}
+<div class="dashboard-container settings-page">
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins"><i class="bi bi-gear me-2"></i>Settings</h1>
+                <p class="dashboard-subtitle">Signed in as {{ current_user.email }}</p>
+            </div>
+        </header>
+    </div>
+
+    <div class="settings-shell">
+        <nav class="settings-nav" aria-label="Settings sections">
+            {% for key, href, icon, label, hint in settings_sections %}
+            <a href="{{ href }}" class="settings-nav-link{% if key == active_section %} is-active{% endif %}"
+               {% if key == active_section %}aria-current="page"{% endif %}>
+                <i class="bi {{ icon }}" aria-hidden="true"></i>
+                <span class="settings-nav-text">
+                    <span class="settings-nav-label">{{ label }}</span>
+                    <span class="settings-nav-hint">{{ hint }}</span>
+                </span>
+            </a>
+            {% endfor %}
+        </nav>
+
+        <div class="settings-content">
+            <div class="settings-section-head">
+                <h2>{{ section_title }}</h2>
+                <p>{{ section_intro }}</p>
+            </div>
+            {% block settings_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}

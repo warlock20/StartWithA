@@ -1,0 +1,69 @@
+{% extends "settings_layout.html" %}
+
+{% set section_title = 'Preferences' %}
+{% set section_intro = 'How numbers are shown and which parts of the platform you see.' %}
+
+{% block settings_content %}
+<section class="settings-panel">
+    <div class="settings-panel-head">
+        <h3>Currency</h3>
+    </div>
+    <form method="POST" action="{{ url_for('auth.update_settings') }}">
+        <div class="settings-row">
+            <label class="settings-row-label" for="base_currency">
+                <strong>Base currency</strong>
+                <span>All portfolio values and analytics are converted to this currency</span>
+            </label>
+            <div class="settings-row-control">
+                <select class="form-select form-select-sm" id="base_currency" name="base_currency" required>
+                    {% for currency in currencies %}
+                    <option value="{{ currency.code }}" {% if current_user.base_currency == currency.code %}selected{% endif %}>
+                        {{ currency.code }} · {{ currency.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="settings-row">
+            <label class="settings-row-label" for="show_original_currency">
+                <strong>Show original currency too</strong>
+                <span>For example €65.00 (~$70.20)</span>
+            </label>
+            <div class="settings-row-control">
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="show_original_currency"
+                           name="show_original_currency" {% if current_user.show_original_currency %}checked{% endif %}>
+                </div>
+            </div>
+        </div>
+        <div class="settings-panel-foot">
+            <p class="settings-hint"><i class="bi bi-info-circle me-1"></i>Changing the base currency recalculates portfolio values at current exchange rates.</p>
+            <button type="submit" class="action-btn primary">Save currency</button>
+        </div>
+    </form>
+</section>
+
+<section class="settings-panel">
+    <div class="settings-panel-head">
+        <h3>Features</h3>
+    </div>
+    <form method="POST" action="{{ url_for('auth.update_feature_preferences') }}">
+        <div class="settings-row">
+            <label class="settings-row-label" for="show_advanced">
+                <strong>Show all features</strong>
+                <span>Features normally unlock as you use the platform. Turn this on to see everything now.</span>
+            </label>
+            <div class="settings-row-control">
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="show_advanced"
+                           name="show_advanced_features" {% if current_user.show_advanced_features %}checked{% endif %}>
+                </div>
+            </div>
+        </div>
+        <div class="settings-panel-foot">
+            <span></span>
+            <button type="submit" class="action-btn primary">Save features</button>
+        </div>
+    </form>
+</section>
+{% endblock %}
