@@ -14,28 +14,29 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-"""The three AI check stages. Each builds one Claude request from the run and stores what comes back."""
+"""The three AI check stages. Each builds one StageCall from the run and stores what comes back."""
 
-import base64
 import os
 
 import fitz
+from flask import current_app
 
 from app import db
 from app.models import AICheckEvidence, AICheckSource, Company, CompanyResource
 from app.services.ai.prompt_service import prompt_service
 from app.services.ai_check import AICheckError
-from app.services.ai_check.llm import UsageTally, build_params, call_for_tool, record_usage
+from app.services.ai_check.fetch import fetch_source_file
+from app.services.ai_check.llm import Document, UsageTally, call_for_tool, record_usage, stage_call
 from app.services.ai_check.tools import (
     RECORD_EVIDENCE_TOOL, RECORD_SOURCES_TOOL, REQUEST_MORE_EVIDENCE_TOOL, SUBMIT_AI_CHECK_TOOL,
 )
-from app.services.ai_check.verify import fetched_texts, quote_in_texts, read_page_texts
+from app.services.ai_check.verify import quote_in_texts, read_page_texts
 
 MAX_SOURCES = 6
 MAX_WEB_SOURCES = 4
 SEARCH_BUDGET = 5
-# The request cap is 32 MB and base64 inflates a PDF by 4/3, so 22 MiB (~29.3 MB encoded) is
-# the largest file that still fits with room for the prompt; 23 MiB would encode to over 32 MB.
+# Claude's request cap is 32 MB and base64 inflates a PDF by 4/3, so 22 MiB (~29.3 MB encoded) is
+# the largest file that still fits with room for the prompt. The same cap applies on every provider.
 MAX_DOC_BYTES = 22 * 1024 * 1024
 MAX_DOC_PAGES = 600
 
@@ -46,7 +47,7 @@ def prompt_data(name):
 
 
 def render_prompt(data, **variables):
-    """The rendered template only; system_context travels separately via build_params."""
+    """The rendered template only; system_context travels separately in the StageCall."""
     return data['template'].format(**variables)
 
 
@@ -60,7 +61,7 @@ def usage_tally(run):
 
 
 def _usage_recorder(run):
-    return lambda model_id, usage: record_usage(usage_tally(run), model_id, usage)
+    return lambda usage: record_usage(usage_tally(run), usage)
 
 
 def _company_vars(run, data):
@@ -93,7 +94,7 @@ def create_document_sources(run):
     return sources
 
 
-def run_gather(run, create_message, gaps=None):
+def run_gather(run, adapter, gaps=None):
     web_count = sum(1 for s in run.sources if s.kind == 'web')
     room = min(MAX_SOURCES - len(run.sources), MAX_WEB_SOURCES - web_count)
     searches_left = SEARCH_BUDGET - (run.web_searches or 0)
@@ -104,11 +105,9 @@ def run_gather(run, create_message, gaps=None):
         data, **_company_vars(run, data),
         existing_sources=_bullets([s.title for s in run.sources], data['empty_list']),
         gaps=_bullets(gaps or [], data['empty_list']), max_sources=room)
-    tools = [{'type': 'web_search_20260209', 'name': 'web_search',
-              'max_uses': min(data.get('search_max_uses', SEARCH_BUDGET), searches_left)},
-             RECORD_SOURCES_TOOL]
-    _, args, _ = call_for_tool(create_message, build_params(data, prompt, tools),
-                               {'record_sources'}, _usage_recorder(run))
+    call = stage_call(data, data['model'], prompt, [RECORD_SOURCES_TOOL],
+                      search_cap=min(data.get('search_max_uses', SEARCH_BUDGET), searches_left))
+    _, args, _ = call_for_tool(adapter, call, {'record_sources'}, _usage_recorder(run))
     created = []
     for item in args.get('sources') or []:
         url = (item.get('url') or '').strip()
@@ -126,28 +125,34 @@ def run_gather(run, create_message, gaps=None):
     return created
 
 
-def _document_block(path, filename):
+def _as_text(title, page_texts, data):
+    body = '\n\n'.join(data['page_marker'].format(number=number) + '\n' + text
+                       for number, text in enumerate(page_texts, start=1))
+    return data['document_wrapper'].format(title=title, text=body)
+
+
+def load_document(path, title, data, filename=None):
+    """A Document for a local PDF or .txt file, with the size and page caps checked.
+    The file type comes from `filename` when given (uploads), otherwise from `path`."""
     if os.path.getsize(path) > MAX_DOC_BYTES:
-        raise AICheckError(f'{filename} is larger than 22 MB.')
-    lower = filename.lower()
+        raise AICheckError(f'{title} is larger than 22 MB.')
+    lower = (filename or path).lower()
     if lower.endswith('.pdf'):
         with fitz.open(path) as doc:
             if doc.page_count > MAX_DOC_PAGES:
-                raise AICheckError(f'{filename} has more than {MAX_DOC_PAGES} pages.')
-        with open(path, 'rb') as handle:
-            data = base64.standard_b64encode(handle.read()).decode('ascii')
-        return {'type': 'document', 'title': filename,
-                'source': {'type': 'base64', 'media_type': 'application/pdf', 'data': data}}
-    if lower.endswith('.txt'):
-        with open(path, encoding='utf-8', errors='replace') as handle:
-            return {'type': 'document', 'title': filename,
-                    'source': {'type': 'text', 'media_type': 'text/plain', 'data': handle.read()}}
-    raise AICheckError(f'{filename}: only PDF and .txt files can be read.')
+                raise AICheckError(f'{title} has more than {MAX_DOC_PAGES} pages.')
+        kind = 'pdf'
+    elif lower.endswith('.txt'):
+        kind = 'text'
+    else:
+        raise AICheckError(f'{title}: only PDF and .txt files can be read.')
+    page_texts = read_page_texts(path)
+    return Document(title=title, kind=kind, path=path, page_texts=page_texts,
+                    as_text=_as_text(title, page_texts, data))
 
 
-def run_extract(source, create_message, upload_folder):
+def run_extract(source, adapter, upload_folder):
     run = source.run
-    content, tools, page_texts = [], [RECORD_EVIDENCE_TOOL], []
     data = prompt_data('ai_check_extract')
     if source.kind == 'document':
         resource = CompanyResource.query.filter_by(
@@ -158,21 +163,26 @@ def run_extract(source, create_message, upload_folder):
         if not os.path.exists(path):
             raise AICheckError(f'{source.title}: file not found on the server.')
         filename = resource.original_filename or resource.stored_filename
-        content.append(_document_block(path, filename))
-        page_texts = read_page_texts(path)
+        document = load_document(path, filename, data, filename=filename)
         instruction = data['document_instruction']
-    else:
+    elif adapter.provider == 'claude' and current_app.config.get('AI_CHECK_CLAUDE_WEB_FETCH', True):
+        # Claude fetches the page itself (v1 behaviour); quotes are checked against what it fetched.
+        document = None
         instruction = data['url_instruction'].format(url=source.url)
+    else:
+        path, downloaded = fetch_source_file(source, upload_folder,
+                                             current_app.config.get('AI_CHECK_FETCH_CONTACT'))
+        if downloaded:
+            usage_tally(run).web_fetches += 1
+        document = load_document(path, source.title, data)
+        instruction = data['attached_url_instruction'].format(url=source.url)
     prompt = render_prompt(data, **_company_vars(run, data),
                            source_title=source.title, source_instruction=instruction)
-    if source.kind == 'web':
-        tools.insert(0, {'type': 'web_fetch_20260209', 'name': 'web_fetch',
-                         'max_uses': data.get('fetch_max_uses', 2)})
-    content.append({'type': 'text', 'text': prompt})
-    _, args, responses = call_for_tool(create_message, build_params(data, content, tools),
-                                       {'record_evidence'}, _usage_recorder(run))
-    if source.kind == 'web':
-        page_texts = fetched_texts(responses)
+    call = stage_call(data, data['model'], prompt, [RECORD_EVIDENCE_TOOL],
+                      documents=[document] if document else [],
+                      fetch_cap=None if document else data.get('fetch_max_uses', 2))
+    _, args, fetched = call_for_tool(adapter, call, {'record_evidence'}, _usage_recorder(run))
+    page_texts = document.page_texts if document else fetched
     evidence = []
     for item in args.get('items') or []:
         if not (item.get('metric') and item.get('value')):
@@ -251,7 +261,7 @@ def clean_result(args, labels, rubric):
     }
 
 
-def run_analyze(run, create_message):
+def run_analyze(run, adapter):
     assign_labels(run)
     ctx = run.context_snapshot or {}
     rubric = ctx.get('verdict_rubric') or {}
@@ -271,12 +281,12 @@ def run_analyze(run, create_message):
         loop_back_note=data['loop_back_allowed' if allow_more else 'loop_back_closed'])
     tools = [SUBMIT_AI_CHECK_TOOL] + ([REQUEST_MORE_EVIDENCE_TOOL] if allow_more else [])
     names = {tool['name'] for tool in tools}
-    name, args, _ = call_for_tool(create_message, build_params(data, prompt, tools), names,
+    name, args, _ = call_for_tool(adapter, stage_call(data, data['model'], prompt, tools), names,
                                   _usage_recorder(run))
     if name == 'request_more_evidence':
         gaps = [str(gap).strip() for gap in args.get('gaps') or [] if str(gap).strip()]
         if not gaps:
             # An untargeted gather would just repeat the first pass; fail at analyzing (retryable).
-            raise AICheckError('Claude asked for more evidence without naming what is missing.')
+            raise AICheckError('The model asked for more evidence without naming what is missing.')
         return 'more_evidence', gaps[:5]
     return 'submitted', clean_result(args, {e.label for e in run.evidence}, rubric)

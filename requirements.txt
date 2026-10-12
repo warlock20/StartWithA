@@ -25,6 +25,7 @@ PyMuPDF
 python-docx
 openpyxl
 beautifulsoup4
+httpx==0.28.1
 weasyprint
 
 # APIs & Integrations

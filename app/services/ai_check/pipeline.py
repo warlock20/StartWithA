@@ -132,7 +132,7 @@ def queued_source_ids(run):
     return [s.id for s in run.sources if s.extract_status == 'queued']
 
 
-def do_gather(run_id, create_message, gaps=None, final_attempt=True):
+def do_gather(run_id, adapter, gaps=None, final_attempt=True):
     run = _live_run(run_id)
     if run is None:
         return []
@@ -146,7 +146,7 @@ def do_gather(run_id, create_message, gaps=None, final_attempt=True):
         if gaps is None and run.document_ids and not run.sources:
             create_document_sources(run)
         if run.mode in ('web', 'both'):
-            run_gather(run, create_message, gaps)
+            run_gather(run, adapter, gaps)
     except AICheckError as exc:
         tally = usage_tally(run)
         db.session.rollback()
@@ -185,7 +185,7 @@ def do_gather(run_id, create_message, gaps=None, final_attempt=True):
     return queued_source_ids(run)
 
 
-def do_extract(source_id, create_message, upload_folder, final_attempt=True):
+def do_extract(source_id, adapter, upload_folder, final_attempt=True):
     source = db.session.get(AICheckSource, source_id)
     if source is None or source.run.is_terminal:
         return
@@ -196,7 +196,7 @@ def do_extract(source_id, create_message, upload_folder, final_attempt=True):
     db.session.commit()
     run._ai_usage_tally = UsageTally()
     try:
-        evidence = run_extract(source, create_message, upload_folder)
+        evidence = run_extract(source, adapter, upload_folder)
     except AICheckError as exc:
         tally = usage_tally(run)
         db.session.rollback()
@@ -225,7 +225,7 @@ def _fail_source(source_id, message):
     db.session.commit()
 
 
-def do_analyze(run_id, create_message, final_attempt=True):
+def do_analyze(run_id, adapter, final_attempt=True):
     run = _live_run(run_id)
     if run is None:
         return {'action': 'stop'}
@@ -244,7 +244,7 @@ def do_analyze(run_id, create_message, final_attempt=True):
     db.session.commit()
     run._ai_usage_tally = UsageTally()
     try:
-        outcome, payload = run_analyze(run, create_message)
+        outcome, payload = run_analyze(run, adapter)
     except AICheckError as exc:
         tally = usage_tally(run)
         db.session.rollback()

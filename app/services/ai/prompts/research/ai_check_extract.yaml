@@ -7,12 +7,20 @@ model: "claude-sonnet-5"
 max_tokens: 16000
 effort: "medium"
 fetch_max_uses: 2
-last_modified: "2026-10-06"
+last_modified: "2026-10-12"
 
 # Fallback and per-source texts read by stages.py (kept here so no prompt text lives in Python).
 missing_value: "Not specified."
 document_instruction: "The document is attached above."
 url_instruction: "Fetch this URL with web_fetch and read it: {url}"
+# Used when we downloaded the page ourselves and attached it.
+attached_url_instruction: "The page from {url} is attached above."
+# How a document is laid out when a model gets it as text (DeepSeek, or a downloaded web page).
+page_marker: "[Page {number}]"
+document_wrapper: |-
+  <document title="{title}">
+  {text}
+  </document>
 
 system_context: |
   You extract figures from one financial source for an analyst.

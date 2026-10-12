@@ -25,6 +25,7 @@ from flask import current_app
 from app import create_app, db
 from app.models import AICheckRun, AICheckSource
 from app.services.ai.providers.claude import ClaudeProvider
+from app.services.ai_check.adapters.claude import ClaudeAdapter
 from app.services.ai_check import AICheckError
 from app.services.ai_check.pipeline import (
     do_analyze, do_extract, do_gather, mark_failed, reap_stale_runs,
@@ -43,11 +44,9 @@ def claude_available():
     return ClaudeProvider().is_available()
 
 
-def create_message_for_run():
-    provider = ClaudeProvider()
-    if not provider.is_available():
-        raise AICheckError('Claude is not configured on the server.')
-    return provider.create_message
+def adapter_for(run_id, stage):
+    """The adapter that runs `stage` of this run."""
+    return ClaudeAdapter()
 
 
 def dispatch_extract_and_analyze(run_id, source_ids):
@@ -74,10 +73,7 @@ def _gather(run_id, gaps, final_attempt):
     after the stage already committed) fail the run outright and are never retried -- retrying
     here would re-run Gather (a second paid web search, duplicate source rows) even though
     Gather itself already succeeded."""
-    if not claude_available():
-        _fail_run(run_id, 'gathering', 'Claude is not configured on the server.')
-        return
-    source_ids = do_gather(run_id, create_message_for_run(), gaps=gaps, final_attempt=final_attempt)
+    source_ids = do_gather(run_id, adapter_for(run_id, 'gather'), gaps=gaps, final_attempt=final_attempt)
     run = db.session.get(AICheckRun, run_id)
     if run is None or run.is_terminal:
         return
@@ -129,8 +125,11 @@ def ai_check_extract_task(self, source_id):
     with app.app_context():
         final = self.request.retries >= self.max_retries
         try:
-            do_extract(source_id, create_message_for_run(), current_app.config['UPLOAD_FOLDER'],
-                       final_attempt=final)
+            source = db.session.get(AICheckSource, source_id)
+            if source is None:
+                return source_id
+            do_extract(source_id, adapter_for(source.run_id, 'extract'),
+                       current_app.config['UPLOAD_FOLDER'], final_attempt=final)
         except SoftTimeLimitExceeded:
             _extract_failed(source_id, 'Reading this source took too long.')
         except AICheckError as exc:
@@ -150,7 +149,7 @@ def ai_check_analyze_task(self, _results, run_id):
     with app.app_context():
         final = self.request.retries >= self.max_retries
         try:
-            outcome = do_analyze(run_id, create_message_for_run(), final_attempt=final)
+            outcome = do_analyze(run_id, adapter_for(run_id, 'analyze'), final_attempt=final)
         except SoftTimeLimitExceeded:
             _fail_run(run_id, 'analyzing', 'The analysis took too long.')
             return
