@@ -43,6 +43,38 @@
 
 <section class="settings-panel">
     <div class="settings-panel-head">
+        <h3><i class="bi bi-stars me-1" aria-hidden="true"></i>AI check</h3>
+    </div>
+    <p class="settings-hint mb-3">
+        <em>My setup</em> for AI check: the model for each stage. Each list shows only models that can do that stage.
+        You can also pick a preset (Budget, Gemini, Claude) in the run panel for a single run.
+    </p>
+    {% for row in ai_check_rows %}
+    <div class="settings-row">
+        <label class="settings-row-label" for="aic-model-{{ row.stage }}">
+            <strong>{{ row.title }}</strong>
+            {% if row.current %}<span class="settings-chip settings-chip--custom">Custom</span>{% endif %}
+        </label>
+        <div class="settings-row-control">
+            <form method="POST" action="{{ url_for('ai_models.set_model_preference') }}" class="settings-inline-form">
+                <input type="hidden" name="category" value="{{ row.category }}">
+                <select id="aic-model-{{ row.stage }}" name="model_id" class="form-select form-select-sm">
+                    <option value="default" {% if not row.current %}selected{% endif %}>Default ({{ row.default_label }})</option>
+                    {% for option in row.options %}
+                    <option value="{{ option.id }}" {% if row.current == option.id %}selected{% endif %}>
+                        {{ option.label }}{% if option.text_only %} (text only){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="action-btn">Save</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+
+<section class="settings-panel">
+    <div class="settings-panel-head">
         <h3>Model per task</h3>
         {% if override_count > 0 %}
         <form method="POST" action="{{ url_for('ai_models.reset_all_model_preferences') }}">

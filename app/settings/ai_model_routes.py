@@ -30,6 +30,12 @@ from app import db
 from app.models.user_ai_preferences import UserAIPreference
 from app.services.ai.config import AIModel, AIProvider, get_ai_config
 from app.services.ai.prompt_service import prompt_service
+from app.services.ai_check import AICheckError
+from app.services.ai_check.pricing import provider_of
+from app.services.ai_check.setup import (
+    PREF_PREFIX, STAGES, STAGE_TITLES, check_stage_model, model_label, my_setup_choice, stage_default,
+    stage_options,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +105,22 @@ def _get_available_models():
     return models
 
 
+def _ai_check_rows(user_id):
+    return [{
+        'stage': stage, 'title': STAGE_TITLES[stage], 'category': PREF_PREFIX + stage,
+        'options': stage_options(stage), 'current': my_setup_choice(user_id, stage),
+        'default_label': model_label(stage_default(stage)),
+    } for stage in STAGES]
+
+
+def _check_ai_check_choice(category, model_id):
+    """For ai_check:<stage> categories: the canonical model id, or raise AICheckError."""
+    stage = category[len(PREF_PREFIX):]
+    if stage not in STAGES:
+        raise AICheckError('Unknown AI check stage.')
+    return check_stage_model(stage, model_id)
+
+
 def _get_categories_with_defaults():
     """Get all prompt categories with their YAML default model/provider."""
     categories = []
@@ -152,6 +174,7 @@ def ai_model_settings():
         categories=categories,
         available_models=available_models,
         override_count=override_count,
+        ai_check_rows=_ai_check_rows(current_user.id),
     )
 
 
@@ -171,6 +194,18 @@ def set_model_preference():
         UserAIPreference.clear_preference(current_user.id, category)
         db.session.commit()
         flash(f'Reset {CATEGORY_LABELS.get(category, category)} to default', 'success')
+        return redirect(url_for('ai_models.ai_model_settings'))
+
+    if category.startswith(PREF_PREFIX):
+        try:
+            model_id = _check_ai_check_choice(category, model_id)
+        except AICheckError as exc:
+            flash(str(exc), 'error')
+            return redirect(url_for('ai_models.ai_model_settings'))
+        UserAIPreference.set_preference(user_id=current_user.id, prompt_category=category,
+                                        model_override=model_id, provider_override=provider_of(model_id))
+        db.session.commit()
+        flash(f'AI check {category[len(PREF_PREFIX):]} set to {model_label(model_id)}', 'success')
         return redirect(url_for('ai_models.ai_model_settings'))
 
     # Resolve model to get provider
@@ -240,6 +275,16 @@ def api_set_preference():
         UserAIPreference.clear_preference(current_user.id, category)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Reset to default'})
+
+    if category.startswith(PREF_PREFIX):
+        try:
+            model_id = _check_ai_check_choice(category, model_id)
+        except AICheckError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
+        UserAIPreference.set_preference(user_id=current_user.id, prompt_category=category,
+                                        model_override=model_id, provider_override=provider_of(model_id))
+        db.session.commit()
+        return jsonify({'success': True, 'category': category, 'model_id': model_id})
 
     try:
         model_enum = AIModel.from_string(model_id)
