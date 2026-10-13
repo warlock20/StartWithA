@@ -1,0 +1,27 @@
+# AI check — named model setups offered in the run panel. Not a prompt (no template).
+# Each stage must be a model setup.py allows for that stage; a preset whose provider key is
+# missing is hidden from the run panel.
+name: "ai_check_presets"
+description: "Named model setups for AI check runs"
+category: "research"
+last_modified: "2026-10-12"
+
+presets:
+  budget:
+    label: "Budget"
+    gather: "gemini-3-flash-preview"
+    extract: "gemini-3-flash-preview"
+    analyze: "deepseek-v4-pro"
+    quick: "gemini-3-flash-preview"
+  gemini:
+    label: "Gemini"
+    gather: "gemini-3-flash-preview"
+    extract: "gemini-3-flash-preview"
+    analyze: "gemini-3.1-pro-preview"
+    quick: "gemini-3-flash-preview"
+  claude:
+    label: "Claude"
+    gather: "claude-sonnet-5"
+    extract: "claude-sonnet-5"
+    analyze: "claude-opus-5"
+    quick: "claude-sonnet-5"
