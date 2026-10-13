@@ -24,7 +24,6 @@ from flask import current_app
 
 from app import create_app, db
 from app.models import AICheckRun, AICheckSource
-from app.services.ai.providers.claude import ClaudeProvider
 from app.services.ai_check.adapters import get_adapter
 from app.services.ai_check import AICheckError
 from app.services.ai_check.setup import stage_model
@@ -39,9 +38,6 @@ GATHER_SOFT_LIMIT = 300
 EXTRACT_SOFT_LIMIT = 240
 ANALYZE_SOFT_LIMIT = 300
 RETRY_COUNTDOWN = 15
-
-def claude_available():
-    return ClaudeProvider().is_available()
 
 
 def adapter_for(run_id, stage):

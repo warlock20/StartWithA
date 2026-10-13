@@ -23,7 +23,7 @@ from flask_login import current_user, login_required
 
 from app import limiter
 from app.celery_tasks.tasks_ai_check import (
-    ai_check_analyze_task, ai_check_gather_task, claude_available, dispatch_extract_and_analyze,
+    ai_check_analyze_task, ai_check_gather_task, ai_check_quick_task, dispatch_extract_and_analyze,
 )
 from app.constants import RATELIMIT_AI
 from app.models import AICheckRun, ChecklistAnalysis, ChecklistItem
@@ -32,6 +32,7 @@ from app.services.ai_check import AICheckError, AICheckRunLimitError
 from app.services.ai_check.pipeline import (
     cancel_run, mark_failed, reap_stale_runs, retry_run, serialize_history, serialize_run, start_run,
 )
+from app.services.ai_check.setup import ai_check_available
 from app.utils.response_utils import json_error, json_unauthorized
 
 logger = logging.getLogger(__name__)
@@ -63,21 +64,22 @@ def start_ai_check(analysis_id, item_id):
     session, item, error = _session_and_item(analysis_id, item_id)
     if error:
         return error
-    if not claude_available():
-        return json_error('Claude is not configured on the server.', status_code=503)
+    if not ai_check_available(current_user.id):
+        return json_error('No AI provider is configured for AI check.', status_code=503)
     data = request.get_json(silent=True) or {}
     try:
         run, created = start_run(current_user.id, session, item, data.get('mode'), data.get('document_ids'),
-                                 run_limit=current_app.config['AI_CHECK_MONTHLY_RUN_LIMIT'])
+                                 run_limit=current_app.config['AI_CHECK_MONTHLY_RUN_LIMIT'],
+                                 setup_choice=data.get('setup'), depth=data.get('depth') or 'full')
     except AICheckRunLimitError as exc:
         return json_error(str(exc), status_code=429)
     except AICheckError as exc:
         return json_error(str(exc))
     if created:
         try:
-            ai_check_gather_task.delay(run.id)
+            (ai_check_quick_task if run.depth == 'quick' else ai_check_gather_task).delay(run.id)
         except Exception as exc:
-            logger.exception('Could not queue AI check gather for run %s', run.id)
+            logger.exception('Could not queue AI check for run %s', run.id)
             mark_failed(run, 'gathering', f'Could not queue the AI check: {exc}')
             return json_error('Could not queue the AI check. Try again in a moment.', status_code=503)
     return jsonify({'success': True, 'run': serialize_run(run)})
@@ -129,7 +131,9 @@ def retry_ai_check(run_id):
     except AICheckError as exc:
         return json_error(str(exc))
     try:
-        if stage == 'gathering':
+        if run.depth == 'quick':
+            ai_check_quick_task.delay(run.id)
+        elif stage == 'gathering':
             ai_check_gather_task.delay(run.id)
         elif stage == 'extracting' and source_ids:
             dispatch_extract_and_analyze(run.id, source_ids)

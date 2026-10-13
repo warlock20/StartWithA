@@ -446,6 +446,7 @@
                 itemId: {{ current_item.id }},
                 hasAiContext: {{ 'true' if has_ai_context else 'false' }},
                 documents: {{ ai_check_documents | tojson }},
+                setups: {{ ai_check_setups | tojson }},
             });
         }
 

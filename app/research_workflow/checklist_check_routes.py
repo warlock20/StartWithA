@@ -28,8 +28,8 @@ from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, Che
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_error, json_unauthorized
-from app.celery_tasks.tasks_ai_check import claude_available
 from app.services.ai_check.context import has_ai_context
+from app.services.ai_check.setup import ai_check_available, available_setups
 
 # Import unified LLM service
 from app.services.ai.prompt_service import prompt_service
@@ -63,7 +63,7 @@ def ai_check_document_choices(documents):
 
 
 def _ai_check_available(item):
-    return has_ai_context(item.ai_context) and claude_available()
+    return has_ai_context(item.ai_context) and ai_check_available(current_user.id)
                                                                              
 @research_workflow_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
 @login_required
@@ -226,6 +226,7 @@ def research_step(analysis_id, item_id):
         answers_map=answers_map,
         has_ai_context=_ai_check_available(current_item),
         ai_check_documents=ai_check_document_choices(company_documents_for_llm),
+        ai_check_setups=available_setups(current_user.id) if has_ai_context(current_item.ai_context) else [],
     )
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/json', methods=['GET'])
