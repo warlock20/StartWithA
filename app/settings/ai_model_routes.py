@@ -104,7 +104,10 @@ def _get_categories_with_defaults():
     categories = []
     all_prompts = prompt_service.list_all_prompts()
 
-    for category, prompt_names in sorted(all_prompts.items()):
+    for category in sorted(all_prompts):
+        prompt_names = prompt_service.list_templates(category)
+        if not prompt_names:
+            continue
         # Use the first prompt in the category to get default model info
         try:
             info = prompt_service.get_prompt_info(category, prompt_names[0])

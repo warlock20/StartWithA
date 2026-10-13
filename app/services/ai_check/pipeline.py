@@ -26,9 +26,10 @@ from app.models import AICheckRun, AICheckSource, CompanyResource
 from app.services.ai_check import AICheckError, AICheckRunLimitError
 from app.services.ai_check.context import context_snapshot, has_ai_context
 from app.services.ai_check.fetch import clear_run_files, sweep_run_files
+from app.services.ai_check.setup import resolve_setup, setup_summary
 from app.services.ai_check.llm import UsageTally
 from app.services.ai_check.stages import (
-    MAX_SOURCES, create_document_sources, run_analyze, run_extract, run_gather, usage_tally,
+    MAX_SOURCES, create_document_sources, run_analyze, run_extract, run_gather, run_quick, usage_tally,
 )
 from app.utils.time_utils import ensure_timezone_aware, now_utc
 
@@ -72,13 +73,17 @@ def runs_in_window(user_id, now=None):
     return AICheckRun.query.filter(AICheckRun.user_id == user_id, AICheckRun.created_at >= since).count()
 
 
-def start_run(user_id, analysis, item, mode, document_ids, run_limit=None):
+def start_run(user_id, analysis, item, mode, document_ids, run_limit=None, setup_choice=None, depth='full'):
     """Return (run, created). An active run for the same question is returned as is; a new run
     is refused with AICheckRunLimitError once the user has started `run_limit` runs in the last
-    30 days (None = no cap; the route passes AI_CHECK_MONTHLY_RUN_LIMIT)."""
+    30 days (None = no cap; the route passes AI_CHECK_MONTHLY_RUN_LIMIT). `setup_choice` is a
+    preset key or 'my_setup' (None = 'my_setup'); the resolved per-stage models are frozen on the run.
+    `depth` is 'full' (Gather → Extract → Analyze) or 'quick' (one call)."""
     reap_stale_runs()
     if mode not in AICheckRun.MODES:
         raise AICheckError('Unknown source mode.')
+    if depth not in AICheckRun.DEPTHS:
+        raise AICheckError('Unknown depth.')
     if not has_ai_context(item.ai_context):
         raise AICheckError('This question has no AI context yet.')
     active = active_run_for(user_id, analysis.company_id, item.id)
@@ -86,11 +91,12 @@ def start_run(user_id, analysis, item, mode, document_ids, run_limit=None):
         return active, False
     if run_limit is not None and runs_in_window(user_id) >= run_limit:
         raise AICheckRunLimitError(f'You have used all {run_limit} AI checks for the last 30 days.')
+    models = resolve_setup(user_id, setup_choice)
     run = AICheckRun(
         user_id=user_id, company_id=analysis.company_id, checklist_item_id=item.id,
-        analysis_id=analysis.id, mode=mode,
+        analysis_id=analysis.id, mode=mode, depth=depth,
         document_ids=_document_ids(user_id, analysis.company_id, mode, document_ids),
-        context_snapshot=context_snapshot(item), status='queued', models={},
+        context_snapshot=context_snapshot(item), status='queued', models=models,
     )
     db.session.add(run)
     db.session.commit()
@@ -160,7 +166,6 @@ def do_gather(run_id, adapter, gaps=None, final_attempt=True):
     run_id = run.id
     run.status = 'gathering'
     run.started_at = run.started_at or now_utc()
-    run.models = {**(run.models or {}), 'gather': 'claude-sonnet-5'}
     db.session.commit()
     run._ai_usage_tally = UsageTally()
     try:
@@ -213,7 +218,6 @@ def do_extract(source_id, adapter, upload_folder, final_attempt=True):
     run = source.run
     run_id = run.id
     source.extract_status, source.error = 'running', None
-    run.models = {**(run.models or {}), 'extract': 'claude-sonnet-5'}
     db.session.commit()
     run._ai_usage_tally = UsageTally()
     try:
@@ -261,7 +265,6 @@ def do_analyze(run_id, adapter, final_attempt=True):
             mark_failed(run, 'analyzing', 'No figures were found in any source.')
         return {'action': 'stop'}
     run.status = 'analyzing'
-    run.models = {**(run.models or {}), 'analyze': 'claude-opus-5'}
     db.session.commit()
     run._ai_usage_tally = UsageTally()
     try:
@@ -306,6 +309,48 @@ def do_analyze(run_id, adapter, final_attempt=True):
     return {'action': 'done'}
 
 
+def do_quick(run_id, adapter, upload_folder, final_attempt=True):
+    """The Quick check's single call. Fails at 'analyzing', so Retry re-runs this call."""
+    run = _live_run(run_id)
+    if run is None:
+        return {'action': 'stop'}
+    run_id = run.id
+    run.status = 'analyzing'
+    run.started_at = run.started_at or now_utc()
+    db.session.commit()
+    run._ai_usage_tally = UsageTally()
+    try:
+        result = run_quick(run, adapter, upload_folder)
+    except AICheckError as exc:
+        tally = usage_tally(run)
+        db.session.rollback()
+        _apply_usage(run_id, tally)
+        db.session.commit()
+        mark_failed(db.session.get(AICheckRun, run_id), 'analyzing', str(exc))
+        return {'action': 'stop'}
+    except Exception as exc:
+        tally = usage_tally(run)
+        db.session.rollback()
+        _apply_usage(run_id, tally)
+        db.session.commit()
+        if not final_attempt:
+            raise
+        mark_failed(db.session.get(AICheckRun, run_id), 'analyzing', f'Quick check failed: {exc}')
+        return {'action': 'stop'}
+
+    tally = usage_tally(run)
+    live_status = db.session.query(AICheckRun.status).filter(AICheckRun.id == run_id).scalar()
+    if live_status in AICheckRun.TERMINAL_STATUSES:
+        db.session.rollback()
+        _apply_usage(run_id, tally)
+        db.session.commit()
+        return {'action': 'stop'}
+    _apply_usage(run_id, tally)
+    run.result, run.status, run.completed_at = result, 'completed', now_utc()
+    db.session.commit()
+    return {'action': 'done'}
+
+
 def retry_run(run):
     if run.status != 'failed' or run.failed_stage not in STAGE_STATUS:
         raise AICheckError('Only a failed run can be retried.')
@@ -341,7 +386,8 @@ def _iso(value):
 
 def serialize_run(run):
     return {
-        'id': run.id, 'status': run.status, 'mode': run.mode,
+        'id': run.id, 'status': run.status, 'mode': run.mode, 'depth': run.depth,
+        'setup': setup_summary(run),
         'failed_stage': run.failed_stage, 'error': run.error,
         'created_at': _iso(run.created_at), 'completed_at': _iso(run.completed_at),
         'loop_back_used': run.loop_back_used, 'cost_estimate': round(run.cost_estimate or 0.0, 4),
@@ -360,5 +406,6 @@ def serialize_run(run):
 
 
 def serialize_history(runs):
-    return [{'id': r.id, 'status': r.status, 'mode': r.mode, 'created_at': _iso(r.created_at),
+    return [{'id': r.id, 'status': r.status, 'mode': r.mode, 'depth': r.depth, 'setup': setup_summary(r),
+             'created_at': _iso(r.created_at),
              'suggested_verdict': (r.result or {}).get('suggested_verdict')} for r in runs]

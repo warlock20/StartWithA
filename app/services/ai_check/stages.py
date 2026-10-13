@@ -27,6 +27,7 @@ from app.services.ai.prompt_service import prompt_service
 from app.services.ai_check import AICheckError
 from app.services.ai_check.fetch import fetch_source_file
 from app.services.ai_check.llm import Document, UsageTally, call_for_tool, record_usage, stage_call
+from app.services.ai_check.setup import stage_model
 from app.services.ai_check.tools import (
     RECORD_EVIDENCE_TOOL, RECORD_SOURCES_TOOL, REQUEST_MORE_EVIDENCE_TOOL, SUBMIT_AI_CHECK_TOOL,
 )
@@ -105,7 +106,7 @@ def run_gather(run, adapter, gaps=None):
         data, **_company_vars(run, data),
         existing_sources=_bullets([s.title for s in run.sources], data['empty_list']),
         gaps=_bullets(gaps or [], data['empty_list']), max_sources=room)
-    call = stage_call(data, data['model'], prompt, [RECORD_SOURCES_TOOL],
+    call = stage_call(data, stage_model(run, 'gather'), prompt, [RECORD_SOURCES_TOOL],
                       search_cap=min(data.get('search_max_uses', SEARCH_BUDGET), searches_left))
     _, args, _ = call_for_tool(adapter, call, {'record_sources'}, _usage_recorder(run))
     created = []
@@ -151,19 +152,24 @@ def load_document(path, title, data, filename=None):
                     as_text=_as_text(title, page_texts, data))
 
 
+def _upload_document(run, resource_id, title, upload_folder, data):
+    """A Document for one of the user's uploaded files, owned by the run's user and company."""
+    resource = CompanyResource.query.filter_by(
+        id=resource_id, company_id=run.company_id, user_id=run.user_id).first()
+    if resource is None or not resource.stored_filename:
+        raise AICheckError(f'{title} no longer exists.')
+    path = os.path.join(upload_folder, resource.stored_filename)
+    if not os.path.exists(path):
+        raise AICheckError(f'{title}: file not found on the server.')
+    filename = resource.original_filename or resource.stored_filename
+    return load_document(path, filename, data, filename=filename)
+
+
 def run_extract(source, adapter, upload_folder):
     run = source.run
     data = prompt_data('ai_check_extract')
     if source.kind == 'document':
-        resource = CompanyResource.query.filter_by(
-            id=source.company_resource_id, company_id=run.company_id, user_id=run.user_id).first()
-        if resource is None or not resource.stored_filename:
-            raise AICheckError(f'{source.title} no longer exists.')
-        path = os.path.join(upload_folder, resource.stored_filename)
-        if not os.path.exists(path):
-            raise AICheckError(f'{source.title}: file not found on the server.')
-        filename = resource.original_filename or resource.stored_filename
-        document = load_document(path, filename, data, filename=filename)
+        document = _upload_document(run, source.company_resource_id, source.title, upload_folder, data)
         instruction = data['document_instruction']
     elif adapter.provider == 'claude' and current_app.config.get('AI_CHECK_CLAUDE_WEB_FETCH', True):
         # Claude fetches the page itself (v1 behaviour); quotes are checked against what it fetched.
@@ -178,7 +184,7 @@ def run_extract(source, adapter, upload_folder):
         instruction = data['attached_url_instruction'].format(url=source.url)
     prompt = render_prompt(data, **_company_vars(run, data),
                            source_title=source.title, source_instruction=instruction)
-    call = stage_call(data, data['model'], prompt, [RECORD_EVIDENCE_TOOL],
+    call = stage_call(data, stage_model(run, 'extract'), prompt, [RECORD_EVIDENCE_TOOL],
                       documents=[document] if document else [],
                       fetch_cap=None if document else data.get('fetch_max_uses', 2))
     _, args, fetched = call_for_tool(adapter, call, {'record_evidence'}, _usage_recorder(run))
@@ -281,7 +287,7 @@ def run_analyze(run, adapter):
         loop_back_note=data['loop_back_allowed' if allow_more else 'loop_back_closed'])
     tools = [SUBMIT_AI_CHECK_TOOL] + ([REQUEST_MORE_EVIDENCE_TOOL] if allow_more else [])
     names = {tool['name'] for tool in tools}
-    name, args, _ = call_for_tool(adapter, stage_call(data, data['model'], prompt, tools), names,
+    name, args, _ = call_for_tool(adapter, stage_call(data, stage_model(run, 'analyze'), prompt, tools), names,
                                   _usage_recorder(run))
     if name == 'request_more_evidence':
         gaps = [str(gap).strip() for gap in args.get('gaps') or [] if str(gap).strip()]
@@ -290,3 +296,29 @@ def run_analyze(run, adapter):
             raise AICheckError('The model asked for more evidence without naming what is missing.')
         return 'more_evidence', gaps[:5]
     return 'submitted', clean_result(args, {e.label for e in run.evidence}, rubric)
+
+
+def run_quick(run, adapter, upload_folder):
+    """The Quick check: one call answering from the ticked documents and/or web search,
+    through submit_ai_check. No evidence table, so calculation lines cite no labels."""
+    data = prompt_data('ai_check_quick')
+    ctx = run.context_snapshot or {}
+    rubric = ctx.get('verdict_rubric') or {}
+    missing = data['missing_value']
+    documents = [] if run.mode == 'web' else [
+        _upload_document(run, resource_id, f'Document {resource_id}', upload_folder, data)
+        for resource_id in run.document_ids or []]
+    search = run.mode in ('web', 'both')
+    prompt = render_prompt(
+        data, **_company_vars(run, data),
+        worked_example=ctx.get('worked_example') or data['missing_example'],
+        rubric_satisfied=rubric.get('satisfied') or missing,
+        rubric_not_satisfied=rubric.get('not_satisfied') or missing,
+        rubric_needs_attention=rubric.get('needs_attention') or missing,
+        missing_value=missing,
+        documents_note=data['documents_attached' if documents else 'no_documents'],
+        search_note=data['search_allowed' if search else 'search_closed'])
+    call = stage_call(data, stage_model(run, 'quick'), prompt, [SUBMIT_AI_CHECK_TOOL], documents=documents,
+                      search_cap=data.get('search_max_uses', SEARCH_BUDGET) if search else None)
+    _, args, _ = call_for_tool(adapter, call, {'submit_ai_check'}, _usage_recorder(run))
+    return clean_result(args, set(), rubric)

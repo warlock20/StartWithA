@@ -25,10 +25,11 @@ from flask import current_app
 from app import create_app, db
 from app.models import AICheckRun, AICheckSource
 from app.services.ai.providers.claude import ClaudeProvider
-from app.services.ai_check.adapters.claude import ClaudeAdapter
+from app.services.ai_check.adapters import get_adapter
 from app.services.ai_check import AICheckError
+from app.services.ai_check.setup import stage_model
 from app.services.ai_check.pipeline import (
-    do_analyze, do_extract, do_gather, mark_failed, reap_stale_runs, sweep_stale_run_files,
+    do_analyze, do_extract, do_gather, do_quick, mark_failed, reap_stale_runs, sweep_stale_run_files,
 )
 from celery_app import celery
 
@@ -44,8 +45,8 @@ def claude_available():
 
 
 def adapter_for(run_id, stage):
-    """The adapter that runs `stage` of this run."""
-    return ClaudeAdapter()
+    """The adapter that runs `stage` of this run, from the models frozen on it at start."""
+    return get_adapter(stage_model(db.session.get(AICheckRun, run_id), stage))
 
 
 def dispatch_extract_and_analyze(run_id, source_ids):
@@ -161,6 +162,26 @@ def ai_check_analyze_task(self, _results, run_id):
                 return
             raise self.retry(exc=exc, countdown=RETRY_COUNTDOWN)
         _after_analyze(run_id, outcome)
+
+
+@celery.task(bind=True, max_retries=1, soft_time_limit=ANALYZE_SOFT_LIMIT,
+             time_limit=ANALYZE_SOFT_LIMIT + 30)
+def ai_check_quick_task(self, run_id):
+    app = create_app()
+    with app.app_context():
+        final = self.request.retries >= self.max_retries
+        try:
+            do_quick(run_id, adapter_for(run_id, 'quick'), current_app.config['UPLOAD_FOLDER'],
+                     final_attempt=final)
+        except SoftTimeLimitExceeded:
+            _fail_run(run_id, 'analyzing', 'The quick check took too long.')
+        except AICheckError as exc:
+            _fail_run(run_id, 'analyzing', str(exc))
+        except Exception as exc:
+            if final:
+                _fail_run(run_id, 'analyzing', f'Quick check failed: {exc}')
+                return
+            raise self.retry(exc=exc, countdown=RETRY_COUNTDOWN)
 
 
 @celery.task

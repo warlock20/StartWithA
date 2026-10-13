@@ -49,6 +49,7 @@ from app.models.journal import JournalEntry
 from app.models.idea_pipeline import MistakeLog
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.portfolio import PortfolioPosition
+from app.services.ai_check import setup as ai_check_setup
 
 _BASE_URL = make_url(Config.SQLALCHEMY_DATABASE_URI)
 _SCRATCH_URL = _BASE_URL.set(database=_BASE_URL.database + '_companion_test')
@@ -362,6 +363,8 @@ def _write_pdf(path, lines):
 def seed_ai_check(app_context, tmp_path, monkeypatch):
     """User + company + checklist item with AI context + a session + one PDF resource."""
     monkeypatch.setitem(current_app.config, 'UPLOAD_FOLDER', str(tmp_path))
+    # Every provider counts as configured unless a test says otherwise.
+    monkeypatch.setattr(ai_check_setup, 'provider_ready', lambda model_id: True)
     user = _make_user()
     company = _make_company(user.id, name='Meta Platforms', ticker='META')
     checklist = Checklist(name='Quality', user_id=user.id)

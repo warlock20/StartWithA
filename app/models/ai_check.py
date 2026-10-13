@@ -24,6 +24,7 @@ class AICheckRun(db.Model):
     __tablename__ = 'ai_check_run'
 
     MODES = ('documents', 'web', 'both')
+    DEPTHS = ('quick', 'full')
     TERMINAL_STATUSES = ('completed', 'failed', 'cancelled')
 
     id = db.Column(db.Integer, primary_key=True)
@@ -35,6 +36,8 @@ class AICheckRun(db.Model):
     analysis_id = db.Column(db.Integer, db.ForeignKey('checklist_analysis.id', ondelete='SET NULL'),
                             nullable=True)
     mode = db.Column(db.String(20), nullable=False)
+    # 'quick': one call answering through submit_ai_check; 'full': Gather → Extract → Analyze.
+    depth = db.Column(db.String(10), nullable=False, default='full', server_default='full')
     document_ids = db.Column(db.JSON, nullable=False, default=list)
     # The question text + ai_context as they were when the run started.
     context_snapshot = db.Column(db.JSON, nullable=False)
