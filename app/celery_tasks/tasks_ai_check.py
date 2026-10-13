@@ -39,7 +39,6 @@ EXTRACT_SOFT_LIMIT = 240
 ANALYZE_SOFT_LIMIT = 300
 RETRY_COUNTDOWN = 15
 
-
 def claude_available():
     return ClaudeProvider().is_available()
 

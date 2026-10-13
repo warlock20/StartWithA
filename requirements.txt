@@ -26,6 +26,7 @@ python-docx
 openpyxl
 beautifulsoup4
 httpx==0.28.1
+genai-prices==0.1.11
 weasyprint
 
 # APIs & Integrations

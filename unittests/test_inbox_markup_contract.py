@@ -58,22 +58,24 @@ def test_idea_name_is_not_interpolated_into_an_inline_onclick():
 
 
 def test_hover_card_script_is_loaded():
-    assert "filename='js/thesis-hover-card.js'" in _inbox()
+    assert "filename='js/detail-card.js'" in _inbox()
 
 
 def test_hover_card_is_initialised_against_the_table():
     s = _inbox()
-    assert 'initThesisHoverCard(' in s
+    assert 'initDetailCard(' in s
     assert "container: '#inbox-table'" in s
 
 
 def test_thesis_cell_carries_the_id_and_accessibility_hooks():
     s = _inbox()
-    assert 'idea-thesis-cell has-detail' in s
-    assert 'data-idea-id=' in s
+    assert 'idea-thesis-cell detail-trigger' in s
+    assert 'data-detail-id=' in s
     assert 'tabindex="0"' in s
     assert 'aria-expanded="false"' in s
-    assert 'aria-controls="thesis-hover-card"' in s
+    # The component sets aria-controls per instance; a hardcoded id would
+    # point at a card that no longer exists.
+    assert 'aria-controls=' not in s
 
 
 def test_card_closes_when_tabulator_rebuilds_rows():

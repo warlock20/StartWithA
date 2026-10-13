@@ -29,16 +29,20 @@ logic is what we test here, not the embedding model.
 
 import os
 import sys
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+import fitz
 import numpy as np
 import pytest
+from flask import current_app
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine.url import make_url
 
 from config import Config
 from app import create_app, db
+from app.models import Checklist, ChecklistItem, ChecklistAnalysis, CompanyResource
 from app.models import User, Company, ResearchProject
 from app.models.research import ResearchTemplate
 from app.models.journal import JournalEntry
@@ -56,6 +60,8 @@ class TestConfig(Config):
     SQLALCHEMY_DATABASE_URI = _SCRATCH_URL.render_as_string(hide_password=False)
     TESTING = True
     WTF_CSRF_ENABLED = False
+    # The session-wide in-memory limiter would otherwise carry hits across tests (flaky 429s).
+    RATELIMIT_ENABLED = False
 
 
 def _ensure_scratch_db():
@@ -322,3 +328,73 @@ def seed_journal_resource(app_context):
     db.session.add(entry)
     db.session.commit()
     return user.id, entry.id
+
+
+SBC_CONTEXT = {
+    'method': '1. Start from reported free cash flow.\n2. Subtract taxes paid on net share settlement.\n'
+              '3. Subtract buybacks needed to offset dilution.',
+    'where_to_look': 'Cash flow statement, financing activities.',
+    'worked_example': 'Meta FY2025: FCF $43.59B, RSU taxes $18.40B.',
+    'verdict_rubric': {
+        'satisfied': 'FCF left clearly positive and shares fell.',
+        'not_satisfied': 'FCF left near zero or negative.',
+        'needs_attention': 'Positive, but SBC cash takes more than half of FCF.',
+    },
+    'source_links': ['https://rockandturner.substack.com/p/the-dangerous-game-investors-are'],
+}
+
+SBC_QUESTION = ('SBC reality check: how much free cash flow is actually left '
+                'for outside shareholders, and has the share count really declined?')
+
+
+def _write_pdf(path, lines):
+    doc = fitz.open()
+    page = doc.new_page()
+    y = 72
+    for line in lines:
+        page.insert_text((72, y), line)
+        y += 18
+    doc.save(str(path))
+    doc.close()
+
+
+@pytest.fixture
+def seed_ai_check(app_context, tmp_path, monkeypatch):
+    """User + company + checklist item with AI context + a session + one PDF resource."""
+    monkeypatch.setitem(current_app.config, 'UPLOAD_FOLDER', str(tmp_path))
+    user = _make_user()
+    company = _make_company(user.id, name='Meta Platforms', ticker='META')
+    checklist = Checklist(name='Quality', user_id=user.id)
+    db.session.add(checklist)
+    db.session.flush()
+    item = ChecklistItem(text=SBC_QUESTION, checklist_id=checklist.id, ai_context=SBC_CONTEXT)
+    db.session.add(item)
+    analysis = ChecklistAnalysis(user_id=user.id, company_id=company.id, checklist_id=checklist.id)
+    db.session.add(analysis)
+    _write_pdf(tmp_path / 'meta-10k.pdf', [
+        'Consolidated statements of cash flows',
+        'Taxes paid related to net share settlement of equity awards (18,400)',
+        'Repurchases of Class A common stock (26,248)',
+    ])
+    resource = CompanyResource(
+        company_id=company.id, user_id=user.id, resource_type='file',
+        title='Meta 10-K FY2025', original_filename='meta-10k.pdf',
+        stored_filename='meta-10k.pdf', file_type='pdf',
+    )
+    db.session.add(resource)
+    db.session.commit()
+    return SimpleNamespace(
+        user_id=user.id, company_id=company.id, checklist_id=checklist.id,
+        item_id=item.id, analysis_id=analysis.id, resource_id=resource.id,
+        upload_folder=str(tmp_path),
+    )
+
+
+@pytest.fixture
+def ai_check_client(seed_ai_check, _app):
+    """Test client logged in as the seed_ai_check user. Returns (client, seed)."""
+    client = _app.test_client()
+    with client.session_transaction() as session:
+        session['_user_id'] = str(seed_ai_check.user_id)
+        session['_fresh'] = True
+    return client, seed_ai_check
