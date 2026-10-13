@@ -82,12 +82,12 @@ export function AICheck({ config }) {
     setSubmitting(false);
   };
 
-  const start = async (mode, documentIds) => {
+  const start = async (mode, documentIds, setup, depth) => {
     if (!begin()) return;
     const forItem = itemId;
     setError(null);
     try {
-      const data = await apiPost(itemUrl(forItem), { mode, document_ids: documentIds });
+      const data = await apiPost(itemUrl(forItem), { mode, document_ids: documentIds, setup, depth });
       if (itemRef.current !== forItem) return; // navigated away meanwhile
       setRun(data.run);
       setPanelOpen(false);
@@ -122,7 +122,7 @@ export function AICheck({ config }) {
       </div>
       {error && <div className="aic-alert" role="alert">{error}</div>}
       {panelOpen && !runActive && (
-        <RunPanel documents={config.documents} onRun={start} onCancel={() => setPanelOpen(false)}
+        <RunPanel documents={config.documents} setups={config.setups || []} onRun={start} onCancel={() => setPanelOpen(false)}
                   busy={submitting} />
       )}
       {run && !TERMINAL.includes(run.status) && <RunProgress run={run} onCancel={() => act('cancel')} busy={submitting} />}

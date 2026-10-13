@@ -26,6 +26,7 @@ from app.models import AICheckRun, AICheckSource, CompanyResource
 from app.services.ai_check import AICheckError, AICheckRunLimitError
 from app.services.ai_check.context import context_snapshot, has_ai_context
 from app.services.ai_check.fetch import clear_run_files, sweep_run_files
+from app.services.ai_check.pricing import provider_of
 from app.services.ai_check.setup import resolve_setup, setup_summary
 from app.services.ai_check.llm import UsageTally
 from app.services.ai_check.stages import (
@@ -68,6 +69,12 @@ def _document_ids(user_id, company_id, mode, raw_ids):
     return ids
 
 
+def _downloads_web_pages(models):
+    """True when Extract reads web sources from our own download (not Claude's web_fetch)."""
+    return not (provider_of(models['extract']) == 'claude'
+                and current_app.config.get('AI_CHECK_CLAUDE_WEB_FETCH', True))
+
+
 def runs_in_window(user_id, now=None):
     since = (now or now_utc()) - RUN_LIMIT_WINDOW
     return AICheckRun.query.filter(AICheckRun.user_id == user_id, AICheckRun.created_at >= since).count()
@@ -92,6 +99,11 @@ def start_run(user_id, analysis, item, mode, document_ids, run_limit=None, setup
     if run_limit is not None and runs_in_window(user_id) >= run_limit:
         raise AICheckRunLimitError(f'You have used all {run_limit} AI checks for the last 30 days.')
     models = resolve_setup(user_id, setup_choice)
+    if depth == 'full' and mode != 'documents' and _downloads_web_pages(models) \
+            and not current_app.config.get('AI_CHECK_FETCH_CONTACT'):
+        # Refuse before Gather is paid for: every web source would fail at Extract.
+        raise AICheckError('Web fetching is not configured on the server (AI_CHECK_FETCH_CONTACT). '
+                           'Use My documents, a Claude setup, or Quick.')
     run = AICheckRun(
         user_id=user_id, company_id=analysis.company_id, checklist_item_id=item.id,
         analysis_id=analysis.id, mode=mode, depth=depth,

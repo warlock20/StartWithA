@@ -80,5 +80,7 @@ class DeepSeekAdapter(ProviderAdapter):
                 name, args = function.name, json.loads(function.arguments or '{}')
             except json.JSONDecodeError:
                 name, args = None, {}
+            if not isinstance(args, dict):  # valid JSON but not an object: same as no tool call
+                name, args = None, {}
         transcript = messages + [{'role': 'assistant', 'content': message.content or ''}]
         return StageReply(name, args, transcript, [usage])

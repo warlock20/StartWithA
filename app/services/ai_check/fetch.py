@@ -32,6 +32,9 @@ MAX_FETCH_BYTES = 22 * 1024 * 1024  # same cap as an uploaded document
 MAX_TEXT_CHARS = 1_500_000
 MAX_REDIRECTS = 5
 TIMEOUT_SECONDS = 30
+# Filings often put these in cells of their own; they belong to the neighbouring number.
+OPENING_CELLS = {'(', '$', '€', '£', '¥', '₸', '-(', '($'}
+CLOSING_CELLS = {')', '%', ')%', '%)'}
 BLOCK_TAGS = ['p', 'div', 'br', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'section', 'article',
               'header', 'footer', 'table', 'pre', 'blockquote', 'dt', 'dd']
 
@@ -108,11 +111,27 @@ def html_to_text(markup):
         tag.decompose()
     for row in soup.find_all('tr'):
         cells = [' '.join(cell.get_text(' ', strip=True).split()) for cell in row.find_all(['td', 'th'])]
-        row.replace_with('\n' + ' | '.join(cell for cell in cells if cell) + '\n')
+        row.replace_with('\n' + ' | '.join(_merge_punctuation_cells(cell for cell in cells if cell)) + '\n')
     for tag in soup.find_all(BLOCK_TAGS):
         tag.insert_after('\n')
     lines = (' '.join(line.split()) for line in soup.get_text().splitlines())
     return '\n'.join(line for line in lines if line)
+
+
+def _merge_punctuation_cells(cells):
+    """Join "(", "$", ")", "%" cells onto their number: ['(', '11,663', ')'] -> ['(11,663)']."""
+    merged, pending = [], ''
+    for cell in cells:
+        if cell in OPENING_CELLS:
+            pending += cell
+        elif cell in CLOSING_CELLS and merged and not pending:
+            merged[-1] += cell
+        else:
+            merged.append(pending + cell)
+            pending = ''
+    if pending:
+        merged.append(pending)
+    return merged
 
 
 def _kind(content_type, body):

@@ -40,6 +40,9 @@ SEARCH_BUDGET = 5
 # the largest file that still fits with room for the prompt. The same cap applies on every provider.
 MAX_DOC_BYTES = 22 * 1024 * 1024
 MAX_DOC_PAGES = 600
+# Quick sends every ticked document in one request, so the per-document caps apply to the total.
+MAX_QUICK_BYTES = MAX_DOC_BYTES
+MAX_QUICK_PAGES = MAX_DOC_PAGES
 
 
 def prompt_data(name):
@@ -308,6 +311,9 @@ def run_quick(run, adapter, upload_folder):
     documents = [] if run.mode == 'web' else [
         _upload_document(run, resource_id, f'Document {resource_id}', upload_folder, data)
         for resource_id in run.document_ids or []]
+    if (sum(os.path.getsize(d.path) for d in documents) > MAX_QUICK_BYTES
+            or sum(len(d.page_texts) for d in documents) > MAX_QUICK_PAGES):
+        raise AICheckError(data['too_many_documents'])
     search = run.mode in ('web', 'both')
     prompt = render_prompt(
         data, **_company_vars(run, data),

@@ -113,5 +113,7 @@ class GeminiAdapter(ProviderAdapter):
                 name, args = part.function_call.name, dict(part.function_call.args or {})
                 break
         # Replay the model turn exactly as sent (thought signatures included) for the reminder.
-        transcript = contents + ([candidate.content] if candidate.content else [])
+        # A turn with no parts (e.g. MALFORMED_FUNCTION_CALL) is not sent back: the API rejects it.
+        replay = candidate.content if candidate.content and candidate.content.parts else None
+        transcript = contents + ([replay] if replay else [])
         return StageReply(name, args, transcript, [usage])
