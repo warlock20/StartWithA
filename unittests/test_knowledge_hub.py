@@ -424,21 +424,16 @@ def test_thesis_update_note_without_matching_version_is_kept(app_context):
     assert [c for _, c in summary['conviction_points']] == [5, 5]
 
 
-def test_new_thesis_version_links_its_journal_entry(_app, app_context):
+def test_old_thesis_form_redirects_to_the_portfolio_thesis_form(_app, app_context):
+    """Thesis versions are created only on the portfolio thesis form (#356)."""
     user = _make_user()
     company = _make_company(user.id)
     db.session.commit()
 
-    resp = _client_for(_app, user).post(
-        f'/journal/thesis-evolution/{company.id}/new',
-        data={'thesis': 'Moat is widening', 'conviction_level': '7',
-              'change_summary': 'Pricing held'})
+    resp = _client_for(_app, user).get(f'/journal/thesis-evolution/{company.id}/new')
 
     assert resp.status_code == 302
-    version = ThesisEvolution.query.filter_by(company_id=company.id).one()
-    entry = JournalEntry.query.filter_by(company_id=company.id,
-                                         entry_type='thesis_update').one()
-    assert version.linked_journal_entry_id == entry.id
+    assert f'/portfolio/position/{company.id}/thesis/new' in resp.headers['Location']
 
 
 # ── Company header ──

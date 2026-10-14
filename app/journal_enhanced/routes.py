@@ -22,11 +22,11 @@ from app.models import (JournalEntry, ThesisEvolution, LearningNote,
                        ResearchProject, MistakeLog)
 from app.journal_enhanced import journal_enhanced_bp
 from app.journal_enhanced.utils import (extract_tags_from_content, get_related_entries,
-                                       update_thesis_version, create_default_templates,
                                        companies_with_notes, get_company_knowledge_summary)
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.blocknote_utils import blocknote_to_text
+from app.services.findings import FINDING_TYPES, finding_text_from_editor
 from sqlalchemy.orm import contains_eager
 from datetime import datetime, timedelta
 import os
@@ -199,6 +199,8 @@ def new_entry():
             entry_type = custom_entry_type if custom_entry_type else 'other'
 
         content = request.form.get('content')
+        if entry_type in FINDING_TYPES:
+            content = finding_text_from_editor(content)
         key_insight = request.form.get('key_insight')
         # The select's placeholder option posts '', which should store as NULL
         sentiment = request.form.get('sentiment') or None
@@ -290,16 +292,10 @@ def new_entry():
         try:
             db.session.commit()
             
-            # Check if this should update thesis
-            if entry_type == 'thesis_update' and company_id:
-                update_thesis_version(
-                    current_user.id,
-                    company_id,
-                    content,
-                    trigger='Journal entry'
-                )
-
             flash('Journal entry created successfully!', 'success')
+            if entry_type == 'thesis_update':
+                flash('This was saved as a journal note only. Record a new thesis '
+                      'version from the position\'s thesis form.', 'info')
             return_url = request.form.get('return_url') or url_for('journal_enhanced.knowledge_hub', type='research')
             return redirect(return_url)
             
@@ -313,7 +309,10 @@ def new_entry():
             JournalTemplate.user_id == current_user.id,
             JournalTemplate.is_public == True
         )
-    ).filter_by(is_active=True).all()
+    ).filter_by(is_active=True).filter(
+        # Thesis updates go through the portfolio thesis form, not the journal
+        JournalTemplate.entry_type != 'thesis_update'
+    ).all()
     
     # Get companies for dropdown
     companies = current_user.companies.order_by(Company.name).all()
@@ -383,8 +382,11 @@ def edit_entry(entry_id):
 
    if request.method == 'POST':
        entry.title = request.form.get('title')
-       entry.content = request.form.get('content')
        entry.entry_type = request.form.get('entry_type', entry.entry_type)
+       entry.content = request.form.get('content')
+       if entry.entry_type in FINDING_TYPES:
+           # Findings are read as plain text (Findings tab, exports, companion)
+           entry.content = finding_text_from_editor(entry.content)
        entry.key_insight = request.form.get('key_insight')
        entry.sentiment = request.form.get('sentiment')
        entry.conviction_level = request.form.get('conviction', type=int)
@@ -512,89 +514,11 @@ def thesis_evolution(company_id):
                          thesis_entries=thesis_entries,
                          conviction_data=json.dumps(conviction_data))
 
-@journal_enhanced_bp.route('/thesis-evolution/<int:company_id>/new', methods=['GET', 'POST'])
+@journal_enhanced_bp.route('/thesis-evolution/<int:company_id>/new')
 @login_required
 def new_thesis_version(company_id):
-   """Create a new thesis version"""
-   company = Company.query.get_or_404(company_id)
-   
-   if company.user_id != current_user.id:
-       flash('Access denied', 'error')
-       return redirect(url_for('companies.list_companies'))
-   
-   if request.method == 'POST':
-       thesis = request.form.get('thesis')
-       conviction = request.form.get('conviction_level', type=int)
-       position_sizing = request.form.get('position_sizing')
-       change_trigger = request.form.get('change_trigger')
-       change_summary = request.form.get('change_summary')
-       
-       # Parse bull and bear cases
-       bull_case = request.form.get('bull_case', '').split('\n')
-       bull_case = [point.strip() for point in bull_case if point.strip()]
-       
-       bear_case = request.form.get('bear_case', '').split('\n')
-       bear_case = [point.strip() for point in bear_case if point.strip()]
-       
-       # Get key metrics
-       key_metrics = {}
-       metric_names = request.form.getlist('metric_name[]')
-       metric_values = request.form.getlist('metric_value[]')
-       for name, value in zip(metric_names, metric_values):
-           if name and value:
-               key_metrics[name] = value
-       
-       # Create new version
-       thesis_evolution = update_thesis_version(
-           current_user.id,
-           company_id,
-           thesis,
-           trigger=change_trigger
-       )
-       
-       if thesis_evolution:
-           thesis_evolution.conviction_level = conviction
-           thesis_evolution.position_sizing = position_sizing
-           thesis_evolution.change_summary = change_summary
-           thesis_evolution.bull_case = bull_case
-           thesis_evolution.bear_case = bear_case
-           thesis_evolution.key_metrics = key_metrics
-           
-           # Create corresponding journal entry
-           journal_entry = JournalEntry(
-               author=current_user,
-               title=f"Thesis Update: {company.name}",
-               entry_type='thesis_update',
-               content=thesis,
-               key_insight=change_summary,
-               conviction_level=conviction,
-               company_id=company_id,
-               sentiment='bullish' if conviction >= 7 else 'neutral' if conviction >= 4 else 'bearish'
-           )
-           db.session.add(journal_entry)
-
-           try:
-               # Flush first: the entry has no id until it is written.
-               db.session.flush()
-               thesis_evolution.linked_journal_entry_id = journal_entry.id
-               db.session.commit()
-               flash('Thesis updated successfully!', 'success')
-               return redirect(url_for('journal_enhanced.thesis_evolution', company_id=company_id))
-           except Exception as e:
-               db.session.rollback()
-               flash(f'Error updating thesis: {str(e)}', 'error')
-   
-   # Get current thesis for reference
-   current_thesis = ThesisEvolution.query.filter_by(
-       user_id=current_user.id,
-       company_id=company_id,
-       is_current=True
-   ).first()
-   
-   return render_template('new_thesis_version.html',
-                         title=f"Update Thesis: {company.name}",
-                         company=company,
-                         current_thesis=current_thesis)
+   """Old thesis form; thesis updates now live on the portfolio thesis form."""
+   return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
 
 @journal_enhanced_bp.route('/learning-notes/new', methods=['GET', 'POST'])
 @login_required
@@ -1010,29 +934,6 @@ def knowledge_hub():
                          tag_filter=tag_filter,
                          starred_only=starred_only,
                          sort_by=sort_by)
-
-@journal_enhanced_bp.route('/templates')
-@login_required
-def manage_templates():
-   """Manage journal templates"""
-   # Get user's templates
-   user_templates = current_user.journal_templates.filter_by(is_active=True).all()
-   
-   # Get public templates
-   public_templates = JournalTemplate.query.filter_by(
-       user_id=None,
-       is_public=True,
-       is_active=True
-   ).all()
-   
-   # Create default templates if none exist
-   if not public_templates:
-       public_templates = create_default_templates()
-   
-   return render_template('manage_templates.html',
-                         title="Journal Templates",
-                         user_templates=user_templates,
-                         public_templates=public_templates)
 
 @journal_enhanced_bp.route('/export')
 @login_required

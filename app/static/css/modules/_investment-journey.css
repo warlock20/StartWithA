@@ -217,6 +217,10 @@
     border-color: var(--danger-500);
 }
 
+.journey-dot.finding.must_exit {
+    border-color: var(--warning-500);
+}
+
 @keyframes pulse-dot {
     0%, 100% {
         box-shadow: 0 0 0 4px var(--success-100), 0 0 15px var(--success-200);
@@ -321,6 +325,11 @@
 .journey-badge.finding.red {
     background: var(--danger-100);
     color: var(--danger-700);
+}
+
+.journey-badge.finding.must_exit {
+    background: var(--warning-50);
+    color: var(--warning-600);
 }
 
 .journey-position-badge {
@@ -660,6 +669,10 @@
 
 .journey-content.finding-content.red {
     border-left: 3px solid var(--danger-500);
+}
+
+.journey-content.finding-content.must_exit {
+    border-left: 3px solid var(--warning-500);
 }
 
 /* =============================================================================
@@ -1122,6 +1135,94 @@
     color: var(--text-secondary);
 }
 
+.research-findings-col.must_exit h6 {
+    color: var(--warning-600);
+}
+
+/* Editable findings (company page): three columns, no bullets */
+.findings-editable {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.findings-editable .findings-list {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: var(--space-sm);
+}
+
+.findings-editable .findings-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.375rem 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.findings-editable .finding-text {
+    flex: 1;
+    color: var(--text-primary);
+}
+
+.findings-editable .finding-date {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.findings-editable .finding-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--gray-400);
+    cursor: pointer;
+}
+
+.findings-editable .finding-delete:hover {
+    color: var(--danger-500);
+}
+
+.finding-add-form {
+    display: flex;
+    gap: 0.375rem;
+}
+
+.finding-add-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    font-size: var(--font-size-sm);
+}
+
+.findings-no-research {
+    display: flex;
+    gap: 0.625rem;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
+    margin-bottom: var(--space-md);
+    border-radius: 8px;
+    background: var(--warning-50);
+    color: var(--warning-600);
+    font-size: var(--font-size-sm);
+}
+
+.findings-no-research i {
+    font-size: 1.125rem;
+}
+
+@media (max-width: 768px) {
+    .findings-editable {
+        grid-template-columns: 1fr;
+    }
+}
+
 .research-qa-item {
     margin-bottom: var(--space-md);
 }
@@ -1160,6 +1261,95 @@
 .research-qa-status.answered {
     background: var(--success-50);
     color: var(--success-600);
+}
+
+.research-qa-status.exploring {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+/* Standalone Q&A: explored state */
+.qa-progress-count {
+    margin-left: 0.5rem;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.qa-progress-bar {
+    height: 4px;
+    margin: -0.5rem 0 1rem;
+    border-radius: 2px;
+    background: var(--gray-100);
+    overflow: hidden;
+}
+
+.qa-progress-fill {
+    height: 100%;
+    background: var(--success-500);
+    transition: width 0.2s ease;
+}
+
+.qa-status-btn {
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.qa-status-btn.mark-explored {
+    color: var(--success-600);
+    border-color: var(--success-500);
+}
+
+.qa-card.explored .research-step-name {
+    color: var(--text-muted);
+}
+
+.qa-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: var(--space-md);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border-light);
+}
+
+.qa-explored-note {
+    margin-right: auto;
+    font-size: var(--font-size-sm);
+    color: var(--success-600);
+}
+
+.qa-all-explored {
+    font-size: var(--font-size-sm);
+    color: var(--success-600);
+}
+
+@media (max-width: 600px) {
+    /* The status button already says which state a question is in */
+    .qa-card .research-qa-status {
+        display: none;
+    }
+
+    .qa-card .research-summary-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+}
+
+.qa-explored-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin: 1.25rem 0 0.75rem;
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
 }
 
 /* =============================================================================

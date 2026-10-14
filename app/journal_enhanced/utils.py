@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, date
 from app import db
 from app.models import (JournalEntry, ThesisEvolution, LearningNote,
-                       JournalTemplate, Company, MistakeLog)
+                       Company, MistakeLog)
 import re
 from collections import Counter
 from sqlalchemy import String, func, literal, select, text, union_all
@@ -74,45 +74,6 @@ def get_related_entries(entry, limit=5):
                 break
     
     return unique_related
-
-def update_thesis_version(user_id, company_id, new_thesis, trigger=None):
-    """
-    Create a new thesis version for a company.
-    """
-    # Mark current thesis as not current
-    ThesisEvolution.query.filter_by(
-        user_id=user_id,
-        company_id=company_id,
-        is_current=True
-    ).update({'is_current': False})
-    
-    # Get the latest version number
-    latest = ThesisEvolution.query.filter_by(
-        user_id=user_id,
-        company_id=company_id
-    ).order_by(ThesisEvolution.version.desc()).first()
-    
-    new_version = (latest.version + 1) if latest else 1
-    
-    # Create new thesis version
-    thesis_evolution = ThesisEvolution(
-        user_id=user_id,
-        company_id=company_id,
-        version=new_version,
-        thesis=new_thesis,
-        change_trigger=trigger,
-        is_current=True
-    )
-    
-    db.session.add(thesis_evolution)
-    
-    try:
-        db.session.commit()
-        return thesis_evolution
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error updating thesis: {e}")
-        return None
 
 def search_journal(user_id, query, filters=None):
     """
@@ -235,93 +196,6 @@ def get_journal_statistics(user_id):
         'recent_entries': recent_entries,
         'total_lessons': total_lessons,
     }
-
-def create_default_templates():
-    """
-    Create default journal templates for common use cases.
-    """
-    templates = [
-        {
-            'name': 'Earnings Call Notes',
-            'entry_type': 'earnings_reaction',
-            'description': 'Structured template for earnings call analysis',
-            'prompts': [
-                'What were the key financial metrics?',
-                'What surprised you positively?',
-                'What concerned you?',
-                'How did management sound?',
-                'What are the forward-looking statements?',
-                'Action items after this call?'
-            ]
-        },
-        {
-            'name': 'Investment Thesis Update',
-            'entry_type': 'thesis_update',
-            'description': 'Track evolution of your investment thesis',
-            'prompts': [
-                'What has changed since last update?',
-                'Current bull case (3-5 points)',
-                'Current bear case (3-5 points)',
-                'Key metrics to watch',
-                'Conviction level (1-10) and why',
-                'Position sizing thoughts'
-            ]
-        },
-        {
-            'name': 'Market Observation',
-            'entry_type': 'market_thought',
-            'description': 'Capture thoughts about market conditions',
-            'prompts': [
-                'What pattern or trend did you observe?',
-                'What might this mean for your portfolio?',
-                'Historical precedents?',
-                'Contrarian view?',
-                'Action items?'
-            ]
-        },
-        {
-            'name': 'Learning from Mistake',
-            'entry_type': 'lesson_learned',
-            'description': 'Document and learn from investment mistakes',
-            'prompts': [
-                'What was the mistake?',
-                'What was your thought process at the time?',
-                'What did you miss or misjudge?',
-                'What would you do differently?',
-                'How can you avoid this in future?',
-                'What systematic change should you make?'
-            ]
-        }
-    ]
-    
-    created_templates = []
-    for template_data in templates:
-        template = JournalTemplate.query.filter_by(
-            name=template_data['name'],
-            user_id=None  # System templates
-        ).first()
-        
-        if not template:
-            template = JournalTemplate(
-                name=template_data['name'],
-                entry_type=template_data['entry_type'],
-                description=template_data['description'],
-                prompts=template_data['prompts'],
-                is_public=True
-            )
-            db.session.add(template)
-            created_templates.append(template)
-    
-    if created_templates:
-        try:
-            db.session.commit()
-            return created_templates
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error creating templates: {e}")
-    
-    return []
-
 
 # ---------------------------------------------------------------------------
 # Knowledge Hub: company-centric reads over research (JournalEntry), wisdom

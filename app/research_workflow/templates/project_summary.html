@@ -453,9 +453,11 @@ const SummaryPage = {
 
         // Get form data
         const confidence = document.getElementById('confidenceSlider').value;
-        const greenFlags = document.getElementById('greenFlagsInput').value;
-        const redFlags = document.getElementById('redFlagsInput').value;
-        const mustExitCriteria = document.getElementById('mustExitInput').value;
+        // Findings are shared with the company page; the server applies only the
+        // edits made against what these boxes loaded (their defaultValue).
+        const greenFlagsInput = document.getElementById('greenFlagsInput');
+        const redFlagsInput = document.getElementById('redFlagsInput');
+        const mustExitInput = document.getElementById('mustExitInput');
 
         // Show loading
         saveBtn.disabled = true;
@@ -470,13 +472,18 @@ const SummaryPage = {
                 body: new URLSearchParams({
                     decision: this.currentDecision,
                     confidence: confidence,
-                    green_flags: greenFlags,
-                    red_flags: redFlags,
-                    must_exit_criteria: mustExitCriteria
+                    green_flags: greenFlagsInput.value,
+                    green_flags_loaded: greenFlagsInput.defaultValue,
+                    red_flags: redFlagsInput.value,
+                    red_flags_loaded: redFlagsInput.defaultValue,
+                    must_exit_criteria: mustExitInput.value,
+                    must_exit_criteria_loaded: mustExitInput.defaultValue
                 })
             });
 
             if (response.ok) {
+                // The saved lists are the new baseline for the next save.
+                [greenFlagsInput, redFlagsInput, mustExitInput].forEach(el => { el.defaultValue = el.value; });
                 // Update the badge in header
                 const badge = document.querySelector('.summary-decision-badge');
                 badge.className = 'summary-decision-badge ' + this.currentDecision;

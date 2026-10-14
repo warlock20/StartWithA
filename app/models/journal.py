@@ -100,7 +100,8 @@ class JournalEntry(db.Model):
     title = db.Column(db.String(200))
     entry_type = db.Column(db.String(50), nullable=False, default='observation')
     # Types: 'observation', 'thesis_update', 'question', 'insight', 'lesson_learned',
-    # 'market_thought', 'meeting_notes', 'earnings_reaction', 'news_analysis'
+    # 'market_thought', 'meeting_notes', 'earnings_reaction', 'news_analysis',
+    # 'red_flag', 'green_flag', 'must_exit' (findings, see app.services.findings)
 
     # Content
     content = db.Column(db.Text, nullable=False)

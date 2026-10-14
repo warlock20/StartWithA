@@ -1139,6 +1139,11 @@
     padding: 0 var(--space-sm) var(--space-sm);
 }
 
+/* A second group of items in the same sidebar */
+.settings-sidebar-label-group {
+    margin-top: var(--space-lg);
+}
+
 .settings-nav-item {
     display: flex;
     align-items: flex-start;
@@ -1447,6 +1452,9 @@
     }
     .settings-sidebar-label {
         width: 100%;
+    }
+    .settings-sidebar-label-group {
+        margin-top: var(--space-sm);
     }
     .settings-nav-item {
         padding: var(--space-xs) var(--space-sm);

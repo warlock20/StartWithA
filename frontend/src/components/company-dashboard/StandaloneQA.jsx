@@ -5,9 +5,10 @@ import { QuestionCard } from './QuestionCard';
  * StandaloneQA — React island for the company dashboard Research > Q&A section.
  *
  * Replaces the vanilla StandaloneQA object from company-dashboard.js.
- * Manages research question CRUD, per-question BlockNote editors, status
- * toggling, and AI research tool integration (delegated to the vanilla
- * window.AIResearchAssistant).
+ * Manages research question CRUD, per-question BlockNote editors, marking
+ * questions explored (stored as status 'answered') or reopening them, and AI
+ * research tool integration (delegated to the vanilla window.AIResearchAssistant).
+ * Open questions are listed first; explored ones sit in their own section.
  *
  * Props (via config):
  *   companyId   — numeric company ID for API endpoints
@@ -19,6 +20,7 @@ export function StandaloneQA({ companyId, companyName }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newQuestionText, setNewQuestionText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showExplored, setShowExplored] = useState(true);
   const inputRef = useRef(null);
 
   var listUrl = '/companies/api/' + companyId + '/research-questions';
@@ -72,12 +74,19 @@ export function StandaloneQA({ companyId, companyName }) {
           if (data.success) {
             setQuestions(function (prev) {
               return prev.map(function (q) {
-                return q.id === questionId ? Object.assign({}, q, { status: newStatus }) : q;
+                return q.id === questionId
+                  ? Object.assign({}, q, {
+                      status: data.question.status,
+                      answered_at: data.question.answered_at,
+                    })
+                  : q;
               });
             });
+            // Collapse a question once it's done so the next open one is easy to reach
+            if (newStatus === 'answered') setExpandedId(null);
             if (window.showToast)
               window.showToast(
-                newStatus === 'answered' ? 'Marked as answered' : 'Marked as exploring',
+                newStatus === 'answered' ? 'Marked as explored' : 'Question reopened',
               );
           }
         })
@@ -175,6 +184,28 @@ export function StandaloneQA({ companyId, companyName }) {
     [createQuestion],
   );
 
+  var openQuestions = questions.filter(function (q) {
+    return q.status !== 'answered';
+  });
+  var exploredQuestions = questions.filter(function (q) {
+    return q.status === 'answered';
+  });
+
+  function renderCard(q) {
+    return (
+      <QuestionCard
+        key={q.id}
+        question={q}
+        isExpanded={expandedId === q.id}
+        onToggleExpand={toggleExpand}
+        onToggleStatus={toggleStatus}
+        onDelete={deleteQuestion}
+        onSaveAnswer={saveAnswer}
+        companyName={companyName}
+      />
+    );
+  }
+
   return (
     <>
       {/* Header */}
@@ -188,6 +219,11 @@ export function StandaloneQA({ companyId, companyName }) {
       >
         <h5 style={{ margin: 0, fontSize: 'var(--font-size-base)', fontWeight: 600 }}>
           <i className="bi bi-chat-square-text me-1" /> Research Questions
+          {questions.length > 0 && (
+            <span className="qa-progress-count">
+              {exploredQuestions.length} of {questions.length} explored
+            </span>
+          )}
         </h5>
         <button
           type="button"
@@ -231,21 +267,38 @@ export function StandaloneQA({ companyId, companyName }) {
         </div>
       )}
 
-      {/* Questions List */}
-      {questions.map(function (q) {
-        return (
-          <QuestionCard
-            key={q.id}
-            question={q}
-            isExpanded={expandedId === q.id}
-            onToggleExpand={toggleExpand}
-            onToggleStatus={toggleStatus}
-            onDelete={deleteQuestion}
-            onSaveAnswer={saveAnswer}
-            companyName={companyName}
+      {questions.length > 0 && (
+        <div className="qa-progress-bar" aria-hidden="true">
+          <div
+            className="qa-progress-fill"
+            style={{ width: (exploredQuestions.length / questions.length) * 100 + '%' }}
           />
-        );
-      })}
+        </div>
+      )}
+
+      {/* Open questions */}
+      {openQuestions.map(renderCard)}
+      {!loading && questions.length > 0 && openQuestions.length === 0 && (
+        <p className="qa-all-explored">
+          <i className="bi bi-check-circle-fill" /> All questions explored.
+        </p>
+      )}
+
+      {/* Explored questions */}
+      {exploredQuestions.length > 0 && (
+        <>
+          <button
+            type="button"
+            className="qa-explored-heading"
+            onClick={() => setShowExplored(!showExplored)}
+            aria-expanded={showExplored}
+          >
+            <i className={'bi bi-chevron-' + (showExplored ? 'down' : 'right')} /> Explored (
+            {exploredQuestions.length})
+          </button>
+          {showExplored && exploredQuestions.map(renderCard)}
+        </>
+      )}
 
       {/* Empty State */}
       {!loading && questions.length === 0 && (

@@ -469,7 +469,6 @@
                         <label for="quickJournalType" class="form-label">Entry Type</label>
                         <select class="form-select" id="quickJournalType">
                             <option value="observation" selected>Observation</option>
-                            <option value="thesis_update">Thesis Update</option>
                             <option value="question">Question</option>
                             <option value="insight">Insight</option>
                             <option value="lesson_learned">Lesson Learned</option>
@@ -530,28 +529,6 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-warning"><i class="bi bi-eye me-1"></i> Move to Watchlist</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Thesis Modal -->
-<div class="modal fade" id="thesisModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Investment Thesis</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="thesisModalForm" method="POST" action="{{ url_for('research_workflow.update_thesis', project_id=project.id) }}">
-                <div class="modal-body">
-                    <input type="hidden" id="thesisModalHidden" name="investment_thesis">
-                    <div id="thesisModalEditor" class="blocknote-form-editor"></div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Thesis</button>
                 </div>
             </form>
         </div>
@@ -726,37 +703,6 @@ document.getElementById('quickJournalSave').addEventListener('click', function (
     }, 'quickJournalError', this);
 });
 {% endif %}
-
-// Thesis modal BlockNote editor
-let thesisModalContent = '';
-const thesisModalEl = document.getElementById('thesisModal');
-if (thesisModalEl) {
-    let thesisEditorInited = false;
-    thesisModalEl.addEventListener('shown.bs.modal', function () {
-        if (thesisEditorInited) return;
-        const checkEditor = setInterval(() => {
-            if (window.initBlockNoteEditor) {
-                clearInterval(checkEditor);
-                thesisEditorInited = true;
-                const initialContent = {{ (project.investment_thesis or '')|tojson }};
-                window.initBlockNoteEditor('thesisModalEditor', {
-                    initialContent: initialContent,
-                    placeholder: 'Document your evolving thesis as you progress through research...',
-                    onChange: (json) => { thesisModalContent = json; }
-                });
-            }
-        }, 100);
-    });
-
-    document.getElementById('thesisModalForm').addEventListener('submit', function (e) {
-        if (!thesisModalContent) {
-            e.preventDefault();
-            alert('Please write your thesis before saving.');
-            return;
-        }
-        document.getElementById('thesisModalHidden').value = thesisModalContent;
-    });
-}
 </script>
 <script>
 // Show onboarding modal if from onboarding flow

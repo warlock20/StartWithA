@@ -18,7 +18,7 @@ import logging
 from flask import request, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import (Company)
+from app.models import (Company, JournalEntry)
 from app.models.market_sweep import (
     CompanySweepLink, MarketSweep, MarketSweepCompany,
 )
@@ -32,8 +32,9 @@ from app.utils.isin import is_valid_isin, isin_plausible_for_listing, normalize_
 from app.services.currency_service import CurrencyService
 from app.services.sweep_link import confirm as confirm_link, link_from_isin
 from app.utils.response_utils import json_error, json_not_found
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import format_for_javascript, now_utc
 from app.utils.blocknote_utils import append_note, blocknote_to_text
+from app.services.findings import FINDING_TYPES, add_finding, delete_finding, normalize_finding_type
 
 logger = logging.getLogger(__name__)
 
@@ -651,6 +652,54 @@ def append_journey_note(company_id):
 
 
 # ===================================================================
+#  Findings API (red flags, green flags, must-exit criteria)
+#  Stored as journal entries; work with or without a research project.
+# ===================================================================
+
+@companies_bp.route('/api/<int:company_id>/findings', methods=['POST'])
+@login_required
+def api_add_finding(company_id):
+    company = Company.query.filter_by(id=company_id, user_id=current_user.id).first()
+    if not company:
+        return json_not_found('Company not found')
+
+    data = request.get_json() or {}
+    finding_type = normalize_finding_type(data.get('type'))
+    text = (data.get('text') or '').strip()
+    if not finding_type:
+        return json_error('Invalid finding type')
+    if not text:
+        return json_error('Finding text is required')
+
+    entry = add_finding(current_user.id, company.id, finding_type, text)
+    db.session.commit()
+
+    return jsonify({'success': True, 'finding': {
+        'id': entry.id,
+        'type': entry.entry_type,
+        'text': entry.content,
+        'date': entry.created_at.strftime('%b %d, %Y') if entry.created_at else '',
+    }})
+
+
+@companies_bp.route('/api/<int:company_id>/findings/<int:entry_id>', methods=['DELETE'])
+@login_required
+def api_delete_finding(company_id, entry_id):
+    entry = JournalEntry.query.filter(
+        JournalEntry.id == entry_id,
+        JournalEntry.user_id == current_user.id,
+        JournalEntry.company_id == company_id,
+        JournalEntry.entry_type.in_(FINDING_TYPES),
+    ).first()
+    if not entry:
+        return json_not_found('Finding not found')
+
+    delete_finding(entry)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# ===================================================================
 #  Standalone Research Questions API (list + create only;
 #  PUT/DELETE reuse existing /research/workflow/api/questions/<id>)
 # ===================================================================
@@ -679,7 +728,7 @@ def api_list_research_questions(company_id):
             'order_index': q.order_index,
             'created_at': q.created_at.isoformat() if q.created_at else None,
             'updated_at': q.updated_at.isoformat() if q.updated_at else None,
-            'answered_at': q.answered_at.isoformat() if q.answered_at else None,
+            'answered_at': format_for_javascript(q.answered_at) if q.answered_at else None,
         } for q in questions]
     })
 

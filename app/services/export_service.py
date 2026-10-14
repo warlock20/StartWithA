@@ -39,6 +39,7 @@ from app.utils.checklist_utils import get_all_ordered_items_for_checklist
 # 3-way portfolio/watchlist/new bucket used to gate export components), which
 # would otherwise shadow this import inside every function that has it.
 from app.services.company_state import company_state as ladder_company_state
+from app.services.findings import FINDING_LABELS, FINDING_TYPES, finding_entries
 
 logger = logging.getLogger(__name__)
 
@@ -337,6 +338,11 @@ def build_research_readme(project):
         for flag in project.red_flags:
             lines.append(f"- {flag}")
 
+    if project.must_exit_criteria:
+        lines.append("\n## Must Exit Criteria\n")
+        for criterion in project.must_exit_criteria:
+            lines.append(f"- {criterion}")
+
     if project.key_findings:
         lines.append("\n## Key Findings\n")
         for finding in project.key_findings:
@@ -448,6 +454,11 @@ def build_research_decision_file(project):
         lines.append("\n## Red Flags\n")
         for flag in project.red_flags:
             lines.append(f"- {flag}")
+
+    if project.must_exit_criteria:
+        lines.append("\n## Must Exit Criteria\n")
+        for criterion in project.must_exit_criteria:
+            lines.append(f"- {criterion}")
 
     return "\n".join(lines)
 
@@ -724,6 +735,25 @@ def build_journal_entries_md(entries, company_name):
     return "\n".join(lines)
 
 
+def build_findings_md(entries, company_name):
+    """Build markdown for the company's red flags, green flags and must-exit criteria."""
+    if not entries:
+        return None
+
+    lines = [f"# Findings — {company_name}", ""]
+    for finding_type in FINDING_TYPES:
+        typed = [e for e in entries if e.entry_type == finding_type]
+        if not typed:
+            continue
+        lines.append(f"## {FINDING_LABELS[finding_type]}s")
+        lines.append("")
+        for entry in typed:
+            lines.append(f"- {entry.content} ({format_dt(entry.created_at)})")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def build_journey_notes_md(journey_notes, company_name):
     """Build markdown from company journey notes (BlockNote JSON)."""
     if not journey_notes:
@@ -771,6 +801,8 @@ def build_journey_overview_md(company, company_state, counts, ladder_label=None)
         lines.append(f"- Transactions: {counts.get('transactions', 0)}")
     lines.append(f"- Decisions: {counts.get('decisions', 0)}")
     lines.append(f"- Journal Entries: {counts.get('journal', 0)}")
+    if counts.get('findings'):
+        lines.append(f"- Findings: {counts['findings']}")
     if counts.get('research'):
         lines.append("- Research Project: Yes")
     lines.append("")
@@ -893,11 +925,20 @@ def export_company_journey(company, user_id, components, company_state):
         if 'journal' in components:
             entries = JournalEntry.query.filter_by(
                 company_id=company.id, user_id=user_id
-            ).order_by(JournalEntry.created_at).all()
+            ).filter(JournalEntry.entry_type.notin_(FINDING_TYPES)).order_by(
+                JournalEntry.created_at).all()
             counts['journal'] = len(entries)
             md = build_journal_entries_md(entries, company.name)
             if md:
                 zf.writestr(f"{folder_name}/{file_index:02d}_journal_entries.md", md)
+                file_index += 1
+
+            # Findings are journal entries too, recorded with or without a project
+            findings = finding_entries(user_id, company.id)
+            counts['findings'] = len(findings)
+            md = build_findings_md(findings, company.name)
+            if md:
+                zf.writestr(f"{folder_name}/{file_index:02d}_findings.md", md)
                 file_index += 1
 
         if 'notes' in components:

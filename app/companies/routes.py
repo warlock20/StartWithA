@@ -38,6 +38,7 @@ from app.models.research import FreeResearchQuestion
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
 from app.services.export_service import export_company_journey, safe_name
+from app.services.findings import FINDING_TYPES, GREEN_FLAG, MUST_EXIT, RED_FLAG, finding_entries
 from app.companies import companies_bp
 from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task
 from app.utils.ticker_validator import TickerValidator
@@ -495,32 +496,27 @@ def _gather_journey_data(company, user_id):
         company_id=company.id
     ).first()
 
-    findings_count = 0
-    if research_project:
-        for flag in (research_project.green_flags or []):
-            timeline_events.append({
-                'type': 'finding',
-                'date': research_project.created_at.date() if research_project.created_at else now_utc().date(),
-                'datetime': research_project.created_at or now_utc(),
-                'data': {'text': flag, 'flag_type': 'green'}
-            })
-        for flag in (research_project.red_flags or []):
-            timeline_events.append({
-                'type': 'finding',
-                'date': research_project.created_at.date() if research_project.created_at else now_utc().date(),
-                'datetime': research_project.created_at or now_utc(),
-                'data': {'text': flag, 'flag_type': 'red'}
-            })
-        findings_count = len(research_project.green_flags or []) + len(research_project.red_flags or [])
+    # Findings are journal entries on the company, with or without a project
+    flag_types = {GREEN_FLAG: 'green', RED_FLAG: 'red', MUST_EXIT: 'must_exit'}
+    findings = finding_entries(user_id, company.id)
+    for entry in findings:
+        when = entry.created_at or now_utc()
+        timeline_events.append({
+            'type': 'finding',
+            'date': when.date(),
+            'datetime': when,
+            'data': {'text': entry.content, 'flag_type': flag_types[entry.entry_type]}
+        })
+    findings_count = len(findings)
 
     # Sort timeline by datetime (most recent first)
     timeline_events.sort(key=lambda x: x['datetime'], reverse=True)
 
-    # Journal entries count (loaded via AJAX)
+    # Journal entries count (loaded via AJAX); findings are counted separately
     journal_entries_count = JournalEntry.query.filter_by(
         user_id=user_id,
         company_id=company.id
-    ).count()
+    ).filter(JournalEntry.entry_type.notin_(FINDING_TYPES)).count()
 
     # Journey statistics
     total_return = 0
@@ -594,6 +590,7 @@ def _gather_journey_data(company, user_id):
         'transaction_count': len(transactions),
         'decision_count': len(decision_journals),
         'findings_count': findings_count,
+        'findings': findings,
         'journal_entries_count': journal_entries_count,
         'research_project': research_project,
         'free_research_questions': free_research_questions,
@@ -720,6 +717,7 @@ def company_detail(company_id):
         transaction_count=journey_data['transaction_count'],
         decision_count=journey_data['decision_count'],
         findings_count=journey_data['findings_count'],
+        findings=journey_data['findings'],
         journal_entries_count=journey_data['journal_entries_count'],
         research_project=journey_data['research_project'],
         free_research_questions=journey_data['free_research_questions'],

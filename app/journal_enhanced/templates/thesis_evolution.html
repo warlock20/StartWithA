@@ -6,7 +6,7 @@
         <h1>📈 Thesis Evolution: {{ company.name }}</h1>
         <p class="text-muted mb-0">Track how your investment thesis changes over time</p>
     </div>
-    <a href="{{ url_for('journal_enhanced.new_thesis_version', company_id=company.id) }}" 
+    <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" 
        class="btn btn-success">
         + New Thesis Version
     </a>

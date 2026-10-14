@@ -276,6 +276,8 @@
                 <span class="journey-badge finding {{ event.data.flag_type }}">
                     {% if event.data.flag_type == 'green' %}
                     <i class="bi bi-check-circle"></i> Green Flag
+                    {% elif event.data.flag_type == 'must_exit' %}
+                    <i class="bi bi-box-arrow-right"></i> Must Exit
                     {% else %}
                     <i class="bi bi-exclamation-triangle"></i> Red Flag
                     {% endif %}

@@ -30,6 +30,8 @@ Factors:
 import math
 from dataclasses import dataclass, field
 
+from sqlalchemy.orm import selectinload
+
 from app import db
 from app.models import ResearchProject, ResearchSettings
 from app.utils.time_utils import now_utc, ensure_timezone_aware
@@ -171,7 +173,7 @@ class ResearchPriorityService:
         active_projects = user.research_projects.filter(
             ResearchProject.status.in_(['active']),
             db.or_(ResearchProject.decision.is_(None), ResearchProject.decision != 'watchlist')
-        ).all()
+        ).options(selectinload(ResearchProject.finding_journal_entries)).all()
 
         scored = [
             ResearchPriorityService.score_project(p, settings)

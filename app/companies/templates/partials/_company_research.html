@@ -1,4 +1,5 @@
-{# Research Tab — Sidebar navigation + scoped content panels #}
+{# Research Tab — research work (summary, questions, notes, findings) and records
+   (journal, documents, annotations) in one sidebar. Replaces the old Library tab. #}
 
 <div class="settings-layout">
     <!-- LEFT SUB-NAV -->
@@ -14,15 +15,45 @@
         <button class="settings-nav-item research-nav-item" data-research-section="qa" type="button">
             <i class="bi bi-chat-square-text"></i>
             <div>
-                <div class="settings-nav-title">Q&A</div>
+                <div class="settings-nav-title">Questions</div>
                 <div class="settings-nav-hint">Research questions & answers</div>
+            </div>
+        </button>
+        <button class="settings-nav-item research-nav-item" data-research-section="notes" type="button">
+            <i class="bi bi-file-earmark-text"></i>
+            <div>
+                <div class="settings-nav-title">Research Notes</div>
+                <div class="settings-nav-hint">Free-form notes on the company</div>
             </div>
         </button>
         <button class="settings-nav-item research-nav-item" data-research-section="findings" type="button">
             <i class="bi bi-flag"></i>
             <div>
                 <div class="settings-nav-title">Findings</div>
-                <div class="settings-nav-hint">Green & red flags</div>
+                <div class="settings-nav-hint">Red & green flags, exit rules</div>
+            </div>
+        </button>
+
+        <div class="settings-sidebar-label settings-sidebar-label-group">Records</div>
+        <button class="settings-nav-item research-nav-item" data-research-section="journal" type="button">
+            <i class="bi bi-journal-bookmark"></i>
+            <div>
+                <div class="settings-nav-title">Journal</div>
+                <div class="settings-nav-hint">Timestamped observations</div>
+            </div>
+        </button>
+        <button class="settings-nav-item research-nav-item" data-research-section="documents" type="button">
+            <i class="bi bi-folder2-open"></i>
+            <div>
+                <div class="settings-nav-title">Documents</div>
+                <div class="settings-nav-hint">SEC filings, resources, financials</div>
+            </div>
+        </button>
+        <button class="settings-nav-item research-nav-item" data-research-section="annotations" type="button">
+            <i class="bi bi-pin-angle"></i>
+            <div>
+                <div class="settings-nav-title">Annotations</div>
+                <div class="settings-nav-hint">Document pins & highlights</div>
             </div>
         </button>
     </div>
@@ -135,7 +166,7 @@
                                 <i class="bi bi-question-circle-fill"></i>
                                 {{ q.question_text }}
                                 {% if q.status == 'answered' %}
-                                <span class="research-qa-status answered">Answered</span>
+                                <span class="research-qa-status answered">Explored</span>
                                 {% endif %}
                             </div>
                             {% if q.answer_content %}
@@ -150,49 +181,69 @@
             {% endif %}
         </div>
 
+        <!-- ====== SECTION: Research Notes ====== -->
+        <div class="research-section" id="research-notes">
+            {% include 'partials/_company_notes.html' %}
+        </div>
+
         <!-- ====== SECTION: Findings ====== -->
         <div class="research-section" id="research-findings">
-            {% if research_project and (research_project.green_flags or research_project.red_flags) %}
-            <div class="research-summary-card">
-                <div class="research-summary-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
-                    <div class="research-summary-header-left">
-                        <i class="bi bi-flag-fill" style="color: var(--primary-600); font-size: 1.125rem;"></i>
-                        <span class="research-step-name">Key Findings</span>
-                    </div>
-                    <i class="bi bi-chevron-down" style="color: var(--gray-400);"></i>
+            {% if not research_project %}
+            <div class="findings-no-research">
+                <i class="bi bi-exclamation-diamond"></i>
+                <div>
+                    <strong>No research project for {{ company.name }}.</strong>
+                    You can still record flags here, but a position without research counts as
+                    unresearched in your decision analytics.
                 </div>
-                <div class="research-summary-body">
-                    <div class="research-findings-grid">
-                        {% if research_project.green_flags %}
-                        <div class="research-findings-col green">
-                            <h6><i class="bi bi-check-circle-fill"></i> Green Flags</h6>
-                            <ul>
-                                {% for flag in research_project.green_flags %}
-                                <li>{{ flag }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        {% endif %}
-                        {% if research_project.red_flags %}
-                        <div class="research-findings-col red">
-                            <h6><i class="bi bi-exclamation-triangle-fill"></i> Red Flags</h6>
-                            <ul>
-                                {% for flag in research_project.red_flags %}
-                                <li>{{ flag }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% else %}
-            <div class="journey-empty-state">
-                <i class="bi bi-flag"></i>
-                <h4>No Findings Yet</h4>
-                <p>Key findings will appear as you research {{ company.name }}.</p>
             </div>
             {% endif %}
+
+            {% set finding_columns = [
+                ('red_flag', 'red', 'exclamation-triangle-fill', 'Red Flags', 'What counts against investing?'),
+                ('green_flag', 'green', 'check-circle-fill', 'Green Flags', 'What counts in favour?'),
+                ('must_exit', 'must_exit', 'box-arrow-right', 'Must Exit', 'Sell if… e.g. revenue drops below $2B'),
+            ] %}
+            <div class="research-findings-grid findings-editable" data-findings-url="{{ url_for('companies.api_add_finding', company_id=company.id) }}">
+                {% for ftype, css, icon, heading, placeholder in finding_columns %}
+                {% set items = findings|selectattr('entry_type', 'equalto', ftype)|list %}
+                <div class="research-findings-col {{ css }}" data-finding-type="{{ ftype }}">
+                    <h6><i class="bi bi-{{ icon }}"></i> {{ heading }}</h6>
+                    <ul class="findings-list">
+                        {% for entry in items %}
+                        <li data-finding-id="{{ entry.id }}">
+                            <span class="finding-text">{{ entry.content }}</span>
+                            <span class="finding-date">{{ entry.created_at.strftime('%b %d, %Y') if entry.created_at }}</span>
+                            <button type="button" class="finding-delete" title="Delete" aria-label="Delete">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <form class="finding-add-form">
+                        <input type="text" class="finding-add-input" placeholder="{{ placeholder }}" maxlength="500">
+                        <button type="submit" class="action-btn" title="Add">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- ====== SECTION: Journal ====== -->
+        <div class="research-section" id="research-journal">
+            {% include 'partials/_company_journal.html' %}
+        </div>
+
+        <!-- ====== SECTION: Documents ====== -->
+        <div class="research-section" id="research-documents">
+            {% include 'partials/_company_documents.html' %}
+        </div>
+
+        <!-- ====== SECTION: Annotations ====== -->
+        <div class="research-section" id="research-annotations">
+            {% include 'partials/_company_annotations.html' %}
         </div>
 
     </div>
@@ -247,4 +298,82 @@ function hideStartResearchModal(event) {
 // Expose to global scope for onclick handlers
 window.hideStartResearchModal = hideStartResearchModal;
 {% endif %}
+
+// Findings: add / delete red flags, green flags and must-exit criteria
+(function () {
+    var grid = document.querySelector('#research-findings .findings-editable');
+    if (!grid) return;
+    var baseUrl = grid.dataset.findingsUrl;
+
+    function findingItem(finding) {
+        var li = document.createElement('li');
+        li.dataset.findingId = finding.id;
+        var text = document.createElement('span');
+        text.className = 'finding-text';
+        text.textContent = finding.text;
+        var date = document.createElement('span');
+        date.className = 'finding-date';
+        date.textContent = finding.date;
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'finding-delete';
+        del.title = 'Delete';
+        del.setAttribute('aria-label', 'Delete');
+        del.innerHTML = '<i class="bi bi-x"></i>';
+        li.append(text, date, del);
+        return li;
+    }
+
+    function notify(message, type) {
+        if (window.showToast) window.showToast(message, type);
+    }
+
+    // A login redirect or server error page is HTML, not JSON
+    function readJson(r, fallback) {
+        var isJson = (r.headers.get('Content-Type') || '').indexOf('application/json') !== -1;
+        if (!isJson) {
+            throw new Error(r.redirected ? 'Your session expired. Reload the page and sign in.' : fallback);
+        }
+        return r.json();
+    }
+
+    grid.addEventListener('submit', function (e) {
+        var form = e.target.closest('.finding-add-form');
+        if (!form) return;
+        e.preventDefault();
+        var col = form.closest('[data-finding-type]');
+        var input = form.querySelector('.finding-add-input');
+        var text = input.value.trim();
+        if (!text) return;
+        var button = form.querySelector('button');
+        button.disabled = true;
+        fetch(baseUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: col.dataset.findingType, text: text })
+        })
+            .then(function (r) { return readJson(r, 'Could not save'); })
+            .then(function (data) {
+                if (!data.success) throw new Error(data.error || 'Could not save');
+                col.querySelector('.findings-list').appendChild(findingItem(data.finding));
+                input.value = '';
+            })
+            .catch(function (err) { notify(err.message, 'error'); })
+            .finally(function () { button.disabled = false; });
+    });
+
+    grid.addEventListener('click', function (e) {
+        var del = e.target.closest('.finding-delete');
+        if (!del) return;
+        var li = del.closest('li');
+        if (!confirm('Delete this finding?')) return;
+        fetch(baseUrl + '/' + li.dataset.findingId, { method: 'DELETE' })
+            .then(function (r) { return readJson(r, 'Could not delete'); })
+            .then(function (data) {
+                if (!data.success) throw new Error(data.error || 'Could not delete');
+                li.remove();
+            })
+            .catch(function (err) { notify(err.message, 'error'); });
+    });
+})();
 </script>

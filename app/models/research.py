@@ -225,9 +225,8 @@ class ResearchProject(db.Model):
 
     # Key findings that influenced the decision
     key_findings = db.Column(db.JSON, default=list)
-    red_flags = db.Column(db.JSON, default=list)
-    green_flags = db.Column(db.JSON, default=list)
-    must_exit_criteria = db.Column(db.JSON, default=list)
+    # Red/green flags and must-exit criteria are journal entries on the
+    # company (see app.services.findings); the properties below read them.
 
     # Companion session wrap-up summaries
     session_history = db.Column(db.JSON, nullable=True)
@@ -244,6 +243,33 @@ class ResearchProject(db.Model):
                                    lazy='dynamic', cascade='all, delete-orphan')
     research_logs = db.relationship('ResearchLog', backref='project',
                                    lazy='dynamic', cascade='all, delete-orphan')
+
+    # Loaded once per instance (and eager-loadable); expired on commit, and by
+    # app.services.findings when it adds or deletes a finding.
+    finding_journal_entries = db.relationship(
+        'JournalEntry',
+        primaryjoin="and_(foreign(JournalEntry.company_id) == ResearchProject.company_id, "
+                    "foreign(JournalEntry.user_id) == ResearchProject.user_id, "
+                    "JournalEntry.entry_type.in_(['red_flag', 'green_flag', 'must_exit']), "
+                    "or_(JournalEntry.is_archived.is_(False), JournalEntry.is_archived.is_(None)))",
+        order_by="[JournalEntry.created_at, JournalEntry.id]",
+        viewonly=True,
+    )
+
+    def _finding_texts(self, finding_type):
+        return [e.content for e in self.finding_journal_entries if e.entry_type == finding_type]
+
+    @property
+    def red_flags(self):
+        return self._finding_texts('red_flag')
+
+    @property
+    def green_flags(self):
+        return self._finding_texts('green_flag')
+
+    @property
+    def must_exit_criteria(self):
+        return self._finding_texts('must_exit')
 
     @property
     def workflow_steps(self):
