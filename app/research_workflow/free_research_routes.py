@@ -146,6 +146,8 @@ def update_free_research_question(question_id):
         question.answer_content = data['answer_content']
 
     if 'status' in data:
+        if data['status'] not in ('exploring', 'answered'):
+            return json_error('Invalid status')
         old_status = question.status
         question.status = data['status']
         # Track when answered
@@ -170,6 +172,7 @@ def update_free_research_question(question_id):
             'question_text': question.question_text,
             'answer_content': question.answer_content,
             'status': question.status,
+            'answered_at': question.answered_at.isoformat() if question.answered_at else None,
             'updated_at': question.updated_at.isoformat()
         }
     })

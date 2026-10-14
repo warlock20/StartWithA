@@ -1263,6 +1263,95 @@
     color: var(--success-600);
 }
 
+.research-qa-status.exploring {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+/* Standalone Q&A: explored state */
+.qa-progress-count {
+    margin-left: 0.5rem;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.qa-progress-bar {
+    height: 4px;
+    margin: -0.5rem 0 1rem;
+    border-radius: 2px;
+    background: var(--gray-100);
+    overflow: hidden;
+}
+
+.qa-progress-fill {
+    height: 100%;
+    background: var(--success-500);
+    transition: width 0.2s ease;
+}
+
+.qa-status-btn {
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.qa-status-btn.mark-explored {
+    color: var(--success-600);
+    border-color: var(--success-500);
+}
+
+.qa-card.explored .research-step-name {
+    color: var(--text-muted);
+}
+
+.qa-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: var(--space-md);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border-light);
+}
+
+.qa-explored-note {
+    margin-right: auto;
+    font-size: var(--font-size-sm);
+    color: var(--success-600);
+}
+
+.qa-all-explored {
+    font-size: var(--font-size-sm);
+    color: var(--success-600);
+}
+
+@media (max-width: 600px) {
+    /* The status button already says which state a question is in */
+    .qa-card .research-qa-status {
+        display: none;
+    }
+
+    .qa-card .research-summary-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+}
+
+.qa-explored-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin: 1.25rem 0 0.75rem;
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
 /* =============================================================================
    NOTES EDITOR PANEL (BlockNote / Documentation)
    ============================================================================= */

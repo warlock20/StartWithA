@@ -24,9 +24,16 @@ export function QuestionCard({
   companyName,
 }) {
   const editorInitRef = useRef(false);
-  const isAnswered = question.status === 'answered';
-  const statusLabel = isAnswered ? 'Answered' : 'Exploring';
-  const statusIcon = isAnswered ? 'check-circle-fill' : 'search';
+  // 'answered' is the stored value; on the page a finished question is "explored"
+  const isExplored = question.status === 'answered';
+  const statusLabel = isExplored ? 'Explored' : 'Exploring';
+  const exploredOn = isExplored && question.answered_at
+    ? new Date(question.answered_at).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null;
   const editorId = 'standalone-editor-' + question.id;
 
   // Initialise BlockNote editor on first expand
@@ -69,24 +76,35 @@ export function QuestionCard({
   );
 
   return (
-    <div className="research-summary-card" style={{ marginBottom: '0.75rem' }}>
+    <div
+      className={'research-summary-card qa-card' + (isExplored ? ' explored' : '')}
+      style={{ marginBottom: '0.75rem' }}
+    >
       <div className="research-summary-header" onClick={() => onToggleExpand(question.id)}>
         <div className="research-summary-header-left">
-          <i className="bi bi-question-circle-fill" style={{ color: 'var(--accent-color)' }} />
+          <i
+            className={'bi bi-' + (isExplored ? 'check-circle-fill' : 'question-circle-fill')}
+            style={{ color: isExplored ? 'var(--success-600)' : 'var(--accent-color)' }}
+          />
           <span className="research-step-name">{question.question_text}</span>
-          <span className={'research-qa-status ' + question.status}>{statusLabel}</span>
+          <span
+            className={'research-qa-status ' + question.status}
+            title={exploredOn ? 'Explored on ' + exploredOn : undefined}
+          >
+            {statusLabel}
+          </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <button
-            className="action-btn"
-            style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+            className={'action-btn qa-status-btn' + (isExplored ? '' : ' mark-explored')}
             onClick={(e) => {
               e.stopPropagation();
               onToggleStatus(question.id);
             }}
-            title="Toggle status"
+            title={isExplored ? 'Reopen this question' : 'Mark this question as explored'}
           >
-            <i className={'bi bi-' + statusIcon} />
+            <i className={'bi bi-' + (isExplored ? 'arrow-counterclockwise' : 'check2')} />{' '}
+            {isExplored ? 'Reopen' : 'Mark explored'}
           </button>
           <button
             className="action-btn"
@@ -135,6 +153,24 @@ export function QuestionCard({
             </label>
           </div>
           <div className="fr-ai-response" id={'aiResponse-' + question.id} />
+        </div>
+
+        <div className="qa-card-footer">
+          {isExplored ? (
+            <>
+              <span className="qa-explored-note">
+                <i className="bi bi-check-circle-fill" /> Explored
+                {exploredOn ? ' on ' + exploredOn : ''}
+              </span>
+              <button className="action-btn" onClick={() => onToggleStatus(question.id)}>
+                <i className="bi bi-arrow-counterclockwise" /> Reopen question
+              </button>
+            </>
+          ) : (
+            <button className="action-btn primary" onClick={() => onToggleStatus(question.id)}>
+              <i className="bi bi-check2-circle" /> Done exploring this question
+            </button>
+          )}
         </div>
       </div>
     </div>
