@@ -225,9 +225,8 @@ class ResearchProject(db.Model):
 
     # Key findings that influenced the decision
     key_findings = db.Column(db.JSON, default=list)
-    red_flags = db.Column(db.JSON, default=list)
-    green_flags = db.Column(db.JSON, default=list)
-    must_exit_criteria = db.Column(db.JSON, default=list)
+    # Red/green flags and must-exit criteria are journal entries on the
+    # company (see app.services.findings); the properties below read them.
 
     # Companion session wrap-up summaries
     session_history = db.Column(db.JSON, nullable=True)
@@ -244,6 +243,24 @@ class ResearchProject(db.Model):
                                    lazy='dynamic', cascade='all, delete-orphan')
     research_logs = db.relationship('ResearchLog', backref='project',
                                    lazy='dynamic', cascade='all, delete-orphan')
+
+    def _finding_texts(self, finding_type):
+        from app.services.findings import finding_texts
+        if not self.user_id or not self.company_id:
+            return []
+        return finding_texts(self.user_id, self.company_id, finding_type)
+
+    @property
+    def red_flags(self):
+        return self._finding_texts('red_flag')
+
+    @property
+    def green_flags(self):
+        return self._finding_texts('green_flag')
+
+    @property
+    def must_exit_criteria(self):
+        return self._finding_texts('must_exit')
 
     @property
     def workflow_steps(self):

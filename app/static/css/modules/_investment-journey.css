@@ -217,6 +217,10 @@
     border-color: var(--danger-500);
 }
 
+.journey-dot.finding.must_exit {
+    border-color: var(--warning-500);
+}
+
 @keyframes pulse-dot {
     0%, 100% {
         box-shadow: 0 0 0 4px var(--success-100), 0 0 15px var(--success-200);
@@ -321,6 +325,11 @@
 .journey-badge.finding.red {
     background: var(--danger-100);
     color: var(--danger-700);
+}
+
+.journey-badge.finding.must_exit {
+    background: var(--warning-50);
+    color: var(--warning-600);
 }
 
 .journey-position-badge {
@@ -660,6 +669,10 @@
 
 .journey-content.finding-content.red {
     border-left: 3px solid var(--danger-500);
+}
+
+.journey-content.finding-content.must_exit {
+    border-left: 3px solid var(--warning-500);
 }
 
 /* =============================================================================
@@ -1120,6 +1133,94 @@
 .research-findings-col li {
     margin-bottom: 0.375rem;
     color: var(--text-secondary);
+}
+
+.research-findings-col.must_exit h6 {
+    color: var(--warning-600);
+}
+
+/* Editable findings (company page): three columns, no bullets */
+.findings-editable {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.findings-editable .findings-list {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: var(--space-sm);
+}
+
+.findings-editable .findings-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.375rem 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.findings-editable .finding-text {
+    flex: 1;
+    color: var(--text-primary);
+}
+
+.findings-editable .finding-date {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.findings-editable .finding-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--gray-400);
+    cursor: pointer;
+}
+
+.findings-editable .finding-delete:hover {
+    color: var(--danger-500);
+}
+
+.finding-add-form {
+    display: flex;
+    gap: 0.375rem;
+}
+
+.finding-add-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    font-size: var(--font-size-sm);
+}
+
+.findings-no-research {
+    display: flex;
+    gap: 0.625rem;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
+    margin-bottom: var(--space-md);
+    border-radius: 8px;
+    background: var(--warning-50);
+    color: var(--warning-600);
+    font-size: var(--font-size-sm);
+}
+
+.findings-no-research i {
+    font-size: 1.125rem;
+}
+
+@media (max-width: 768px) {
+    .findings-editable {
+        grid-template-columns: 1fr;
+    }
 }
 
 .research-qa-item {

@@ -36,6 +36,9 @@
                         <option value="accounting_note" {{ 'selected' if request.args.get('entry_type') == 'accounting_note' }}>Accounting Note</option>
                         <option value="finance_tip" {{ 'selected' if request.args.get('entry_type') == 'finance_tip' }}>Finance Tip</option>
                         <option value="industry_analysis" {{ 'selected' if request.args.get('entry_type') == 'industry_analysis' }}>Industry Analysis</option>
+                        <option value="red_flag" {{ 'selected' if request.args.get('entry_type') == 'red_flag' }}>Red Flag</option>
+                        <option value="green_flag" {{ 'selected' if request.args.get('entry_type') == 'green_flag' }}>Green Flag</option>
+                        <option value="must_exit" {{ 'selected' if request.args.get('entry_type') == 'must_exit' }}>Must Exit</option>
                     </select>
                 </div>
 

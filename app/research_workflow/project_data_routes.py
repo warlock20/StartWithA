@@ -36,6 +36,10 @@ from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.services.export_service import resolve_checklist_id
 from app.services.research_quality import calculate_research_quality
+from app.services.findings import (
+    FINDING_LABELS, GREEN_FLAG, MUST_EXIT, RED_FLAG,
+    add_finding as record_finding, normalize_finding_type, replace_findings,
+)
 
 
 def _apply_completion_status(project):
@@ -158,9 +162,10 @@ def save_project_decision(project_id):
         project.decision_summary = decision_summary
         project.decision_confidence = decision_confidence
         project.decision_date = now_utc()
-        project.green_flags = [f.strip() for f in green_flags_raw.split('\n') if f.strip()]
-        project.red_flags = [f.strip() for f in red_flags_raw.split('\n') if f.strip()]
-        project.must_exit_criteria = [c.strip() for c in must_exit_raw.split('\n') if c.strip()]
+        for finding_type, raw in ((GREEN_FLAG, green_flags_raw), (RED_FLAG, red_flags_raw),
+                                  (MUST_EXIT, must_exit_raw)):
+            replace_findings(project.user_id, project.company_id, finding_type,
+                             raw.split('\n'), project_id=project.id)
 
         # Clear mid-research watchlist fields when making a final decision
         if decision != 'watchlist':
@@ -231,7 +236,7 @@ def save_project_decision(project_id):
 @research_workflow_bp.route('/projects/<int:project_id>/add-finding', methods=['POST'])
 @login_required
 def add_finding(project_id):
-    """Add a green, red, or must-exit finding to a project"""
+    """Add a green flag, red flag or must-exit criterion to the project's company"""
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
@@ -240,81 +245,28 @@ def add_finding(project_id):
     try:
         if request.is_json:
             data = request.get_json()
-            finding_type = data.get('type')  # 'green' or 'red'
+            finding_type = normalize_finding_type(data.get('type'))
             finding_text = data.get('text', '').strip()
         else:
-            # Handle standard form submission
-            finding_type = request.form.get('finding_type')
+            finding_type = normalize_finding_type(request.form.get('finding_type'))
             finding_text = request.form.get('finding_text', '').strip()
-        
-        # Normalize types (convert green_flag to green, etc. if needed)
-        if 'must_exit' in finding_type: finding_type = 'must_exit'
-        elif 'green' in finding_type: finding_type = 'green'
-        elif 'red' in finding_type: finding_type = 'red'
-        
-        if not finding_text:
-            return json_error('Finding text is required')
 
         if not finding_text:
             return json_error('Finding text is required')
-
-        if finding_type == 'green':
-            project.green_flags = (project.green_flags or []) + [finding_text]
-        elif finding_type == 'red':
-            project.red_flags = (project.red_flags or []) + [finding_text]
-        elif finding_type == 'must_exit':
-            project.must_exit_criteria = (project.must_exit_criteria or []) + [finding_text]
-        else:
+        if not finding_type:
             return json_error('Invalid finding type')
-        
+
+        record_finding(project.user_id, project.company_id, finding_type, finding_text,
+                       project_id=project.id)
         project.last_worked_at = now_utc()
         db.session.commit()
-        
-        # If it was a form submisison, redirect back. If AJAX, return JSON.
+
+        message = f'{FINDING_LABELS[finding_type]} added'
         if not request.is_json:
-            flash(f'{finding_type.capitalize()} flag added!', 'success')
+            flash(f'{message}!', 'success')
             return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
-            
-        return json_success(f'{finding_type.capitalize()} flag added')
 
-    except Exception as e:
-        db.session.rollback()
-        return json_error(str(e), status_code=500)
-
-
-@research_workflow_bp.route('/projects/<int:project_id>/remove-finding', methods=['POST'])
-@login_required
-def remove_finding(project_id):
-    """Remove a finding from a project"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        return json_unauthorized('Access denied')
-    
-    project.last_worked_at = now_utc()
-    try:
-        data = request.get_json()
-        finding_type = data.get('type')
-        finding_index = int(data.get('index', 0))
-
-        if finding_type == 'green' and project.green_flags:
-            if 0 <= finding_index < len(project.green_flags):
-                flags = list(project.green_flags)
-                flags.pop(finding_index)
-                project.green_flags = flags
-        elif finding_type == 'red' and project.red_flags:
-            if 0 <= finding_index < len(project.red_flags):
-                flags = list(project.red_flags)
-                flags.pop(finding_index)
-                project.red_flags = flags
-        elif finding_type == 'must_exit' and project.must_exit_criteria:
-            if 0 <= finding_index < len(project.must_exit_criteria):
-                criteria = list(project.must_exit_criteria)
-                criteria.pop(finding_index)
-                project.must_exit_criteria = criteria
-
-        db.session.commit()
-        return json_success('Finding removed')
+        return json_success(message)
 
     except Exception as e:
         db.session.rollback()

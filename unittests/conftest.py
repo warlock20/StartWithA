@@ -45,6 +45,7 @@ from app.models.journal import JournalEntry
 from app.models.idea_pipeline import MistakeLog
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.portfolio import PortfolioPosition
+from app.services.findings import add_finding
 
 _BASE_URL = make_url(Config.SQLALCHEMY_DATABASE_URI)
 _SCRATCH_URL = _BASE_URL.set(database=_BASE_URL.database + '_companion_test')
@@ -284,11 +285,14 @@ def seed_company_completed_project(app_context):
     template = ResearchTemplate(user_id=user.id, name='T', workflow_steps=[])
     db.session.add(template)
     db.session.flush()
-    db.session.add(ResearchProject(
+    project = ResearchProject(
         user_id=user.id, company_id=company.id, template_id=template.id,
         status='completed', decision='invest',
-        red_flags=['high debt load'], green_flags=['strong cash flow'],
-        investment_thesis='Durable moat with pricing power.'))
+        investment_thesis='Durable moat with pricing power.')
+    db.session.add(project)
+    db.session.flush()
+    add_finding(user.id, company.id, 'red_flag', 'high debt load', project_id=project.id)
+    add_finding(user.id, company.id, 'green_flag', 'strong cash flow', project_id=project.id)
     db.session.commit()
     return user.id, company.id
 
