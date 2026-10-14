@@ -17,6 +17,7 @@
 """Knowledge Hub company navigation (#354)."""
 
 import os
+import re
 import sys
 from datetime import timedelta
 
@@ -287,3 +288,25 @@ def test_search_matches_company_name(_app, app_context):
         '/journal/knowledge-hub?type=all&q=hermes').get_data(as_text=True)
 
     assert 'Pricing power note' in html
+
+
+def test_tab_counts_follow_the_company_filter(_app, app_context):
+    user = _make_user()
+    selected = _make_company(user.id, 'Selected Co', 'SEL')
+    other = _make_company(user.id, 'Other Co', 'OTH')
+    _research(user.id, selected.id)
+    _wisdom(user.id, selected.id)
+    _research(user.id, other.id)
+    _mistake(user.id, other.id)
+    db.session.commit()
+    client = _client_for(_app, user)
+
+    scoped = client.get(
+        f'/journal/knowledge-hub?type=all&company_id={selected.id}').get_data(as_text=True)
+    unscoped = client.get('/journal/knowledge-hub?type=all').get_data(as_text=True)
+
+    def tab_counts(html):
+        return re.findall(r'<span class="cc-tab-count">(\d+)</span>', html)
+
+    assert tab_counts(scoped) == ['2', '1', '1', '0']    # all, research, wisdom, mistakes
+    assert tab_counts(unscoped) == ['4', '2', '1', '1']

@@ -973,10 +973,17 @@ def knowledge_hub():
             all_tags.update(note.topic_tags)
     all_tags = sorted(all_tags)
 
-    # Type counts for tabs
-    all_research_count = current_user.journal_entries.filter_by(is_archived=False).count()
-    all_wisdom_count = current_user.learning_notes.count()
-    all_mistake_count = MistakeLog.query.filter_by(user_id=current_user.id).count()
+    # Type counts for tabs — scoped to the selected company, like the cards
+    research_counts = current_user.journal_entries.filter_by(is_archived=False)
+    wisdom_counts = current_user.learning_notes
+    mistake_counts = MistakeLog.query.filter_by(user_id=current_user.id)
+    if company_filter:
+        research_counts = research_counts.filter_by(company_id=company_filter)
+        wisdom_counts = wisdom_counts.filter_by(company_id=company_filter)
+        mistake_counts = mistake_counts.filter_by(company_id=company_filter)
+    all_research_count = research_counts.count()
+    all_wisdom_count = wisdom_counts.count()
+    all_mistake_count = mistake_counts.count()
     total_count = all_research_count + all_wisdom_count + all_mistake_count
 
     type_counts = {
