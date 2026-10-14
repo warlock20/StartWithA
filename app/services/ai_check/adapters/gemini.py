@@ -81,7 +81,7 @@ class GeminiAdapter(ProviderAdapter):
         self._check_capabilities(call)
         texts = prompt_service.get_prompt_data('research', 'ai_check_search_phase')
         first = self._first_turn(call)
-        first[-1].parts.append(genai_types.Part(text=texts['search_instruction']))
+        first[-1].parts.append(genai_types.Part(text=texts['search_instruction'].format(search_cap=call.search_cap)))
         _, findings, search_usage = self._generate(call, first, self._config(call, search=True), on_usage)
         tool_names = ' or '.join(sorted(tool['name'] for tool in call.tools))
         transcript = self._append_user(first + ([findings] if findings else []),

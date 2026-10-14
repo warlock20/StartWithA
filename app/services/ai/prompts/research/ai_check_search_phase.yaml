@@ -6,9 +6,11 @@ version: "1.0"
 category: "research"
 last_modified: "2026-10-14"
 
-# Appended to the stage's request in the search-only step.
+# Appended to the stage's request in the search-only step. {search_cap}: the call's search budget
+# (Gemini has no per-request cap, so the budget is stated here).
 search_instruction: >-
-  First, search the web for what this task needs. Do not answer from memory. Write up what you
+  First, search the web for what this task needs. Use at most {search_cap} web searches; make
+  each one count. Do not answer from memory. Write up what you
   found as plain text: every source with its exact URL as it appears in the search results, and
   every figure with the source it came from. The structured answer comes in the next step.
 
