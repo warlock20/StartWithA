@@ -17,7 +17,7 @@
 from datetime import datetime, timedelta, date
 from app import db
 from app.models import (JournalEntry, LearningNote,
-                       JournalTemplate, Company)
+                       Company)
 import re
 from collections import Counter
 from sqlalchemy import text
@@ -195,76 +195,3 @@ def get_journal_statistics(user_id):
         'recent_entries': recent_entries,
         'total_lessons': total_lessons,
     }
-
-def create_default_templates():
-    """
-    Create default journal templates for common use cases.
-    """
-    templates = [
-        {
-            'name': 'Earnings Call Notes',
-            'entry_type': 'earnings_reaction',
-            'description': 'Structured template for earnings call analysis',
-            'prompts': [
-                'What were the key financial metrics?',
-                'What surprised you positively?',
-                'What concerned you?',
-                'How did management sound?',
-                'What are the forward-looking statements?',
-                'Action items after this call?'
-            ]
-        },
-        {
-            'name': 'Market Observation',
-            'entry_type': 'market_thought',
-            'description': 'Capture thoughts about market conditions',
-            'prompts': [
-                'What pattern or trend did you observe?',
-                'What might this mean for your portfolio?',
-                'Historical precedents?',
-                'Contrarian view?',
-                'Action items?'
-            ]
-        },
-        {
-            'name': 'Learning from Mistake',
-            'entry_type': 'lesson_learned',
-            'description': 'Document and learn from investment mistakes',
-            'prompts': [
-                'What was the mistake?',
-                'What was your thought process at the time?',
-                'What did you miss or misjudge?',
-                'What would you do differently?',
-                'How can you avoid this in future?',
-                'What systematic change should you make?'
-            ]
-        }
-    ]
-    
-    created_templates = []
-    for template_data in templates:
-        template = JournalTemplate.query.filter_by(
-            name=template_data['name'],
-            user_id=None  # System templates
-        ).first()
-        
-        if not template:
-            template = JournalTemplate(
-                name=template_data['name'],
-                entry_type=template_data['entry_type'],
-                description=template_data['description'],
-                prompts=template_data['prompts'],
-                is_public=True
-            )
-            db.session.add(template)
-            created_templates.append(template)
-    
-    if created_templates:
-        try:
-            db.session.commit()
-            return created_templates
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error creating templates: {e}")
-    
-    return []

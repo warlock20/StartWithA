@@ -21,8 +21,7 @@ from app.models import (JournalEntry, ThesisEvolution, LearningNote,
                        JournalTemplate, JournalAttachment, Company,
                        ResearchProject, MistakeLog)
 from app.journal_enhanced import journal_enhanced_bp
-from app.journal_enhanced.utils import (extract_tags_from_content, get_related_entries,
-                                       create_default_templates)
+from app.journal_enhanced.utils import extract_tags_from_content, get_related_entries
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.blocknote_utils import blocknote_to_text
@@ -887,29 +886,6 @@ def knowledge_hub():
                          tag_filter=tag_filter,
                          starred_only=starred_only,
                          sort_by=sort_by)
-
-@journal_enhanced_bp.route('/templates')
-@login_required
-def manage_templates():
-   """Manage journal templates"""
-   # Get user's templates
-   user_templates = current_user.journal_templates.filter_by(is_active=True).all()
-   
-   # Get public templates
-   public_templates = JournalTemplate.query.filter_by(
-       user_id=None,
-       is_public=True,
-       is_active=True
-   ).all()
-   
-   # Create default templates if none exist
-   if not public_templates:
-       public_templates = create_default_templates()
-   
-   return render_template('manage_templates.html',
-                         title="Journal Templates",
-                         user_templates=user_templates,
-                         public_templates=public_templates)
 
 @journal_enhanced_bp.route('/export')
 @login_required

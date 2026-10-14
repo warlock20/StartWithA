@@ -380,39 +380,6 @@ def convert_exit_criteria(project_id):
         return json_error(str(e), status_code=500)
 
 
-@research_workflow_bp.route('/projects/<int:project_id>/update-thesis', methods=['POST'])
-@login_required
-def update_thesis(project_id):
-    """Update the evolving investment thesis"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        return json_unauthorized('Access denied')
-
-    try:
-        # Support both form POST and JSON
-        project.last_worked_at = now_utc()
-        if request.is_json:
-            thesis = request.get_json().get('thesis', '').strip()
-        else:
-            thesis = request.form.get('investment_thesis', '').strip()
-
-        project.investment_thesis = thesis
-        db.session.commit()
-
-        if request.is_json:
-            return json_success('Thesis updated')
-        flash('Thesis updated', 'success')
-        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
-
-    except Exception as e:
-        db.session.rollback()
-        if request.is_json:
-            return json_error(str(e), status_code=500)
-        flash(f'Error updating thesis: {str(e)}', 'error')
-        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
-
-
 @research_workflow_bp.route('/projects/<int:project_id>/update-summary', methods=['POST'])
 @login_required
 def update_summary(project_id):
