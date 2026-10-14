@@ -15,7 +15,7 @@
                 <div class="cc-search-wrapper">
                     <i class="bi bi-search cc-search-icon"></i>
                     <input type="text" name="q" class="cc-search-input" id="ccSearchInput"
-                        placeholder="Search notes, companies, tags..."
+                        placeholder="Search notes, companies, tickers..."
                         value="{{ search_query }}" autocomplete="off">
                     {% if search_query %}
                     <button type="button" class="cc-search-clear" onclick="clearSearch()">
@@ -46,7 +46,12 @@
                 ('mistake', 'Mistakes', 'bi-exclamation-triangle-fill'),
             ] %}
             {% for key, label, icon in tabs %}
-            <a href="?type={{ key }}{% if search_query %}&q={{ search_query }}{% endif %}{% if company_filter %}&company_id={{ company_filter }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}{% if starred_only %}&starred=1{% endif %}{% if sort_by != 'date' %}&sort={{ sort_by }}{% endif %}"
+            <a href="{{ url_for('journal_enhanced.knowledge_hub', type=key,
+                                q=search_query or None,
+                                company_id=company_filter,
+                                tag=tag_filter,
+                                starred=1 if starred_only else None,
+                                sort=sort_by if sort_by != 'date' else None) }}"
                class="cc-tab {{ 'active' if content_type == key }}">
                 <i class="bi {{ icon }}"></i>
                 <span>{{ label }}</span>
@@ -61,7 +66,7 @@
         <select class="cc-filter-select" onchange="applyFilter('company_id', this.value)">
             <option value="">All Companies</option>
             {% for company in companies %}
-            <option value="{{ company.id }}" {{ 'selected' if company_filter == company.id }}>{{ company.name }}</option>
+            <option value="{{ company.id }}" {{ 'selected' if company_filter == company.id }}>{{ company.name }} ({{ company.total }})</option>
             {% endfor %}
         </select>
         <select class="cc-filter-select" onchange="applyFilter('tag', this.value)">
@@ -81,6 +86,10 @@
             <option value="type" {{ 'selected' if sort_by == 'type' }}>By Type</option>
         </select>
     </div>
+
+    {% if company_summary %}
+    {% include 'knowledge_hub/_company_header.html' %}
+    {% endif %}
 
     {# ── Card Grid ── #}
     <div class="cc-content">
@@ -166,6 +175,16 @@
         window.location.href = url.toString();
     }
 
+    // dataset values are already HTML-decoded, so escape before innerHTML
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     // Detail slide-over
     function showDetail(type, id) {
         const overlay = document.getElementById('ccOverlay');
@@ -176,14 +195,14 @@
         const card = document.querySelector(`[data-item-id="${type}-${id}"]`);
         if (!card) return;
 
-        const title = card.dataset.title || 'Untitled';
+        const title = escapeHtml(card.dataset.title || 'Untitled');
         const itemType = card.dataset.type;
-        const date = card.dataset.date;
-        const company = card.dataset.company || '';
-        const preview = card.dataset.preview || '';
-        const author = card.dataset.author || '';
+        const date = escapeHtml(card.dataset.date || '');
+        const company = escapeHtml(card.dataset.company || '');
+        const preview = escapeHtml(card.dataset.preview || '');
+        const author = escapeHtml(card.dataset.author || '');
         const severity = card.dataset.severity || '';
-        const tags = card.dataset.tags ? card.dataset.tags.split(',').filter(t => t) : [];
+        const tags = card.dataset.tags ? card.dataset.tags.split(',').filter(t => t).map(escapeHtml) : [];
 
         const typeInfo = {
             'research': { label: 'Research', color: '#2563eb', bg: '#eff6ff', icon: 'bi-journal-text' },
