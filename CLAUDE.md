@@ -23,3 +23,11 @@ Every new `.py` file MUST start with this license header:
 ```
 
 This is enforced by CI — PRs will fail without it.
+
+## Authorship
+
+Never add Claude as an author or co-author of anything that goes to the repository or GitHub:
+
+- Commits are authored and committed as `Kiran Mathews <kiranmathews20@gmail.com>`. Set `git config user.name "Kiran Mathews"` and `git config user.email "kiranmathews20@gmail.com"` before committing.
+- No `Co-Authored-By: Claude`, `Claude-Session:` or similar trailers in commit messages.
+- No "Generated with Claude Code" lines, claude.ai session links or other Claude attribution in PR titles, PR descriptions, issues or comments. If a tool appends one automatically, edit it out afterwards.
