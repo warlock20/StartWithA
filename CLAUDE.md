@@ -99,3 +99,12 @@ Page layout conventions are in `.claude/skills/page-styling.md`. Every page wrap
 ## Code rules
 - All imports go at the top of the file, never inside functions. This includes tests, `conftest.py` and fixtures. The only exceptions are the existing lazy imports of heavy or optional dependencies (`anthropic`, `sentence_transformers`) and the circular-import guards in `create_app`.
 - Never use yfinance for ISINs: it returns a valid but wrong ISIN for some tickers.
+This is enforced by CI — PRs will fail without it.
+
+## Authorship
+
+Never add Claude as an author or co-author of anything that goes to the repository or GitHub:
+
+- Commits are authored and committed as `Kiran Mathews <kiranmathews20@gmail.com>`. Set `git config user.name "Kiran Mathews"` and `git config user.email "kiranmathews20@gmail.com"` before committing.
+- No `Co-Authored-By: Claude`, `Claude-Session:` or similar trailers in commit messages.
+- No "Generated with Claude Code" lines, claude.ai session links or other Claude attribution in PR titles, PR descriptions, issues or comments. If a tool appends one automatically, edit it out afterwards.
