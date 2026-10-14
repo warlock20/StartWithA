@@ -16,10 +16,16 @@
 
 """Knowledge Hub company navigation (#354)."""
 
+import html
+import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 from datetime import timedelta
+
+import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -255,7 +261,7 @@ def test_company_filter_shows_summary_grouped_by_type(_app, app_context):
     assert 'This Week' not in html  # grouped by type, not date
 
 
-def test_note_title_is_escaped(_app, app_context):
+def test_note_title_is_escaped_in_the_page(_app, app_context):
     user = _make_user()
     company = _make_company(user.id)
     _research(user.id, company.id, title='<script>alert(1)</script>')
@@ -264,7 +270,61 @@ def test_note_title_is_escaped(_app, app_context):
     html = _client_for(_app, user).get('/journal/knowledge-hub?type=all').get_data(as_text=True)
 
     assert '<script>alert(1)</script>' not in html
-    assert 'escapeHtml(card.dataset.title' in html
+
+
+# Runs the page's own inline script with just enough of a DOM for showDetail():
+# the card it looks up carries the dataset decoded from the rendered HTML.
+_SHOW_DETAIL_HARNESS = r"""
+const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+const elements = {};
+const element = id => elements[id] || (elements[id] = {
+    innerHTML: '', classList: {add() {}, remove() {}}, addEventListener() {}, focus() {},
+});
+const card = {dataset: input.dataset};
+global.document = {addEventListener() {}, getElementById: element, querySelector: () => card};
+global.window = {location: {href: 'http://localhost/'}};
+eval(input.script);
+showDetail(input.dataset.type, Number(input.dataset.itemId.split('-')[1]));
+process.stdout.write(JSON.stringify({
+    header: element('ccDetailHeader').innerHTML,
+    body: element('ccDetailBody').innerHTML,
+}));
+"""
+
+
+def _browser_dataset(card_html):
+    """data-* attributes as the browser exposes them: HTML-decoded, camelCased."""
+    return {
+        re.sub(r'-(\w)', lambda m: m.group(1).upper(), name): html.unescape(value)
+        for name, value in re.findall(r'data-([\w-]+)="([^"]*)"', card_html)
+    }
+
+
+@pytest.mark.skipif(shutil.which('node') is None, reason='needs Node.js to run the page script')
+def test_detail_panel_escapes_note_values(_app, app_context):
+    user = _make_user()
+    company = _make_company(user.id, '<b onmouseover=alert(2)>Evil</b> Co', 'EVIL')
+    _research(user.id, company.id, title='<img src=x onerror=alert(1)>',
+              tags=['<i>tag</i>'])
+    db.session.commit()
+
+    page = _client_for(_app, user).get('/journal/knowledge-hub?type=all').get_data(as_text=True)
+    card_html = re.search(r'<div class="cc-card"(.*?)onclick=', page, re.S).group(1)
+    script = next(block for block in re.findall(r'<script>(.*?)</script>', page, re.S)
+                  if 'function showDetail' in block)
+
+    result = subprocess.run(
+        ['node', '-e', _SHOW_DETAIL_HARNESS],
+        input=json.dumps({'script': script, 'dataset': _browser_dataset(card_html)}),
+        capture_output=True, text=True, check=True, timeout=30)
+    rendered = json.loads(result.stdout)
+    panel = rendered['header'] + rendered['body']
+
+    for raw in ('<img', '<b ', '<i>'):
+        assert raw not in panel
+    assert '&lt;img src=x onerror=alert(1)&gt;' in rendered['header']
+    assert '&lt;b onmouseover=alert(2)&gt;Evil&lt;/b&gt; Co' in rendered['header']
+    assert '&lt;i&gt;tag&lt;/i&gt;' in rendered['body']
 
 
 def test_tab_links_encode_the_search_query(_app, app_context):
@@ -414,3 +474,33 @@ def test_search_works_with_company_and_starred_filters(_app, app_context):
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)
     assert 'moat research' in html and 'moat wisdom' in html
+
+
+def test_search_joins_company_once_per_note_query(_app, app_context):
+    """The company join used for search also eager-loads the company."""
+    from sqlalchemy import event
+
+    user = _make_user()
+    company = _make_company(user.id, 'Hermes International', 'RMS')
+    _research(user.id, company.id, title='Pricing power note')
+    db.session.commit()
+    client = _client_for(_app, user)
+
+    statements = []
+
+    def capture(conn, cursor, statement, *args):
+        statements.append(statement)
+
+    event.listen(db.engine, 'before_cursor_execute', capture)
+    try:
+        html_page = client.get('/journal/knowledge-hub?type=all&q=hermes').get_data(as_text=True)
+    finally:
+        event.remove(db.engine, 'before_cursor_execute', capture)
+
+    assert 'Pricing power note' in html_page
+    note_queries = [s for s in statements
+                    if re.search(r'FROM (journal_entry|learning_note|mistake_log)\b', s)
+                    and 'ILIKE' in s.upper()]
+    assert len(note_queries) == 3
+    for statement in note_queries:
+        assert len(re.findall(r'JOIN company\b', statement)) == 1, statement

@@ -27,7 +27,7 @@ from app.journal_enhanced.utils import (extract_tags_from_content, get_related_e
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.blocknote_utils import blocknote_to_text
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager
 from datetime import datetime, timedelta
 import os
 from werkzeug.utils import secure_filename
@@ -843,12 +843,13 @@ def knowledge_hub():
 
     # --- Query Research Notes (JournalEntry) ---
     if content_type in ['all', 'research']:
+        # One company join serves both eager loading and company-name search.
         research_query = JournalEntry.query.filter_by(
             user_id=current_user.id, is_archived=False
-        ).options(joinedload(JournalEntry.company))
+        ).outerjoin(JournalEntry.company).options(contains_eager(JournalEntry.company))
         if search_query:
             pattern = f'%{search_query}%'
-            research_query = research_query.outerjoin(JournalEntry.company).filter(db.or_(
+            research_query = research_query.filter(db.or_(
                 JournalEntry.title.ilike(pattern),
                 JournalEntry.content.ilike(pattern),
                 JournalEntry.key_insight.ilike(pattern),
@@ -877,10 +878,10 @@ def knowledge_hub():
     if content_type in ['all', 'wisdom']:
         wisdom_query = LearningNote.query.filter_by(
             user_id=current_user.id
-        ).options(joinedload(LearningNote.company))
+        ).outerjoin(LearningNote.company).options(contains_eager(LearningNote.company))
         if search_query:
             pattern = f'%{search_query}%'
-            wisdom_query = wisdom_query.outerjoin(LearningNote.company).filter(db.or_(
+            wisdom_query = wisdom_query.filter(db.or_(
                 LearningNote.title.ilike(pattern),
                 LearningNote.lesson.ilike(pattern),
                 LearningNote.source_author.ilike(pattern),
@@ -911,10 +912,10 @@ def knowledge_hub():
     if content_type in ['all', 'mistake']:
         mistake_query = MistakeLog.query.filter_by(
             user_id=current_user.id
-        ).options(joinedload(MistakeLog.company))
+        ).outerjoin(MistakeLog.company).options(contains_eager(MistakeLog.company))
         if search_query:
             pattern = f'%{search_query}%'
-            mistake_query = mistake_query.outerjoin(MistakeLog.company).filter(db.or_(
+            mistake_query = mistake_query.filter(db.or_(
                 MistakeLog.title.ilike(pattern),
                 MistakeLog.description.ilike(pattern),
                 MistakeLog.lesson_learned.ilike(pattern),
