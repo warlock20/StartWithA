@@ -34,6 +34,9 @@ from app.services.ai.document_processor import (
 from app.services.ai.config import AIProvider
 from app.services.template_loader import get_template_loader, TemplateValidationError
 from app.services.ai import get_available_providers
+from app.services.ai_check.context import (
+    ai_context_from_data, ai_context_from_form, ai_context_from_llm_prompt, ai_context_status,
+)
 
 
 @checklists_bp.route('/')
@@ -326,15 +329,27 @@ def add_checklist_item(checklist_id):
             checklist_id=checklist.id,
             parent_id=parent_id,
             order=new_order,
-            llm_prompt=llm_prompt_text.strip() if llm_prompt_text and llm_prompt_text.strip() else None
+            llm_prompt=llm_prompt_text.strip() if llm_prompt_text and llm_prompt_text.strip() else None,
+            ai_context=_ai_context_for_new_item(request.form.get('bank_item_id'), llm_prompt_text),
         )
         db.session.add(new_item)
         db.session.commit()
         flash('Item added successfully!', 'success')
     else:
         flash('Item text cannot be empty.', 'error')
-        
+
     return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
+
+
+def _ai_context_for_new_item(bank_item_id, llm_prompt_text):
+    """A bank question brings its own AI context (or none, if it was cleared -- the posted
+    llm_prompt may be the bank's stale legacy prompt, so it is never used then); a typed
+    prompt seeds the method otherwise."""
+    if bank_item_id and bank_item_id.isdigit():
+        bank = QuestionBankItem.query.filter_by(id=int(bank_item_id), user_id=current_user.id).first()
+        if bank:
+            return dict(bank.ai_context) if bank.ai_context else None
+    return ai_context_from_llm_prompt(llm_prompt_text)
 
 
 # In app/checklists/routes.py
@@ -432,17 +447,21 @@ def edit_checklist_item(item_id):
     if request.method == 'POST':
         new_text = request.form.get('item_text')
         new_description = request.form.get('description')
-        new_llm_prompt = request.form.get('llm_prompt')
 
         # Basic validation (you can add more)
         if not new_text or not new_text.strip():
             flash('Item text cannot be empty.', 'error')
             # Re-render the form with submitted values (which the template handles via request.form)
-            return render_template('edit_checklist_item.html', title=f"Edit Item: {item_to_edit.text[:30]}...", item=item_to_edit)
+            return render_template(
+                'edit_checklist_item.html', title=f"Edit Item: {item_to_edit.text[:30]}...", item=item_to_edit,
+                ai_context_preview=ai_context_from_form(request.form) if request.method == 'POST' else None,
+                ai_status=ai_context_status(ai_context_from_form(request.form) if request.method == 'POST'
+                                            else item_to_edit.ai_context),
+            )
 
         item_to_edit.text = new_text.strip()
         item_to_edit.description = new_description.strip() if new_description and new_description.strip() else None
-        item_to_edit.llm_prompt = new_llm_prompt.strip() if new_llm_prompt and new_llm_prompt.strip() else None
+        item_to_edit.ai_context = ai_context_from_form(request.form)
 
         try:
             db.session.commit()
@@ -454,9 +473,14 @@ def edit_checklist_item(item_id):
         return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
     # GET request: Display the form pre-filled with the item's current data
-    return render_template('edit_checklist_item.html',
-                           title=f"Edit Item: {item_to_edit.text[:30]}...",
-                           item=item_to_edit)
+    return render_template(
+        'edit_checklist_item.html',
+        title=f"Edit Item: {item_to_edit.text[:30]}...",
+        item=item_to_edit,
+        ai_context_preview=ai_context_from_form(request.form) if request.method == 'POST' else None,
+        ai_status=ai_context_status(ai_context_from_form(request.form) if request.method == 'POST'
+                                    else item_to_edit.ai_context),
+    )
 
 
 # =====================================
@@ -592,6 +616,7 @@ def process_document(import_id):
                 {
                     'text': item.text,
                     'llm_prompt': item.llm_prompt,
+                    'ai_context': item.ai_context,
                     'category': item.category,
                     'confidence': item.confidence,
                     'parent_id': item.parent_id,
@@ -687,7 +712,8 @@ def create_from_import(import_id):
                 text=item_data['text'],
                 checklist_id=new_checklist.id,
                 order=item_data.get('order', 0),
-                llm_prompt=item_data.get('llm_prompt')
+                llm_prompt=item_data.get('llm_prompt'),
+                ai_context=ai_context_from_data(item_data),
             )
             db.session.add(checklist_item)
 

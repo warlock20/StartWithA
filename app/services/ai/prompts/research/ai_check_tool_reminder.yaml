@@ -1,0 +1,10 @@
+# AI check — sent once when Claude ends a turn without calling the required tool.
+name: "ai_check_tool_reminder"
+description: "Reminds Claude to report its result through the required tool"
+version: "1.0"
+category: "research"
+last_modified: "2026-09-27"
+
+template: |
+  You ended without calling the required tool. Call {tool_names} now with your result.
+  Do not answer in prose.

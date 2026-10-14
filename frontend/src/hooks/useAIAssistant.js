@@ -96,7 +96,7 @@ export function useAIAssistant({
     onComplete: useCallback((result) => {
       setPollEnabled(false);
       setStatus('completed');
-      const text = modeRef.current === 'runprompt' ? result.ai_suggestion : result.response;
+      const text = result.response;
       setResponse(text);
       setFeedbackId(result.feedback_id || null);
       // Cache against the answer it was generated from, so switching modes and
@@ -253,35 +253,6 @@ export function useAIAssistant({
     return true;
   }
 
-  // ── Run Prompt (checklist-specific) ──
-  async function runPrompt({ analysisId, itemId }) {
-    setMode('runprompt');
-    modeRef.current = 'runprompt';
-    setStatus('loading');
-    setResponse(null);
-    setFeedbackId(null);
-    setError(null);
-    setTokenLimitData(null);
-
-    try {
-      const resp = await apiPost(
-        `/research/workflow/checklist/${analysisId}/item/${itemId}/ai_analyze`,
-        { selected_document_ids: [] },
-      );
-
-      if (resp.success && resp.task_id) {
-        startTaskPolling(resp.task_id, 'runprompt', '/research/workflow/checklist/ai_analyze/status');
-      } else {
-        setStatus('failed');
-        setError(resp.message || 'Failed to start analysis.');
-      }
-    } catch (err) {
-      setStatus('failed');
-      setError('Network error. Please try again.');
-      console.error('Run Prompt error:', err);
-    }
-  }
-
   // ── Regenerate ──
   async function regenerate({ useWebSearch } = {}) {
     if (!feedbackId) return;
@@ -345,7 +316,6 @@ export function useAIAssistant({
 
     // Actions
     triggerMode,
-    runPrompt,
     regenerate,
     dismiss,
     resetState,

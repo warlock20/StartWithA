@@ -90,7 +90,9 @@ class AIModel(Enum):
     CLAUDE_HAIKU = ("claude-3-5-haiku-20241022", AIProvider.CLAUDE)     # Fast, cost-effective
     CLAUDE_SONNET = ("claude-sonnet-4-20250514", AIProvider.CLAUDE)     # Good balance (Sonnet 4)
     CLAUDE_OPUS = ("claude-opus-4-20250514", AIProvider.CLAUDE)         # Best quality (Opus 4)
-    
+    CLAUDE_SONNET_5 = ("claude-sonnet-5", AIProvider.CLAUDE)          # AI check: Gather/Extract
+    CLAUDE_OPUS_5 = ("claude-opus-5", AIProvider.CLAUDE)              # AI check: Analyze
+
     # OpenAI models (for future use)
     GPT4 = ("gpt-4", AIProvider.OPENAI)
     GPT4_TURBO = ("gpt-4-turbo", AIProvider.OPENAI)
@@ -98,8 +100,11 @@ class AIModel(Enum):
     GPT35_TURBO = ("gpt-3.5-turbo", AIProvider.OPENAI)
 
     # DeepSeek models
-    DEEPSEEK_V3 = ("deepseek-chat", AIProvider.DEEPSEEK)          # V3 - general purpose, cost-effective
-    DEEPSEEK_R1 = ("deepseek-reasoner", AIProvider.DEEPSEEK)      # R1 - advanced reasoning, chain-of-thought
+    # DeepSeek V4 (deepseek-chat / deepseek-reasoner were retired on 2026-07-24; both pointed at V4 Flash)
+    DEEPSEEK_FLASH = ("deepseek-flash", AIProvider.DEEPSEEK)
+    DEEPSEEK_V4_PRO = ("deepseek-v4-pro", AIProvider.DEEPSEEK)
+    DEEPSEEK_V3 = ("deepseek-flash", AIProvider.DEEPSEEK)   # alias of DEEPSEEK_FLASH, kept for old callers
+    DEEPSEEK_R1 = ("deepseek-flash", AIProvider.DEEPSEEK)   # alias of DEEPSEEK_FLASH, kept for old callers
     
     def __init__(self, model_id: str, provider: AIProvider):
         self.model_id = model_id
@@ -153,6 +158,8 @@ class AIModel(Enum):
             'claude-opus': cls.CLAUDE_OPUS,
             'claude-opus-4': cls.CLAUDE_OPUS,
             'claude-opus-4-20250514': cls.CLAUDE_OPUS,
+            'claude-sonnet-5': cls.CLAUDE_SONNET_5,
+            'claude-opus-5': cls.CLAUDE_OPUS_5,
 
             # OpenAI
             'gpt-4': cls.GPT4,
@@ -161,11 +168,14 @@ class AIModel(Enum):
             'gpt-3.5-turbo': cls.GPT35_TURBO,
 
             # DeepSeek
-            'deepseek-chat': cls.DEEPSEEK_V3,
-            'deepseek-v3': cls.DEEPSEEK_V3,
-            'deepseek': cls.DEEPSEEK_V3,  # Alias: default DeepSeek model
-            'deepseek-reasoner': cls.DEEPSEEK_R1,
-            'deepseek-r1': cls.DEEPSEEK_R1,
+            'deepseek-flash': cls.DEEPSEEK_FLASH,
+            'deepseek-v4-flash': cls.DEEPSEEK_FLASH,
+            'deepseek-v4-pro': cls.DEEPSEEK_V4_PRO,
+            'deepseek-chat': cls.DEEPSEEK_FLASH,
+            'deepseek-v3': cls.DEEPSEEK_FLASH,
+            'deepseek': cls.DEEPSEEK_FLASH,  # Alias: default DeepSeek model
+            'deepseek-reasoner': cls.DEEPSEEK_FLASH,
+            'deepseek-r1': cls.DEEPSEEK_FLASH,
         }
         
         result = model_map.get(model_name.lower())

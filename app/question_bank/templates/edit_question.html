@@ -40,15 +40,9 @@
                             </div>
 
                             <div class="capture-input-group">
-                                <label class="capture-label" for="llm_prompt">
-                                    AI Assistant Prompt <span style="color: var(--gray-400); font-weight: 400;">(optional)</span>
-                                </label>
-                                <textarea name="llm_prompt"
-                                          id="llm_prompt"
-                                          class="capture-textarea"
-                                          rows="3"
-                                          placeholder="e.g., Analyze the company's competitive moat focusing on network effects and switching costs">{{ question.llm_prompt if question.llm_prompt }}</textarea>
-                                <p class="capture-input-help">Provide specific instructions for AI to help answer this question</p>
+                                {% with ctx=question.ai_context, ai_status=ai_status %}
+                                  {% include 'components/_ai_context_fields.html' %}
+                                {% endwith %}
                             </div>
                         </div>
 

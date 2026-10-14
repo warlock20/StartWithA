@@ -60,10 +60,12 @@ def profile_settings():
     
     return render_template(
         'profile_settings.html',
+        active_section='profile',
         profiles=profiles,
         user_profile_info=user_profile_info,
         configs_by_category=configs_by_category,
-        user_config=user_config
+        user_config=user_config,
+        comparison_rows=_comparison_rows(profiles, configs_by_category),
     )
 
 
@@ -206,6 +208,25 @@ def api_get_config_with_metadata(key):
 # ============================================
 # HELPERS
 # ============================================
+
+def _comparison_rows(profiles, configs_by_category):
+    """One row per setting any profile overrides, with each profile's value."""
+    configs = {c['key']: c for group in configs_by_category.values() for c in group}
+    keys = sorted({key for p in profiles for key in (p.get('config_overrides') or {})})
+    rows = []
+    for key in keys:
+        config = configs.get(key, {})
+        suffix = '%' if config.get('data_type') == 'percent' else ''
+        rows.append({
+            'label': key.replace('_', ' ').capitalize(),
+            'description': config.get('description'),
+            'values': [
+                f"{p['config_overrides'][key]}{suffix}" if key in (p.get('config_overrides') or {}) else '—'
+                for p in profiles
+            ],
+        })
+    return rows
+
 
 def _parse_value(value_str: str):
     """Parse string value to appropriate type."""

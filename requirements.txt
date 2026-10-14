@@ -25,12 +25,15 @@ PyMuPDF
 python-docx
 openpyxl
 beautifulsoup4
+httpx==0.28.1
+genai-prices==0.1.11
 weasyprint
 
 # APIs & Integrations
 google-genai==2.19.0
 openai
-anthropic>=0.40.0
+# AI check request shapes: run scripts/ai_check_probe.py before bumping the anthropic pin
+anthropic>=0.75.0,<1.0
 requests
 secedgar
 PyYAML
