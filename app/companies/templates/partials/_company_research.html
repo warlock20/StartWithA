@@ -1,4 +1,5 @@
-{# Research Tab — Sidebar navigation + scoped content panels #}
+{# Research Tab — research work (summary, questions, notes, findings) and records
+   (journal, documents, annotations) in one sidebar. Replaces the old Library tab. #}
 
 <div class="settings-layout">
     <!-- LEFT SUB-NAV -->
@@ -14,8 +15,15 @@
         <button class="settings-nav-item research-nav-item" data-research-section="qa" type="button">
             <i class="bi bi-chat-square-text"></i>
             <div>
-                <div class="settings-nav-title">Q&A</div>
+                <div class="settings-nav-title">Questions</div>
                 <div class="settings-nav-hint">Research questions & answers</div>
+            </div>
+        </button>
+        <button class="settings-nav-item research-nav-item" data-research-section="notes" type="button">
+            <i class="bi bi-file-earmark-text"></i>
+            <div>
+                <div class="settings-nav-title">Research Notes</div>
+                <div class="settings-nav-hint">Free-form notes on the company</div>
             </div>
         </button>
         <button class="settings-nav-item research-nav-item" data-research-section="findings" type="button">
@@ -23,6 +31,29 @@
             <div>
                 <div class="settings-nav-title">Findings</div>
                 <div class="settings-nav-hint">Red & green flags, exit rules</div>
+            </div>
+        </button>
+
+        <div class="settings-sidebar-label settings-sidebar-label-group">Records</div>
+        <button class="settings-nav-item research-nav-item" data-research-section="journal" type="button">
+            <i class="bi bi-journal-bookmark"></i>
+            <div>
+                <div class="settings-nav-title">Journal</div>
+                <div class="settings-nav-hint">Timestamped observations</div>
+            </div>
+        </button>
+        <button class="settings-nav-item research-nav-item" data-research-section="documents" type="button">
+            <i class="bi bi-folder2-open"></i>
+            <div>
+                <div class="settings-nav-title">Documents</div>
+                <div class="settings-nav-hint">SEC filings, resources, financials</div>
+            </div>
+        </button>
+        <button class="settings-nav-item research-nav-item" data-research-section="annotations" type="button">
+            <i class="bi bi-pin-angle"></i>
+            <div>
+                <div class="settings-nav-title">Annotations</div>
+                <div class="settings-nav-hint">Document pins & highlights</div>
             </div>
         </button>
     </div>
@@ -150,6 +181,11 @@
             {% endif %}
         </div>
 
+        <!-- ====== SECTION: Research Notes ====== -->
+        <div class="research-section" id="research-notes">
+            {% include 'partials/_company_notes.html' %}
+        </div>
+
         <!-- ====== SECTION: Findings ====== -->
         <div class="research-section" id="research-findings">
             {% if not research_project %}
@@ -193,6 +229,21 @@
                 </div>
                 {% endfor %}
             </div>
+        </div>
+
+        <!-- ====== SECTION: Journal ====== -->
+        <div class="research-section" id="research-journal">
+            {% include 'partials/_company_journal.html' %}
+        </div>
+
+        <!-- ====== SECTION: Documents ====== -->
+        <div class="research-section" id="research-documents">
+            {% include 'partials/_company_documents.html' %}
+        </div>
+
+        <!-- ====== SECTION: Annotations ====== -->
+        <div class="research-section" id="research-annotations">
+            {% include 'partials/_company_annotations.html' %}
         </div>
 
     </div>

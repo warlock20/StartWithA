@@ -232,11 +232,6 @@
             {% include 'partials/_company_research.html' %}
         </div>
 
-        <!-- Library (Documents + Notes + Journal) -->
-        <div class="unified-tab-panel" id="panel-library">
-            {% include 'partials/_company_library.html' %}
-        </div>
-
         <!-- Transactions (portfolio only) -->
         {% if company_state == 'portfolio' %}
         <div class="unified-tab-panel" id="panel-transactions">
@@ -346,7 +341,7 @@
                     {% endif %}
                     <label class="export-component-option">
                         <input type="checkbox" name="export_notes" value="1" checked>
-                        <span><i class="bi bi-file-earmark-text"></i> Company Notes</span>
+                        <span><i class="bi bi-file-earmark-text"></i> Research Notes</span>
                     </label>
                     {% if research_project %}
                     <label class="export-component-option">
@@ -511,7 +506,6 @@ window.companyConfig = {
                     { type: 'tab', key: 'timeline', label: 'Timeline', icon: 'bi-list-ul', count: {{ timeline_events|length if timeline_events else 0 }} },
                     { type: 'separator' },
                     { type: 'tab', key: 'research', label: 'Research', icon: 'bi-microscope' },
-                    { type: 'tab', key: 'library', label: 'Library', icon: 'bi-collection' },
                     { type: 'separator', auto: true },
                     {% if company_state == 'portfolio' %}
                     { type: 'tab', key: 'transactions', label: 'Transactions', icon: 'bi-arrow-left-right', count: {{ transaction_count or 0 }} },
@@ -537,7 +531,7 @@ window.companyConfig = {
             }
         });
 
-        document.addEventListener('library-section-changed', function(e) {
+        document.addEventListener('research-section-changed', function(e) {
             var sectionId = e.detail.sectionId;
             if (sectionId === 'notes' && !notesInitialized) {
                 initNotesEditor();

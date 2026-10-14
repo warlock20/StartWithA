@@ -5,28 +5,33 @@ import { useState, useEffect, useRef } from 'react';
  *
  * Replaces the tab switching logic from company-dashboard.js (lines 28-158).
  * Panels stay as Jinja2-rendered HTML; this component toggles their `active`
- * class. Library and research sub-nav click handlers are attached via bridge
- * pattern (useEffect on DOM elements).
+ * class. Research sub-nav click handlers are attached via bridge pattern
+ * (useEffect on DOM elements).
+ *
+ * The old Library tab (documents, notes, journal, annotations) is now part of
+ * Research; `#library/<section>` links and switchToTab('documents') etc. land
+ * on the matching Research section.
  *
  * Dispatches custom events for lazy-init coordination with the remaining
  * vanilla JS in company-dashboard.js:
  *   - `tab-changed` → { tabId }
- *   - `library-section-changed` → { sectionId }
  *   - `research-section-changed` → { sectionId }
  *
  * Props (via config):
  *   items: Array of { type: 'tab'|'separator', key?, label?, icon?, count?, auto? }
  */
+// Sections that used to live on the Library tab
+const FORMER_LIBRARY_SECTIONS = ['documents', 'notes', 'journal', 'annotations'];
+
 export function TabRouter({ items }) {
   const [activeTab, setActiveTab] = useState('overview');
-  const [librarySection, setLibrarySection] = useState('documents');
   const [researchSection, setResearchSection] = useState('summary');
   const handlersRef = useRef({});
 
   // Keep handlers ref current for global functions
   handlersRef.current = {
     switchToTab: handleSwitchToTab,
-    switchLibrarySection: (s) => setLibrarySection(s),
+    switchLibrarySection: (s) => handleSwitchToTab(s),
     switchResearchSection: (s) => setResearchSection(s),
   };
 
@@ -37,18 +42,18 @@ export function TabRouter({ items }) {
     const hash = window.location.hash.substring(1);
     if (!hash) return;
 
-    if (hash.startsWith('library/')) {
-      const section = hash.split('/')[1] || 'documents';
-      setActiveTab('library');
-      setLibrarySection(section);
-    } else if (hash.startsWith('research/')) {
+    if (hash.startsWith('research/')) {
       const section = hash.split('/')[1] || 'summary';
       setActiveTab('research');
       setResearchSection(section);
-    } else if (['documents', 'notes', 'journal'].includes(hash)) {
+    } else if (hash.startsWith('library/') || hash === 'library') {
+      // Former Library tab
+      setActiveTab('research');
+      setResearchSection(hash.split('/')[1] || 'documents');
+    } else if (FORMER_LIBRARY_SECTIONS.includes(hash)) {
       // Legacy hash support
-      setActiveTab('library');
-      setLibrarySection(hash);
+      setActiveTab('research');
+      setResearchSection(hash);
     } else if (document.getElementById('panel-' + hash)) {
       setActiveTab(hash);
     }
@@ -63,9 +68,7 @@ export function TabRouter({ items }) {
     if (panel) panel.classList.add('active');
 
     // Update hash
-    if (activeTab === 'library') {
-      history.replaceState(null, '', '#library/' + librarySection);
-    } else if (activeTab === 'research') {
+    if (activeTab === 'research') {
       history.replaceState(null, '', '#research/' + researchSection);
     } else {
       history.replaceState(null, '', '#' + activeTab);
@@ -74,30 +77,6 @@ export function TabRouter({ items }) {
     // Dispatch tab-changed event
     document.dispatchEvent(new CustomEvent('tab-changed', { detail: { tabId: activeTab } }));
   }, [activeTab]);
-
-  // ------------------------------------------------------------------
-  // Apply library sub-section state
-  // ------------------------------------------------------------------
-  useEffect(() => {
-    document
-      .querySelectorAll('.library-nav-item')
-      .forEach((n) => n.classList.remove('active'));
-    document
-      .querySelectorAll('.library-section')
-      .forEach((s) => s.classList.remove('active'));
-
-    var nav = document.querySelector('[data-library-section="' + librarySection + '"]');
-    var section = document.getElementById('library-' + librarySection);
-    if (nav) nav.classList.add('active');
-    if (section) section.classList.add('active');
-
-    if (activeTab === 'library') {
-      history.replaceState(null, '', '#library/' + librarySection);
-      document.dispatchEvent(
-        new CustomEvent('library-section-changed', { detail: { sectionId: librarySection } }),
-      );
-    }
-  }, [librarySection, activeTab]);
 
   // ------------------------------------------------------------------
   // Apply research sub-section state
@@ -124,26 +103,19 @@ export function TabRouter({ items }) {
   }, [researchSection, activeTab]);
 
   // ------------------------------------------------------------------
-  // Attach click handlers to library/research sub-nav buttons (bridge)
+  // Attach click handlers to research sub-nav buttons (bridge)
   // ------------------------------------------------------------------
   useEffect(() => {
-    function handleLibraryClick(e) {
-      var section = e.currentTarget.dataset.librarySection;
-      if (section) handlersRef.current.switchLibrarySection(section);
-    }
     function handleResearchClick(e) {
       var section = e.currentTarget.dataset.researchSection;
       if (section) handlersRef.current.switchResearchSection(section);
     }
 
-    var libraryItems = document.querySelectorAll('.library-nav-item');
     var researchItems = document.querySelectorAll('.research-nav-item');
 
-    libraryItems.forEach((el) => el.addEventListener('click', handleLibraryClick));
     researchItems.forEach((el) => el.addEventListener('click', handleResearchClick));
 
     return () => {
-      libraryItems.forEach((el) => el.removeEventListener('click', handleLibraryClick));
       researchItems.forEach((el) => el.removeEventListener('click', handleResearchClick));
     };
   }, []);
@@ -189,14 +161,18 @@ export function TabRouter({ items }) {
   // ------------------------------------------------------------------
 
   function handleSwitchToTab(tabId) {
-    // Handle legacy tab IDs that map to library sub-sections
-    if (['documents', 'notes', 'journal'].includes(tabId)) {
-      setActiveTab('library');
-      setLibrarySection(tabId);
+    // Former Library tab and its sections now live under Research
+    if (FORMER_LIBRARY_SECTIONS.includes(tabId)) {
+      setActiveTab('research');
+      setResearchSection(tabId);
+      return;
+    }
+    if (tabId === 'library') {
+      setActiveTab('research');
+      setResearchSection('documents');
       return;
     }
     setActiveTab(tabId);
-    if (tabId === 'library') setLibrarySection((s) => s || 'documents');
     if (tabId === 'research') setResearchSection((s) => s || 'summary');
   }
 
