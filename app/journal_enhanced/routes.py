@@ -27,7 +27,7 @@ from app.journal_enhanced.utils import (extract_tags_from_content, get_related_e
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.blocknote_utils import blocknote_to_text
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager
 from datetime import datetime, timedelta
 import os
 from werkzeug.utils import secure_filename
@@ -572,9 +572,11 @@ def new_thesis_version(company_id):
                sentiment='bullish' if conviction >= 7 else 'neutral' if conviction >= 4 else 'bearish'
            )
            db.session.add(journal_entry)
-           thesis_evolution.linked_journal_entry_id = journal_entry.id
-           
+
            try:
+               # Flush first: the entry has no id until it is written.
+               db.session.flush()
+               thesis_evolution.linked_journal_entry_id = journal_entry.id
                db.session.commit()
                flash('Thesis updated successfully!', 'success')
                return redirect(url_for('journal_enhanced.thesis_evolution', company_id=company_id))
@@ -841,12 +843,13 @@ def knowledge_hub():
 
     # --- Query Research Notes (JournalEntry) ---
     if content_type in ['all', 'research']:
+        # One company join serves both eager loading and company-name search.
         research_query = JournalEntry.query.filter_by(
             user_id=current_user.id, is_archived=False
-        ).options(joinedload(JournalEntry.company))
+        ).outerjoin(JournalEntry.company).options(contains_eager(JournalEntry.company))
         if search_query:
             pattern = f'%{search_query}%'
-            research_query = research_query.outerjoin(JournalEntry.company).filter(db.or_(
+            research_query = research_query.filter(db.or_(
                 JournalEntry.title.ilike(pattern),
                 JournalEntry.content.ilike(pattern),
                 JournalEntry.key_insight.ilike(pattern),
@@ -854,9 +857,9 @@ def knowledge_hub():
                 Company.ticker_symbol.ilike(pattern)
             ))
         if company_filter:
-            research_query = research_query.filter_by(company_id=company_filter)
+            research_query = research_query.filter(JournalEntry.company_id == company_filter)
         if starred_only:
-            research_query = research_query.filter_by(is_starred=True)
+            research_query = research_query.filter(JournalEntry.is_starred.is_(True))
         for entry in research_query.order_by(JournalEntry.created_at.desc()).all():
             # Tag filtering in Python for PostgreSQL JSON compat
             if tag_filter and (not entry.tags or tag_filter not in entry.tags):
@@ -875,10 +878,10 @@ def knowledge_hub():
     if content_type in ['all', 'wisdom']:
         wisdom_query = LearningNote.query.filter_by(
             user_id=current_user.id
-        ).options(joinedload(LearningNote.company))
+        ).outerjoin(LearningNote.company).options(contains_eager(LearningNote.company))
         if search_query:
             pattern = f'%{search_query}%'
-            wisdom_query = wisdom_query.outerjoin(LearningNote.company).filter(db.or_(
+            wisdom_query = wisdom_query.filter(db.or_(
                 LearningNote.title.ilike(pattern),
                 LearningNote.lesson.ilike(pattern),
                 LearningNote.source_author.ilike(pattern),
@@ -886,9 +889,9 @@ def knowledge_hub():
                 Company.ticker_symbol.ilike(pattern)
             ))
         if company_filter:
-            wisdom_query = wisdom_query.filter_by(company_id=company_filter)
+            wisdom_query = wisdom_query.filter(LearningNote.company_id == company_filter)
         if starred_only:
-            wisdom_query = wisdom_query.filter_by(is_favorite=True)
+            wisdom_query = wisdom_query.filter(LearningNote.is_favorite.is_(True))
         for note in wisdom_query.order_by(LearningNote.created_at.desc()).all():
             if tag_filter:
                 all_note_tags = (note.topic_tags or []) + (note.tags or [])
@@ -909,10 +912,10 @@ def knowledge_hub():
     if content_type in ['all', 'mistake']:
         mistake_query = MistakeLog.query.filter_by(
             user_id=current_user.id
-        ).options(joinedload(MistakeLog.company))
+        ).outerjoin(MistakeLog.company).options(contains_eager(MistakeLog.company))
         if search_query:
             pattern = f'%{search_query}%'
-            mistake_query = mistake_query.outerjoin(MistakeLog.company).filter(db.or_(
+            mistake_query = mistake_query.filter(db.or_(
                 MistakeLog.title.ilike(pattern),
                 MistakeLog.description.ilike(pattern),
                 MistakeLog.lesson_learned.ilike(pattern),
@@ -920,7 +923,7 @@ def knowledge_hub():
                 Company.ticker_symbol.ilike(pattern)
             ))
         if company_filter:
-            mistake_query = mistake_query.filter_by(company_id=company_filter)
+            mistake_query = mistake_query.filter(MistakeLog.company_id == company_filter)
         for mistake in mistake_query.order_by(MistakeLog.created_at.desc()).all():
             unified_results.append({
                 'type': 'mistake', 'item': mistake, 'date': mistake.created_at,

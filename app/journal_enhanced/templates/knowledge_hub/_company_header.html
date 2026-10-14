@@ -16,7 +16,13 @@
             <a href="{{ url_for('companies.company_detail', company_id=s.company.id) }}" class="cc-company-link">
                 Company page <i class="bi bi-arrow-right"></i>
             </a>
-            <a href="{{ url_for('journal_enhanced.knowledge_hub', type=content_type) }}" class="cc-company-clear" title="Show all companies">
+            {# Clear only the company; keep the other filters, as "All Companies" does #}
+            <a href="{{ url_for('journal_enhanced.knowledge_hub', type=content_type,
+                                q=search_query or None,
+                                tag=tag_filter,
+                                starred=1 if starred_only else None,
+                                sort=sort_by if sort_by != 'date' else None) }}"
+               class="cc-company-clear" title="Show all companies">
                 <i class="bi bi-x-lg"></i>
             </a>
         </div>
