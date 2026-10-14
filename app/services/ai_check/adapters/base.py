@@ -44,11 +44,14 @@ class ProviderAdapter(ABC):
         return self._client
 
     def send(self, call, on_usage):
+        self._check_capabilities(call)
+        return self._complete(call, self._first_turn(call), on_usage)
+
+    def _check_capabilities(self, call):
         if call.search_cap is not None and not self.can_search:
             raise AICheckError(f"{self.name} can't search the web.")
         if call.fetch_cap is not None and not self.can_fetch:
             raise AICheckError(f"{self.name} can't fetch web pages itself; attach the downloaded page.")
-        return self._complete(call, self._first_turn(call), on_usage)
 
     def follow_up(self, call, transcript, text, on_usage):
         return self._complete(call, self._append_user(transcript, text), on_usage)

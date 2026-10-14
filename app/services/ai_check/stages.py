@@ -326,5 +326,9 @@ def run_quick(run, adapter, upload_folder):
         search_note=data['search_allowed' if search else 'search_closed'])
     call = stage_call(data, stage_model(run, 'quick'), prompt, [SUBMIT_AI_CHECK_TOOL], documents=documents,
                       search_cap=data.get('search_max_uses', SEARCH_BUDGET) if search else None)
+    searches_before = usage_tally(run).web_searches
     _, args, _ = call_for_tool(adapter, call, {'submit_ai_check'}, _usage_recorder(run))
-    return clean_result(args, set(), rubric)
+    result = clean_result(args, set(), rubric)
+    if search and usage_tally(run).web_searches == searches_before:
+        result['gaps'].append(data['no_search_gap'])
+    return result

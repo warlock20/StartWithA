@@ -14,11 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-"""AI check calls on Gemini (google-genai): inline PDFs, Google Search with function calls."""
+"""AI check calls on Gemini (google-genai): inline PDFs, web search as its own request.
+
+A call that may search runs as two requests: a search-only request (Google Search is its sole
+tool, so the model has to search) that writes up what it found, then a structured request with
+only our function tools that reads that write-up. In one combined request Gemini sometimes called
+the function without searching and answered from memory (spec §9 fallback)."""
 
 from google.genai import errors as genai_errors
 from google.genai import types as genai_types
 
+from app.services.ai.prompt_service import prompt_service
 from app.services.ai.providers.gemini import _get_gemini_client
 from app.services.ai_check import AICheckError
 from app.services.ai_check.adapters.base import ProviderAdapter
@@ -54,23 +60,35 @@ class GeminiAdapter(ProviderAdapter):
     def _make_client(self):
         return _get_gemini_client()
 
-    def _config(self, call):
-        tools = []
-        if call.search_cap is not None:
-            tools.append(genai_types.Tool(google_search=genai_types.GoogleSearch()))
-        tools.append(genai_types.Tool(function_declarations=[
-            genai_types.FunctionDeclaration(name=tool['name'], description=tool['description'],
-                                            parameters_json_schema=tool['input_schema'])
-            for tool in call.tools]))
+    def _config(self, call, search=False):
+        """Search request: Google Search only. Structured request: our function tools only.
+        Gemini has no per-request search cap; run_gather's budget check bounds it per pass."""
+        if search:
+            tools = [genai_types.Tool(google_search=genai_types.GoogleSearch())]
+        else:
+            tools = [genai_types.Tool(function_declarations=[
+                genai_types.FunctionDeclaration(name=tool['name'], description=tool['description'],
+                                                parameters_json_schema=tool['input_schema'])
+                for tool in call.tools])]
         config = {'system_instruction': call.system, 'max_output_tokens': call.max_tokens, 'tools': tools}
         if call.model.startswith('gemini-3'):
             config['thinking_config'] = {'thinking_level': THINKING_LEVELS.get(call.effort, 'HIGH')}
-        if call.search_cap is not None:
-            # Built-in search plus functions in one request: Gemini 3 only, and `auto` mode is refused.
-            # Gemini has no per-call search cap; run_gather's budget check bounds it per pass.
-            config['tool_config'] = {'function_calling_config': {'mode': 'VALIDATED'},
-                                     'include_server_side_tool_invocations': True}
         return config
+
+    def send(self, call, on_usage):
+        if call.search_cap is None:
+            return super().send(call, on_usage)
+        self._check_capabilities(call)
+        texts = prompt_service.get_prompt_data('research', 'ai_check_search_phase')
+        first = self._first_turn(call)
+        first[-1].parts.append(genai_types.Part(text=texts['search_instruction']))
+        _, findings, search_usage = self._generate(call, first, self._config(call, search=True), on_usage)
+        tool_names = ' or '.join(sorted(tool['name'] for tool in call.tools))
+        transcript = self._append_user(first + ([findings] if findings else []),
+                                       texts['answer_instruction'].format(tool_names=tool_names))
+        reply = self._complete(call, transcript, on_usage)
+        reply.usages = [search_usage] + reply.usages
+        return reply
 
     def _first_turn(self, call):
         parts = []
@@ -87,9 +105,20 @@ class GeminiAdapter(ProviderAdapter):
         return transcript + [genai_types.Content(role='user', parts=[genai_types.Part(text=text)])]
 
     def _complete(self, call, contents, on_usage):
+        candidate, replay, usage = self._generate(call, contents, self._config(call), on_usage)
+        name, args = None, {}
+        for part in (candidate.content.parts if candidate.content else None) or []:
+            if part.function_call:
+                name, args = part.function_call.name, dict(part.function_call.args or {})
+                break
+        return StageReply(name, args, contents + ([replay] if replay else []), [usage])
+
+    def _generate(self, call, contents, config, on_usage):
+        """One request with the shared error and stop-reason checks.
+        Returns (candidate, the model turn to replay or None, usage)."""
         try:
             response = self.client().models.generate_content(
-                model=call.model, contents=contents, config=self._config(call))
+                model=call.model, contents=contents, config=config)
         except genai_errors.ClientError as exc:
             if exc.code == 429:
                 raise  # rate limit: let the Celery task retry
@@ -107,13 +136,7 @@ class GeminiAdapter(ProviderAdapter):
             raise AICheckError("Gemini's answer was cut off (output limit reached).")
         if reason in BLOCKED:
             raise AICheckError(f'Gemini blocked this request (category: {reason.lower()}).')
-        name, args = None, {}
-        for part in (candidate.content.parts if candidate.content else None) or []:
-            if part.function_call:
-                name, args = part.function_call.name, dict(part.function_call.args or {})
-                break
-        # Replay the model turn exactly as sent (thought signatures included) for the reminder.
+        # Replay the model turn exactly as sent (thought signatures included).
         # A turn with no parts (e.g. MALFORMED_FUNCTION_CALL) is not sent back: the API rejects it.
         replay = candidate.content if candidate.content and candidate.content.parts else None
-        transcript = contents + ([replay] if replay else [])
-        return StageReply(name, args, transcript, [usage])
+        return candidate, replay, usage

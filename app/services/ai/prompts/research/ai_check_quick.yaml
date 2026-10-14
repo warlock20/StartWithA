@@ -18,6 +18,8 @@ search_allowed: >-
   You may use web search to find the figures the method needs. Prefer primary sources:
   regulatory filings, the company's investor-relations site, official results releases.
 search_closed: "Do not search the web; work only from the attached documents."
+# Added to gaps when a web/both quick check made no search at all.
+no_search_gap: "No web search was made, so these figures may come from the model's memory rather than current sources."
 too_many_documents: "Quick check reads at most 22 MB / 600 pages of documents in one call; tick fewer or use Full."
 # How a document is laid out when a model gets it as text (a .txt upload).
 page_marker: "[Page {number}]"
