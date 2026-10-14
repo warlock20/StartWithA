@@ -27,9 +27,16 @@ from flask_login import login_required, current_user
 import logging
 
 from app import db
+from app.models import ResearchSettings
 from app.models.user_ai_preferences import UserAIPreference
 from app.services.ai.config import AIModel, AIProvider, get_ai_config
 from app.services.ai.prompt_service import prompt_service
+from app.services.ai_check import AICheckError
+from app.services.ai_check.pricing import provider_of
+from app.services.ai_check.setup import (
+    MAX_SEARCH_BUDGET, MIN_SEARCH_BUDGET, PREF_PREFIX, STAGES, STAGE_TITLES, check_stage_model, model_label,
+    my_setup_choice, stage_default, stage_options, user_search_budget,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +99,27 @@ def _get_available_models():
     # DeepSeek models
     if config.is_provider_available(AIProvider.DEEPSEEK):
         models.extend([
-            {'id': 'deepseek-chat', 'name': 'DeepSeek V3', 'provider': 'deepseek'},
-            {'id': 'deepseek-reasoner', 'name': 'DeepSeek R1 (Reasoning)', 'provider': 'deepseek'},
+            {'id': 'deepseek-flash', 'name': 'DeepSeek V4 Flash', 'provider': 'deepseek'},
+            {'id': 'deepseek-v4-pro', 'name': 'DeepSeek V4 Pro', 'provider': 'deepseek'},
         ])
 
     return models
+
+
+def _ai_check_rows(user_id):
+    return [{
+        'stage': stage, 'title': STAGE_TITLES[stage], 'category': PREF_PREFIX + stage,
+        'options': stage_options(stage), 'current': my_setup_choice(user_id, stage),
+        'default_label': model_label(stage_default(stage)),
+    } for stage in STAGES]
+
+
+def _check_ai_check_choice(category, model_id):
+    """For ai_check:<stage> categories: the canonical model id, or raise AICheckError."""
+    stage = category[len(PREF_PREFIX):]
+    if stage not in STAGES:
+        raise AICheckError('Unknown AI check stage.')
+    return check_stage_model(stage, model_id)
 
 
 def _get_categories_with_defaults():
@@ -104,7 +127,10 @@ def _get_categories_with_defaults():
     categories = []
     all_prompts = prompt_service.list_all_prompts()
 
-    for category, prompt_names in sorted(all_prompts.items()):
+    for category in sorted(all_prompts):
+        prompt_names = prompt_service.list_templates(category)
+        if not prompt_names:
+            continue
         # Use the first prompt in the category to get default model info
         try:
             info = prompt_service.get_prompt_info(category, prompt_names[0])
@@ -145,9 +171,13 @@ def ai_model_settings():
 
     return render_template(
         'ai_model_settings.html',
+        active_section='ai',
         categories=categories,
         available_models=available_models,
         override_count=override_count,
+        ai_check_rows=_ai_check_rows(current_user.id),
+        ai_check_search_budget=user_search_budget(current_user.id),
+        search_budget_range=(MIN_SEARCH_BUDGET, MAX_SEARCH_BUDGET),
     )
 
 
@@ -167,6 +197,18 @@ def set_model_preference():
         UserAIPreference.clear_preference(current_user.id, category)
         db.session.commit()
         flash(f'Reset {CATEGORY_LABELS.get(category, category)} to default', 'success')
+        return redirect(url_for('ai_models.ai_model_settings'))
+
+    if category.startswith(PREF_PREFIX):
+        try:
+            model_id = _check_ai_check_choice(category, model_id)
+        except AICheckError as exc:
+            flash(str(exc), 'error')
+            return redirect(url_for('ai_models.ai_model_settings'))
+        UserAIPreference.set_preference(user_id=current_user.id, prompt_category=category,
+                                        model_override=model_id, provider_override=provider_of(model_id))
+        db.session.commit()
+        flash(f'AI check {category[len(PREF_PREFIX):]} set to {model_label(model_id)}', 'success')
         return redirect(url_for('ai_models.ai_model_settings'))
 
     # Resolve model to get provider
@@ -192,6 +234,24 @@ def set_model_preference():
             break
 
     flash(f'{CATEGORY_LABELS.get(category, category)} set to {model_name}', 'success')
+    return redirect(url_for('ai_models.ai_model_settings'))
+
+
+@ai_model_bp.route('/ai-check-search-budget', methods=['POST'])
+@login_required
+def set_ai_check_search_budget():
+    """Web searches allowed per AI check run (1–10); frozen on each run when it starts."""
+    try:
+        budget = int(request.form.get('search_budget', ''))
+    except ValueError:
+        budget = None
+    if budget is None or not MIN_SEARCH_BUDGET <= budget <= MAX_SEARCH_BUDGET:
+        flash(f'Web searches per run must be a whole number from {MIN_SEARCH_BUDGET} to {MAX_SEARCH_BUDGET}.', 'error')
+        return redirect(url_for('ai_models.ai_model_settings'))
+    settings = ResearchSettings.get_or_create(current_user.id)
+    settings.ai_check_search_budget = budget
+    db.session.commit()
+    flash(f'AI check web searches per run set to {budget}', 'success')
     return redirect(url_for('ai_models.ai_model_settings'))
 
 
@@ -236,6 +296,16 @@ def api_set_preference():
         UserAIPreference.clear_preference(current_user.id, category)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Reset to default'})
+
+    if category.startswith(PREF_PREFIX):
+        try:
+            model_id = _check_ai_check_choice(category, model_id)
+        except AICheckError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
+        UserAIPreference.set_preference(user_id=current_user.id, prompt_category=category,
+                                        model_override=model_id, provider_override=provider_of(model_id))
+        db.session.commit()
+        return jsonify({'success': True, 'category': category, 'model_id': model_id})
 
     try:
         model_enum = AIModel.from_string(model_id)

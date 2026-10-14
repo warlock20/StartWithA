@@ -318,10 +318,26 @@ def get_company_knowledge_summary(user_id, company_id, insight_limit=5, item_lim
     questions_raised = [(q, e) for e in entries for q in (e.questions_raised or []) if q][:item_limit]
     action_items = [(a, e) for e in entries for a in (e.action_items or []) if a][:item_limit]
 
-    points = [(t.created_at, t.conviction_level)
+    # A thesis update saves a ThesisEvolution plus a matching 'thesis_update'
+    # research note with the same conviction — plot it once. Rows saved before
+    # the two were linked are matched on conviction and save time instead.
+    linked_entry_ids = {t.linked_journal_entry_id for t in thesis_versions
+                        if t.linked_journal_entry_id}
+
+    def _duplicates_thesis_version(entry):
+        if entry.id in linked_entry_ids:
+            return True
+        return entry.entry_type == 'thesis_update' and any(
+            t.created_at and t.conviction_level == entry.conviction_level
+            and abs((_naive_utc(t.created_at) - _naive_utc(entry.created_at)).total_seconds()) <= 60
+            for t in thesis_versions
+        )
+
+    points = [(_naive_utc(t.created_at), t.conviction_level)
               for t in thesis_versions if t.created_at and t.conviction_level]
-    points += [(e.created_at, e.conviction_level)
-               for e in entries if e.created_at and e.conviction_level]
+    points += [(_naive_utc(e.created_at), e.conviction_level)
+               for e in entries
+               if e.created_at and e.conviction_level and not _duplicates_thesis_version(e)]
     points.sort(key=lambda p: p[0])
 
     avg_severity = db.session.query(func.avg(MistakeLog.severity)).filter(
@@ -345,6 +361,11 @@ def get_company_knowledge_summary(user_id, company_id, insight_limit=5, item_lim
         'action_items': action_items,
         'mistake_avg_severity': round(float(avg_severity), 1) if avg_severity is not None else None,
     }
+
+
+def _naive_utc(value):
+    """Drop tzinfo: the DB returns naive UTC, unsaved now_utc() values are aware."""
+    return value.replace(tzinfo=None) if value.tzinfo else value
 
 
 def conviction_sparkline(points, width=120, height=28, pad=3):

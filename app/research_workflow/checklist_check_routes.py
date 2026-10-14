@@ -16,6 +16,7 @@
 
 import json
 import os
+import re
 import fitz
 from datetime import datetime
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
@@ -27,14 +28,42 @@ from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, Che
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_error, json_unauthorized
+from app.services.ai_check.context import has_ai_context
+from app.services.ai_check.setup import ai_check_available, available_setups
 
 # Import unified LLM service
-from app.services.ai import ai_service
 from app.services.ai.prompt_service import prompt_service
-from app.services.background_tasks import BackgroundTaskService
 from celery_app import celery
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
 from app.utils.blocknote_utils import blocknote_to_html
+
+AI_CHECK_DOC_EXTENSIONS = ('.pdf', '.txt')
+ANNUAL_REPORT_PATTERN = re.compile(r'10-K|20-F|annual report', re.IGNORECASE)
+
+
+def _doc_filename(doc):
+    return doc.original_filename or doc.stored_filename or ''
+
+
+def _doc_sort_key(doc):
+    created = doc.created_at or datetime.min
+    return (doc.resource_date or created.date(), created)
+
+
+def ai_check_document_choices(documents):
+    """The documents the AI check can read (PDF / text only), newest first. The single newest
+    one that looks like an annual report (10-K, 20-F, "annual report" in its title, category or
+    filename) is marked `suggested`, so the picker can pre-tick it."""
+    readable = [d for d in documents if _doc_filename(d).lower().endswith(AI_CHECK_DOC_EXTENSIONS)]
+    readable.sort(key=_doc_sort_key, reverse=True)
+    suggested_id = next((d.id for d in readable if ANNUAL_REPORT_PATTERN.search(
+        ' '.join([d.title or '', d.category or '', _doc_filename(d)]))), None)
+    return [{'id': d.id, 'title': d.title, 'filename': _doc_filename(d), 'suggested': d.id == suggested_id}
+            for d in readable]
+
+
+def _ai_check_available(item):
+    return has_ai_context(item.ai_context) and ai_check_available(current_user.id)
                                                                              
 @research_workflow_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
 @login_required
@@ -194,7 +223,10 @@ def research_step(analysis_id, item_id):
         company_documents=company_documents_for_llm,
         research_context=research_context,
         all_items_in_order=all_items_in_order,
-        answers_map=answers_map
+        answers_map=answers_map,
+        has_ai_context=_ai_check_available(current_item),
+        ai_check_documents=ai_check_document_choices(company_documents_for_llm),
+        ai_check_setups=available_setups(current_user.id) if has_ai_context(current_item.ai_context) else [],
     )
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/json', methods=['GET'])
@@ -263,7 +295,7 @@ def research_step_json(analysis_id, item_id):
         'text': current_item.text,
         'description': current_item.description,
         'parent_text': current_item.parent.text if current_item.parent else None,
-        'has_llm_prompt': bool(current_item.llm_prompt),
+        'has_ai_context': _ai_check_available(current_item),
         'answer_text': research_answer.answer_text if research_answer else '',
         'satisfaction_status': research_answer.satisfaction_status if research_answer else 'pending',
         'previous_item_id': previous_item_id,
@@ -410,84 +442,6 @@ def save_and_next(analysis_id, item_id):
     except Exception as e:
         db.session.rollback()
         return json_error(str(e), status_code=500)
-
-@research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
-@login_required
-def ai_analyze_item(analysis_id, item_id):
-    """
-    Dispatches a background Celery task for AI analysis of a checklist item.
-    Returns a task_id for the frontend to poll for results.
-    """
-    if not ai_service.is_available():
-        return jsonify({'status': 'error_config', 'message': 'AI service is not configured on the server.'}), 500
-
-    session = ChecklistAnalysis.query.get_or_404(analysis_id)
-    if session.researcher != current_user:
-        return jsonify({'status': 'error', 'message': 'Unauthorized access to session.'}), 403
-
-    item = ChecklistItem.query.get_or_404(item_id)
-    if item.checklist_id != session.checklist_id:
-        return jsonify({'status': 'error', 'message': 'Invalid item for this session.'}), 400
-
-    if not request.is_json:
-        return jsonify({'status': 'error', 'message': 'Invalid request: Content-Type must be application/json'}), 400
-
-    data = request.get_json()
-    if not data:
-        return jsonify({'status': 'error', 'message': 'Invalid request: No JSON payload found.'}), 400
-
-    # Parse document IDs
-    selected_document_ids_str = data.get('selected_document_ids', [])
-    selected_document_ids = []
-    for doc_id_str in selected_document_ids_str:
-        try:
-            selected_document_ids.append(int(doc_id_str))
-        except ValueError:
-            return jsonify({'status': 'error', 'message': f'Invalid document ID format: "{doc_id_str}".'}), 400
-
-    # Dispatch background task
-    task_id = BackgroundTaskService.start_checklist_item_analysis(
-        user_id=current_user.id,
-        analysis_id=analysis_id,
-        item_id=item_id,
-        selected_document_ids=selected_document_ids
-    )
-
-    return jsonify({'success': True, 'task_id': task_id})
-
-
-@research_workflow_bp.route('/checklist/ai_analyze/status/<task_id>')
-@login_required
-def ai_analyze_status(task_id):
-    """Poll status of a checklist item AI analysis background task."""
-    task_status = BackgroundTaskService.get_task_status(task_id)
-
-    if not task_status:
-        return jsonify({'state': 'NOT_FOUND'}), 404
-
-    response = {
-        'current': 0,
-        'total': 100,
-    }
-
-    if task_status['status'] == 'pending':
-        response['state'] = 'PENDING'
-        response['current'] = 10
-    elif task_status['status'] == 'running':
-        response['state'] = 'RUNNING'
-        response['current'] = 50
-    elif task_status['status'] == 'completed':
-        response['state'] = 'COMPLETED'
-        response['current'] = 100
-        result = task_status.get('result', {})
-        response['ai_suggestion'] = result.get('ai_suggestion', '')
-        response['received_prompt'] = result.get('received_prompt', '')
-        response['tokens_used'] = result.get('tokens_used', 0)
-    elif task_status['status'] == 'failed':
-        response['state'] = 'FAILED'
-        response['error'] = task_status.get('error', 'Analysis failed')
-
-    return jsonify(response)
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/summary', methods=['GET', 'POST'])
 @login_required

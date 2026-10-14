@@ -620,6 +620,9 @@ class ResearchSettings(db.Model):
     stale_nudge_days = db.Column(db.Integer, default=21, server_default='21')
     stale_warning_min_progress = db.Column(db.Integer, default=30)
 
+    # AI check: web searches allowed per run (Gather + loop-back, or the Quick call). 1–10.
+    ai_check_search_budget = db.Column(db.Integer, nullable=False, default=5, server_default='5')
+
     def __repr__(self):
         return f'<ResearchSettings for User {self.user_id}>'
 

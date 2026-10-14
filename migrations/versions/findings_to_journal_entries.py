@@ -26,7 +26,7 @@ Downgrade moves entries back onto the company's research project. Findings
 on companies without a research project stay as journal entries.
 
 Revision ID: findings_to_journal_entries
-Revises: research_reopenings
+Revises: 27e83f19dd00
 Create Date: 2026-10-14
 
 """
@@ -38,7 +38,7 @@ import sqlalchemy as sa
 
 
 revision = 'findings_to_journal_entries'
-down_revision = 'research_reopenings'
+down_revision = '27e83f19dd00'
 branch_labels = None
 depends_on = None
 

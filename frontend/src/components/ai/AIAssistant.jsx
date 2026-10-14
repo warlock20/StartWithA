@@ -8,14 +8,13 @@ const MODE_LOADING = {
   elaboration: 'Crafting follow-up questions to deepen your analysis...',
   factcheck: 'Identifying claims that need verification...',
   factcheck_search: 'Searching the web and verifying claims...',
-  runprompt: 'Running checklist prompt analysis...',
 };
 
 /**
  * AI Research Assistant — React island for the research step page.
  *
  * Renders the collapsible AI tools panel with mode buttons (Challenge, Elaboration,
- * Fact-Check, Run Prompt), web search toggle, and response area.
+ * Fact-Check), web search toggle, and response area.
  *
  * Bridge pattern: reads answer text from #answerEditor (BlockNote) or #answer_text
  * (fallback textarea) on the same page.
@@ -28,7 +27,6 @@ const MODE_LOADING = {
  *
  * Props (via config):
  *   context: { analysis_id, item_id, company_name, question_text }
- *   hasLlmPrompt: boolean
  *   analysisId: number
  *   apiEndpoint, statusEndpoint, feedbackEndpoint, regenerateEndpoint
  *   aiTimeoutSeconds: server-side AI_ASSIST_SOFT_TIME_LIMIT (poll budget is derived from it)
@@ -37,7 +35,6 @@ const MODE_LOADING = {
 export function AIAssistant({ config }) {
   const [expanded, setExpanded] = useState(false);
   const [useWebSearch, setUseWebSearch] = useState(false);
-  const [hasLlmPrompt, setHasLlmPrompt] = useState(config.hasLlmPrompt);
 
   const contextRef = useRef(config.context);
 
@@ -71,7 +68,6 @@ export function AIAssistant({ config }) {
           item_id: data.item_id,
           question_text: data.text,
         };
-        setHasLlmPrompt(!!data.has_llm_prompt);
         ai.resetState();
         setExpanded(false);
         // resetState clears the previous item's cache; load this item's own.
@@ -94,17 +90,6 @@ export function AIAssistant({ config }) {
   async function handleTriggerMode(m) {
     setExpanded(true);
     await ai.triggerMode(m, { contextRef, useWebSearch });
-  }
-
-  // ------------------------------------------------------------------
-  // Run Prompt
-  // ------------------------------------------------------------------
-  async function handleRunPrompt() {
-    setExpanded(true);
-    await ai.runPrompt({
-      analysisId: config.analysisId,
-      itemId: contextRef.current.item_id,
-    });
   }
 
   // ------------------------------------------------------------------
@@ -201,25 +186,6 @@ export function AIAssistant({ config }) {
           >
             <i className="bi bi-shield-check" /> Fact-Check
           </button>
-          {hasLlmPrompt && (
-            <button
-              type="button"
-              className="cl-ai-mode-btn run-prompt"
-              id="btnRunPrompt"
-              onClick={handleRunPrompt}
-              disabled={ai.status === 'loading'}
-              title="Run the predefined AI prompt for this checklist item"
-            >
-              <i
-                className={`bi ${
-                  ai.status === 'loading' && ai.mode === 'runprompt'
-                    ? 'bi-hourglass-split'
-                    : 'bi-play-circle'
-                }`}
-              />{' '}
-              {ai.status === 'loading' && ai.mode === 'runprompt' ? 'Running...' : 'Run Prompt'}
-            </button>
-          )}
         </div>
 
         {/* Web Search Toggle */}
@@ -282,7 +248,7 @@ export function AIAssistant({ config }) {
                 mode={ai.mode}
                 responseText={ai.response}
                 feedbackId={ai.feedbackId}
-                onRegenerate={ai.mode !== 'runprompt' ? handleRegenerate : null}
+                onRegenerate={handleRegenerate}
                 onDismiss={ai.dismiss}
                 feedbackEndpoint={feedbackEndpoint}
                 reused={ai.reused}

@@ -16,10 +16,16 @@
 
 """Knowledge Hub company navigation (#354)."""
 
+import html
+import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 from datetime import timedelta
+
+import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -255,7 +261,7 @@ def test_company_filter_shows_summary_grouped_by_type(_app, app_context):
     assert 'This Week' not in html  # grouped by type, not date
 
 
-def test_note_title_is_escaped(_app, app_context):
+def test_note_title_is_escaped_in_the_page(_app, app_context):
     user = _make_user()
     company = _make_company(user.id)
     _research(user.id, company.id, title='<script>alert(1)</script>')
@@ -264,7 +270,61 @@ def test_note_title_is_escaped(_app, app_context):
     html = _client_for(_app, user).get('/journal/knowledge-hub?type=all').get_data(as_text=True)
 
     assert '<script>alert(1)</script>' not in html
-    assert 'escapeHtml(card.dataset.title' in html
+
+
+# Runs the page's own inline script with just enough of a DOM for showDetail():
+# the card it looks up carries the dataset decoded from the rendered HTML.
+_SHOW_DETAIL_HARNESS = r"""
+const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+const elements = {};
+const element = id => elements[id] || (elements[id] = {
+    innerHTML: '', classList: {add() {}, remove() {}}, addEventListener() {}, focus() {},
+});
+const card = {dataset: input.dataset};
+global.document = {addEventListener() {}, getElementById: element, querySelector: () => card};
+global.window = {location: {href: 'http://localhost/'}};
+eval(input.script);
+showDetail(input.dataset.type, Number(input.dataset.itemId.split('-')[1]));
+process.stdout.write(JSON.stringify({
+    header: element('ccDetailHeader').innerHTML,
+    body: element('ccDetailBody').innerHTML,
+}));
+"""
+
+
+def _browser_dataset(card_html):
+    """data-* attributes as the browser exposes them: HTML-decoded, camelCased."""
+    return {
+        re.sub(r'-(\w)', lambda m: m.group(1).upper(), name): html.unescape(value)
+        for name, value in re.findall(r'data-([\w-]+)="([^"]*)"', card_html)
+    }
+
+
+@pytest.mark.skipif(shutil.which('node') is None, reason='needs Node.js to run the page script')
+def test_detail_panel_escapes_note_values(_app, app_context):
+    user = _make_user()
+    company = _make_company(user.id, '<b onmouseover=alert(2)>Evil</b> Co', 'EVIL')
+    _research(user.id, company.id, title='<img src=x onerror=alert(1)>',
+              tags=['<i>tag</i>'])
+    db.session.commit()
+
+    page = _client_for(_app, user).get('/journal/knowledge-hub?type=all').get_data(as_text=True)
+    card_html = re.search(r'<div class="cc-card"(.*?)onclick=', page, re.S).group(1)
+    script = next(block for block in re.findall(r'<script>(.*?)</script>', page, re.S)
+                  if 'function showDetail' in block)
+
+    result = subprocess.run(
+        ['node', '-e', _SHOW_DETAIL_HARNESS],
+        input=json.dumps({'script': script, 'dataset': _browser_dataset(card_html)}),
+        capture_output=True, text=True, check=True, timeout=30)
+    rendered = json.loads(result.stdout)
+    panel = rendered['header'] + rendered['body']
+
+    for raw in ('<img', '<b ', '<i>'):
+        assert raw not in panel
+    assert '&lt;img src=x onerror=alert(1)&gt;' in rendered['header']
+    assert '&lt;b onmouseover=alert(2)&gt;Evil&lt;/b&gt; Co' in rendered['header']
+    assert '&lt;i&gt;tag&lt;/i&gt;' in rendered['body']
 
 
 def test_tab_links_encode_the_search_query(_app, app_context):
@@ -310,3 +370,137 @@ def test_tab_counts_follow_the_company_filter(_app, app_context):
 
     assert tab_counts(scoped) == ['2', '1', '1', '0']    # all, research, wisdom, mistakes
     assert tab_counts(unscoped) == ['4', '2', '1', '1']
+
+
+# ── Thesis updates: one conviction point, linked records ──
+
+def _thesis(user_id, company_id, conviction, created_at, version=1, **kwargs):
+    thesis = ThesisEvolution(user_id=user_id, company_id=company_id, version=version,
+                             thesis='thesis', conviction_level=conviction,
+                             created_at=created_at, **kwargs)
+    db.session.add(thesis)
+    db.session.flush()
+    return thesis
+
+
+def test_linked_thesis_update_note_is_plotted_once(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    saved_at = now_utc() - timedelta(days=3)
+    note = _research(user.id, company.id, created_days_ago=3, entry_type='thesis_update',
+                     conviction_level=7)
+    _thesis(user.id, company.id, 7, saved_at, linked_journal_entry_id=note.id)
+    _research(user.id, company.id, created_days_ago=1, conviction_level=8)
+
+    summary = get_company_knowledge_summary(user.id, company.id)
+
+    assert [c for _, c in summary['conviction_points']] == [7, 8]
+
+
+def test_unlinked_legacy_thesis_update_note_is_plotted_once(app_context):
+    """Rows saved before the link was stored: matched on conviction and time."""
+    user = _make_user()
+    company = _make_company(user.id)
+    saved_at = now_utc() - timedelta(days=3)
+    _thesis(user.id, company.id, 6, saved_at)
+    note = _research(user.id, company.id, entry_type='thesis_update', conviction_level=6)
+    note.created_at = saved_at + timedelta(seconds=2)
+    db.session.flush()
+
+    summary = get_company_knowledge_summary(user.id, company.id)
+
+    assert [c for _, c in summary['conviction_points']] == [6]
+
+
+def test_thesis_update_note_without_matching_version_is_kept(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _thesis(user.id, company.id, 5, now_utc() - timedelta(days=10))
+    _research(user.id, company.id, created_days_ago=2, entry_type='thesis_update',
+              conviction_level=5)
+
+    summary = get_company_knowledge_summary(user.id, company.id)
+
+    assert [c for _, c in summary['conviction_points']] == [5, 5]
+
+
+def test_new_thesis_version_links_its_journal_entry(_app, app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    db.session.commit()
+
+    resp = _client_for(_app, user).post(
+        f'/journal/thesis-evolution/{company.id}/new',
+        data={'thesis': 'Moat is widening', 'conviction_level': '7',
+              'change_summary': 'Pricing held'})
+
+    assert resp.status_code == 302
+    version = ThesisEvolution.query.filter_by(company_id=company.id).one()
+    entry = JournalEntry.query.filter_by(company_id=company.id,
+                                         entry_type='thesis_update').one()
+    assert version.linked_journal_entry_id == entry.id
+
+
+# ── Company header ──
+
+def test_clearing_the_company_keeps_the_other_filters(_app, app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _research(user.id, company.id, title='moat note', tags=['moat'], is_starred=True)
+    db.session.commit()
+
+    html = _client_for(_app, user).get(
+        f'/journal/knowledge-hub?type=research&company_id={company.id}'
+        '&q=moat&tag=moat&starred=1&sort=title').get_data(as_text=True)
+
+    clear_href = re.search(r'<a href="([^"]+)"\s+class="cc-company-clear"', html).group(1)
+    assert 'company_id' not in clear_href
+    for param in ('type=research', 'q=moat', 'tag=moat', 'starred=1', 'sort=title'):
+        assert param in clear_href
+
+
+def test_search_works_with_company_and_starred_filters(_app, app_context):
+    """filter_by() after the company join used to target Company and crash."""
+    user = _make_user()
+    company = _make_company(user.id)
+    _research(user.id, company.id, title='moat research', is_starred=True)
+    _wisdom(user.id, company.id, title='moat wisdom', is_favorite=True)
+    _mistake(user.id, company.id, title='moat mistake')
+    db.session.commit()
+
+    resp = _client_for(_app, user).get(
+        f'/journal/knowledge-hub?type=all&company_id={company.id}&q=moat&starred=1')
+
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert 'moat research' in html and 'moat wisdom' in html
+
+
+def test_search_joins_company_once_per_note_query(_app, app_context):
+    """The company join used for search also eager-loads the company."""
+    from sqlalchemy import event
+
+    user = _make_user()
+    company = _make_company(user.id, 'Hermes International', 'RMS')
+    _research(user.id, company.id, title='Pricing power note')
+    db.session.commit()
+    client = _client_for(_app, user)
+
+    statements = []
+
+    def capture(conn, cursor, statement, *args):
+        statements.append(statement)
+
+    event.listen(db.engine, 'before_cursor_execute', capture)
+    try:
+        html_page = client.get('/journal/knowledge-hub?type=all&q=hermes').get_data(as_text=True)
+    finally:
+        event.remove(db.engine, 'before_cursor_execute', capture)
+
+    assert 'Pricing power note' in html_page
+    note_queries = [s for s in statements
+                    if re.search(r'FROM (journal_entry|learning_note|mistake_log)\b', s)
+                    and 'ILIKE' in s.upper()]
+    assert len(note_queries) == 3
+    for statement in note_queries:
+        assert len(re.findall(r'JOIN company\b', statement)) == 1, statement

@@ -175,12 +175,12 @@ def revoke_ai_consent():
         db.session.commit()
         log_consent_change(current_user.id, 'ai_features', granted=False)
         flash('AI feature consent revoked. AI features are now disabled.', 'info')
-        return redirect(url_for('auth.account_settings'))
+        return redirect(url_for('ai_models.ai_model_settings'))
     except Exception as e:
         db.session.rollback()
         logger.exception(f"AI consent revoke failed for user {current_user.id}: {e}")
         flash('Error revoking consent. Please try again.', 'error')
-        return redirect(url_for('auth.account_settings'))
+        return redirect(url_for('ai_models.ai_model_settings'))
 
 
 @auth_bp.route('/account/ai-consent/status')
@@ -218,7 +218,7 @@ def export_data():
     except Exception as e:
         logger.exception(f"Data export failed for user {current_user.id}: {e}")
         flash('Error exporting data. Please try again or contact support.', 'error')
-        return redirect(url_for('auth.account_settings'))
+        return redirect(url_for('settings.privacy'))
 
 
 @auth_bp.route('/account/delete', methods=['POST'])
@@ -234,7 +234,7 @@ def delete_account():
 
     if confirmation != 'DELETE':
         flash('Account deletion requires typing DELETE to confirm.', 'error')
-        return redirect(url_for('auth.account_settings'))
+        return redirect(url_for('settings.privacy'))
 
     try:
         user_id = current_user.id
@@ -369,4 +369,4 @@ def delete_account():
     except Exception as e:
         logger.exception(f"Account deletion failed for user {current_user.id}: {e}")
         flash('Error deleting account. Please try again or contact support.', 'error')
-        return redirect(url_for('auth.account_settings'))
+        return redirect(url_for('settings.privacy'))

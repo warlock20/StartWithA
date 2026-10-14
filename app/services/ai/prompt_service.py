@@ -278,6 +278,11 @@ class PromptService:
             raise ValueError(f"Category '{category}' not found")
         return list(self._cache[category].keys())
 
+    def list_templates(self, category: str) -> List[str]:
+        """Prompts in a category that have a template (data files like presets are skipped)."""
+        return [name for name, data in self._cache.get(category, {}).items()
+                if isinstance(data, dict) and data.get('template')]
+
     def list_all_prompts(self) -> Dict[str, List[str]]:
         """List all prompts organized by category."""
         return {cat: list(prompts.keys()) for cat, prompts in self._cache.items()}
@@ -424,8 +429,10 @@ _MODEL_DISPLAY_NAMES = {
     'claude-sonnet-4-20250514': 'Claude Sonnet 4',
     'claude-opus-4-20250514': 'Claude Opus 4',
     'claude-3-5-haiku-20241022': 'Claude 3.5 Haiku',
-    'deepseek-chat': 'DeepSeek V3',
-    'deepseek-reasoner': 'DeepSeek R1',
+    'deepseek-flash': 'DeepSeek V4 Flash',
+    'deepseek-v4-pro': 'DeepSeek V4 Pro',
+    'claude-sonnet-5': 'Claude Sonnet 5',
+    'claude-opus-5': 'Claude Opus 5',
 }
 
 
@@ -464,7 +471,7 @@ def get_effective_model_display(
 
     # Priority 2: YAML prompt metadata (use first prompt in category)
     if prompt_category in prompt_service._cache:
-        prompts = list(prompt_service._cache[prompt_category].keys())
+        prompts = prompt_service.list_templates(prompt_category)
         if prompts:
             try:
                 info = prompt_service.get_prompt_info(prompt_category, prompts[0])

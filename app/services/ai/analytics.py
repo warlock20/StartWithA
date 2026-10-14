@@ -50,6 +50,8 @@ TOKEN_PRICING = {
     # DeepSeek
     'deepseek-chat': {'input': 0.27, 'output': 1.10},       # V3 pricing
     'deepseek-reasoner': {'input': 0.55, 'output': 2.19},   # R1 pricing
+    'deepseek-flash': {'input': 0.30, 'output': 1.20},      # V4 Flash (peak)
+    'deepseek-v4-pro': {'input': 1.32, 'output': 3.96},     # V4 Pro (peak)
 }
 
 

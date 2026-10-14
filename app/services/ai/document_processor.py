@@ -25,6 +25,7 @@ Classes:
 """
 
 import logging
+from app.services.ai_check.context import ai_context_from_data
 from app.utils.time_utils import now_utc
 from typing import Dict, List, Optional
 from dataclasses import dataclass
@@ -119,6 +120,7 @@ class ProcessingApproach(Enum):
 class ChecklistItem:
     text: str
     llm_prompt: Optional[str] = None
+    ai_context: Optional[dict] = None
     parent_id: Optional[int] = None
     order: int = 0
     confidence: float = 1.0
@@ -212,6 +214,7 @@ Return JSON with:
             items.append(ChecklistItem(
                 text=item_data.get('text', ''),
                 llm_prompt=item_data.get('llm_prompt'),
+                ai_context=ai_context_from_data(item_data),
                 confidence=item_data.get('confidence', 1.0),
                 category=item_data.get('category'),
                 order=order
@@ -223,6 +226,7 @@ Return JSON with:
                 items.append(ChecklistItem(
                     text=sub.get('text', ''),
                     llm_prompt=sub.get('llm_prompt'),
+                    ai_context=ai_context_from_data(sub),
                     confidence=sub.get('confidence', 1.0),
                     parent_id=parent_idx,
                     order=order
