@@ -22,10 +22,12 @@ from app.models import (JournalEntry, ThesisEvolution, LearningNote,
                        ResearchProject, MistakeLog)
 from app.journal_enhanced import journal_enhanced_bp
 from app.journal_enhanced.utils import (extract_tags_from_content, get_related_entries,
-                                       update_thesis_version, create_default_templates)
+                                       update_thesis_version, create_default_templates,
+                                       companies_with_notes, get_company_knowledge_summary)
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.blocknote_utils import blocknote_to_text
+from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
 import os
 from werkzeug.utils import secure_filename
@@ -802,6 +804,25 @@ def edit_learning_note(note_id):
                          note=note,
                          companies=companies)
 
+def _group_by_date(results):
+    """Bucket hub results into This Week / This Month / Last 3 Months / Older."""
+    now = now_utc().replace(tzinfo=None)
+    date_order = ['This Week', 'This Month', 'Last 3 Months', 'Older']
+    grouped = {}
+    for result in results:
+        item_date = result['date'].replace(tzinfo=None) if result['date'].tzinfo else result['date']
+        diff = (now - item_date).days
+        if diff < 7:
+            label = 'This Week'
+        elif diff < 30:
+            label = 'This Month'
+        elif diff < 90:
+            label = 'Last 3 Months'
+        else:
+            label = 'Older'
+        grouped.setdefault(label, []).append(result)
+    return [(k, grouped[k]) for k in date_order if k in grouped]
+
 @journal_enhanced_bp.route('/knowledge-hub')
 @login_required
 def knowledge_hub():
@@ -822,13 +843,15 @@ def knowledge_hub():
     if content_type in ['all', 'research']:
         research_query = JournalEntry.query.filter_by(
             user_id=current_user.id, is_archived=False
-        )
+        ).options(joinedload(JournalEntry.company))
         if search_query:
             pattern = f'%{search_query}%'
-            research_query = research_query.filter(db.or_(
+            research_query = research_query.outerjoin(JournalEntry.company).filter(db.or_(
                 JournalEntry.title.ilike(pattern),
                 JournalEntry.content.ilike(pattern),
-                JournalEntry.key_insight.ilike(pattern)
+                JournalEntry.key_insight.ilike(pattern),
+                Company.name.ilike(pattern),
+                Company.ticker_symbol.ilike(pattern)
             ))
         if company_filter:
             research_query = research_query.filter_by(company_id=company_filter)
@@ -850,13 +873,17 @@ def knowledge_hub():
 
     # --- Query Curated Wisdom (LearningNote) ---
     if content_type in ['all', 'wisdom']:
-        wisdom_query = LearningNote.query.filter_by(user_id=current_user.id)
+        wisdom_query = LearningNote.query.filter_by(
+            user_id=current_user.id
+        ).options(joinedload(LearningNote.company))
         if search_query:
             pattern = f'%{search_query}%'
-            wisdom_query = wisdom_query.filter(db.or_(
+            wisdom_query = wisdom_query.outerjoin(LearningNote.company).filter(db.or_(
                 LearningNote.title.ilike(pattern),
                 LearningNote.lesson.ilike(pattern),
-                LearningNote.source_author.ilike(pattern)
+                LearningNote.source_author.ilike(pattern),
+                Company.name.ilike(pattern),
+                Company.ticker_symbol.ilike(pattern)
             ))
         if company_filter:
             wisdom_query = wisdom_query.filter_by(company_id=company_filter)
@@ -880,13 +907,17 @@ def knowledge_hub():
 
     # --- Query Mistakes (MistakeLog) ---
     if content_type in ['all', 'mistake']:
-        mistake_query = MistakeLog.query.filter_by(user_id=current_user.id)
+        mistake_query = MistakeLog.query.filter_by(
+            user_id=current_user.id
+        ).options(joinedload(MistakeLog.company))
         if search_query:
             pattern = f'%{search_query}%'
-            mistake_query = mistake_query.filter(db.or_(
+            mistake_query = mistake_query.outerjoin(MistakeLog.company).filter(db.or_(
                 MistakeLog.title.ilike(pattern),
                 MistakeLog.description.ilike(pattern),
-                MistakeLog.lesson_learned.ilike(pattern)
+                MistakeLog.lesson_learned.ilike(pattern),
+                Company.name.ilike(pattern),
+                Company.ticker_symbol.ilike(pattern)
             ))
         if company_filter:
             mistake_query = mistake_query.filter_by(company_id=company_filter)
@@ -910,30 +941,29 @@ def knowledge_hub():
     else:
         unified_results.sort(key=lambda x: x['date'], reverse=True)
 
-    # Group by date (always date-grouped in Command Center)
-    now = now_utc().replace(tzinfo=None)
-    date_order = ['This Week', 'This Month', 'Last 3 Months', 'Older']
-    grouped_results = {}
-    for result in unified_results:
-        item_date = result['date'].replace(tzinfo=None) if result['date'].tzinfo else result['date']
-        diff = (now - item_date).days
-        if diff < 7:
-            label = 'This Week'
-        elif diff < 30:
-            label = 'This Month'
-        elif diff < 90:
-            label = 'Last 3 Months'
-        else:
-            label = 'Older'
-        if label not in grouped_results:
-            grouped_results[label] = []
-        grouped_results[label].append(result)
+    # A selected company gets its own summary, and its notes are grouped by
+    # type (the summary header already shows the date range). Otherwise group
+    # by date.
+    company_summary = None
+    if company_filter:
+        company_summary = get_company_knowledge_summary(current_user.id, company_filter)
 
-    # Preserve date order
-    ordered_groups = [(k, grouped_results[k]) for k in date_order if k in grouped_results]
+    if company_summary:
+        type_labels = [('research', 'Research'), ('wisdom', 'Wisdom'), ('mistake', 'Mistakes')]
+        ordered_groups = [
+            (label, [r for r in unified_results if r['type'] == key])
+            for key, label in type_labels
+        ]
+        ordered_groups = [(label, items) for label, items in ordered_groups if items]
+    else:
+        ordered_groups = _group_by_date(unified_results)
 
-    # Collect filter dropdown data
-    companies = current_user.companies.order_by(Company.name).all()
+    # Collect filter dropdown data — only companies that have notes. Keep the
+    # selected company listed even when it has none (e.g. its last note was
+    # just deleted) so the dropdown still reflects the active filter.
+    companies = companies_with_notes(current_user.id)
+    if company_summary and not any(c.id == company_filter for c in companies):
+        companies.insert(0, company_summary['counts'])
     all_tags = set()
     for entry in current_user.journal_entries.filter(JournalEntry.tags.isnot(None)):
         if entry.tags:
@@ -943,10 +973,17 @@ def knowledge_hub():
             all_tags.update(note.topic_tags)
     all_tags = sorted(all_tags)
 
-    # Type counts for tabs
-    all_research_count = current_user.journal_entries.filter_by(is_archived=False).count()
-    all_wisdom_count = current_user.learning_notes.count()
-    all_mistake_count = MistakeLog.query.filter_by(user_id=current_user.id).count()
+    # Type counts for tabs — scoped to the selected company, like the cards
+    research_counts = current_user.journal_entries.filter_by(is_archived=False)
+    wisdom_counts = current_user.learning_notes
+    mistake_counts = MistakeLog.query.filter_by(user_id=current_user.id)
+    if company_filter:
+        research_counts = research_counts.filter_by(company_id=company_filter)
+        wisdom_counts = wisdom_counts.filter_by(company_id=company_filter)
+        mistake_counts = mistake_counts.filter_by(company_id=company_filter)
+    all_research_count = research_counts.count()
+    all_wisdom_count = wisdom_counts.count()
+    all_mistake_count = mistake_counts.count()
     total_count = all_research_count + all_wisdom_count + all_mistake_count
 
     type_counts = {
@@ -963,6 +1000,7 @@ def knowledge_hub():
                          grouped_results=ordered_groups,
                          type_counts=type_counts,
                          companies=companies,
+                         company_summary=company_summary,
                          all_tags=all_tags,
                          search_query=search_query,
                          company_filter=company_filter,

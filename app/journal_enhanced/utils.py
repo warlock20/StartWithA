@@ -14,13 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, date
 from app import db
 from app.models import (JournalEntry, ThesisEvolution, LearningNote,
-                       JournalTemplate, Company)
+                       JournalTemplate, Company, MistakeLog)
 import re
 from collections import Counter
-from sqlalchemy import text
+from sqlalchemy import String, func, literal, select, text, union_all
 from app.utils.time_utils import now_utc
 
 def extract_tags_from_content(content):
@@ -320,3 +321,170 @@ def create_default_templates():
             print(f"Error creating templates: {e}")
     
     return []
+
+
+# ---------------------------------------------------------------------------
+# Knowledge Hub: company-centric reads over research (JournalEntry), wisdom
+# (LearningNote) and mistakes (MistakeLog).
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CompanyNoteCount:
+    """Notes per type for one company — one Knowledge Hub dropdown option."""
+    id: int
+    name: str
+    ticker: str
+    research: int = 0
+    wisdom: int = 0
+    mistake: int = 0
+
+    @property
+    def total(self):
+        return self.research + self.wisdom + self.mistake
+
+
+def _company_note_rows(user_id):
+    """One (company_id, kind, created_at) row per company-linked hub note."""
+    research = select(
+        JournalEntry.company_id.label('company_id'),
+        literal('research', String).label('kind'),
+        JournalEntry.created_at.label('created_at'),
+    ).where(
+        JournalEntry.user_id == user_id,
+        JournalEntry.company_id.isnot(None),
+        JournalEntry.is_archived.is_(False),
+    )
+    wisdom = select(
+        LearningNote.company_id,
+        literal('wisdom', String),
+        LearningNote.created_at,
+    ).where(
+        LearningNote.user_id == user_id,
+        LearningNote.company_id.isnot(None),
+    )
+    mistake = select(
+        MistakeLog.company_id,
+        literal('mistake', String),
+        MistakeLog.created_at,
+    ).where(
+        MistakeLog.user_id == user_id,
+        MistakeLog.company_id.isnot(None),
+    )
+    return union_all(research, wisdom, mistake).subquery()
+
+
+def _company_note_counts(user_id, company_id=None):
+    """{company_id: CompanyNoteCount}, ordered by company name."""
+    notes = _company_note_rows(user_id)
+    query = db.session.query(
+        Company.id, Company.name, Company.ticker_symbol,
+        notes.c.kind, func.count(),
+    ).join(
+        notes, notes.c.company_id == Company.id
+    ).filter(
+        # A note pointing at another user's company must not surface it.
+        Company.user_id == user_id
+    )
+    if company_id is not None:
+        query = query.filter(Company.id == company_id)
+    rows = query.group_by(
+        Company.id, Company.name, Company.ticker_symbol, notes.c.kind
+    ).order_by(func.lower(Company.name), Company.id).all()
+
+    counts = {}
+    for cid, name, ticker, kind, n in rows:
+        entry = counts.setdefault(cid, CompanyNoteCount(cid, name, ticker))
+        setattr(entry, kind, n)
+    return counts
+
+
+def companies_with_notes(user_id):
+    """Companies with at least one research/wisdom/mistake note, A to Z."""
+    return list(_company_note_counts(user_id).values())
+
+
+def get_company_knowledge_summary(user_id, company_id, insight_limit=5, item_limit=10):
+    """Everything the Knowledge Hub knows about one company, as a dict.
+
+    Returns None if the company is not the user's. Independent of the hub's
+    type/search/tag/starred filters — it describes the company, not the
+    current result set.
+    """
+    company = Company.query.filter_by(id=company_id, user_id=user_id).first()
+    if company is None:
+        return None
+
+    counts = _company_note_counts(user_id, company_id).get(
+        company_id, CompanyNoteCount(company.id, company.name, company.ticker_symbol)
+    )
+
+    notes = _company_note_rows(user_id)
+    first_note_at, last_note_at = db.session.query(
+        func.min(notes.c.created_at), func.max(notes.c.created_at)
+    ).filter(notes.c.company_id == company_id).one()
+
+    thesis_versions = ThesisEvolution.query.filter_by(
+        user_id=user_id, company_id=company_id
+    ).order_by(ThesisEvolution.created_at).all()
+    current_thesis = None
+    if thesis_versions:
+        current = [t for t in thesis_versions if t.is_current]
+        current_thesis = current[-1] if current else thesis_versions[-1]
+
+    # Newest first: everything below wants the most recent items.
+    entries = JournalEntry.query.filter_by(
+        user_id=user_id, company_id=company_id, is_archived=False
+    ).order_by(JournalEntry.created_at.desc()).all()
+
+    latest_sentiment = next((e.sentiment for e in entries if e.sentiment), None)
+    latest_conviction = next((e.conviction_level for e in entries if e.conviction_level), None)
+    key_insights = [e for e in entries if e.key_insight][:insight_limit]
+    # These JSON lists carry no resolved/done state, so they are "raised",
+    # not "open".
+    questions_raised = [(q, e) for e in entries for q in (e.questions_raised or []) if q][:item_limit]
+    action_items = [(a, e) for e in entries for a in (e.action_items or []) if a][:item_limit]
+
+    points = [(t.created_at, t.conviction_level)
+              for t in thesis_versions if t.created_at and t.conviction_level]
+    points += [(e.created_at, e.conviction_level)
+               for e in entries if e.created_at and e.conviction_level]
+    points.sort(key=lambda p: p[0])
+
+    avg_severity = db.session.query(func.avg(MistakeLog.severity)).filter(
+        MistakeLog.user_id == user_id,
+        MistakeLog.company_id == company_id,
+        MistakeLog.severity.isnot(None),
+    ).scalar()
+
+    return {
+        'company': company,
+        'counts': counts,
+        'first_note_at': first_note_at,
+        'last_note_at': last_note_at,
+        'current_thesis': current_thesis,
+        'latest_sentiment': latest_sentiment,
+        'latest_conviction': latest_conviction,
+        'conviction_points': [(d.date(), c) for d, c in points],
+        'conviction_sparkline': conviction_sparkline(points),
+        'key_insights': key_insights,
+        'questions_raised': questions_raised,
+        'action_items': action_items,
+        'mistake_avg_severity': round(float(avg_severity), 1) if avg_severity is not None else None,
+    }
+
+
+def conviction_sparkline(points, width=120, height=28, pad=3):
+    """SVG polyline coordinates for a conviction series on a fixed 1-10 scale.
+
+    Returns None for fewer than two points — a single dot is not a trend.
+    Points are spaced by order, not date, so bursts of notes stay readable.
+    """
+    if len(points) < 2:
+        return None
+    step = (width - 2 * pad) / (len(points) - 1)
+    span = height - 2 * pad
+    coords = []
+    for i, (_, conviction) in enumerate(points):
+        clamped = min(max(conviction, 1), 10)
+        coords.append(f'{pad + i * step:.1f},{pad + span * (10 - clamped) / 9:.1f}')
+    return ' '.join(coords)
