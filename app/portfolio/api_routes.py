@@ -36,6 +36,7 @@ from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_th
 from app.services.similar_mistakes import find_similar_past_decisions
 from app.services.financial_data import FinancialDataService
 from app.utils.blocknote_utils import blocknote_to_html
+from app.services.findings import FINDING_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -400,10 +401,11 @@ def get_company_notes(company_id):
     limit = min(limit, 50)  # cap at 50
     search = request.args.get('q', '').strip()
 
+    # Findings (red/green flags, must-exit) are journal entries with their own section
     query = JournalEntry.query.filter_by(
         user_id=current_user.id,
         company_id=company_id
-    ).order_by(JournalEntry.created_at.desc())
+    ).filter(JournalEntry.entry_type.notin_(FINDING_TYPES)).order_by(JournalEntry.created_at.desc())
 
     if search:
         query = query.filter(

@@ -26,7 +26,7 @@ from app import db
 from app.models import ResearchProject, QuestionBankItem
 from app.models.research import FreeResearchQuestion
 from app.research_workflow import research_workflow_bp
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import format_for_javascript, now_utc
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 import logging
 
@@ -68,7 +68,7 @@ def get_free_research_questions(project_id, step_index):
             'status': q.status,
             'order_index': q.order_index,
             'created_at': q.created_at.isoformat() if q.created_at else None,
-            'answered_at': q.answered_at.isoformat() if q.answered_at else None
+            'answered_at': format_for_javascript(q.answered_at) if q.answered_at else None
         } for q in questions],
         'stats': {
             'total': len(questions),
@@ -172,7 +172,7 @@ def update_free_research_question(question_id):
             'question_text': question.question_text,
             'answer_content': question.answer_content,
             'status': question.status,
-            'answered_at': question.answered_at.isoformat() if question.answered_at else None,
+            'answered_at': format_for_javascript(question.answered_at) if question.answered_at else None,
             'updated_at': question.updated_at.isoformat()
         }
     })

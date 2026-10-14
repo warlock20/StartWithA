@@ -32,9 +32,9 @@ from app.utils.isin import is_valid_isin, isin_plausible_for_listing, normalize_
 from app.services.currency_service import CurrencyService
 from app.services.sweep_link import confirm as confirm_link, link_from_isin
 from app.utils.response_utils import json_error, json_not_found
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import format_for_javascript, now_utc
 from app.utils.blocknote_utils import append_note, blocknote_to_text
-from app.services.findings import FINDING_TYPES, add_finding, normalize_finding_type
+from app.services.findings import FINDING_TYPES, add_finding, delete_finding, normalize_finding_type
 
 logger = logging.getLogger(__name__)
 
@@ -694,7 +694,7 @@ def api_delete_finding(company_id, entry_id):
     if not entry:
         return json_not_found('Finding not found')
 
-    db.session.delete(entry)
+    delete_finding(entry)
     db.session.commit()
     return jsonify({'success': True})
 
@@ -728,7 +728,7 @@ def api_list_research_questions(company_id):
             'order_index': q.order_index,
             'created_at': q.created_at.isoformat() if q.created_at else None,
             'updated_at': q.updated_at.isoformat() if q.updated_at else None,
-            'answered_at': q.answered_at.isoformat() if q.answered_at else None,
+            'answered_at': format_for_javascript(q.answered_at) if q.answered_at else None,
         } for q in questions]
     })
 

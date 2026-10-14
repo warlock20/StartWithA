@@ -146,10 +146,6 @@ def save_project_decision(project_id):
         confidence = request.form.get('confidence') or request.form.get('decision_confidence')
         decision_confidence = int(confidence) if confidence else None
 
-        green_flags_raw = request.form.get('green_flags', '')
-        red_flags_raw = request.form.get('red_flags', '')
-        must_exit_raw = request.form.get('must_exit_criteria', '')
-
         # Validate decision
         if decision not in ['invest', 'pass', 'watchlist']:
             if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
@@ -162,10 +158,15 @@ def save_project_decision(project_id):
         project.decision_summary = decision_summary
         project.decision_confidence = decision_confidence
         project.decision_date = now_utc()
-        for finding_type, raw in ((GREEN_FLAG, green_flags_raw), (RED_FLAG, red_flags_raw),
-                                  (MUST_EXIT, must_exit_raw)):
+        # Findings are shared with the company page, so apply only the edits made
+        # to the lists this form loaded (sent back as <field>_loaded).
+        for finding_type, field in ((GREEN_FLAG, 'green_flags'), (RED_FLAG, 'red_flags'),
+                                    (MUST_EXIT, 'must_exit_criteria')):
+            raw = request.form.get(field, '')
+            loaded_raw = request.form.get(f'{field}_loaded')
             replace_findings(project.user_id, project.company_id, finding_type,
-                             raw.split('\n'), project_id=project.id)
+                             raw.split('\n'), project_id=project.id,
+                             loaded=loaded_raw.split('\n') if loaded_raw is not None else None)
 
         # Clear mid-research watchlist fields when making a final decision
         if decision != 'watchlist':

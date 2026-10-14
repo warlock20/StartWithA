@@ -328,6 +328,15 @@ window.hideStartResearchModal = hideStartResearchModal;
         if (window.showToast) window.showToast(message, type);
     }
 
+    // A login redirect or server error page is HTML, not JSON
+    function readJson(r, fallback) {
+        var isJson = (r.headers.get('Content-Type') || '').indexOf('application/json') !== -1;
+        if (!isJson) {
+            throw new Error(r.redirected ? 'Your session expired. Reload the page and sign in.' : fallback);
+        }
+        return r.json();
+    }
+
     grid.addEventListener('submit', function (e) {
         var form = e.target.closest('.finding-add-form');
         if (!form) return;
@@ -343,7 +352,7 @@ window.hideStartResearchModal = hideStartResearchModal;
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: col.dataset.findingType, text: text })
         })
-            .then(function (r) { return r.json(); })
+            .then(function (r) { return readJson(r, 'Could not save'); })
             .then(function (data) {
                 if (!data.success) throw new Error(data.error || 'Could not save');
                 col.querySelector('.findings-list').appendChild(findingItem(data.finding));
@@ -359,7 +368,7 @@ window.hideStartResearchModal = hideStartResearchModal;
         var li = del.closest('li');
         if (!confirm('Delete this finding?')) return;
         fetch(baseUrl + '/' + li.dataset.findingId, { method: 'DELETE' })
-            .then(function (r) { return r.json(); })
+            .then(function (r) { return readJson(r, 'Could not delete'); })
             .then(function (data) {
                 if (!data.success) throw new Error(data.error || 'Could not delete');
                 li.remove();

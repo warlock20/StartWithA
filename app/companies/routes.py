@@ -38,7 +38,7 @@ from app.models.research import FreeResearchQuestion
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
 from app.services.export_service import export_company_journey, safe_name
-from app.services.findings import GREEN_FLAG, MUST_EXIT, RED_FLAG, finding_entries
+from app.services.findings import FINDING_TYPES, GREEN_FLAG, MUST_EXIT, RED_FLAG, finding_entries
 from app.companies import companies_bp
 from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task
 from app.utils.ticker_validator import TickerValidator
@@ -512,11 +512,11 @@ def _gather_journey_data(company, user_id):
     # Sort timeline by datetime (most recent first)
     timeline_events.sort(key=lambda x: x['datetime'], reverse=True)
 
-    # Journal entries count (loaded via AJAX)
+    # Journal entries count (loaded via AJAX); findings are counted separately
     journal_entries_count = JournalEntry.query.filter_by(
         user_id=user_id,
         company_id=company.id
-    ).count()
+    ).filter(JournalEntry.entry_type.notin_(FINDING_TYPES)).count()
 
     # Journey statistics
     total_return = 0

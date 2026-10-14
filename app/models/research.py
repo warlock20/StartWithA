@@ -244,11 +244,20 @@ class ResearchProject(db.Model):
     research_logs = db.relationship('ResearchLog', backref='project',
                                    lazy='dynamic', cascade='all, delete-orphan')
 
+    # Loaded once per instance (and eager-loadable); expired on commit, and by
+    # app.services.findings when it adds or deletes a finding.
+    finding_journal_entries = db.relationship(
+        'JournalEntry',
+        primaryjoin="and_(foreign(JournalEntry.company_id) == ResearchProject.company_id, "
+                    "foreign(JournalEntry.user_id) == ResearchProject.user_id, "
+                    "JournalEntry.entry_type.in_(['red_flag', 'green_flag', 'must_exit']), "
+                    "or_(JournalEntry.is_archived.is_(False), JournalEntry.is_archived.is_(None)))",
+        order_by="[JournalEntry.created_at, JournalEntry.id]",
+        viewonly=True,
+    )
+
     def _finding_texts(self, finding_type):
-        from app.services.findings import finding_texts
-        if not self.user_id or not self.company_id:
-            return []
-        return finding_texts(self.user_id, self.company_id, finding_type)
+        return [e.content for e in self.finding_journal_entries if e.entry_type == finding_type]
 
     @property
     def red_flags(self):

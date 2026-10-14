@@ -26,6 +26,7 @@ from app.journal_enhanced.utils import (extract_tags_from_content, get_related_e
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.blocknote_utils import blocknote_to_text
+from app.services.findings import FINDING_TYPES, finding_text_from_editor
 from sqlalchemy.orm import contains_eager
 from datetime import datetime, timedelta
 import os
@@ -198,6 +199,8 @@ def new_entry():
             entry_type = custom_entry_type if custom_entry_type else 'other'
 
         content = request.form.get('content')
+        if entry_type in FINDING_TYPES:
+            content = finding_text_from_editor(content)
         key_insight = request.form.get('key_insight')
         # The select's placeholder option posts '', which should store as NULL
         sentiment = request.form.get('sentiment') or None
@@ -290,6 +293,9 @@ def new_entry():
             db.session.commit()
             
             flash('Journal entry created successfully!', 'success')
+            if entry_type == 'thesis_update':
+                flash('This was saved as a journal note only. Record a new thesis '
+                      'version from the position\'s thesis form.', 'info')
             return_url = request.form.get('return_url') or url_for('journal_enhanced.knowledge_hub', type='research')
             return redirect(return_url)
             
@@ -376,8 +382,11 @@ def edit_entry(entry_id):
 
    if request.method == 'POST':
        entry.title = request.form.get('title')
-       entry.content = request.form.get('content')
        entry.entry_type = request.form.get('entry_type', entry.entry_type)
+       entry.content = request.form.get('content')
+       if entry.entry_type in FINDING_TYPES:
+           # Findings are read as plain text (Findings tab, exports, companion)
+           entry.content = finding_text_from_editor(entry.content)
        entry.key_insight = request.form.get('key_insight')
        entry.sentiment = request.form.get('sentiment')
        entry.conviction_level = request.form.get('conviction', type=int)
