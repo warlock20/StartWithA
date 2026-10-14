@@ -16,7 +16,7 @@
 
 from datetime import datetime, timedelta, date
 from app import db
-from app.models import (JournalEntry, ThesisEvolution, LearningNote,
+from app.models import (JournalEntry, LearningNote,
                        JournalTemplate, Company)
 import re
 from collections import Counter
@@ -73,45 +73,6 @@ def get_related_entries(entry, limit=5):
                 break
     
     return unique_related
-
-def update_thesis_version(user_id, company_id, new_thesis, trigger=None):
-    """
-    Create a new thesis version for a company.
-    """
-    # Mark current thesis as not current
-    ThesisEvolution.query.filter_by(
-        user_id=user_id,
-        company_id=company_id,
-        is_current=True
-    ).update({'is_current': False})
-    
-    # Get the latest version number
-    latest = ThesisEvolution.query.filter_by(
-        user_id=user_id,
-        company_id=company_id
-    ).order_by(ThesisEvolution.version.desc()).first()
-    
-    new_version = (latest.version + 1) if latest else 1
-    
-    # Create new thesis version
-    thesis_evolution = ThesisEvolution(
-        user_id=user_id,
-        company_id=company_id,
-        version=new_version,
-        thesis=new_thesis,
-        change_trigger=trigger,
-        is_current=True
-    )
-    
-    db.session.add(thesis_evolution)
-    
-    try:
-        db.session.commit()
-        return thesis_evolution
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error updating thesis: {e}")
-        return None
 
 def search_journal(user_id, query, filters=None):
     """
@@ -251,19 +212,6 @@ def create_default_templates():
                 'How did management sound?',
                 'What are the forward-looking statements?',
                 'Action items after this call?'
-            ]
-        },
-        {
-            'name': 'Investment Thesis Update',
-            'entry_type': 'thesis_update',
-            'description': 'Track evolution of your investment thesis',
-            'prompts': [
-                'What has changed since last update?',
-                'Current bull case (3-5 points)',
-                'Current bear case (3-5 points)',
-                'Key metrics to watch',
-                'Conviction level (1-10) and why',
-                'Position sizing thoughts'
             ]
         },
         {

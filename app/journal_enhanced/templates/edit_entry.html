@@ -30,7 +30,9 @@
                             <label for="entry_type" class="form-label">Entry Type</label>
                             <select class="form-select" id="entry_type" name="entry_type">
                                 <option value="observation" {{ 'selected' if entry.entry_type == 'observation' else '' }}>Observation</option>
-                                <option value="thesis_update" {{ 'selected' if entry.entry_type == 'thesis_update' else '' }}>Thesis Update</option>
+                                {% if entry.entry_type == 'thesis_update' %}
+                                <option value="thesis_update" selected>Thesis Update</option>
+                                {% endif %}
                                 <option value="question" {{ 'selected' if entry.entry_type == 'question' else '' }}>Question</option>
                                 <option value="insight" {{ 'selected' if entry.entry_type == 'insight' else '' }}>Insight</option>
                                 <option value="lesson_learned" {{ 'selected' if entry.entry_type == 'lesson_learned' else '' }}>Lesson Learned</option>
