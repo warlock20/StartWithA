@@ -1,0 +1,124 @@
+<!-- Command Center - Company summary (shown when a company filter is active) -->
+{% set s = company_summary %}
+{% set counts = s.counts %}
+{% set type_chips = [
+    ('research', 'Research', counts.research, 'bi-journal-text', '#2563eb', '#eff6ff'),
+    ('wisdom', 'Wisdom', counts.wisdom, 'bi-lightbulb-fill', '#d97706', '#fffbeb'),
+    ('mistake', 'Mistakes', counts.mistake, 'bi-exclamation-triangle-fill', '#dc2626', '#fef2f2'),
+] %}
+<section class="cc-company">
+    <div class="cc-company-top">
+        <div class="cc-company-identity">
+            <h2 class="cc-company-name">{{ s.company.name }}</h2>
+            <span class="cc-company-ticker">{{ s.company.ticker_symbol }}</span>
+        </div>
+        <div class="cc-company-links">
+            <a href="{{ url_for('companies.company_detail', company_id=s.company.id) }}" class="cc-company-link">
+                Company page <i class="bi bi-arrow-right"></i>
+            </a>
+            <a href="{{ url_for('journal_enhanced.knowledge_hub', type=content_type) }}" class="cc-company-clear" title="Show all companies">
+                <i class="bi bi-x-lg"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="cc-company-meta">
+        {{ counts.total }} {{ 'note' if counts.total == 1 else 'notes' }}
+        {% if s.first_note_at %}
+        · first {{ s.first_note_at.strftime('%b %d, %Y') }}
+        · last {{ s.last_note_at.strftime('%b %d, %Y') }}
+        {% endif %}
+    </div>
+
+    <div class="cc-company-chips">
+        {% for key, label, n, icon, color, bg in type_chips %}
+        <a href="{{ url_for('journal_enhanced.knowledge_hub', type=key, company_id=s.company.id) }}"
+           class="cc-company-chip {{ 'active' if content_type == key }}"
+           style="--chip-color: {{ color }}; --chip-bg: {{ bg }}">
+            <i class="bi {{ icon }}"></i> {{ label }} <strong>{{ n }}</strong>
+            {% if key == 'mistake' and s.mistake_avg_severity is not none %}
+            <span class="cc-company-chip-sub">avg severity {{ s.mistake_avg_severity }}</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+
+    {% set has_conviction = s.conviction_sparkline or s.latest_sentiment or s.latest_conviction %}
+    {% if s.current_thesis or has_conviction or s.key_insights or s.questions_raised or s.action_items %}
+    <div class="cc-company-panels">
+        {% if s.current_thesis or has_conviction %}
+        <div class="cc-company-panel">
+            {% if s.current_thesis %}
+            <div class="cc-company-panel-title">
+                Current thesis
+                <span class="cc-company-panel-sub">
+                    v{{ s.current_thesis.version }}{% if s.current_thesis.conviction_level %} · {{ s.current_thesis.conviction_level }}/10{% endif %}
+                </span>
+            </div>
+            <p class="cc-company-thesis">{{ s.current_thesis.thesis_text|truncate(280) }}</p>
+            {% endif %}
+
+            {% if has_conviction %}
+            <div class="cc-company-panel-title">Conviction</div>
+            <div class="cc-company-conviction">
+                {% if s.conviction_sparkline %}
+                <svg class="cc-company-spark" viewBox="0 0 120 28" width="120" height="28"
+                     role="img" aria-label="Conviction over time, {{ s.conviction_points|length }} data points">
+                    <polyline points="{{ s.conviction_sparkline }}" fill="none" stroke="currentColor"
+                              stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                </svg>
+                {% endif %}
+                {% if s.latest_conviction %}
+                <span class="cc-company-stat"><strong>{{ s.latest_conviction }}</strong>/10 latest</span>
+                {% endif %}
+                {% if s.latest_sentiment %}
+                <span class="cc-company-sentiment cc-sentiment-{{ s.latest_sentiment }}">{{ s.latest_sentiment|capitalize }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if s.current_thesis %}
+            <a href="{{ url_for('journal_enhanced.thesis_evolution', company_id=s.company.id) }}" class="cc-detail-link">
+                <i class="bi bi-arrow-right"></i> Thesis history
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if s.key_insights %}
+        <div class="cc-company-panel">
+            <div class="cc-company-panel-title">Key insights</div>
+            <ul class="cc-company-list">
+                {% for entry in s.key_insights %}
+                <li>
+                    <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}">{{ entry.key_insight|striptags|truncate(160) }}</a>
+                    <span class="cc-company-list-date">{{ entry.created_at.strftime('%b %d') }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if s.questions_raised or s.action_items %}
+        <div class="cc-company-panel">
+            {% if s.questions_raised %}
+            <div class="cc-company-panel-title">Questions raised</div>
+            <ul class="cc-company-list">
+                {% for question, entry in s.questions_raised %}
+                <li><a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}">{{ question|truncate(160) }}</a></li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if s.action_items %}
+            <div class="cc-company-panel-title">Action items</div>
+            <ul class="cc-company-list">
+                {% for item, entry in s.action_items %}
+                <li><a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}">{{ item|truncate(160) }}</a></li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</section>
