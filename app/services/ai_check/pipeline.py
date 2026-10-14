@@ -27,7 +27,7 @@ from app.services.ai_check import AICheckError, AICheckRunLimitError
 from app.services.ai_check.context import context_snapshot, has_ai_context
 from app.services.ai_check.fetch import clear_run_files, sweep_run_files
 from app.services.ai_check.pricing import provider_of
-from app.services.ai_check.setup import resolve_setup, setup_summary
+from app.services.ai_check.setup import resolve_setup, setup_summary, user_search_budget
 from app.services.ai_check.llm import UsageTally
 from app.services.ai_check.stages import (
     MAX_SOURCES, create_document_sources, run_analyze, run_extract, run_gather, run_quick, usage_tally,
@@ -98,7 +98,7 @@ def start_run(user_id, analysis, item, mode, document_ids, run_limit=None, setup
         return active, False
     if run_limit is not None and runs_in_window(user_id) >= run_limit:
         raise AICheckRunLimitError(f'You have used all {run_limit} AI checks for the last 30 days.')
-    models = resolve_setup(user_id, setup_choice)
+    models = {**resolve_setup(user_id, setup_choice), 'search_budget': user_search_budget(user_id)}
     if depth == 'full' and mode != 'documents' and _downloads_web_pages(models) \
             and not current_app.config.get('AI_CHECK_FETCH_CONTACT'):
         # Refuse before Gather is paid for: every web source would fail at Extract.

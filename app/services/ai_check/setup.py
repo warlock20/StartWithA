@@ -16,6 +16,7 @@
 
 """Which model runs each AI check stage: stage capabilities, presets, the user's own setup."""
 
+from app.models import ResearchSettings
 from app.models.user_ai_preferences import UserAIPreference
 from app.services.ai.config import MODEL_TIERS, AIProvider, get_ai_config, resolve_model_name
 from app.services.ai.prompt_service import prompt_service
@@ -51,6 +52,9 @@ MODEL_LABELS = {
     'gemini-2.5-flash': 'Gemini 2.5 Flash', 'gemini-2.5-pro': 'Gemini 2.5 Pro',
     'deepseek-flash': 'DeepSeek V4 Flash', 'deepseek-v4-pro': 'DeepSeek V4 Pro',
 }
+# Web searches per run (ResearchSettings.ai_check_search_budget), frozen on run.models at start.
+DEFAULT_SEARCH_BUDGET = 5
+MIN_SEARCH_BUDGET, MAX_SEARCH_BUDGET = 1, 10
 PROVIDER_NAMES = {'claude': 'Claude', 'gemini': 'Gemini', 'deepseek': 'DeepSeek'}
 # Old or alternative spellings users may have saved.
 _ALIASES = {'deepseek-chat': 'deepseek-flash', 'deepseek-reasoner': 'deepseek-flash',
@@ -135,6 +139,16 @@ def available_setups(user_id):
 
 def ai_check_available(user_id):
     return bool(available_setups(user_id))
+
+
+def user_search_budget(user_id):
+    settings = ResearchSettings.query.filter_by(user_id=user_id).first()
+    return settings.ai_check_search_budget if settings and settings.ai_check_search_budget else DEFAULT_SEARCH_BUDGET
+
+
+def run_search_budget(run):
+    """The run's frozen search budget; runs started before the setting existed get the default."""
+    return (run.models or {}).get('search_budget') or DEFAULT_SEARCH_BUDGET
 
 
 def stage_model(run, stage):

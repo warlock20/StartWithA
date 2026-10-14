@@ -71,6 +71,20 @@
         </div>
     </div>
     {% endfor %}
+    <div class="settings-row">
+        <label class="settings-row-label" for="aic-search-budget">
+            <strong>Web searches per run</strong>
+            <span>Each search costs about $0.01. Claude stops at this number; Gemini treats it as guidance.</span>
+        </label>
+        <div class="settings-row-control">
+            <form method="POST" action="{{ url_for('ai_models.set_ai_check_search_budget') }}" class="settings-inline-form">
+                <input id="aic-search-budget" type="number" name="search_budget" class="form-control form-control-sm"
+                       min="{{ search_budget_range[0] }}" max="{{ search_budget_range[1] }}" step="1"
+                       value="{{ ai_check_search_budget }}" required>
+                <button type="submit" class="action-btn">Save</button>
+            </form>
+        </div>
+    </div>
 </section>
 
 <section class="settings-panel">

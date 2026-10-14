@@ -27,7 +27,7 @@ from app.services.ai.prompt_service import prompt_service
 from app.services.ai_check import AICheckError
 from app.services.ai_check.fetch import fetch_source_file
 from app.services.ai_check.llm import Document, UsageTally, call_for_tool, record_usage, stage_call
-from app.services.ai_check.setup import stage_model
+from app.services.ai_check.setup import run_search_budget, stage_model
 from app.services.ai_check.tools import (
     RECORD_EVIDENCE_TOOL, RECORD_SOURCES_TOOL, REQUEST_MORE_EVIDENCE_TOOL, SUBMIT_AI_CHECK_TOOL,
 )
@@ -35,7 +35,6 @@ from app.services.ai_check.verify import quote_in_texts, read_page_texts
 
 MAX_SOURCES = 6
 MAX_WEB_SOURCES = 4
-SEARCH_BUDGET = 5
 # Claude's request cap is 32 MB and base64 inflates a PDF by 4/3, so 22 MiB (~29.3 MB encoded) is
 # the largest file that still fits with room for the prompt. The same cap applies on every provider.
 MAX_DOC_BYTES = 22 * 1024 * 1024
@@ -101,7 +100,7 @@ def create_document_sources(run):
 def run_gather(run, adapter, gaps=None):
     web_count = sum(1 for s in run.sources if s.kind == 'web')
     room = min(MAX_SOURCES - len(run.sources), MAX_WEB_SOURCES - web_count)
-    searches_left = SEARCH_BUDGET - (run.web_searches or 0)
+    searches_left = run_search_budget(run) - (run.web_searches or 0)
     if room <= 0 or searches_left <= 0:
         return []
     data = prompt_data('ai_check_gather')
@@ -110,7 +109,7 @@ def run_gather(run, adapter, gaps=None):
         existing_sources=_bullets([s.title for s in run.sources], data['empty_list']),
         gaps=_bullets(gaps or [], data['empty_list']), max_sources=room)
     call = stage_call(data, stage_model(run, 'gather'), prompt, [RECORD_SOURCES_TOOL],
-                      search_cap=min(data.get('search_max_uses', SEARCH_BUDGET), searches_left))
+                      search_cap=searches_left)
     _, args, _ = call_for_tool(adapter, call, {'record_sources'}, _usage_recorder(run))
     created = []
     for item in args.get('sources') or []:
@@ -325,7 +324,7 @@ def run_quick(run, adapter, upload_folder):
         documents_note=data['documents_attached' if documents else 'no_documents'],
         search_note=data['search_allowed' if search else 'search_closed'])
     call = stage_call(data, stage_model(run, 'quick'), prompt, [SUBMIT_AI_CHECK_TOOL], documents=documents,
-                      search_cap=data.get('search_max_uses', SEARCH_BUDGET) if search else None)
+                      search_cap=run_search_budget(run) if search else None)
     searches_before = usage_tally(run).web_searches
     _, args, _ = call_for_tool(adapter, call, {'submit_ai_check'}, _usage_recorder(run))
     result = clean_result(args, set(), rubric)

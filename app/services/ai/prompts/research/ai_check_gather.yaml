@@ -6,7 +6,6 @@ category: "research"
 model: "claude-sonnet-5"
 max_tokens: 16000
 effort: "medium"
-search_max_uses: 5
 last_modified: "2026-10-06"
 
 # Fallback texts read by stages.py.
