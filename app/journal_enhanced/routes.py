@@ -572,9 +572,11 @@ def new_thesis_version(company_id):
                sentiment='bullish' if conviction >= 7 else 'neutral' if conviction >= 4 else 'bearish'
            )
            db.session.add(journal_entry)
-           thesis_evolution.linked_journal_entry_id = journal_entry.id
-           
+
            try:
+               # Flush first: the entry has no id until it is written.
+               db.session.flush()
+               thesis_evolution.linked_journal_entry_id = journal_entry.id
                db.session.commit()
                flash('Thesis updated successfully!', 'success')
                return redirect(url_for('journal_enhanced.thesis_evolution', company_id=company_id))
@@ -854,9 +856,9 @@ def knowledge_hub():
                 Company.ticker_symbol.ilike(pattern)
             ))
         if company_filter:
-            research_query = research_query.filter_by(company_id=company_filter)
+            research_query = research_query.filter(JournalEntry.company_id == company_filter)
         if starred_only:
-            research_query = research_query.filter_by(is_starred=True)
+            research_query = research_query.filter(JournalEntry.is_starred.is_(True))
         for entry in research_query.order_by(JournalEntry.created_at.desc()).all():
             # Tag filtering in Python for PostgreSQL JSON compat
             if tag_filter and (not entry.tags or tag_filter not in entry.tags):
@@ -886,9 +888,9 @@ def knowledge_hub():
                 Company.ticker_symbol.ilike(pattern)
             ))
         if company_filter:
-            wisdom_query = wisdom_query.filter_by(company_id=company_filter)
+            wisdom_query = wisdom_query.filter(LearningNote.company_id == company_filter)
         if starred_only:
-            wisdom_query = wisdom_query.filter_by(is_favorite=True)
+            wisdom_query = wisdom_query.filter(LearningNote.is_favorite.is_(True))
         for note in wisdom_query.order_by(LearningNote.created_at.desc()).all():
             if tag_filter:
                 all_note_tags = (note.topic_tags or []) + (note.tags or [])
@@ -920,7 +922,7 @@ def knowledge_hub():
                 Company.ticker_symbol.ilike(pattern)
             ))
         if company_filter:
-            mistake_query = mistake_query.filter_by(company_id=company_filter)
+            mistake_query = mistake_query.filter(MistakeLog.company_id == company_filter)
         for mistake in mistake_query.order_by(MistakeLog.created_at.desc()).all():
             unified_results.append({
                 'type': 'mistake', 'item': mistake, 'date': mistake.created_at,

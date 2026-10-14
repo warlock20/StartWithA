@@ -310,3 +310,107 @@ def test_tab_counts_follow_the_company_filter(_app, app_context):
 
     assert tab_counts(scoped) == ['2', '1', '1', '0']    # all, research, wisdom, mistakes
     assert tab_counts(unscoped) == ['4', '2', '1', '1']
+
+
+# ── Thesis updates: one conviction point, linked records ──
+
+def _thesis(user_id, company_id, conviction, created_at, version=1, **kwargs):
+    thesis = ThesisEvolution(user_id=user_id, company_id=company_id, version=version,
+                             thesis='thesis', conviction_level=conviction,
+                             created_at=created_at, **kwargs)
+    db.session.add(thesis)
+    db.session.flush()
+    return thesis
+
+
+def test_linked_thesis_update_note_is_plotted_once(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    saved_at = now_utc() - timedelta(days=3)
+    note = _research(user.id, company.id, created_days_ago=3, entry_type='thesis_update',
+                     conviction_level=7)
+    _thesis(user.id, company.id, 7, saved_at, linked_journal_entry_id=note.id)
+    _research(user.id, company.id, created_days_ago=1, conviction_level=8)
+
+    summary = get_company_knowledge_summary(user.id, company.id)
+
+    assert [c for _, c in summary['conviction_points']] == [7, 8]
+
+
+def test_unlinked_legacy_thesis_update_note_is_plotted_once(app_context):
+    """Rows saved before the link was stored: matched on conviction and time."""
+    user = _make_user()
+    company = _make_company(user.id)
+    saved_at = now_utc() - timedelta(days=3)
+    _thesis(user.id, company.id, 6, saved_at)
+    note = _research(user.id, company.id, entry_type='thesis_update', conviction_level=6)
+    note.created_at = saved_at + timedelta(seconds=2)
+    db.session.flush()
+
+    summary = get_company_knowledge_summary(user.id, company.id)
+
+    assert [c for _, c in summary['conviction_points']] == [6]
+
+
+def test_thesis_update_note_without_matching_version_is_kept(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _thesis(user.id, company.id, 5, now_utc() - timedelta(days=10))
+    _research(user.id, company.id, created_days_ago=2, entry_type='thesis_update',
+              conviction_level=5)
+
+    summary = get_company_knowledge_summary(user.id, company.id)
+
+    assert [c for _, c in summary['conviction_points']] == [5, 5]
+
+
+def test_new_thesis_version_links_its_journal_entry(_app, app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    db.session.commit()
+
+    resp = _client_for(_app, user).post(
+        f'/journal/thesis-evolution/{company.id}/new',
+        data={'thesis': 'Moat is widening', 'conviction_level': '7',
+              'change_summary': 'Pricing held'})
+
+    assert resp.status_code == 302
+    version = ThesisEvolution.query.filter_by(company_id=company.id).one()
+    entry = JournalEntry.query.filter_by(company_id=company.id,
+                                         entry_type='thesis_update').one()
+    assert version.linked_journal_entry_id == entry.id
+
+
+# ── Company header ──
+
+def test_clearing_the_company_keeps_the_other_filters(_app, app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _research(user.id, company.id, title='moat note', tags=['moat'], is_starred=True)
+    db.session.commit()
+
+    html = _client_for(_app, user).get(
+        f'/journal/knowledge-hub?type=research&company_id={company.id}'
+        '&q=moat&tag=moat&starred=1&sort=title').get_data(as_text=True)
+
+    clear_href = re.search(r'<a href="([^"]+)"\s+class="cc-company-clear"', html).group(1)
+    assert 'company_id' not in clear_href
+    for param in ('type=research', 'q=moat', 'tag=moat', 'starred=1', 'sort=title'):
+        assert param in clear_href
+
+
+def test_search_works_with_company_and_starred_filters(_app, app_context):
+    """filter_by() after the company join used to target Company and crash."""
+    user = _make_user()
+    company = _make_company(user.id)
+    _research(user.id, company.id, title='moat research', is_starred=True)
+    _wisdom(user.id, company.id, title='moat wisdom', is_favorite=True)
+    _mistake(user.id, company.id, title='moat mistake')
+    db.session.commit()
+
+    resp = _client_for(_app, user).get(
+        f'/journal/knowledge-hub?type=all&company_id={company.id}&q=moat&starred=1')
+
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert 'moat research' in html and 'moat wisdom' in html
