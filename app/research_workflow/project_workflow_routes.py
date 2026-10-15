@@ -46,6 +46,7 @@ from app.research_workflow.session_routes import (
 )
 from app.services.sector_service import SectorService
 from app.services.company_state import company_state
+from app.services.findings import finding_entries
 from app.services.research_reopen_service import ReopenNotAllowed, ResearchReopenService
 from sqlalchemy.orm.attributes import flag_modified
 import json
@@ -255,8 +256,16 @@ def project_dashboard(project_id):
                           latest_research_session=latest_research_session,
                           days_since_last_work=days_since_last_work,
                           checklist_analyses=checklist_analyses,
+                          findings=_project_findings(project),
                           is_pinned=is_pinned,
                           reopening=reopening)
+
+
+def _project_findings(project):
+    """The company's findings, for the findings editor (none without a company)."""
+    if not project.company_id:
+        return []
+    return finding_entries(project.user_id, project.company_id)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/execute/<int:step_index>')
@@ -496,7 +505,8 @@ def execute_step(project_id, step_index):
                           step_index=step_index,
                           session=session,
                           session_start_js=session_start_js,
-                          existing_notes=existing_notes)
+                          existing_notes=existing_notes,
+                          findings=_project_findings(project))
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/complete-step', methods=['POST'])

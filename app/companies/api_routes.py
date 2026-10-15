@@ -34,7 +34,9 @@ from app.services.sweep_link import confirm as confirm_link, link_from_isin
 from app.utils.response_utils import json_error, json_not_found
 from app.utils.time_utils import format_for_javascript, now_utc
 from app.utils.blocknote_utils import append_note, blocknote_to_text
-from app.services.findings import FINDING_TYPES, add_finding, delete_finding, normalize_finding_type
+from app.services.findings import (
+    FINDING_TYPES, add_finding, delete_finding, normalize_finding_type, signal_suggestions,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -656,6 +658,15 @@ def append_journey_note(company_id):
 #  Stored as journal entries; work with or without a research project.
 # ===================================================================
 
+@companies_bp.route('/api/findings/signals')
+@login_required
+def api_finding_signals():
+    """The user's signals for the search-or-add field, filtered by ?q=."""
+    limit = max(1, min(request.args.get('limit', 10, type=int), 200))
+    return jsonify({'success': True, 'signals': signal_suggestions(
+        current_user.id, request.args.get('q', ''), limit=limit)})
+
+
 @companies_bp.route('/api/<int:company_id>/findings', methods=['POST'])
 @login_required
 def api_add_finding(company_id):
@@ -671,12 +682,14 @@ def api_add_finding(company_id):
     if not text:
         return json_error('Finding text is required')
 
-    entry = add_finding(current_user.id, company.id, finding_type, text)
+    entry = add_finding(current_user.id, company.id, finding_type, text,
+                        signal=data.get('signal'))
     db.session.commit()
 
     return jsonify({'success': True, 'finding': {
         'id': entry.id,
         'type': entry.entry_type,
+        'signal': entry.title,
         'text': entry.content,
         'date': entry.created_at.strftime('%b %d, %Y') if entry.created_at else '',
     }})

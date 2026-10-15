@@ -257,7 +257,7 @@ class ResearchProject(db.Model):
     )
 
     def _finding_texts(self, finding_type):
-        return [e.content for e in self.finding_journal_entries if e.entry_type == finding_type]
+        return [e.finding_line() for e in self.finding_journal_entries if e.entry_type == finding_type]
 
     @property
     def red_flags(self):

@@ -26,7 +26,7 @@ from app.journal_enhanced.utils import (extract_tags_from_content, get_related_e
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.blocknote_utils import blocknote_to_text
-from app.services.findings import FINDING_TYPES, finding_text_from_editor
+from app.services.findings import FINDING_TYPES, finding_signal, finding_text_from_editor
 from sqlalchemy.orm import contains_eager
 from datetime import datetime, timedelta
 import os
@@ -200,6 +200,7 @@ def new_entry():
 
         content = request.form.get('content')
         if entry_type in FINDING_TYPES:
+            title = finding_signal(title)
             content = finding_text_from_editor(content)
         key_insight = request.form.get('key_insight')
         # The select's placeholder option posts '', which should store as NULL
@@ -385,6 +386,7 @@ def edit_entry(entry_id):
        entry.entry_type = request.form.get('entry_type', entry.entry_type)
        entry.content = request.form.get('content')
        if entry.entry_type in FINDING_TYPES:
+           entry.title = finding_signal(entry.title)
            # Findings are read as plain text (Findings tab, exports, companion)
            entry.content = finding_text_from_editor(entry.content)
        entry.key_insight = request.form.get('key_insight')

@@ -144,30 +144,21 @@
                 </div>
             </div>
 
-            <!-- Must Exit Criteria Quick Add -->
+            <!-- Findings: red / green flags and must-exit criteria -->
             <div class="card mb-3">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-exclamation-triangle text-warning"></i> Must Exit Criteria</h6>
+                    <h6 class="mb-0"><i class="bi bi-flag"></i> Findings</h6>
                 </div>
                 <div class="card-body">
-                    <div id="mustExitList" class="mb-2">
-                        {% if project.must_exit_criteria %}
-                        {% for criterion in project.must_exit_criteria %}
-                        <div class="d-flex align-items-start mb-1">
-                            <i class="bi bi-exclamation-triangle-fill text-warning me-2 mt-1" style="font-size: 0.75rem;"></i>
-                            <small>{{ criterion }}</small>
-                        </div>
-                        {% endfor %}
-                        {% else %}
-                        <small class="text-muted">No exit criteria yet.</small>
-                        {% endif %}
-                    </div>
-                    <div class="input-group input-group-sm">
-                        <input type="text" class="form-control" id="mustExitInput" placeholder="e.g., Revenue drops below $2B">
-                        <button class="btn btn-warning btn-sm" type="button" onclick="addMustExitCriterion()">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
-                    </div>
+                {% if project.company_id %}
+                {% set findings_url = url_for('companies.api_add_finding', company_id=project.company_id) %}
+                {% set findings_stacked = true %}
+                {% set findings_limit = 3 %}
+                {% set findings_all_url = url_for('companies.company_detail', company_id=project.company_id) ~ '#research/findings' %}
+                {% include 'partials/_findings_editor.html' %}
+                {% else %}
+                <p class="text-muted small mb-0">Link this project to a company to record findings.</p>
+                {% endif %}
                 </div>
             </div>
 
@@ -262,51 +253,6 @@
         updateTimer(); // Initial update
         setInterval(updateTimer, 1000); // Update every second
     }
-
-    // Must Exit Criteria quick-add
-    async function addMustExitCriterion() {
-        const input = document.getElementById('mustExitInput');
-        const text = input.value.trim();
-        if (!text) return;
-
-        try {
-            const response = await fetch('{{ url_for("research_workflow.add_finding", project_id=project.id) }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'must_exit', text: text })
-            });
-            const result = await response.json();
-            if (result.success) {
-                input.value = '';
-                const list = document.getElementById('mustExitList');
-                const emptyMsg = list.querySelector('.text-muted');
-                if (emptyMsg) emptyMsg.remove();
-                list.insertAdjacentHTML('beforeend', `
-                    <div class="d-flex align-items-start mb-1">
-                        <i class="bi bi-exclamation-triangle-fill text-warning me-2 mt-1" style="font-size: 0.75rem;"></i>
-                        <small>${text}</small>
-                    </div>
-                `);
-            } else {
-                alert('Error: ' + result.error);
-            }
-        } catch (err) {
-            console.error('Error adding must-exit criterion:', err);
-        }
-    }
-
-    // Allow Enter key to submit must-exit input
-    document.addEventListener('DOMContentLoaded', function() {
-        const input = document.getElementById('mustExitInput');
-        if (input) {
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addMustExitCriterion();
-                }
-            });
-        }
-    });
 
     // Initialize timer when page loads
     document.addEventListener('DOMContentLoaded', function () {

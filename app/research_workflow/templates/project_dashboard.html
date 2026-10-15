@@ -330,58 +330,15 @@
             <!-- Key Findings -->
             <div class="key-findings-card mb-4">
                 <h3 class="font-poppins fw-bold mb-3">Key Findings</h3>
-                <div id="findingsList">
-                    {% if project.green_flags %}
-                    {% for flag in project.green_flags %}
-                    <div class="key-finding-item">
-                        <i class="bi bi-plus-circle-fill key-finding-icon green"></i>
-                        <div>
-                            <span class="key-finding-label">Green Flag:</span>
-                            <span class="key-finding-text">{{ flag }}</span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                    {% endif %}
-
-                    {% if project.red_flags %}
-                    {% for flag in project.red_flags %}
-                    <div class="key-finding-item">
-                        <i class="bi bi-dash-circle-fill key-finding-icon red"></i>
-                        <div>
-                            <span class="key-finding-label">Red Flag:</span>
-                            <span class="key-finding-text">{{ flag }}</span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                    {% endif %}
-
-                    {% if project.must_exit_criteria %}
-                    {% for criterion in project.must_exit_criteria %}
-                    <div class="key-finding-item">
-                        <i class="bi bi-exclamation-triangle-fill key-finding-icon" style="color: #f59e0b;"></i>
-                        <div>
-                            <span class="key-finding-label">Must Exit:</span>
-                            <span class="key-finding-text">{{ criterion }}</span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                    {% endif %}
-
-                    {% if not project.green_flags and not project.red_flags and not project.must_exit_criteria %}
-                    <p class="text-muted small mb-0">No key findings documented yet.</p>
-                    {% endif %}
-                </div>
-                <div class="mt-3">
-                    <button class="btn btn-sm btn-success me-2" onclick="showAddFindingModal('green_flag')">
-                        <i class="bi bi-plus-lg"></i> Green Flag
-                    </button>
-                    <button class="btn btn-sm btn-danger me-2" onclick="showAddFindingModal('red_flag')">
-                        <i class="bi bi-plus-lg"></i> Red Flag
-                    </button>
-                    <button class="btn btn-sm btn-warning" onclick="showAddFindingModal('must_exit')">
-                        <i class="bi bi-exclamation-triangle"></i> Must Exit
-                    </button>
-                </div>
+                {% if project.company_id %}
+                {% set findings_url = url_for('companies.api_add_finding', company_id=project.company_id) %}
+                {% set findings_stacked = true %}
+                {% set findings_limit = 3 %}
+                {% set findings_all_url = url_for('companies.company_detail', company_id=project.company_id) ~ '#research/findings' %}
+                {% include 'partials/_findings_editor.html' %}
+                {% else %}
+                <p class="text-muted small mb-0">Link this project to a company to record findings.</p>
+                {% endif %}
             </div>
 
             <!-- Company Resources -->
@@ -529,31 +486,6 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-warning"><i class="bi bi-eye me-1"></i> Move to Watchlist</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Add Finding Modal -->
-<div class="modal fade" id="addFindingModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="findingModalTitle">Add Finding</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="POST" id="addFindingForm">
-                <div class="modal-body">
-                    <input type="hidden" name="finding_type" id="findingType">
-                    <div class="mb-3">
-                        <label for="findingText" class="form-label">Finding Description</label>
-                        <textarea class="form-control" name="finding_text" id="findingText" rows="3" required></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add Finding</button>
                 </div>
             </form>
         </div>
@@ -719,104 +651,6 @@ function showNotes(stepIndex) {
     if (notesDiv) {
         notesDiv.style.display = notesDiv.style.display === 'none' ? 'block' : 'none';
     }
-}
-
-
-// showAddFindingModal and form handling with this:
-function showAddFindingModal(findingType) {
-    const modalEl = document.getElementById('addFindingModal');
-    const modal = new bootstrap.Modal(modalEl);
-    const form = document.getElementById('addFindingForm');
-    const title = document.getElementById('findingModalTitle');
-    const typeInput = document.getElementById('findingType');
-    const textInput = document.getElementById('findingText');
-
-    // 1. Setup modal state
-    typeInput.value = findingType;
-    if (findingType.includes('green')) {
-        title.textContent = 'Add Green Flag';
-    } else if (findingType.includes('must_exit')) {
-        title.textContent = 'Add Must Exit Criterion';
-    } else {
-        title.textContent = 'Add Red Flag';
-    }
-    textInput.value = ''; // Clear previous text
-
-    // 2. Attach AJAX submission handler
-    form.onsubmit = async (e) => {
-        e.preventDefault(); // STOP THE RELOAD
-        
-        const text = textInput.value.trim();
-        if (!text) return;
-
-        try {
-            const response = await fetch('{{ url_for("research_workflow.add_finding", project_id=project.id) }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    type: findingType.includes('must_exit') ? 'must_exit' : (findingType.includes('green') ? 'green' : 'red'),
-                    text: text
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                // SUCCESS: Update the UI dynamically instead of reloading!
-                appendFindingToSidebar(findingType, text);
-                modal.hide();
-                
-                // Optional: Show a small success toast/alert
-                console.log("Finding saved via AJAX");
-            } else {
-                alert('Error: ' + result.error);
-            }
-        } catch (err) {
-            console.error('AJAX Error:', err);
-            alert('Failed to save finding. check console.');
-        }
-    };
-
-    modal.show();
-}
-
-/**
- * Helper to inject the new finding into the HTML sidebar
- */
-function appendFindingToSidebar(findingType, text) {
-    const container = document.getElementById('findingsList');
-    if (!container) return;
-
-    // Remove the "No findings" text if it exists
-    const emptyMsg = container.querySelector('p.text-muted');
-    if (emptyMsg) emptyMsg.remove();
-
-    let iconClass, label, iconStyle = '';
-    if (findingType.includes('green')) {
-        iconClass = 'bi-plus-circle-fill green';
-        label = 'Green Flag:';
-    } else if (findingType.includes('must_exit')) {
-        iconClass = 'bi-exclamation-triangle-fill';
-        label = 'Must Exit:';
-        iconStyle = ' style="color: #f59e0b;"';
-    } else {
-        iconClass = 'bi-dash-circle-fill red';
-        label = 'Red Flag:';
-    }
-
-    const findingHtml = `
-        <div class="key-finding-item">
-            <i class="bi ${iconClass} key-finding-icon"${iconStyle}></i>
-            <div>
-                <span class="key-finding-label">${label}</span>
-                <span class="key-finding-text">${text}</span>
-            </div>
-        </div>
-    `;
-
-    container.insertAdjacentHTML('beforeend', findingHtml);
 }
 </script>
 {% endblock %}

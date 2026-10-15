@@ -165,40 +165,6 @@
     padding: 1.5rem;
 }
 
-.key-finding-item {
-    display: flex;
-    align-items: start;
-    font-size: var(--font-size-sm);
-    margin-bottom: 1rem;
-}
-
-.key-finding-item:last-child {
-    margin-bottom: 0;
-}
-
-.key-finding-icon {
-    margin-right: 0.75rem;
-    margin-top: 0.125rem;
-    font-size: 1.125rem;
-}
-
-.key-finding-icon.green {
-    color: var(--success);
-}
-
-.key-finding-icon.red {
-    color: var(--danger);
-}
-
-.key-finding-label {
-    font-weight: 600;
-    margin-right: 0.25rem;
-}
-
-.key-finding-text {
-    color: var(--gray-600);
-}
-
 /* Quick actions card */
 .quick-actions-card {
     background: white;

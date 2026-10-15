@@ -1144,10 +1144,86 @@
     grid-template-columns: repeat(3, 1fr);
 }
 
+/* Each list is a tinted box: red, green, amber */
+.findings-editable .research-findings-col {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid transparent;
+    border-radius: 10px;
+}
+
+.findings-editable .research-findings-col.red {
+    background: var(--danger-50);
+    border-color: rgba(220, 38, 38, 0.18);
+    box-shadow: 0 2px 10px rgba(220, 38, 38, 0.10);
+}
+
+.findings-editable .research-findings-col.green {
+    background: var(--success-50);
+    border-color: rgba(5, 150, 105, 0.18);
+    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.10);
+}
+
+.findings-editable .research-findings-col.must_exit {
+    background: #fffbeb;
+    border-color: rgba(245, 158, 11, 0.25);
+    box-shadow: 0 2px 10px rgba(245, 158, 11, 0.12);
+}
+
+/* Headings are forced to --text-primary (!important) site-wide; the icon carries the colour */
+.findings-editable .research-findings-col.red h6 i { color: var(--danger-600); }
+.findings-editable .research-findings-col.green h6 i { color: var(--success-600); }
+.findings-editable .research-findings-col.must_exit h6 i { color: #d97706; }
+
+.findings-editable .findings-col-head {
+    margin-bottom: 0;
+}
+
+.findings-editable .findings-list:has(li) {
+    margin-top: 0.5rem;
+}
+
+.findings-editable .findings-list li:last-child {
+    border-bottom: none;
+}
+
+.findings-editable .finding-add-form:not([hidden]) {
+    margin-top: 0.5rem;
+}
+
+.findings-editable .finding-add-toggle,
+.findings-editable .finding-signal-input,
+.findings-editable .finding-add-input {
+    background: white;
+}
+
+/* Stacked (narrow sidebars): one box under the other, latest few per list */
+.findings-editable--stacked {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-top: 0;
+}
+
+.findings-view-all {
+    display: inline-block;
+    margin-top: 0.75rem;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.findings-view-all i {
+    margin-left: 0.25rem;
+}
+
+.findings-view-all:hover {
+    color: var(--text-primary);
+}
+
 .findings-editable .findings-list {
     list-style: none;
     padding-left: 0;
-    margin-bottom: var(--space-sm);
+    margin-bottom: 0;
 }
 
 .findings-editable .findings-list li {
@@ -1158,9 +1234,70 @@
     border-bottom: 1px solid var(--border-light);
 }
 
-.findings-editable .finding-text {
-    flex: 1;
+.findings-col-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-sm);
+}
+
+.findings-col-head h6 {
+    margin-bottom: 0;
+}
+
+.finding-add-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    background: none;
+    padding: 0;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.finding-add-toggle:hover {
+    border-color: var(--gray-400);
     color: var(--text-primary);
+}
+
+.findings-editable .finding-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.findings-editable .finding-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.findings-editable .finding-signal {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.findings-editable .finding-text {
+    color: var(--text-primary);
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+/* Long details: first lines only, the detail card shows the rest */
+.findings-editable .finding-text.is-long {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
 }
 
 .findings-editable .finding-date {
@@ -1189,16 +1326,32 @@
 
 .finding-add-form {
     display: flex;
+    flex-direction: column;
     gap: 0.375rem;
 }
 
+.finding-add-form[hidden] {
+    display: none;
+}
+
+.finding-signal-input,
 .finding-add-input {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
     padding: 0.375rem 0.625rem;
     border: 1px solid var(--gray-200);
     border-radius: 6px;
     font-size: var(--font-size-sm);
+    font-family: inherit;
+}
+
+.finding-add-input {
+    resize: vertical;
+}
+
+.finding-add-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.375rem;
 }
 
 .findings-no-research {
