@@ -333,6 +333,8 @@
                 {% if project.company_id %}
                 {% set findings_url = url_for('companies.api_add_finding', company_id=project.company_id) %}
                 {% set findings_stacked = true %}
+                {% set findings_limit = 3 %}
+                {% set findings_all_url = url_for('companies.company_detail', company_id=project.company_id) ~ '#research/findings' %}
                 {% include 'partials/_findings_editor.html' %}
                 {% else %}
                 <p class="text-muted small mb-0">Link this project to a company to record findings.</p>

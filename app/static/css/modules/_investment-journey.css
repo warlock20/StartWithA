@@ -1144,15 +1144,86 @@
     grid-template-columns: repeat(3, 1fr);
 }
 
+/* Each list is a tinted box: red, green, amber */
+.findings-editable .research-findings-col {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid transparent;
+    border-radius: 10px;
+}
+
+.findings-editable .research-findings-col.red {
+    background: var(--danger-50);
+    border-color: rgba(220, 38, 38, 0.18);
+    box-shadow: 0 2px 10px rgba(220, 38, 38, 0.10);
+}
+
+.findings-editable .research-findings-col.green {
+    background: var(--success-50);
+    border-color: rgba(5, 150, 105, 0.18);
+    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.10);
+}
+
+.findings-editable .research-findings-col.must_exit {
+    background: #fffbeb;
+    border-color: rgba(245, 158, 11, 0.25);
+    box-shadow: 0 2px 10px rgba(245, 158, 11, 0.12);
+}
+
+/* Headings are forced to --text-primary (!important) site-wide; the icon carries the colour */
+.findings-editable .research-findings-col.red h6 i { color: var(--danger-600); }
+.findings-editable .research-findings-col.green h6 i { color: var(--success-600); }
+.findings-editable .research-findings-col.must_exit h6 i { color: #d97706; }
+
+.findings-editable .findings-col-head {
+    margin-bottom: 0;
+}
+
+.findings-editable .findings-list:has(li) {
+    margin-top: 0.5rem;
+}
+
+.findings-editable .findings-list li:last-child {
+    border-bottom: none;
+}
+
+.findings-editable .finding-add-form:not([hidden]) {
+    margin-top: 0.5rem;
+}
+
+.findings-editable .finding-add-toggle,
+.findings-editable .finding-signal-input,
+.findings-editable .finding-add-input {
+    background: white;
+}
+
+/* Stacked (narrow sidebars): one box under the other, latest few per list */
 .findings-editable--stacked {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
     margin-top: 0;
+}
+
+.findings-view-all {
+    display: inline-block;
+    margin-top: 0.75rem;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.findings-view-all i {
+    margin-left: 0.25rem;
+}
+
+.findings-view-all:hover {
+    color: var(--text-primary);
 }
 
 .findings-editable .findings-list {
     list-style: none;
     padding-left: 0;
-    margin-bottom: var(--space-sm);
+    margin-bottom: 0;
 }
 
 .findings-editable .findings-list li {

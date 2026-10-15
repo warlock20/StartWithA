@@ -73,6 +73,13 @@
         var baseUrl = grid.dataset.findingsUrl;
         var datalist = grid.querySelector('#finding-signals');
         var signalsLoaded = false;
+        // Stacked sidebars show only the latest few; the link shows the total
+        var limit = parseInt(grid.dataset.limit, 10) || 0;
+        var totalEl = grid.parentNode.querySelector('.findings-total');
+
+        function addToTotal(delta) {
+            if (totalEl) totalEl.textContent = parseInt(totalEl.textContent, 10) + delta;
+        }
 
         grid.querySelectorAll('.finding-text').forEach(markLong);
         if (window.initDetailCard) {
@@ -154,6 +161,7 @@
                 .then(function (data) {
                     if (!data.success) throw new Error(data.error || 'Could not delete');
                     li.remove();
+                    addToTotal(-1);
                 })
                 .catch(function (err) { notify(err.message, 'error'); });
         });
@@ -190,7 +198,10 @@
                 .then(function (r) { return readJson(r, 'Could not save'); })
                 .then(function (data) {
                     if (!data.success) throw new Error(data.error || 'Could not save');
-                    col.querySelector('.findings-list').appendChild(findingItem(data.finding));
+                    var list = col.querySelector('.findings-list');
+                    list.appendChild(findingItem(data.finding));
+                    if (limit && list.children.length > limit) list.firstElementChild.remove();
+                    addToTotal(1);
                     rememberSignal(data.finding.signal);
                     closeForm(form);
                 })
