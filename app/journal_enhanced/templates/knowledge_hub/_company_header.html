@@ -49,7 +49,7 @@
         {% endfor %}
     </div>
 
-    {% set has_conviction = s.conviction_sparkline or s.latest_sentiment or s.latest_conviction %}
+    {% set has_conviction = s.conviction_sparkline or s.latest_conviction %}
     {% if s.current_thesis or has_conviction or s.key_insights or s.questions_raised or s.action_items %}
     <div class="cc-company-panels">
         {% if s.current_thesis or has_conviction %}
@@ -76,9 +76,6 @@
                 {% endif %}
                 {% if s.latest_conviction %}
                 <span class="cc-company-stat"><strong>{{ s.latest_conviction }}</strong>/10 latest</span>
-                {% endif %}
-                {% if s.latest_sentiment %}
-                <span class="cc-company-sentiment cc-sentiment-{{ s.latest_sentiment }}">{{ s.latest_sentiment|capitalize }}</span>
                 {% endif %}
             </div>
             {% endif %}

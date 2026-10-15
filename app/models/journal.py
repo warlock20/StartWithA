@@ -23,6 +23,12 @@ from app.utils.blocknote_utils import blocknote_to_text
 # A finding's title holds its signal; findings recorded without one get this.
 DEFAULT_FINDING_SIGNAL = 'Default'
 
+# Log entries: journal entries the app writes on its own as a record of what the
+# user did — decisions logged by the idea, kill-screen and research flows, and
+# findings (red/green flags, must-exit criteria). They feed behaviour analysis,
+# not the Knowledge Hub.
+LOG_ENTRY_TYPES = ('investment_action', 'red_flag', 'green_flag', 'must_exit')
+
 
 class DecisionJournal(db.Model):
     """
@@ -161,6 +167,11 @@ class JournalEntry(db.Model):
     company = db.relationship('Company', backref='journal_entries')
     attachments = db.relationship('JournalAttachment', backref='entry',
                                  lazy='dynamic', cascade='all, delete-orphan')
+
+    @classmethod
+    def is_note(cls):
+        """Filter clause for entries the user wrote, excluding log entries."""
+        return cls.entry_type.notin_(LOG_ENTRY_TYPES)
 
     def finding_line(self):
         """A finding as one line of text: 'Signal: details', or just the details

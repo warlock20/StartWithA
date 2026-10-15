@@ -822,19 +822,6 @@
     color: var(--gray-800);
 }
 
-.cc-company-sentiment {
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: var(--radius-sm);
-    color: var(--gray-600);
-    background: var(--gray-50);
-}
-
-.cc-sentiment-bullish { color: var(--success-600); background: var(--success-50); }
-.cc-sentiment-bearish { color: var(--danger-600); background: var(--danger-50); }
-.cc-sentiment-uncertain { color: var(--warning-600); background: var(--warning-50); }
-
 .cc-company-list {
     list-style: none;
     margin: 0;

@@ -772,7 +772,7 @@ def knowledge_hub():
         # One company join serves both eager loading and company-name search.
         research_query = JournalEntry.query.filter_by(
             user_id=current_user.id, is_archived=False
-        ).outerjoin(JournalEntry.company).options(contains_eager(JournalEntry.company))
+        ).filter(JournalEntry.is_note()).outerjoin(JournalEntry.company).options(contains_eager(JournalEntry.company))
         if search_query:
             pattern = f'%{search_query}%'
             research_query = research_query.filter(db.or_(
@@ -894,7 +894,8 @@ def knowledge_hub():
     if company_summary and not any(c.id == company_filter for c in companies):
         companies.insert(0, company_summary['counts'])
     all_tags = set()
-    for entry in current_user.journal_entries.filter(JournalEntry.tags.isnot(None)):
+    for entry in current_user.journal_entries.filter(JournalEntry.tags.isnot(None),
+                                                     JournalEntry.is_note()):
         if entry.tags:
             all_tags.update(entry.tags)
     for note in current_user.learning_notes.filter(LearningNote.topic_tags.isnot(None)):
@@ -903,7 +904,8 @@ def knowledge_hub():
     all_tags = sorted(all_tags)
 
     # Type counts for tabs — scoped to the selected company, like the cards
-    research_counts = current_user.journal_entries.filter_by(is_archived=False)
+    research_counts = current_user.journal_entries.filter_by(is_archived=False).filter(
+        JournalEntry.is_note())
     wisdom_counts = current_user.learning_notes
     mistake_counts = MistakeLog.query.filter_by(user_id=current_user.id)
     if company_filter:
