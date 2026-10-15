@@ -78,9 +78,9 @@ def start_ai_check(analysis_id, item_id):
     if created:
         try:
             (ai_check_quick_task if run.depth == 'quick' else ai_check_gather_task).delay(run.id)
-        except Exception as exc:
+        except Exception:
             logger.exception('Could not queue AI check for run %s', run.id)
-            mark_failed(run, 'gathering', f'Could not queue the AI check: {exc}')
+            mark_failed(run, 'gathering', 'Could not queue the AI check.')
             return json_error('Could not queue the AI check. Try again in a moment.', status_code=503)
     return jsonify({'success': True, 'run': serialize_run(run)})
 
@@ -139,8 +139,8 @@ def retry_ai_check(run_id):
             dispatch_extract_and_analyze(run.id, source_ids)
         else:
             ai_check_analyze_task.delay(None, run.id)
-    except Exception as exc:
+    except Exception:
         logger.exception('Could not queue AI check retry for run %s', run.id)
-        mark_failed(run, stage, f'Could not queue the AI check: {exc}')
+        mark_failed(run, stage, 'Could not queue the AI check.')
         return json_error('Could not queue the AI check. Try again in a moment.', status_code=503)
     return jsonify({'success': True, 'run': serialize_run(run)})

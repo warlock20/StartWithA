@@ -272,38 +272,6 @@ class OutcomeTracker:
         
         return outcome
     
-    def update_current_return(
-        self,
-        outcome_id: int,
-        current_return_pct: float
-    ) -> Optional[ResearchOutcome]:
-        """
-        Update the current return percentage for an open position.
-        
-        Called periodically to track unrealized returns.
-        
-        Args:
-            outcome_id: ResearchOutcome ID
-            current_return_pct: Current unrealized return percentage
-            
-        Returns:
-            Updated ResearchOutcome or None
-        """
-        outcome = ResearchOutcome.query.get(outcome_id)
-        
-        if not outcome:
-            return None
-        
-        if outcome.exit_date:
-            logger.warning(f"Outcome {outcome_id} is already closed")
-            return outcome
-        
-        outcome.current_return_pct = current_return_pct
-        outcome.last_updated_at = now_utc()
-        
-        db.session.commit()
-        return outcome
-    
     def _calculate_thesis_accuracy(
         self,
         outcome: ResearchOutcome,

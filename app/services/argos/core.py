@@ -39,10 +39,8 @@ from app.models.journal import DecisionJournal, PatternRecognition
 from app import db
 from app.models import Company
 from app.services.argos.config import (
-    THRESHOLDS,
     CONTEXT_RULE_MATRIX,
     FINANCIAL_SECTIONS,
-    ACCOUNTING_KEYWORDS,
     LLM_CONFIG,
     InsightCategory,
     ConfidenceLevel,

@@ -18,9 +18,7 @@
 Comprehensive duplicate detection service for companies and ideas
 """
 
-from flask import current_app
 from app.models import Company, IdeaPipeline
-from app import db
 from difflib import SequenceMatcher
 import re
 
@@ -207,52 +205,3 @@ class DuplicateDetectionService:
                         result['is_duplicate'] = True
 
         return result
-
-    def get_resolution_suggestions(self, duplicate_check, entity_type='company'):
-        """
-        Generate user-friendly resolution suggestions
-
-        Args:
-            duplicate_check: Result from check_company_duplicates or check_idea_duplicates
-            entity_type: 'company' or 'idea'
-
-        Returns:
-            List of suggested actions for the user
-        """
-        suggestions = []
-
-        for match in duplicate_check['exact_matches']:
-            if match['type'] == 'ticker_conflict':
-                suggestions.append({
-                    'action': 'update_existing',
-                    'message': match['message'],
-                    'button_text': 'Update Existing Company',
-                    'url': f"/companies/{match['company'].id}/edit" if entity_type == 'company' else None
-                })
-            elif match['type'] == 'exact_duplicate':
-                suggestions.append({
-                    'action': 'view_existing',
-                    'message': match['message'],
-                    'button_text': 'View Existing Company',
-                    'url': f"/companies/{match['company'].id}" if entity_type == 'company' else None
-                })
-
-        for match in duplicate_check['similar_matches']:
-            suggestions.append({
-                'action': 'compare',
-                'message': match['message'],
-                'button_text': 'Compare & Decide',
-                'similarity': match.get('similarity', 0),
-                'existing_entity': match.get('company') or match.get('idea')
-            })
-
-        for suggestion in duplicate_check['suggestions']:
-            if suggestion['type'] == 'killed_idea_exists':
-                suggestions.append({
-                    'action': 'resurrect',
-                    'message': suggestion['message'],
-                    'button_text': 'Resurrect Previous Idea',
-                    'existing_entity': suggestion['idea']
-                })
-
-        return suggestions

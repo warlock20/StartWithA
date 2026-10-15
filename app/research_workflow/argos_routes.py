@@ -23,7 +23,7 @@ Endpoints for Argos intelligent research assistant.
 import json
 import logging
 
-from flask import jsonify, request, render_template
+from flask import jsonify, request
 from flask_login import current_user, login_required
 
 from app import limiter
@@ -35,13 +35,6 @@ from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.constants import RATELIMIT_AI
 
 logger = logging.getLogger(__name__)
-
-
-@research_workflow_bp.route('/argos/test')
-@login_required
-def argos_test_page():
-    """Test page for Argos Check functionality."""
-    return render_template('argos_test.html')
 
 
 @research_workflow_bp.route('/api/argos/warnings/<int:company_id>')
@@ -58,7 +51,7 @@ def argos_warnings_by_company(company_id):
         return json_success('Warnings loaded', data={'warnings': warnings, 'count': len(warnings)})
     except Exception as e:
         logger.error(f"Company warnings load failed: {e}", exc_info=True)
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @research_workflow_bp.route('/api/argos/check', methods=['POST'])
@@ -127,7 +120,7 @@ def argos_check_endpoint():
         logger.error(f"Argos check failed: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e),
+            'error': 'Something went wrong. Please try again.',
         }), 500
 
 
@@ -181,50 +174,7 @@ def argos_feedback_endpoint():
 
     except Exception as e:
         logger.error(f"Argos feedback failed: {e}", exc_info=True)
-        return json_error(str(e), status_code=500)
-
-
-@research_workflow_bp.route('/api/argos/explain', methods=['POST'])
-@login_required
-def argos_explain_endpoint():
-    """
-    Get detailed explanation for an Argos insight (LLM-generated).
-
-    Request JSON:
-        {
-            "insight_id": "mistake_log_123",
-            "company_id": 456,
-            "current_focus": "management quality"
-        }
-
-    Response JSON:
-        {
-            "success": true,
-            "explanation": "..."
-        }
-    """
-    data = request.get_json() or {}
-
-    insight_id = data.get('insight_id')
-    company_id = data.get('company_id')
-
-    if not insight_id or not company_id:
-        return json_error('insight_id and company_id required')
-
-    try:
-        # TODO: Implement LLM explanation generation
-        # - Load insight data
-        # - Load company data
-        # - Call ai_service with argos/explanation.yaml prompt
-
-        return jsonify({
-            'success': True,
-            'explanation': 'Detailed explanation coming soon...',
-        })
-
-    except Exception as e:
-        logger.error(f"Argos explain failed: {e}", exc_info=True)
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @research_workflow_bp.route('/api/argos/deep-analysis', methods=['POST'])
@@ -274,7 +224,7 @@ def argos_deep_analysis_endpoint():
 
     except Exception as e:
         logger.error(f"Argos deep analysis trigger failed: {e}", exc_info=True)
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @research_workflow_bp.route('/api/argos/deep-analysis/status/<task_id>')

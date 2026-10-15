@@ -26,7 +26,6 @@ from app import db, cache
 from app.models import IdeaPipeline, Company, ResearchProject
 from app.models.portfolio import PortfolioPosition
 from app.models.configuration import SystemConfig
-from app.features import FEATURE_GROUPS, FEATURE_TO_GROUP
 from app.utils.time_utils import now_utc
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -164,50 +163,6 @@ class FeatureUnlockService:
                 'percent': min(100, int(count / threshold * 100)) if threshold > 0 else 0,
             })
         return progress
-
-    @staticmethod
-    def admin_unlock_group(user, group_name):
-        """Manually unlock an entire feature group for a user."""
-        if group_name not in FEATURE_GROUPS:
-            raise ValueError(f'Unknown group: {group_name}')
-        unlocked = user.unlocked_features or {}
-        unlocked[group_name] = now_utc().isoformat()
-        user.unlocked_features = unlocked
-        flag_modified(user, 'unlocked_features')
-        db.session.commit()
-
-    @staticmethod
-    def admin_lock_group(user, group_name):
-        """Revoke a feature group from a user."""
-        unlocked = user.unlocked_features or {}
-        unlocked.pop(group_name, None)
-        user.unlocked_features = unlocked
-        flag_modified(user, 'unlocked_features')
-        # Also clear badge state
-        newly = user.newly_unlocked_features or {}
-        newly.pop(group_name, None)
-        user.newly_unlocked_features = newly
-        flag_modified(user, 'newly_unlocked_features')
-        db.session.commit()
-
-    @staticmethod
-    def admin_unlock_feature(user, feature_name):
-        """Manually unlock a single feature for a user."""
-        unlocked = user.unlocked_features or {}
-        unlocked[feature_name] = now_utc().isoformat()
-        user.unlocked_features = unlocked
-        flag_modified(user, 'unlocked_features')
-        db.session.commit()
-
-    @staticmethod
-    def admin_lock_feature(user, feature_name):
-        """Revoke a single feature from a user."""
-        unlocked = user.unlocked_features or {}
-        unlocked.pop(feature_name, None)
-        user.unlocked_features = unlocked
-        flag_modified(user, 'unlocked_features')
-        db.session.commit()
-
 
 def seed_unlock_thresholds():
     """Seed SystemConfig with default unlock thresholds for each feature group."""

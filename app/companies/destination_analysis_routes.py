@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from app.utils.time_utils import parse_date_to_date_object
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user, login_required
 from app import db
 from app.models import ( Company, DestinationCheckpoint)
@@ -59,9 +59,10 @@ def add_checkpoint(company_id):
 
     except ValueError:
         flash("Invalid date format. Please use YYYY-MM-DD.", "error")
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('An error occurred')
         db.session.rollback()
-        flash(f"An error occurred: {e}", "error")
+        flash("An error occurred. Please try again.", "error")
 
     return redirect(url_for('companies.destination_analysis', company_id=company.id))
 
@@ -104,9 +105,10 @@ def update_checkpoint(checkpoint_id):
         db.session.commit()
         print(f"  - COMMIT SUCCEEDED. New status in DB should be: '{checkpoint.status}'")
         flash("Checkpoint updated successfully.", "success")
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error updating checkpoint')
         db.session.rollback()
-        flash(f"Error updating checkpoint: {e}", "error")
+        flash("Error updating checkpoint. Please try again.", "error")
 
     return redirect(url_for('companies.destination_analysis', company_id=checkpoint.company_id)) 
 
@@ -125,9 +127,10 @@ def delete_checkpoint(checkpoint_id):
         db.session.delete(checkpoint)
         db.session.commit()
         flash("Checkpoint deleted successfully.", "success")
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error deleting checkpoint')
         db.session.rollback()
-        flash(f"Error deleting checkpoint: {e}", "error")
+        flash("Error deleting checkpoint. Please try again.", "error")
 
     return redirect(url_for('companies.destination_analysis', company_id=company_id))
 
@@ -150,12 +153,12 @@ def edit_checkpoint(checkpoint_id):
         if not metric or not expectation or not target_date_str:
             flash("Metric, Expectation, and Target Date are required.", "error")
             # Re-render the edit form with an error
-            return render_template('companies/edit_checkpoint.html', title="Edit Checkpoint", checkpoint=checkpoint)
+            return render_template('edit_checkpoint.html', title="Edit Checkpoint", checkpoint=checkpoint)
 
         parsed_date = parse_date_to_date_object(target_date_str)
         if not parsed_date:
             flash("Invalid date format. Please use YYYY-MM-DD.", "error")
-            return render_template('companies/edit_checkpoint.html', title="Edit Checkpoint", checkpoint=checkpoint)
+            return render_template('edit_checkpoint.html', title="Edit Checkpoint", checkpoint=checkpoint)
 
         try:
             checkpoint.metric = metric
@@ -165,9 +168,10 @@ def edit_checkpoint(checkpoint_id):
             db.session.commit()
             flash("Checkpoint updated successfully.", "success")
             return redirect(url_for('companies.destination_analysis', company_id=checkpoint.company_id))
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error updating checkpoint')
             db.session.rollback()
-            flash(f"Error updating checkpoint: {e}", "error")
+            flash("Error updating checkpoint. Please try again.", "error")
 
     # GET request: Show the edit form, pre-filled with existing data
     return render_template('edit_checkpoint.html', 

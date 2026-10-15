@@ -48,7 +48,6 @@ css_core = Bundle(
     'css/modules/_card-system.css',
     'css/modules/_navigation.css',
     'css/modules/_sidebar.css',
-    'css/modules/_quote-banner.css',
 
     # Utility & helper modules
     'css/modules/_utilities.css',
@@ -91,7 +90,6 @@ css_companies = Bundle(
     'css/modules/_position-detail.css',
     'css/modules/_companies-list.css',
     'css/modules/_destination-analysis.css',
-    'css/modules/_checkpoint-edit.css',
     'css/modules/_checklist-view.css',
     'css/modules/_checklist-verification.css',
     'css/modules/_ai-check.css',
@@ -115,13 +113,11 @@ css_companies = Bundle(
     'css/modules/_start-research.css',
     'css/modules/_free-research.css',
     'css/modules/_mark-too-hard.css',
-    'css/modules/_kill-room.css',
     'css/modules/_idea-capture.css',
     'css/modules/_idea-promote.css',
     'css/modules/_idea-pipeline.css',
     'css/modules/_idea-inbox.css',
     'css/modules/_market-sweep.css',
-    'css/modules/_recommendations.css',
     'css/modules/_project-dashboard.css',
     'css/modules/_project-summary.css',
 
@@ -156,10 +152,7 @@ css_portfolio = Bundle(
 # LEARNING — learning, journal, knowledge hub
 # ---------------------------------------------------------------------------
 css_learning = Bundle(
-    'css/modules/_journal-home.css',
-    'css/modules/_journal-search.css',
     'css/modules/_learning-mistakes.css',
-    'css/modules/_knowledge-library.css',
     'css/modules/_knowledge-hub.css',
     'css/modules/_hashtag-autocomplete.css',
 

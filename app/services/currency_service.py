@@ -170,32 +170,6 @@ class CurrencyService:
     }
 
     @classmethod
-    def normalize_price_for_ticker(cls, ticker_symbol: str, price: float) -> float:
-        """
-        Normalize a price from yf.download() that may be in sub-units.
-
-        yf.download() returns raw exchange prices without currency metadata.
-        For exchanges like the LSE (.L suffix), prices are in pence rather
-        than pounds. This method converts to the major currency unit.
-
-        Args:
-            ticker_symbol: Stock ticker (e.g., 'WISE.L', 'AAPL')
-            price: Raw price from yf.download()
-
-        Returns:
-            float: Price normalized to major currency unit
-        """
-        if not ticker_symbol or price is None:
-            return price
-
-        ticker = ticker_symbol.upper().strip()
-        for suffix, divisor in cls.SUBUNIT_TICKER_SUFFIXES.items():
-            if ticker.endswith(suffix):
-                return price / divisor
-
-        return price
-
-    @classmethod
     def detect_currency_from_ticker(cls, ticker_symbol: str) -> str:
         """
         Detect currency based on ticker exchange suffix.
@@ -364,26 +338,6 @@ class CurrencyService:
             db.session.rollback()
 
     @classmethod
-    def convert_amount(cls, amount: Decimal, from_currency: str, to_currency: str, rate_date: date = None) -> Decimal:
-        """
-        Convert amount from one currency to another.
-
-        Args:
-            amount: Amount in source currency
-            from_currency: Source currency code
-            to_currency: Target currency code
-            rate_date: Date for exchange rate (default: today)
-
-        Returns:
-            Decimal: Converted amount
-        """
-        if amount is None:
-            return Decimal('0.00')
-
-        rate = cls.get_exchange_rate(from_currency, to_currency, rate_date)
-        return amount * rate
-
-    @classmethod
     def format_currency(cls, amount: Decimal, currency: str, show_symbol: bool = True) -> str:
         """
         Format amount with currency symbol.
@@ -412,29 +366,6 @@ class CurrencyService:
                 return f"{formatted_amount}{symbol}"
 
         return formatted_amount
-
-    @classmethod
-    def format_with_base(cls, amount_original: Decimal, currency_original: str,
-                        amount_base: Decimal, currency_base: str) -> str:
-        """
-        Format amount showing both original and base currency.
-
-        Args:
-            amount_original: Amount in original currency
-            currency_original: Original currency code
-            amount_base: Amount in base currency
-            currency_base: Base currency code
-
-        Returns:
-            str: Formatted string (e.g., '€65.00 (~$70.20)')
-        """
-        original_str = cls.format_currency(amount_original, currency_original)
-
-        if currency_original == currency_base:
-            return original_str
-
-        base_str = cls.format_currency(amount_base, currency_base)
-        return f"{original_str} (~{base_str})"
 
     @classmethod
     def get_supported_currencies(cls) -> list:

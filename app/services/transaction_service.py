@@ -20,9 +20,8 @@ Handles all business logic for creating, updating, and managing portfolio transa
 """
 
 import logging
-from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 from app import db

@@ -21,7 +21,6 @@ Handles multiple ticker formats from different financial data providers
 
 import re
 from typing import Tuple, Optional, Dict
-from app.services.currency_service import CurrencyService
 
 
 class TickerValidator:
@@ -370,41 +369,6 @@ class TickerValidator:
             result['warnings'].append('Share class indicators (hyphen) are typically only used for US stocks')
 
         return result
-
-    @classmethod
-    def get_base_ticker(cls, ticker: str) -> str:
-        """
-        Extract base ticker without exchange suffix or share class
-        Examples:
-            - AAPL → AAPL
-            - SAP.DE → SAP
-            - BRK-B → BRK
-            - VOW3.DE → VOW3
-        """
-        # Remove exchange suffix
-        if '.' in ticker:
-            ticker = ticker.split('.')[0]
-
-        # Remove share class (hyphen)
-        if '-' in ticker:
-            ticker = ticker.split('-')[0]
-
-        return ticker
-
-    @classmethod
-    def format_for_display(cls, ticker: str, include_exchange_name: bool = True) -> str:
-        """
-        Format ticker for display to user
-        """
-        result = cls.parse_and_validate(ticker)
-
-        if not result['is_valid']:
-            return ticker
-
-        if include_exchange_name and result['exchange_code']:
-            return f"{result['normalized_ticker']} ({result['exchange_name']})"
-
-        return result['normalized_ticker']
 
     @staticmethod
     def validate_ticker(ticker_symbol: str) -> Dict:

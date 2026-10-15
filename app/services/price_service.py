@@ -232,37 +232,6 @@ class PriceService:
         return results
 
     @staticmethod
-    def get_batch_prices(ticker_symbols):
-        """
-        Fetch prices for multiple tickers via FinancialDataService.
-
-        Uses the same API path as individual price fetching for consistency.
-
-        Args:
-            ticker_symbols: List of ticker symbols
-
-        Returns:
-            dict: {ticker: price} mapping, None for failed tickers
-        """
-        if not ticker_symbols:
-            return {}
-
-        service = _get_financial_service()
-        batch_results = service.get_batch_current_prices(ticker_symbols)
-
-        # Convert to {ticker: price} format expected by update_all_positions_batch
-        results = {}
-        for ticker, data in batch_results.items():
-            if data is not None:
-                results[ticker] = data['price']
-            else:
-                results[ticker] = None
-
-        fetched = sum(1 for v in results.values() if v is not None)
-        logger.info("Batch prices: %d/%d fetched", fetched, len(ticker_symbols))
-        return results
-
-    @staticmethod
     def update_all_positions_batch(user_id, force=False):
         """
         Update all positions using batch API call for better performance.

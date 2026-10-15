@@ -90,23 +90,6 @@ class PortfolioUIInsight(db.Model):
         return insight
 
     @classmethod
-    def get_latest(cls, user_id, template_name=None):
-        """
-        Get the most recent analysis for a user.
-
-        Args:
-            user_id: User ID
-            template_name: Optional filter by template
-
-        Returns:
-            PortfolioUIInsight or None
-        """
-        query = cls.query.filter_by(user_id=user_id)
-        if template_name:
-            query = query.filter_by(template_name=template_name)
-        return query.order_by(cls.generated_at.desc()).first()
-
-    @classmethod
     def get_history(cls, user_id, template_name=None, limit=10):
         """
         Get historical analyses for a user.

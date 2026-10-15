@@ -109,21 +109,6 @@ def format_for_javascript(dt: datetime) -> str:
     return dt.isoformat()
 
 
-def hours_from_minutes(minutes: Optional[int]) -> float:
-    """
-    Convert minutes to hours with proper handling of None values.
-
-    Args:
-        minutes: Duration in minutes (can be None)
-
-    Returns:
-        float: Duration in hours (0.0 if input was None)
-    """
-    if minutes is None:
-        return 0.0
-    return minutes / 60.0
-
-
 def parse_date_string(
     date_str: str,
     format_str: str = '%Y-%m-%d',

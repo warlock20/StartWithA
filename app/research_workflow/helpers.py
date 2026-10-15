@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from flask import current_app
 from flask_login import current_user
 from app.models import ChecklistAnalysis, ChecklistAnswer
 
@@ -114,8 +115,6 @@ def collect_research_session_summary(project, step_index):
         final_summary = "\n".join(summary_parts)
         return final_summary
 
-    except Exception as e:
-        import traceback
-        print(f"ERROR in collect_research_session_summary: {e}")
-        print(f"TRACEBACK: {traceback.format_exc()}")
-        return f"Completed research checklist evaluation (error collecting details: {str(e)})"
+    except Exception:
+        current_app.logger.exception('Error collecting research session summary')
+        return "Completed research checklist evaluation (details unavailable)."

@@ -426,19 +426,6 @@ class AIConfig:
         # Default for other tasks
         return self.default_model
     
-    def get_provider_for_task(self, task: AITaskType) -> AIProvider:
-        """
-        Get the provider for a task based on model selection.
-        
-        Args:
-            task: The type of task
-            
-        Returns:
-            AIProvider that should handle this task
-        """
-        model = self.get_model_for_task(task)
-        return model.provider
-
     # ============================================================
     # Embedding Provider Methods
     # ============================================================
@@ -467,13 +454,6 @@ class AIConfig:
                 return False
         return False
     
-    def get_best_embedding_provider(self) -> Optional['EmbeddingProvider']:
-        """Get the best available embedding provider."""
-        for provider in DEFAULT_EMBEDDING_PRIORITY:
-            if self.is_embedding_provider_available(provider):
-                return provider
-        return None
-
 # ============================================================
 # Singleton Configuration Instance
 # ============================================================
@@ -515,27 +495,3 @@ def get_ai_config() -> AIConfig:
     if _config is None:
         _config = AIConfig.from_env()
     return _config
-
-
-def reload_ai_config() -> AIConfig:
-    """
-    Reload configuration from environment.
-    
-    Useful for testing or when environment variables change.
-    
-    Returns:
-        New AIConfig instance
-    """
-    global _config
-    _config = AIConfig.from_env()
-    return _config
-
-
-def reset_ai_config():
-    """
-    Reset configuration to None.
-    
-    Primarily used for testing.
-    """
-    global _config
-    _config = None

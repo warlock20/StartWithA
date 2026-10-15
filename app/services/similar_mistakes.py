@@ -610,25 +610,6 @@ class SimilarMistakesService:
 # CONVENIENCE FUNCTIONS
 # ═══════════════════════════════════════════════════════════════
 
-def find_similar_past_decisions(
-    user_id: int,
-    thesis: str,
-    company_id: Optional[int] = None,
-    max_results: int = 5
-) -> List[SimilarDecision]:
-    """
-    Find similar past decisions for a user.
-    
-    Convenience function for routes.
-    """
-    service = SimilarMistakesService(user_id)
-    return service.find_similar_decisions(
-        thesis=thesis,
-        company_id=company_id,
-        max_results=max_results
-    )
-
-
 def get_similar_mistakes_warnings(
     user_id: int,
     thesis: str,

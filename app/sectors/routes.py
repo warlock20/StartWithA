@@ -28,10 +28,8 @@ from app.services.too_hard_service import TooHardBasketService
 from app.services.company_state import company_states
 from app.utils.time_utils import now_utc
 from sqlalchemy import func
-import re
 from . import sectors_bp
 from .research_templates import get_all_templates, get_template_list, get_template
-from app.services.ai import ai_service
 from app.services.sector_service import SectorService
 from app.models.sector import Sector as SectorModel
 
@@ -344,7 +342,7 @@ def notebook(sector_name):
     sector.last_researched = now_utc()
     try:
         db.session.commit()
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         # Don't fail the request if tracking fails
         pass
@@ -406,7 +404,7 @@ def sector_analysis_focus(sector_name):
     sector.last_researched = now_utc()
     try:
         db.session.commit()
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         # Don't fail the request if tracking fails
         pass
@@ -552,9 +550,10 @@ def edit_sector(analysis_id):
             flash("Sector analysis updated successfully.", "success")
             # Redirect to the notebook page with the NEW slug
             return redirect(url_for('sectors.notebook', sector_name=new_sector.slug))
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('An error occurred')
             db.session.rollback()
-            flash(f"An error occurred: {e}", "error")
+            flash("An error occurred. Please try again.", "error")
         
         next_url = request.args.get('next')
         if next_url:
@@ -564,38 +563,6 @@ def edit_sector(analysis_id):
 
     # GET request
     return render_template('edit_sector.html', title="Edit Sector", analysis=analysis)
-
-
-@sectors_bp.route('/section/<int:section_id>/save', methods=['POST'])
-@login_required
-def save_section(section_id):
-    """
-    API endpoint to save a section's content via AJAX.
-    Supports auto-save functionality from Quill.js editor.
-    """
-    section = SectorResearchSection.query.get_or_404(section_id)
-
-    # Authorization check
-    if section.sector_analysis.author != current_user:
-        return json_unauthorized('Unauthorized')
-
-    # Get content from request
-    content = request.json.get('content', '')
-
-    # Update section
-    section.content = content
-    section.updated_at = db.func.now()  # Explicitly update timestamp
-
-    try:
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'word_count': section.word_count,
-            'updated_at': section.updated_at.strftime('%b %d, %Y %I:%M %p')
-        })
-    except Exception as e:
-        db.session.rollback()
-        return json_error(str(e), status_code=500)
 
 
 @sectors_bp.route('/<string:sector_name>/add_company/<int:company_id>', methods=['POST'])
@@ -952,10 +919,10 @@ def create_note(sector_name):
 
         db.session.add(note)
         db.session.commit()
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         current_app.logger.exception('Failed to create sector note')
-        return json_error(f'Failed to save note: {str(e)}', status_code=500)
+        return json_error('Failed to save note. Please try again.', status_code=500)
 
     return jsonify({
         'success': True,
@@ -1007,10 +974,10 @@ def update_note(note_id):
             note.source_title = data.get('source_title')
 
         db.session.commit()
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         current_app.logger.exception('Failed to update sector note')
-        return json_error(f'Failed to update note: {str(e)}', status_code=500)
+        return json_error('Failed to update note. Please try again.', status_code=500)
 
     return json_success()
 
@@ -1092,11 +1059,12 @@ def generate_document_from_canvas(sector_name):
 
     except Exception as e:
         # Log the error for debugging
+        current_app.logger.exception('Server error')
         import traceback
         print(f"Error in generate_document_from_canvas: {str(e)}")
         print(traceback.format_exc())
 
-        return json_error(f'Server error: {str(e)}', status_code=500)
+        return json_error('Server error. Please try again.', status_code=500)
 
 
 @sectors_bp.route('/<path:sector_name>/research-notes', methods=['GET'])
@@ -1162,51 +1130,13 @@ def save_research_notes(sector_name):
             'success': True,
             'message': 'Document saved successfully'
         })
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in save_research_notes')
         db.session.rollback()
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Something went wrong. Please try again.'
         }), 500
-
-@sectors_bp.route('/company/<int:company_id>/send-to-inbox', methods=['POST'])
-@login_required
-def send_company_to_inbox(company_id):
-    """Send a company from sector research to idea inbox"""
-    company = Company.query.get_or_404(company_id)
-
-    # Authorization check
-    if company.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('sectors.index'))
-
-    # Check if already in inbox
-    from app.models import IdeaPipeline
-    existing_idea = IdeaPipeline.query.filter_by(
-        user_id=current_user.id,
-        company_id=company.id
-    ).first()
-
-    if existing_idea:
-        flash(f'{company.name} is already in your idea pipeline', 'info')
-    else:
-        idea = IdeaPipeline(
-            author=current_user,
-            company_id=company.id,
-            idea_name=company.name,
-            idea_description=f"Added from {company.sector} sector research",
-            status='inbox',
-            source='sector_research'
-        )
-        db.session.add(idea)
-        db.session.commit()
-        flash(f'{company.name} added to Idea Inbox', 'success')
-
-    # Redirect back to sector page
-    if company.sector:
-        return redirect(url_for('sectors.notebook', sector_name=company.sector))
-    else:
-        return redirect(url_for('sectors.index'))
 
 @sectors_bp.route('/<string:sector_name>/archive', methods=['POST'])
 @login_required
@@ -1262,9 +1192,10 @@ def toggle_continuous_learning(analysis_id):
     try:
         db.session.commit()
         return jsonify({'success': True, 'enabled': enabled})
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in toggle_continuous_learning')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 # ============================================================================
@@ -1522,90 +1453,3 @@ def get_template_content(template_key):
         'name': template['name'],
         'icon': template['icon']
     })
-
-
-# ============================================================================
-# AI-POWERED FEATURES
-# ============================================================================
-
-@sectors_bp.route('/<string:sector_name>/generate-ai-summary', methods=['POST'])
-@login_required
-def generate_ai_summary(sector_name):
-    """
-    Generate AI-powered summary of sector research for Key Takeaways.
-
-    Returns JSON with generated summary in HTML format.
-    """
-    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
-    if not sector:
-        return json_not_found('Sector')
-
-    analysis = SectorAnalysis.query.filter_by(
-        user_id=current_user.id,
-        sector_id=sector.id
-    ).first_or_404()
-
-    try:
-        # Initialize summarization service
-        # You can customize the model per use case:
-        # - gemini-2.5-flash (default): Fast, cost-effective, good for most tasks
-        # - gemini-2.5-pro: More capable, better for complex analysis
-        # - gemini-2.0-flash: Alternative fast model
-        summarizer = ai_service.summarize(model="gemini-flash-latest")
-
-        # Prepare canvas notes data
-        canvas_notes_data = []
-        for note in analysis.canvas_notes.all():
-            # Strip HTML tags from content for cleaner prompts
-            clean_content = re.sub(r'<[^>]+>', '', note.content) if note.content else ''
-            canvas_notes_data.append({
-                'title': note.title,
-                'content': clean_content[:500]  # Limit length
-            })
-
-        # Prepare sources data
-        sources_data = []
-        for source in analysis.sources.all():
-            sources_data.append({
-                'title': source.title,
-                'description': source.description or ''
-            })
-
-        # Strip HTML from documentation
-        clean_documentation = re.sub(r'<[^>]+>', '', analysis.document_content) if analysis.document_content else ''
-
-        # Get request parameters (optional customization)
-        data = request.get_json() or {}
-        bullet_count = data.get('bullet_count', 7)
-        focus = data.get('focus', 'balanced')  # balanced, insights, risks, opportunities
-
-        # Generate summary
-        result = summarizer.generate_sector_summary(
-            sector_name=analysis.sector.display_name,
-            documentation=clean_documentation,
-            canvas_notes=canvas_notes_data,
-            sources=sources_data,
-            bullet_count=bullet_count,
-            focus=focus
-        )
-
-        if not result['success']:
-            return json_error(result.get('error', 'Failed to generate summary'), status_code=500)
-
-        # Format as HTML for Quill editor
-        html_summary = summarizer.format_as_html(result['bullet_points'])
-
-        return jsonify({
-            'success': True,
-            'summary_html': html_summary,
-            'summary_text': result['summary'],
-            'bullet_points': result['bullet_points'],
-            'token_count': result.get('token_count', 0)
-        })
-
-    except Exception as e:
-        import traceback
-        print(f"Error generating AI summary: {str(e)}")
-        print(traceback.format_exc())
-
-        return json_error(f'An error occurred while generating the summary: {str(e)}', status_code=500)

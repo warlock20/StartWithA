@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
-from flask import  request, jsonify, render_template
+from flask import  request, jsonify, render_template, current_app
 from flask_login import login_required, current_user
 
 from app import db
@@ -56,9 +56,10 @@ def update_checkpoint_status(checkpoint_id):
 
         return json_success(f'Checkpoint marked as {new_status}')
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in update_checkpoint_status')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 @portfolio_bp.route('/checkpoints')
 @login_required

@@ -93,22 +93,3 @@ export function fmtSign(n, currencySymbol, decimals = 0) {
 // ── P/L color helpers ───────────────────────────────────────────────────────
 export const plColor = (v) => (v >= 0 ? '#059669' : '#dc2626');
 export const plBg = (v) => (v >= 0 ? '#ecfdf5' : '#fef2f2');
-
-// ── Sorting ─────────────────────────────────────────────────────────────────
-export function sortPositions(positions, sortKey) {
-  const arr = [...positions];
-  switch (sortKey) {
-    case 'value':
-      return arr.sort((a, b) => (b.current_value || 0) - (a.current_value || 0));
-    case 'pl':
-      return arr.sort((a, b) => (b.gain_loss || 0) - (a.gain_loss || 0));
-    case 'return':
-      return arr.sort((a, b) => (b.gain_loss_pct || 0) - (a.gain_loss_pct || 0));
-    case 'weight':
-      return arr.sort((a, b) => (b.weightPortfolio || 0) - (a.weightPortfolio || 0));
-    case 'name':
-      return arr.sort((a, b) => a.ticker.localeCompare(b.ticker));
-    default:
-      return arr;
-  }
-}

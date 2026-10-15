@@ -285,8 +285,9 @@ class MarketSweepAdminView(SecureModelView):
         except ValueError as e:
             flash(str(e), 'error')
             return redirect(self.get_url('.edit_view', id=sweep_id))
-        except Exception as e:
-            flash(f'Error reading file: {str(e)}', 'error')
+        except Exception:
+            current_app.logger.exception('Error reading file')
+            flash('Error reading file. Please try again.', 'error')
             return redirect(self.get_url('.edit_view', id=sweep_id))
 
         # The upsert itself writes nothing to the database -- the first flush

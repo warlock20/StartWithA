@@ -24,7 +24,7 @@ This module handles all routes related to project content and data including:
 """
 
 import traceback
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import current_user, login_required
 from app import db
 from app.models import ResearchProject, ChecklistAnalysis, Company, JournalEntry
@@ -220,11 +220,12 @@ def save_project_decision(project_id):
 
         return redirect(url_for('research_workflow.my_projects'))
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error saving decision')
         db.session.rollback()
         if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
-            return json_error(str(e), status_code=500)
-        flash(f'Error saving decision: {str(e)}', 'error')
+            return json_error('Something went wrong. Please try again.', status_code=500)
+        flash('Error saving decision. Please try again.', 'error')
         return redirect(url_for('research_workflow.project_summary', project_id=project_id))
 
 
@@ -282,9 +283,10 @@ def convert_exit_criteria(project_id):
             data={'count': created_count}
         )
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in convert_exit_criteria')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/update-summary', methods=['POST'])
@@ -306,6 +308,7 @@ def update_summary(project_id):
 
         return json_success('Summary updated')
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in update_summary')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)

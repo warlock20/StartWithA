@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, abort, session
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, abort, session, current_app
 from flask_login import current_user, login_required
 from app import db
 from app.models import (JournalEntry, ThesisEvolution, LearningNote,
@@ -185,9 +185,10 @@ def new_entry():
                 return_url = request.form.get('return_url') or url_for(
                     'journal_enhanced.knowledge_hub', type=entry_category)
                 return redirect(return_url)
-            except Exception as e:
+            except Exception:
+                current_app.logger.exception('Error creating entry')
                 db.session.rollback()
-                flash(f'Error creating entry: {str(e)}', 'error')
+                flash('Error creating entry. Please try again.', 'error')
                 return redirect(url_for('journal_enhanced.new_entry'))
 
         title = request.form.get('title')
@@ -300,9 +301,10 @@ def new_entry():
             return_url = request.form.get('return_url') or url_for('journal_enhanced.knowledge_hub', type='research')
             return redirect(return_url)
             
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error creating entry')
             db.session.rollback()
-            flash(f'Error creating entry: {str(e)}', 'error')
+            flash('Error creating entry. Please try again.', 'error')
     
     # Get templates
     templates = JournalTemplate.query.filter(
@@ -426,9 +428,10 @@ def edit_entry(entry_id):
            db.session.commit()
            flash('Entry updated successfully!', 'success')
            return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry.id))
-       except Exception as e:
+       except Exception:
+           current_app.logger.exception('Error updating entry')
            db.session.rollback()
-           flash(f'Error updating entry: {str(e)}', 'error')
+           flash('Error updating entry. Please try again.', 'error')
    
    companies = current_user.companies.order_by(Company.name).all()
    
@@ -451,9 +454,10 @@ def toggle_star(entry_id):
    try:
        db.session.commit()
        return jsonify({'starred': entry.is_starred})
-   except Exception as e:
+   except Exception:
+       current_app.logger.exception('Unexpected error in toggle_star')
        db.session.rollback()
-       return json_error(str(e), status_code=500)
+       return json_error('Something went wrong. Please try again.', status_code=500)
 
 @journal_enhanced_bp.route('/entry/<int:entry_id>/archive', methods=['POST'])
 @login_required
@@ -470,9 +474,10 @@ def archive_entry(entry_id):
    try:
        db.session.commit()
        flash('Entry archived', 'info')
-   except Exception as e:
+   except Exception:
+       current_app.logger.exception('Error archiving entry')
        db.session.rollback()
-       flash(f'Error archiving entry: {str(e)}', 'error')
+       flash('Error archiving entry. Please try again.', 'error')
 
    return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
 
@@ -522,97 +527,6 @@ def new_thesis_version(company_id):
    """Old thesis form; thesis updates now live on the portfolio thesis form."""
    return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
 
-@journal_enhanced_bp.route('/learning-notes/new', methods=['GET', 'POST'])
-@login_required
-def new_learning_note():
-   """Create a new learning note"""
-   if request.method == 'POST':
-       title = request.form.get('title')
-       lesson = request.form.get('lesson')
-
-       # Handle custom category
-       category = request.form.get('category')
-       if category == 'custom':
-           custom_category = request.form.get('custom_category', '').strip()
-           category = custom_category if custom_category else 'other'
-
-       knowledge_type = request.form.get('knowledge_type')
-       context = request.form.get('context')
-       how_to_apply = request.form.get('how_to_apply')
-       importance = request.form.get('importance', type=int)
-       company_id = request.form.get('company_id', type=int)
-
-       if not title or not lesson:
-           flash('Title and lesson are required', 'error')
-           return redirect(url_for('journal_enhanced.new_learning_note'))
-
-       # Parse examples
-       examples = request.form.get('examples', '').split('\n')
-       examples = [ex.strip() for ex in examples if ex.strip()]
-
-       # Parse topic tags
-       topic_tags_str = request.form.get('topic_tags', '')
-       topic_tags = [tag.strip() for tag in topic_tags_str.split(',') if tag.strip()] if topic_tags_str else None
-
-       # Parse hashtags
-       hashtags_str = request.form.get('hashtags', '').strip()
-       hashtags = []
-       if hashtags_str:
-           # Split by spaces and commas, remove # prefix (store without #)
-           raw_tags = hashtags_str.replace(',', ' ').split()
-           hashtags = [tag.lstrip('#') for tag in raw_tags if tag.strip()]
-
-       # Parse investor tags - automatically use source_author if provided
-       source_author = request.form.get('source_author')
-       investor_tags = [source_author] if source_author else None
-
-       # Parse source date
-       source_date_str = request.form.get('source_date')
-       source_date = parse_date_to_date_object(source_date_str) if source_date_str else None
-
-       note = LearningNote(
-           author=current_user,
-           title=title,
-           lesson=lesson,
-           category=category,
-           knowledge_type=knowledge_type,
-           context=context,
-           how_to_apply=how_to_apply,
-           importance=importance or 5,
-           examples=examples if examples else None,
-           company_id=company_id if company_id else None,
-           source_type=request.form.get('source_type'),
-           source_detail=request.form.get('source_detail'),
-           source_url=request.form.get('source_url'),
-           source_author=request.form.get('source_author'),
-           source_date=source_date,
-           topic_tags=topic_tags,
-           investor_tags=investor_tags,
-       )
-
-       # Extract and combine tags
-       auto_tags = extract_tags_from_content(lesson)
-       # Merge auto-extracted tags with user-provided hashtags (all without # prefix)
-       all_tags = auto_tags + hashtags if hashtags else auto_tags
-       # Remove # from all tags and deduplicate
-       note.tags = list(set(tag.lstrip('#') for tag in all_tags))
-
-       db.session.add(note)
-
-       try:
-           db.session.commit()
-           flash('Learning note created!', 'success')
-           return redirect(url_for('journal_enhanced.knowledge_hub', type='wisdom'))
-       except Exception as e:
-           db.session.rollback()
-           flash(f'Error creating note: {str(e)}', 'error')
-
-   companies = current_user.companies.order_by(Company.name).all()
-
-   return render_template('new_learning_note.html',
-                         title="New Learning Note",
-                         companies=companies)
-
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>')
 @login_required
 def learning_note_detail(note_id):
@@ -651,9 +565,10 @@ def toggle_favorite_note(note_id):
    try:
        db.session.commit()
        return json_success(data={'is_favorite': note.is_favorite})
-   except Exception as e:
+   except Exception:
+       current_app.logger.exception('Unexpected error in toggle_favorite_note')
        db.session.rollback()
-       return json_error(str(e), status_code=500)
+       return json_error('Something went wrong. Please try again.', status_code=500)
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/delete', methods=['POST'])
 @login_required
@@ -668,9 +583,10 @@ def delete_learning_note(note_id):
        db.session.delete(note)
        db.session.commit()
        return json_success()
-   except Exception as e:
+   except Exception:
+       current_app.logger.exception('Unexpected error in delete_learning_note')
        db.session.rollback()
-       return json_error(str(e), status_code=500)
+       return json_error('Something went wrong. Please try again.', status_code=500)
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -721,9 +637,10 @@ def edit_learning_note(note_id):
            db.session.commit()
            flash('Learning note updated!', 'success')
            return redirect(url_for('journal_enhanced.knowledge_hub', type='wisdom'))
-       except Exception as e:
+       except Exception:
+           current_app.logger.exception('Error updating note')
            db.session.rollback()
-           flash(f'Error updating note: {str(e)}', 'error')
+           flash('Error updating note. Please try again.', 'error')
 
    companies = current_user.companies.order_by(Company.name).all()
 
@@ -939,44 +856,6 @@ def knowledge_hub():
                          starred_only=starred_only,
                          sort_by=sort_by)
 
-@journal_enhanced_bp.route('/export')
-@login_required
-def export_journal():
-   """Export journal entries"""
-   format_type = request.args.get('format', 'json')
-   company_id = request.args.get('company_id', type=int)
-   
-   # Get entries to export
-   query = current_user.journal_entries
-   if company_id:
-       query = query.filter_by(company_id=company_id)
-   
-   entries = query.order_by(JournalEntry.created_at.desc()).all()
-   
-   if format_type == 'json':
-       # Export as JSON
-       export_data = []
-       for entry in entries:
-           export_data.append({
-               'title': entry.title,
-               'type': entry.entry_type,
-               'content': entry.content,
-               'key_insight': entry.key_insight,
-               'sentiment': entry.sentiment,
-               'conviction_level': entry.conviction_level,
-               'company': entry.company.name if entry.company else None,
-               'tags': entry.tags,
-               'created_at': entry.created_at.isoformat(),
-               'action_items': entry.action_items,
-               'questions_raised': entry.questions_raised
-           })
-       
-       return jsonify(export_data)
-   
-   # Could add CSV, Markdown, or other formats
-   flash('Export format not supported', 'error')
-   return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
-
 @journal_enhanced_bp.route('/attachment/<int:attachment_id>')
 @login_required
 def view_attachment(attachment_id):
@@ -1007,7 +886,7 @@ def view_attachment(attachment_id):
     
     try:
         return send_from_directory(directory, filename, as_attachment=False)
-    except Exception as e:
+    except Exception:
         flash('Error accessing attachment', 'error')
         abort(500)
 
@@ -1041,7 +920,7 @@ def download_attachment(attachment_id):
     
     try:
         return send_from_directory(directory, filename, as_attachment=True)
-    except Exception as e:
+    except Exception:
         flash('Error downloading attachment', 'error')
         abort(500)
 
@@ -1072,7 +951,7 @@ def delete_entry(entry_id):
         flash('Journal entry deleted successfully', 'success')
         return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash('Error deleting entry', 'error')
         return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
@@ -1129,14 +1008,15 @@ def analyze_entry(entry_id):
             'related_entries_count': len(entry.related_entry_ids or [])
         })
 
-    except Exception as e:
+    except Exception:
         # Update status on failure
+        current_app.logger.exception('Unexpected error in analyze_entry')
         entry.ai_processing_status = 'failed'
         db.session.commit()
 
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Something went wrong. Please try again.'
         }), 500
 
 
@@ -1213,125 +1093,6 @@ def get_contradictions(entry_id):
     })
 
 
-@journal_enhanced_bp.route('/api/entries/auto-tag', methods=['POST'])
-@login_required
-def auto_tag_entries():
-    """Batch auto-tag recent entries that haven't been analyzed"""
-    try:
-        # Get recent unprocessed entries
-        unprocessed_entries = JournalEntry.query.filter(
-            JournalEntry.user_id == current_user.id,
-            JournalEntry.ai_processing_status.is_(None)
-        ).order_by(JournalEntry.created_at.desc()).limit(10).all()
-
-        processed_count = 0
-        for entry in unprocessed_entries:
-            try:
-                # Set processing status
-                entry.ai_processing_status = 'processing'
-                db.session.commit()
-
-                # Run analysis
-                analysis_result = analyze_journal_entry(entry)
-
-                # Store AI-suggested tags
-                if analysis_result.get('suggested_tags'):
-                    # Merge with existing tags
-                    existing_tags = set(entry.tags or [])
-                    suggested_tags = set(analysis_result['suggested_tags'])
-                    entry.tags = list(existing_tags.union(suggested_tags))
-
-                entry.ai_suggested_tags = analysis_result.get('suggested_tags', [])
-                entry.ai_themes_extracted = analysis_result.get('key_themes', [])
-                entry.ai_processing_status = 'completed'
-                entry.ai_analyzed_at = now_utc()
-
-                processed_count += 1
-
-            except Exception as e:
-                entry.ai_processing_status = 'failed'
-                logger.error(f"Failed to process entry {entry.id}: {e}")
-
-            db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'processed_entries': processed_count,
-            'message': f'Successfully processed {processed_count} entries'
-        })
-
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@journal_enhanced_bp.route('/api/intelligence/dashboard')
-@login_required
-def intelligence_dashboard():
-    """Get AI intelligence insights for the user's journal"""
-    try:
-        # Get statistics about AI processing
-        total_entries = JournalEntry.query.filter_by(user_id=current_user.id).count()
-
-        processed_entries = JournalEntry.query.filter(
-            JournalEntry.user_id == current_user.id,
-            JournalEntry.ai_processing_status == 'completed'
-        ).count()
-
-        entries_with_contradictions = JournalEntry.query.filter(
-            JournalEntry.user_id == current_user.id,
-            JournalEntry.contradiction_flags.isnot(None)
-        ).count()
-
-        # Get most common themes
-        theme_entries = JournalEntry.query.filter(
-            JournalEntry.user_id == current_user.id,
-            JournalEntry.ai_themes_extracted.isnot(None)
-        ).all()
-
-        theme_counts = {}
-        for entry in theme_entries:
-            for theme in (entry.ai_themes_extracted or []):
-                theme_counts[theme] = theme_counts.get(theme, 0) + 1
-
-        top_themes = sorted(theme_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-
-        # Get recent AI insights
-        recent_insights = JournalEntry.query.filter(
-            JournalEntry.user_id == current_user.id,
-            JournalEntry.ai_analysis_result.isnot(None)
-        ).order_by(JournalEntry.ai_analyzed_at.desc()).limit(5).all()
-
-        insights_data = []
-        for entry in recent_insights:
-            analysis = entry.ai_analysis_result or {}
-            insights_data.append({
-                'entry_id': entry.id,
-                'entry_title': entry.title or 'Untitled',
-                'key_insights': analysis.get('key_insights', []),
-                'analyzed_at': entry.ai_analyzed_at.strftime('%Y-%m-%d %H:%M') if entry.ai_analyzed_at else None
-            })
-
-        return jsonify({
-            'success': True,
-            'stats': {
-                'total_entries': total_entries,
-                'processed_entries': processed_entries,
-                'processing_percentage': round((processed_entries / total_entries) * 100, 1) if total_entries > 0 else 0,
-                'entries_with_contradictions': entries_with_contradictions
-            },
-            'top_themes': top_themes,
-            'recent_insights': insights_data
-        })
-
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
 @journal_enhanced_bp.route('/api/hashtags', methods=['GET'])
 @login_required
 def get_hashtags():
@@ -1401,7 +1162,7 @@ def update_entry_tags(entry_id):
         logger.error(f"Error updating tags: {str(e)}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Something went wrong. Please try again.'
         }), 500
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/update-tags', methods=['POST'])
@@ -1434,6 +1195,5 @@ def update_learning_note_tags(note_id):
         logger.error(f"Error updating learning note tags: {str(e)}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Something went wrong. Please try again.'
         }), 500
-

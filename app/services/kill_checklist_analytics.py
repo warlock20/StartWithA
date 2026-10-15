@@ -22,14 +22,13 @@ based on historical usage patterns, effectiveness metrics, and mistake log integ
 """
 
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import func, desc
+from sqlalchemy import func
 from app import db
-from app.models import (KillChecklist, KillCriterion, KillSession, KillAnswer,
-                       KillChecklistSuggestion, MistakeLog, IdeaPipeline)
+from app.models import KillChecklist, KillCriterion, KillSession, KillChecklistSuggestion, MistakeLog
 from app.services.ai import generate_text
 from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 import re
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 
 
 class KillChecklistAnalytics:
@@ -398,38 +397,6 @@ class KillChecklistAnalytics:
         # Cap at reasonable maximum
         return min(total_effectiveness, 0.25)  # Max 25% improvement
 
-    @staticmethod
-    def generate_periodic_suggestions(user_id: int) -> List[KillChecklistSuggestion]:
-        """
-        Generate periodic suggestions for all user's checklists based on accumulated data.
-
-        Args:
-            user_id: ID of the user
-
-        Returns:
-            List of KillChecklistSuggestion objects
-        """
-        suggestions = []
-
-        # Get all user's kill checklists
-        checklists = KillChecklist.query.filter_by(user_id=user_id).all()
-
-        for checklist in checklists:
-            # Skip if checklist hasn't been used enough
-            if checklist.total_ideas_evaluated < 10:
-                continue
-
-            # Check for reordering opportunities
-            reorder_suggestion = KillChecklistAnalytics.suggest_reordering(checklist.id)
-            if reorder_suggestion:
-                suggestions.append(reorder_suggestion)
-
-            # Check for underperforming criteria
-            cleanup_suggestions = KillChecklistAnalytics._suggest_cleanup(checklist.id)
-            suggestions.extend(cleanup_suggestions)
-
-        return suggestions
-
     # Private helper methods
 
     @staticmethod
@@ -626,15 +593,6 @@ class SuggestionEngine:
         if suggestion:
             db.session.add(suggestion)
             db.session.commit()
-
-    @staticmethod
-    def get_pending_suggestions(user_id: int) -> List[KillChecklistSuggestion]:
-        """Get all pending suggestions for a user"""
-        return KillChecklistSuggestion.query\
-            .filter_by(user_id=user_id, status='pending')\
-            .filter(~KillChecklistSuggestion.is_expired)\
-            .order_by(desc(KillChecklistSuggestion.effectiveness_gain))\
-            .all()
 
     @staticmethod
     def apply_suggestion(suggestion_id: int, user_id: int) -> bool:

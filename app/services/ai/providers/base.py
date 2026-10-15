@@ -195,22 +195,6 @@ class AIProvider(ABC):
         # This is a fallback - providers should override with accurate counting
         return len(text) // 4
 
-    def validate_response(self, response: str) -> str:
-        """
-        Validate and clean response text.
-        
-        Override for provider-specific validation.
-
-        Args:
-            response: Raw response from provider
-
-        Returns:
-            Cleaned response text
-        """
-        if response is None:
-            raise ValueError("Received None response from provider")
-        return response.strip()
-
     def __repr__(self) -> str:
         """String representation of provider"""
         available = "available" if self.is_available() else "unavailable"

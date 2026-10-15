@@ -7,7 +7,8 @@
  * or walking away does not inflate the recorded research time.
  *
  * Requires an element with id="sector-time-tracker" carrying a
- * data-analysis-id attribute, rendered by the sector analysis template.
+ * data-endpoint attribute (the track-time URL), rendered by the sector
+ * analysis templates.
  */
 (function () {
   'use strict';
@@ -15,10 +16,8 @@
   var el = document.getElementById('sector-time-tracker');
   if (!el) return;
 
-  var analysisId = el.getAttribute('data-analysis-id');
-  if (!analysisId) return;
-
-  var endpoint = '/api/sectors/analysis/' + analysisId + '/track-time';
+  var endpoint = el.getAttribute('data-endpoint');
+  if (!endpoint) return;
 
   var IDLE_LIMIT_MS = 60 * 1000; // treat user as idle after 60s of no interaction
   var FLUSH_INTERVAL_MS = 30 * 1000; // push accumulated time to server every 30s

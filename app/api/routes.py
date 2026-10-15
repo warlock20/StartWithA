@@ -19,24 +19,13 @@ API routes for duplicate detection and other real-time validations
 """
 
 from datetime import datetime, timezone
-from flask import request, jsonify, session
-from app.utils.response_utils import json_error, json_unauthorized
+from flask import request, jsonify, current_app
+from app.utils.response_utils import json_error
 from flask_login import login_required, current_user
 from sqlalchemy.orm.attributes import flag_modified
 from app import db
 from app.api import api_bp
-from app.models import IdeaPipeline
 from app.services.duplicate_detection import DuplicateDetectionService
-from app.utils.time_utils import now_utc
-
-
-@api_bp.route('/server-time')
-@login_required
-def server_time():
-    """Return current server time for timer synchronization"""
-    return jsonify({
-        'server_time': now_utc().isoformat()
-    })
 
 
 @api_bp.route('/check-duplicates', methods=['POST'])
@@ -95,39 +84,9 @@ def check_duplicates():
 
         return jsonify(result)
 
-    except Exception as e:
-        return json_error(str(e), status_code=500)
-
-
-@api_bp.route('/ideas/<int:idea_id>/resurrect', methods=['POST'])
-@login_required
-def resurrect_idea(idea_id):
-    """Resurrect a killed idea"""
-    try:
-        idea = IdeaPipeline.query.get_or_404(idea_id)
-
-        # Verify ownership
-        if idea.user_id != current_user.id:
-            return json_unauthorized('Access denied')
-
-        # Verify it's killed
-        if idea.status != 'killed':
-            return json_error('Idea is not killed')
-
-        # Resurrect the idea
-        idea.status = 'inbox'
-        idea.kill_reason = None
-        idea.killed_at = None
-
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'message': f'Idea "{idea.name}" has been resurrected and moved to inbox'
-        })
-
-    except Exception as e:
-        return json_error(str(e), status_code=500)
+    except Exception:
+        current_app.logger.exception('Unexpected error in check_duplicates')
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @api_bp.route('/mark-tour-completed', methods=['POST'])
@@ -161,9 +120,10 @@ def mark_tour_completed():
             'message': f'Tour "{tour_name}" marked as completed'
         })
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in mark_tour_completed')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @api_bp.route('/should-show-tour', methods=['GET'])
@@ -195,21 +155,6 @@ def should_show_tour():
             'show_tours_enabled': show_tours
         })
 
-    except Exception as e:
-        return json_error(str(e), status_code=500)
-
-
-@api_bp.route('/dismiss-quote-banner', methods=['POST'])
-@login_required
-def dismiss_quote_banner():
-    """Dismiss the quote banner for the current session"""
-    try:
-        session['quote_banner_dismissed'] = True
-
-        return jsonify({
-            'success': True,
-            'message': 'Quote banner dismissed for this session'
-        })
-
-    except Exception as e:
-        return json_error(str(e), status_code=500)
+    except Exception:
+        current_app.logger.exception('Unexpected error in should_show_tour')
+        return json_error('Something went wrong. Please try again.', status_code=500)

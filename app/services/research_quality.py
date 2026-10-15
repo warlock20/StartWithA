@@ -41,10 +41,8 @@ Usage:
 
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
-from datetime import datetime
 import logging
 
-from app import db
 from app.services.config_service import get_config
 
 logger = logging.getLogger(__name__)
@@ -530,41 +528,3 @@ def calculate_research_quality(
         research_project_id=research_project_id,
         metrics=metrics
     )
-
-
-def get_research_quality_for_company(user_id: int, company_id: int) -> Optional[ResearchQualityScore]:
-    """
-    Get the most recent research quality score for a company.
-    
-    Looks for the latest completed research (session or project) and calculates score.
-    
-    Args:
-        user_id: User ID
-        company_id: Company ID
-        
-    Returns:
-        ResearchQualityScore or None if no research found
-    """
-    from app.models import ChecklistAnalysis, ResearchProject
-
-    # Check for research project first (more comprehensive)
-    project = ResearchProject.query.filter_by(
-        user_id=user_id,
-        company_id=company_id,
-        status='completed'
-    ).order_by(ResearchProject.created_at.desc()).first()
-
-    if project:
-        return calculate_research_quality(research_project_id=project.id)
-
-    # Fall back to checklist analysis
-    analysis = ChecklistAnalysis.query.filter_by(
-        user_id=user_id,
-        company_id=company_id,
-        status='completed'
-    ).order_by(ChecklistAnalysis.created_at.desc()).first()
-
-    if analysis:
-        return calculate_research_quality(research_session_id=analysis.id)
-
-    return None

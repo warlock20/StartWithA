@@ -28,7 +28,6 @@ from app.models import (
     ChecklistAnswer,
     KillSession,
     KillAnswer,
-    Checklist,
     KillChecklist,
     IdeaPipeline,
     QualitativeAnalysis,

@@ -141,7 +141,7 @@ def api_upload_resource(company_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Error uploading resource: {e}')
-        return json_error(f'Upload failed: {str(e)}', status_code=500)
+        return json_error('Upload failed. Please try again.', status_code=500)
 
 
 @companies_bp.route('/api/<int:company_id>/resources/link', methods=['POST'])
@@ -179,7 +179,7 @@ def api_save_link(company_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Error saving link: {e}')
-        return json_error(f'Failed to save link: {str(e)}', status_code=500)
+        return json_error('Failed to save link. Please try again.', status_code=500)
 
 
 @companies_bp.route('/api/resources/<int:resource_id>', methods=['DELETE'])
@@ -206,7 +206,7 @@ def api_delete_resource(resource_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Error deleting resource: {e}')
-        return json_error(f'Failed to delete resource: {str(e)}', status_code=500)
+        return json_error('Failed to delete resource. Please try again.', status_code=500)
 
 
 @companies_bp.route('/api/resources/<int:resource_id>/download')

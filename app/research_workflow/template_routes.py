@@ -27,7 +27,7 @@ This module handles all routes related to research template management including
 - Creating default templates for users
 """
 
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchTemplate, ResearchProject, Company, Checklist,
@@ -300,9 +300,10 @@ def create_template():
             db.session.commit()
             flash(f'Research template "{name}" created successfully!', 'success')
             return redirect(url_for('research_workflow.template_list'))
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error creating template')
             db.session.rollback()
-            flash(f'Error creating template: {str(e)}', 'error')
+            flash('Error creating template. Please try again.', 'error')
     
     # Get user's checklists and kill checklists for the step configuration
     user_checklists = [{'id': cl.id, 'name': cl.name} for cl in current_user.checklists.all()]
@@ -409,9 +410,10 @@ def edit_template(template_id):
             db.session.commit()
             flash('Workflow updated successfully!', 'success')
             return redirect(url_for('research_workflow.my_projects'))
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error updating template')
             db.session.rollback()
-            flash(f'Error updating template: {str(e)}', 'error')
+            flash('Error updating template. Please try again.', 'error')
 
     # Get user's checklists and kill checklists for the step configuration
     user_checklists = [{'id': cl.id, 'name': cl.name} for cl in current_user.checklists.all()]
@@ -452,9 +454,10 @@ def delete_template(template_id):
         db.session.delete(template)
         db.session.commit()
         flash(f'Template "{template.name}" deleted', 'info')
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error deleting template')
         db.session.rollback()
-        flash(f'Error deleting template: {str(e)}', 'error')
+        flash('Error deleting template. Please try again.', 'error')
     
     return redirect(url_for('research_workflow.template_list'))
 
@@ -478,9 +481,10 @@ def force_delete_template(template_id):
         db.session.delete(template)
         db.session.commit()
         flash(f'Template "{template_name}" deleted successfully. {project_count} existing projects remain unaffected.', 'success')
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error deleting template')
         db.session.rollback()
-        flash(f'Error deleting template: {str(e)}', 'error')
+        flash('Error deleting template. Please try again.', 'error')
     
     return redirect(url_for('research_workflow.template_list'))
 
@@ -501,7 +505,7 @@ def archive_template(template_id):
     try:
         db.session.commit()
         flash(f'Template "{template.name}" archived successfully', 'success')
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash('Error archiving template', 'error')
     
@@ -525,7 +529,7 @@ def restore_template(template_id):
     try:
         db.session.commit()
         flash(f'Template "{template.name}" restored successfully', 'success')
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash('Error restoring template', 'error')
     

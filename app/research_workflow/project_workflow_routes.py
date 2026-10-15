@@ -28,7 +28,7 @@ This module handles all routes related to executing research project workflows:
 """
 
 import copy
-from flask import render_template, request, redirect, url_for, flash, session as flask_session
+from flask import render_template, request, redirect, url_for, flash, session as flask_session, current_app
 from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchTemplate, ResearchProject, ResearchSettings, WorkSession,
@@ -136,9 +136,10 @@ def start_project():
         )
         flash(f'Research project started for {company.name}!', 'success')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error starting project')
         db.session.rollback()
-        flash(f'Error starting project: {str(e)}', 'error')
+        flash('Error starting project. Please try again.', 'error')
         return redirect(request.referrer or url_for('research_workflow.my_projects'))
 
 
@@ -415,9 +416,10 @@ def execute_step(project_id, step_index):
                             flash('Investment checklist has no items to evaluate', 'warning')
                             return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
-                    except Exception as e:
+                    except Exception:
+                        current_app.logger.exception('Error starting research session')
                         db.session.rollback()
-                        flash(f'Error starting research session: {str(e)}', 'error')
+                        flash('Error starting research session. Please try again.', 'error')
                         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
             else:
                 # Checklist was deleted or not found - offer to select a new one
@@ -591,9 +593,10 @@ def complete_step(project_id):
             flash('Step completed! Moving to next step.', 'success')
             return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error completing step')
         db.session.rollback()
-        flash(f'Error completing step: {str(e)}', 'error')
+        flash('Error completing step. Please try again.', 'error')
         return redirect(request.referrer)
 
 
@@ -689,7 +692,7 @@ def mark_too_hard(project_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Error marking project as too hard: {str(e)}')
-        flash(f'Error marking project as too hard: {str(e)}', 'error')
+        flash('Error marking project as too hard. Please try again.', 'error')
         return redirect(request.referrer)
 
 
@@ -728,7 +731,7 @@ def reactivate_project(project_id):
         except Exception as e:
             db.session.rollback()
             logger.error(f'Error reactivating project: {str(e)}')
-            flash(f'Error reactivating project: {str(e)}', 'error')
+            flash('Error reactivating project. Please try again.', 'error')
             return redirect(request.referrer or url_for('research_workflow.my_projects'))
 
         log_research_activity(
@@ -779,7 +782,7 @@ def reactivate_project(project_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Error reactivating project: {str(e)}')
-        flash(f'Error reactivating project: {str(e)}', 'error')
+        flash('Error reactivating project. Please try again.', 'error')
         return redirect(request.referrer or url_for('research_workflow.my_projects'))
 
 
@@ -821,7 +824,7 @@ def reopen_step(project_id, step_index):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Error reopening step: {str(e)}')
-        flash(f'Error reopening step: {str(e)}', 'error')
+        flash('Error reopening step. Please try again.', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
 
 
@@ -872,9 +875,10 @@ def complete_research_step(project_id, step_index):
             flash('Research step completed! Moving to next step.', 'success')
             return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error completing research step')
         db.session.rollback()
-        flash(f'Error completing research step: {str(e)}', 'error')
+        flash('Error completing research step. Please try again.', 'error')
         return redirect(request.referrer)
 
 
@@ -916,9 +920,10 @@ def skip_step(project_id, step_index):
     try:
         db.session.commit()
         return json_success('Step skipped')
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in skip_step')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/update-step-checklist/<int:step_index>', methods=['POST'])
@@ -985,9 +990,10 @@ def update_step_checklist(project_id, step_index):
         db.session.commit()
         # Now redirect to execute the step with the new checklist
         return redirect(url_for('research_workflow.execute_step', project_id=project_id, step_index=step_index))
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error updating checklist')
         db.session.rollback()
-        flash(f'Error updating checklist: {str(e)}', 'error')
+        flash('Error updating checklist. Please try again.', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
 
@@ -1026,9 +1032,10 @@ def return_from_checklist(project_id, step_index):
             try:
                 db.session.commit()
                 flash('Investment checklist step completed successfully!', 'success')
-            except Exception as e:
+            except Exception:
+                current_app.logger.exception('Error updating project progress')
                 db.session.rollback()
-                flash(f'Error updating project progress: {str(e)}', 'error')
+                flash('Error updating project progress. Please try again.', 'error')
 
         # Redirect back to project dashboard
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
@@ -1129,7 +1136,7 @@ def move_to_watchlist(project_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Error moving project to watchlist: {str(e)}')
-        flash(f'Error moving project to watchlist: {str(e)}', 'error')
+        flash('Error moving project to watchlist. Please try again.', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
 
 
@@ -1163,7 +1170,7 @@ def remove_from_watchlist(project_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Error removing project from watchlist: {str(e)}')
-        flash(f'Error removing project from watchlist: {str(e)}', 'error')
+        flash('Error removing project from watchlist. Please try again.', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
 
 
@@ -1213,9 +1220,10 @@ def edit_project_workflow(project_id):
             db.session.commit()
             flash('Project workflow updated successfully!', 'success')
             return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error updating workflow')
             db.session.rollback()
-            flash(f'Error updating workflow: {str(e)}', 'error')
+            flash('Error updating workflow. Please try again.', 'error')
 
     # Reuse the create_template.html form
     user_checklists = [{'id': cl.id, 'name': cl.name} for cl in current_user.checklists.all()]

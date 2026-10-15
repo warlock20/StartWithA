@@ -27,7 +27,7 @@ import copy
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import current_user, login_required
 from app import db
-from app.models import ResearchTemplate, ResearchProject, Company, IdeaPipeline
+from app.models import ResearchProject, Company, IdeaPipeline
 from app.features import user_has_feature
 from app.research_workflow import research_workflow_bp
 from app.research_workflow.template_routes import ensure_default_template
@@ -172,20 +172,3 @@ def start_new_research():
                           title="Start New Research")
 
 
-@research_workflow_bp.route('/quick-start', methods=['GET'])
-@login_required
-def quick_start_guide():
-    """Show a quick start guide for new users"""
-    # Get sample templates or create starter templates
-    starter_templates = ResearchTemplate.query.filter_by(
-        user_id=current_user.id
-    ).limit(3).all()
-
-    if not starter_templates:
-        default_template, _ = ensure_default_template(current_user)
-        if default_template:
-            starter_templates = [default_template]
-
-    return render_template('quick_start.html',
-                          title="Quick Start Guide",
-                          starter_templates=starter_templates)

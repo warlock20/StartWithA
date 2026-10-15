@@ -24,11 +24,9 @@ import logging
 from typing import Optional, Dict, Any
 from flask import has_request_context
 from flask_login import current_user
-from datetime import timedelta
 
 from app import db
 from app.models.prompt_management import PromptUsageLog
-from app.utils.time_utils import now_utc
 from app.utils.audit_logger import log_ai_call
 logger = logging.getLogger(__name__)
 
@@ -184,58 +182,6 @@ def _estimate_cost(model: str, input_tokens: Optional[int], output_tokens: Optio
     total_cost_cents = int(total_cost_dollars * 100)
 
     return total_cost_cents
-
-
-def get_prompt_analytics_summary(
-    prompt_name: Optional[str] = None,
-    days: int = 30
-) -> Dict[str, Any]:
-    """
-    Get analytics summary for prompts.
-
-    Args:
-        prompt_name: Specific prompt to analyze (or None for all)
-        days: Number of days to look back
-
-    Returns:
-        Dictionary with analytics data
-    """
-
-    cutoff_date = now_utc() - timedelta(days=days)
-
-    query = PromptUsageLog.query.filter(
-        PromptUsageLog.created_at >= cutoff_date
-    )
-
-    if prompt_name:
-        query = query.filter(PromptUsageLog.prompt_name == prompt_name)
-
-    logs = query.all()
-
-    if not logs:
-        return {
-            'total_calls': 0,
-            'total_tokens': 0,
-            'total_cost_dollars': 0.0,
-            'avg_latency_ms': 0,
-            'success_rate': 0.0,
-        }
-
-    total_calls = len(logs)
-    total_tokens = sum(log.total_tokens or 0 for log in logs)
-    total_cost_cents = sum(log.estimated_cost_cents or 0 for log in logs)
-    avg_latency = sum(log.latency_ms or 0 for log in logs if log.latency_ms) / total_calls
-    success_count = sum(1 for log in logs if log.success)
-
-    return {
-        'total_calls': total_calls,
-        'total_tokens': total_tokens,
-        'total_cost_dollars': total_cost_cents / 100.0,
-        'avg_latency_ms': int(avg_latency),
-        'success_rate': (success_count / total_calls * 100) if total_calls > 0 else 0.0,
-        'by_provider': _group_by(logs, 'provider'),
-        'by_model': _group_by(logs, 'model'),
-    }
 
 
 def _group_by(logs, field):

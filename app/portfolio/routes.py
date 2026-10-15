@@ -19,7 +19,7 @@
 import logging
 from datetime import datetime
 from decimal import Decimal
-from flask import render_template, request, redirect, url_for, flash, jsonify, session
+from flask import render_template, request, redirect, url_for, flash, jsonify, session, current_app
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from app import db
@@ -27,15 +27,22 @@ from app import db
 # Configure logger
 logger = logging.getLogger(__name__)
 from app.models import (
-    Transaction, PortfolioPosition, Company, DecisionJournal,
-    ResearchProject, DestinationCheckpoint, ThesisEvolution, ResearchOutcome,
-    BackgroundTask, PortfolioUIInsight, JournalEntry
+    Transaction,
+    PortfolioPosition,
+    Company,
+    DecisionJournal,
+    ResearchProject,
+    DestinationCheckpoint,
+    ThesisEvolution,
+    ResearchOutcome,
+    BackgroundTask,
+    JournalEntry,
 )
 from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
 from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc, ensure_timezone_aware
-from app.utils.response_utils import json_error, json_unauthorized
+from app.utils.response_utils import json_error
 from app.utils.portfolio_utils import (
      filter_positions_by_performance,
     calculate_holding_period_stats,
@@ -254,9 +261,10 @@ def add_thesis_version(company_id):
             flash(f'Thesis Version {next_version} created successfully', 'success')
             return redirect(url_for('companies.company_detail', company_id=company_id))
 
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error creating thesis version')
             db.session.rollback()
-            flash(f'Error creating thesis version: {str(e)}', 'error')
+            flash('Error creating thesis version. Please try again.', 'error')
             return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
 
     # GET request - show form
@@ -298,8 +306,9 @@ def refresh_prices():
         if results['failed'] > 0:
             flash(f"Failed to update {results['failed']} positions: {', '.join(results['errors'])}", 'warning')
 
-    except Exception as e:
-        flash(f'Error refreshing prices: {str(e)}', 'error')
+    except Exception:
+        current_app.logger.exception('Error refreshing prices')
+        flash('Error refreshing prices. Please try again.', 'error')
 
     return redirect(url_for('portfolio.dashboard'))
 
@@ -530,7 +539,7 @@ def analytics_status(task_id):
     Returns JSON for AJAX polling from loading page.
     """
     # Get task status from database
-    task_status = BackgroundTaskService.get_task_status(task_id)
+    task_status = BackgroundTaskService.get_task_status(task_id, current_user.id)
 
     if not task_status:
         return jsonify({
@@ -1130,131 +1139,3 @@ def intelligence_hub():
 #############################
 #### Analytics History API  ####
 #############################
-
-@portfolio_bp.route('/api/analytics/history')
-@login_required
-def analytics_history():
-    """
-    Get historical portfolio analyses for trend tracking.
-
-    Query params:
-        template: Filter by template name (optional)
-        limit: Max records to return (default 10, max 50)
-
-    Returns:
-        JSON list of historical analyses (summaries only, not full insights)
-    """
-    template_name = request.args.get('template', None)
-
-    limit_raw = request.args.get('limit')
-    if limit_raw is None:
-        limit = 10
-    else:
-        try:
-            limit = int(limit_raw)
-        except (ValueError, TypeError):
-            return jsonify({
-                'success': False,
-                'error': "Invalid 'limit' parameter; it must be an integer."
-            }), 400
-    limit = min(limit, 50)
-
-    history = PortfolioUIInsight.get_history(
-        user_id=current_user.id,
-        template_name=template_name,
-        limit=limit
-    )
-
-    return jsonify({
-        'success': True,
-        'count': len(history),
-        'analyses': [h.to_summary_dict() for h in history]
-    })
-
-
-@portfolio_bp.route('/api/analytics/history/<int:insight_id>')
-@login_required
-def get_historical_analysis(insight_id):
-    """
-    Get a specific historical analysis with full insights.
-
-    Args:
-        insight_id: The PortfolioUIInsight ID
-
-    Returns:
-        JSON with full analysis data
-    """
-    insight = PortfolioUIInsight.query.get(insight_id)
-
-    if not insight:
-        return json_error('Analysis not found', status_code=404)
-
-    if insight.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
-
-    return jsonify({
-        'success': True,
-        'analysis': insight.to_dict()
-    })
-
-
-@portfolio_bp.route('/api/analytics/trends')
-@login_required
-def analytics_trends():
-    """
-    Get trend data from historical analyses for visualization.
-
-    Extracts key metrics over time for trend charts.
-
-    Query params:
-        template: Filter by template name (optional)
-        limit: Max records to analyze (default 10)
-
-    Returns:
-        JSON with trend data points
-    """
-    template_name = request.args.get('template', 'portfolio_raw_trade_analysis')
-
-    limit_raw = request.args.get('limit')
-    if limit_raw is None:
-        limit = 10
-    else:
-        try:
-            limit = int(limit_raw)
-        except (ValueError, TypeError):
-            return jsonify({
-                'success': False,
-                'error': "Invalid 'limit' parameter; it must be an integer."
-            }), 400
-    limit = min(limit, 50)
-
-    history = PortfolioUIInsight.get_history(
-        user_id=current_user.id,
-        template_name=template_name,
-        limit=limit
-    )
-
-    # Extract trend data points
-    trends = {
-        'dates': [],
-        'portfolio_values': [],
-        'position_counts': [],
-        'tokens_used': []
-    }
-
-    for insight in reversed(history):  # Oldest first for charts
-        trends['dates'].append(
-            insight.generated_at.isoformat() if insight.generated_at else None
-        )
-        trends['portfolio_values'].append(
-            float(insight.portfolio_value) if insight.portfolio_value else None
-        )
-        trends['position_counts'].append(insight.position_count)
-        trends['tokens_used'].append(insight.tokens_used)
-
-    return jsonify({
-        'success': True,
-        'data_points': len(history),
-        'trends': trends
-    })
-

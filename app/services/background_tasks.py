@@ -21,23 +21,31 @@ Uses Celery for robust task processing
 
 import uuid
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
+from flask import session
+from sqlalchemy import and_, or_
 from app import db
 from app.models import BackgroundTask
 from app.utils.time_utils import now_utc
 import logging
-from app.celery_tasks import competitor_analysis_task
 from app.celery_tasks import portfolio_ai_analysis_task
 from app.celery_tasks import portfolio_chart_data_task
 from app.celery_tasks import bias_check_task
 from app.celery_tasks import argos_deep_analysis_task
 from app.celery_tasks import portfolio_import_task
-from app.celery_tasks import checklist_item_analyze_task
 from app.celery_tasks import ai_research_assist_task
 from app.celery_tasks import screening_analysis_task
 from app.celery_tasks import companion_ask_task
 
 logger = logging.getLogger(__name__)
+
+# Raw Celery task ids kept per session for owns_celery_task; older ones drop off.
+MAX_REMEMBERED_CELERY_TASKS = 20
+
+# A pending task younger than this is reused instead of starting a duplicate.
+# Workers normally pick tasks up within seconds; an older pending row is most
+# likely one the worker never received, and reusing it would block the user.
+PENDING_REUSE_SECONDS = 120
 
 
 def parse_task_type(task_type: str) -> tuple:
@@ -65,44 +73,22 @@ def parse_task_type(task_type: str) -> tuple:
 
 class BackgroundTaskService:
     @staticmethod
-    def start_competitor_analysis(user_id, project_id, step_index, company):
-        """Start a competitor analysis task in the background"""
+    def _find_active_task(user_id, task_type, **filters):
+        """The user's in-flight task of this type, to reuse instead of starting a duplicate.
 
-        # Create task record
-        task_id = str(uuid.uuid4())
-        task = BackgroundTask(
-            id=task_id,
-            user_id=user_id,
-            task_type='competitor_analysis',
-            project_id=project_id,
-            step_index=step_index,
-            status='pending'
-        )
-
-        db.session.add(task)
-        db.session.commit()
-
-        # Extract company data for thread (avoid session issues)
-        company_data = {
-            'id': company.id,
-            'name': company.name,
-            'ticker_symbol': company.ticker_symbol,
-            'summary': company.summary,
-            'sector': company.sector,
-            'industry': company.industry
-        }
-
-        # Start Celery task
-        celery_task = competitor_analysis_task.delay(task_id, company_data)
-
-        # Store Celery task ID for monitoring
-        task.result = celery_task.id
-        db.session.commit()
-
-        return task_id
+        Running tasks always count. Pending ones count only while recent, so a
+        double-click before the worker starts the first task doesn't queue a
+        second one, but a pending row the worker never picked up doesn't block
+        the user forever.
+        """
+        recent = now_utc().replace(tzinfo=None) - timedelta(seconds=PENDING_REUSE_SECONDS)
+        return BackgroundTask.query.filter_by(user_id=user_id, task_type=task_type, **filters).filter(
+            or_(BackgroundTask.status == 'running',
+                and_(BackgroundTask.status == 'pending', BackgroundTask.created_at >= recent))
+        ).first()
 
     @staticmethod
-    def fail_if_stalled(task_id, max_age_seconds):
+    def fail_if_stalled(task_id, user_id, max_age_seconds):
         """Mark a task failed if it outlived the time limit without finishing.
 
         A task the worker never consumed stays 'pending' forever: the Celery
@@ -113,7 +99,7 @@ class BackgroundTaskService:
 
         Called from the status endpoint so the state self-heals on the next poll.
         """
-        task = BackgroundTask.query.get(task_id)
+        task = BackgroundTask.query.filter_by(id=task_id, user_id=user_id).first()
         if not task or task.status not in ('pending', 'running'):
             return
 
@@ -133,9 +119,13 @@ class BackgroundTaskService:
         )
 
     @staticmethod
-    def get_task_status(task_id):
-        """Get current status of a background task"""
-        task = BackgroundTask.query.get(task_id)
+    def get_task_status(task_id, user_id):
+        """Get current status of a background task owned by user_id.
+
+        Returns None for a task that doesn't exist or belongs to someone else,
+        so callers answer both the same way and don't reveal which it was.
+        """
+        task = BackgroundTask.query.filter_by(id=task_id, user_id=user_id).first()
         if not task:
             return None
 
@@ -155,6 +145,23 @@ class BackgroundTaskService:
         return result
 
     @staticmethod
+    def remember_celery_task(task_id):
+        """Record a raw Celery task id as started by the current session.
+
+        Some fetches (SEC filings, financials) enqueue Celery directly without a
+        BackgroundTask row, so there is no user_id to check when they're polled.
+        The session keeps the ids this user started; owns_celery_task checks it.
+        """
+        task_ids = session.get('celery_task_ids', [])
+        task_ids.append(task_id)
+        session['celery_task_ids'] = task_ids[-MAX_REMEMBERED_CELERY_TASKS:]
+
+    @staticmethod
+    def owns_celery_task(task_id):
+        """Whether the current session started the raw Celery task task_id."""
+        return task_id in session.get('celery_task_ids', [])
+
+    @staticmethod
     def start_portfolio_analysis(user_id, template_name):
         """Start a portfolio AI analysis task in the background
 
@@ -166,11 +173,7 @@ class BackgroundTaskService:
         task_type_full = f'portfolio_analysis:{template_name}'
 
         # Check if a task with the same type is already running
-        existing_task = BackgroundTask.query.filter_by(
-            user_id=user_id,
-            task_type=task_type_full,
-            status='running'
-        ).first()
+        existing_task = BackgroundTaskService._find_active_task(user_id, task_type_full)
 
         if existing_task:
             logger.info(f"Task {existing_task.id} already running for {template_name}, reusing it")
@@ -205,11 +208,7 @@ class BackgroundTaskService:
         task_type = f'chart_data:{time_periods}'
 
         # Check for existing running task
-        existing_task = BackgroundTask.query.filter_by(
-            user_id=user_id,
-            task_type=task_type,
-            status='running'
-        ).first()
+        existing_task = BackgroundTaskService._find_active_task(user_id, task_type)
 
         if existing_task:
             logger.info(f"Chart data task {existing_task.id} already running for {time_periods}M, reusing it")
@@ -242,11 +241,7 @@ class BackgroundTaskService:
         """
         task_type = 'portfolio_import'
 
-        existing_task = BackgroundTask.query.filter_by(
-            user_id=user_id,
-            task_type=task_type,
-            status='running'
-        ).first()
+        existing_task = BackgroundTaskService._find_active_task(user_id, task_type)
 
         if existing_task:
             logger.info(f"Import task {existing_task.id} already running for user {user_id}")
@@ -270,22 +265,6 @@ class BackgroundTaskService:
         return task_id
 
     @staticmethod
-    def cleanup_old_tasks(days_old=7):
-        """Clean up completed/failed tasks older than X days"""
-        cutoff_date = now_utc() - timedelta(days=days_old)
-
-        old_tasks = BackgroundTask.query.filter(
-            BackgroundTask.status.in_(['completed', 'failed']),
-            BackgroundTask.completed_at < cutoff_date
-        ).all()
-
-        for task in old_tasks:
-            db.session.delete(task)
-
-        db.session.commit()
-        logger.info(f"Cleaned up {len(old_tasks)} old background tasks")
-
-    @staticmethod
     def start_bias_check(user_id, project_id):
         """Start a cognitive bias check task in the background.
 
@@ -294,12 +273,7 @@ class BackgroundTaskService:
         task_type = 'bias_check'
 
         # Check for existing running task for this project
-        existing_task = BackgroundTask.query.filter_by(
-            user_id=user_id,
-            task_type=task_type,
-            project_id=project_id,
-            status='running'
-        ).first()
+        existing_task = BackgroundTaskService._find_active_task(user_id, task_type, project_id=project_id)
 
         if existing_task:
             logger.info(f"Bias check task {existing_task.id} already running for project {project_id}")
@@ -353,11 +327,7 @@ class BackgroundTaskService:
         task_type = 'argos_deep_analysis'
 
         # Check for existing running task for this user
-        existing_task = BackgroundTask.query.filter_by(
-            user_id=user_id,
-            task_type=task_type,
-            status='running'
-        ).first()
+        existing_task = BackgroundTaskService._find_active_task(user_id, task_type)
 
         if existing_task:
             logger.info(f"Argos deep analysis task {existing_task.id} already running for user {user_id}")
@@ -381,46 +351,6 @@ class BackgroundTaskService:
         )
 
         logger.info(f"Started argos deep analysis task {task_id} (Celery: {celery_task.id}) for user {user_id}")
-
-        return task_id
-
-    @staticmethod
-    def start_checklist_item_analysis(user_id, analysis_id, item_id, selected_document_ids=None):
-        """Start a checklist item AI analysis task (Run Prompt) in the background.
-
-        Uses task_type 'checklist_item_analyze' to prevent duplicate concurrent tasks.
-        """
-        task_type = 'checklist_item_analyze'
-
-        # Check for existing running task for the same item in the same session
-        existing_task = BackgroundTask.query.filter_by(
-            user_id=user_id,
-            task_type=task_type,
-            status='running'
-        ).first()
-
-        if existing_task:
-            logger.info(f"Checklist item analysis task {existing_task.id} already running for user {user_id}")
-            return existing_task.id
-
-        # Create new task record
-        task_id = str(uuid.uuid4())
-        task = BackgroundTask(
-            id=task_id,
-            user_id=user_id,
-            task_type=task_type,
-            status='pending'
-        )
-
-        db.session.add(task)
-        db.session.commit()
-
-        # Start Celery task
-        celery_task = checklist_item_analyze_task.delay(
-            task_id, user_id, analysis_id, item_id, selected_document_ids or []
-        )
-
-        logger.info(f"Started checklist item analysis task {task_id} (Celery: {celery_task.id}) for item {item_id}")
 
         return task_id
 
@@ -472,11 +402,7 @@ class BackgroundTaskService:
         """
         task_type = 'screening_analysis'
 
-        existing_task = BackgroundTask.query.filter_by(
-            user_id=user_id,
-            task_type=task_type,
-            status='running'
-        ).first()
+        existing_task = BackgroundTaskService._find_active_task(user_id, task_type)
 
         if existing_task:
             logger.info(f"Screening analysis task {existing_task.id} already running for user {user_id}")

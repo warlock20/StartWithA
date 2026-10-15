@@ -119,42 +119,6 @@ class PortfolioImporter:
         self.company_cache[ticker] = new_company.id
         return new_company.id
     
-    def _detect_currency_from_ticker(self, ticker):
-        """
-        Detect currency from ticker suffix.
-        Returns ISO 4217 currency code.
-        """
-        ticker = ticker.upper()
-
-        # Suffix to currency mapping
-        currency_map = {
-            '.F': 'EUR',    # Frankfurt
-            '.DE': 'EUR',   # Xetra (Germany)
-            '.L': 'GBP',    # London
-            '.HK': 'HKD',   # Hong Kong
-            '.T': 'JPY',    # Tokyo
-            '.TO': 'CAD',   # Toronto
-            '.NS': 'INR',   # India NSE
-            '.BO': 'INR',   # India BSE
-            '.SS': 'CNY',   # Shanghai
-            '.SZ': 'CNY',   # Shenzhen
-            '.PA': 'EUR',   # Paris
-            '.AS': 'EUR',   # Amsterdam
-            '.BR': 'EUR',   # Brussels
-            '.SW': 'CHF',   # SIX Swiss
-            '.IS': 'TRY',   # Istanbul
-            '.AX': 'AUD',   # Australia
-            '.JO': 'ZAR',   # Johannesburg
-        }
-
-        # Check for suffix match
-        for suffix, currency in currency_map.items():
-            if ticker.endswith(suffix):
-                return currency
-
-        # Default to USD for US stocks or unknown
-        return 'USD'
-
     def _normalize_ticker(self, raw_ticker):
         """
         Converts Google Finance format (EXCHANGE:TICKER) to Yahoo Finance (TICKER.SUFFIX).
@@ -201,28 +165,6 @@ class PortfolioImporter:
         # Fallback: Return original if unknown (or log warning)
         print(f"⚠️ Warning: Unknown exchange mapping for {raw_ticker}")
         return raw_ticker
-
-    def process_file(self, file_storage):
-        """
-        Accepts a Flask FileStorage object.
-        """
-        filename = file_storage.filename.lower()
-
-        try:
-            if filename.endswith('.csv'):
-                file_storage.seek(0)
-                df = pd.read_csv(file_storage)
-            elif filename.endswith(('.xls', '.xlsx')):
-                file_storage.seek(0)
-                df = pd.read_excel(file_storage)
-            else:
-                raise PortfolioImportError("Unsupported file format. Use CSV or Excel.")
-        except PortfolioImportError:
-            raise
-        except Exception as e:
-            raise PortfolioImportError(f"Could not read file: {str(e)}")
-
-        return self._process_dataframe(df)
 
     def process_file_from_path(self, file_path):
         """

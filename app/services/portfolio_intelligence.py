@@ -42,7 +42,7 @@ import logging
 
 from sqlalchemy.orm import joinedload
 
-from app import db, cache
+from app import cache
 from app.utils.time_utils import now_utc
 from app.utils.financial_utils import calculate_cagr
 

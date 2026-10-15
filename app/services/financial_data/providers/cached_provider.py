@@ -59,7 +59,7 @@ class CachedFinancialDataProvider(FinancialDataProvider):
 
         # Setup cache directory
         if cache_dir is None:
-            cache_dir = Path(__file__).parent.parent.parent.parent / "instance" / "cache" / "historical_prices"
+            cache_dir = Path(__file__).parents[4] / "instance" / "cache" / "historical_prices"
 
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)

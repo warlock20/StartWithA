@@ -49,7 +49,6 @@ from .core import ArgosService, argos_check
 from .companion import CompanionContext
 from .config import InsightCategory, ConfidenceLevel
 from .insights import ArgosInsight, ArgosCheckResult, InsightCandidate
-from .triggers import PreComputeTrigger
 
 __all__ = [
     # Main service
@@ -67,7 +66,4 @@ __all__ = [
     # Enums
     'InsightCategory',
     'ConfidenceLevel',
-
-    # Triggers
-    'PreComputeTrigger',
 ]

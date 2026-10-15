@@ -19,7 +19,6 @@ Template Loader Service
 Handles loading, validating, and processing checklist templates from YAML files
 """
 
-import os
 import yaml
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
