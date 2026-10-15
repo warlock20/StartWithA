@@ -1144,6 +1144,11 @@
     grid-template-columns: repeat(3, 1fr);
 }
 
+.findings-editable--stacked {
+    grid-template-columns: 1fr;
+    margin-top: 0;
+}
+
 .findings-editable .findings-list {
     list-style: none;
     padding-left: 0;

@@ -748,7 +748,7 @@ def build_findings_md(entries, company_name):
         lines.append(f"## {FINDING_LABELS[finding_type]}s")
         lines.append("")
         for entry in typed:
-            lines.append(f"- {entry.content} ({format_dt(entry.created_at)})")
+            lines.append(f"- {entry.finding_line()} ({format_dt(entry.created_at)})")
         lines.append("")
 
     return "\n".join(lines)

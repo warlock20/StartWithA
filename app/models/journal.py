@@ -20,6 +20,9 @@ from app import db
 from app.utils.time_utils import now_utc
 from app.utils.blocknote_utils import blocknote_to_text
 
+# A finding's title holds its signal; findings recorded without one get this.
+DEFAULT_FINDING_SIGNAL = 'Default'
+
 
 class DecisionJournal(db.Model):
     """
@@ -158,6 +161,13 @@ class JournalEntry(db.Model):
     company = db.relationship('Company', backref='journal_entries')
     attachments = db.relationship('JournalAttachment', backref='entry',
                                  lazy='dynamic', cascade='all, delete-orphan')
+
+    def finding_line(self):
+        """A finding as one line of text: 'Signal: details', or just the details
+        when it has the default signal."""
+        if self.title and self.title != DEFAULT_FINDING_SIGNAL:
+            return f'{self.title}: {self.content}'
+        return self.content
 
     def __repr__(self):
         return f'<JournalEntry {self.title or self.id}>'

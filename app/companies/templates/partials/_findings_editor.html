@@ -1,6 +1,7 @@
 {# Findings editor: red flags, green flags and must-exit criteria, one point per finding.
    "+" opens a form with a signal (search your signals, or type a new one) and details.
    Needs: findings (finding journal entries), findings_url (companies.api_add_finding).
+   Optional: findings_stacked, one list under the other for narrow sidebars.
    Long details are clamped; the shared detail card (detail-card.js) shows them in full.
    Behaviour: static/js/findings-editor.js #}
 {% set finding_columns = [
@@ -8,7 +9,7 @@
     ('green_flag', 'green', 'check-circle-fill', 'Green Flags', 'What counts in favour?'),
     ('must_exit', 'must_exit', 'box-arrow-right', 'Must Exit', 'Sell if… e.g. revenue drops below $2B'),
 ] %}
-<div class="research-findings-grid findings-editable"
+<div class="research-findings-grid findings-editable{{ ' findings-editable--stacked' if findings_stacked }}"
      data-findings-url="{{ findings_url }}"
      data-signals-url="{{ url_for('companies.api_finding_signals') }}">
     {% for ftype, css, icon, heading, placeholder in finding_columns %}

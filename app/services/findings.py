@@ -32,6 +32,7 @@ from typing import Optional
 
 from app import db
 from app.models import JournalEntry, ResearchProject
+from app.models.journal import DEFAULT_FINDING_SIGNAL
 from app.utils.blocknote_utils import blocknote_to_text
 
 RED_FLAG = 'red_flag'
@@ -45,7 +46,7 @@ FINDING_LABELS = {
     MUST_EXIT: 'Must Exit',
 }
 
-DEFAULT_SIGNAL = 'Default'
+DEFAULT_SIGNAL = DEFAULT_FINDING_SIGNAL
 
 _TYPE_ALIASES = {
     'red': RED_FLAG, 'red_flag': RED_FLAG, 'red-flag': RED_FLAG,
@@ -91,10 +92,6 @@ def finding_entries(user_id: int, company_id: int, finding_type: Optional[str] =
         JournalEntry.entry_type.in_(types),
         db.or_(JournalEntry.is_archived.is_(False), JournalEntry.is_archived.is_(None)),
     ).order_by(JournalEntry.created_at.asc(), JournalEntry.id.asc()).all()
-
-
-def finding_texts(user_id: int, company_id: int, finding_type: str) -> list:
-    return [e.content for e in finding_entries(user_id, company_id, finding_type)]
 
 
 def _project_id_for(user_id: int, company_id: int) -> Optional[int]:

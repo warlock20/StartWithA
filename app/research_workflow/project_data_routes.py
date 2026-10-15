@@ -20,7 +20,6 @@ Project Data Routes Module
 This module handles all routes related to project content and data including:
 - Viewing project notes and summaries
 - Saving project decisions
-- Adding findings (green/red flags)
 - Updating investment thesis
 """
 
@@ -36,9 +35,7 @@ from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.services.export_service import resolve_checklist_id
 from app.services.research_quality import calculate_research_quality
-from app.services.findings import (
-    FINDING_LABELS, add_finding as record_finding, finding_entries, normalize_finding_type,
-)
+from app.services.findings import finding_entries
 
 
 def _apply_completion_status(project):
@@ -226,48 +223,6 @@ def save_project_decision(project_id):
             return json_error(str(e), status_code=500)
         flash(f'Error saving decision: {str(e)}', 'error')
         return redirect(url_for('research_workflow.project_summary', project_id=project_id))
-
-
-@research_workflow_bp.route('/projects/<int:project_id>/add-finding', methods=['POST'])
-@login_required
-def add_finding(project_id):
-    """Add a green flag, red flag or must-exit criterion to the project's company"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        return json_unauthorized('Access denied')
-
-    try:
-        if request.is_json:
-            data = request.get_json()
-            finding_type = normalize_finding_type(data.get('type'))
-            finding_text = data.get('text', '').strip()
-            signal = data.get('signal')
-        else:
-            finding_type = normalize_finding_type(request.form.get('finding_type'))
-            finding_text = request.form.get('finding_text', '').strip()
-            signal = request.form.get('signal')
-
-        if not finding_text:
-            return json_error('Finding text is required')
-        if not finding_type:
-            return json_error('Invalid finding type')
-
-        record_finding(project.user_id, project.company_id, finding_type, finding_text,
-                       project_id=project.id, signal=signal)
-        project.last_worked_at = now_utc()
-        db.session.commit()
-
-        message = f'{FINDING_LABELS[finding_type]} added'
-        if not request.is_json:
-            flash(f'{message}!', 'success')
-            return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
-
-        return json_success(message)
-
-    except Exception as e:
-        db.session.rollback()
-        return json_error(str(e), status_code=500)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/convert-exit-criteria', methods=['POST'])
