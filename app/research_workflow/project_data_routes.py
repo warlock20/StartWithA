@@ -248,9 +248,11 @@ def add_finding(project_id):
             data = request.get_json()
             finding_type = normalize_finding_type(data.get('type'))
             finding_text = data.get('text', '').strip()
+            signal = data.get('signal')
         else:
             finding_type = normalize_finding_type(request.form.get('finding_type'))
             finding_text = request.form.get('finding_text', '').strip()
+            signal = request.form.get('signal')
 
         if not finding_text:
             return json_error('Finding text is required')
@@ -258,7 +260,7 @@ def add_finding(project_id):
             return json_error('Invalid finding type')
 
         record_finding(project.user_id, project.company_id, finding_type, finding_text,
-                       project_id=project.id)
+                       project_id=project.id, signal=signal)
         project.last_worked_at = now_utc()
         db.session.commit()
 

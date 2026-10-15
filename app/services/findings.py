@@ -20,6 +20,11 @@ Company findings: red flags, green flags and must-exit criteria.
 Findings are journal entries on the company, so they can be recorded with or
 without a research project. When the company has a research project the entry
 is linked to it as well. Nothing here commits; callers own the transaction.
+
+Each finding has a signal, stored in the entry's title: a user-made name such
+as "Financial engineering" that many findings share, across companies and
+within one. The signal is saved exactly as entered; findings without one get
+DEFAULT_SIGNAL.
 """
 
 import json
@@ -40,6 +45,8 @@ FINDING_LABELS = {
     GREEN_FLAG: 'Green Flag',
     MUST_EXIT: 'Must Exit',
 }
+
+DEFAULT_SIGNAL = 'Default'
 
 _TYPE_ALIASES = {
     'red': RED_FLAG, 'red_flag': RED_FLAG, 'red-flag': RED_FLAG,
@@ -69,6 +76,11 @@ def finding_text_from_editor(content: Optional[str]) -> str:
     except (json.JSONDecodeError, TypeError, ValueError):
         return content
     return blocknote_to_text(content).strip() if isinstance(blocks, list) else content
+
+
+def finding_signal(raw: Optional[str]) -> str:
+    """The signal to store as a finding's title, as entered or DEFAULT_SIGNAL."""
+    return (raw or '').strip() or DEFAULT_SIGNAL
 
 
 def finding_entries(user_id: int, company_id: int, finding_type: Optional[str] = None):
@@ -107,8 +119,8 @@ def delete_finding(entry: JournalEntry) -> None:
 
 
 def add_finding(user_id: int, company_id: int, finding_type: str, text: str,
-                project_id: Optional[int] = None) -> JournalEntry:
-    """Record one finding as a journal entry."""
+                project_id: Optional[int] = None, signal: Optional[str] = None) -> JournalEntry:
+    """Record one finding as a journal entry, titled with its signal."""
     if finding_type not in FINDING_TYPES:
         raise ValueError(f'Invalid finding type: {finding_type}')
     text = (text or '').strip()
@@ -123,7 +135,7 @@ def add_finding(user_id: int, company_id: int, finding_type: str, text: str,
         company_id=company_id,
         project_id=project_id,
         entry_type=finding_type,
-        title=FINDING_LABELS[finding_type],
+        title=finding_signal(signal),
         content=text,
         sentiment=_SENTIMENT[finding_type],
         source='finding',
@@ -131,6 +143,35 @@ def add_finding(user_id: int, company_id: int, finding_type: str, text: str,
     db.session.add(entry)
     _expire_cached_findings(user_id, company_id)
     return entry
+
+
+def signal_suggestions(user_id: int, query: str = '', limit: int = 10) -> list:
+    """The user's signals matching `query` (anywhere, any case), most used first.
+
+    Each item has the signal name, a count per finding type and the number of
+    companies it was recorded on. The default signal is left out.
+    """
+    counts = [db.func.count(JournalEntry.id).filter(JournalEntry.entry_type == t)
+              for t in FINDING_TYPES]
+    q = db.session.query(
+        JournalEntry.title,
+        *counts,
+        db.func.count(db.distinct(JournalEntry.company_id)),
+    ).filter(
+        JournalEntry.user_id == user_id,
+        JournalEntry.entry_type.in_(FINDING_TYPES),
+        JournalEntry.title.isnot(None),
+        JournalEntry.title != DEFAULT_SIGNAL,
+        db.or_(JournalEntry.is_archived.is_(False), JournalEntry.is_archived.is_(None)),
+    )
+    query = (query or '').strip()
+    if query:
+        q = q.filter(JournalEntry.title.icontains(query, autoescape=True))
+    rows = q.group_by(JournalEntry.title).order_by(
+        db.func.count(JournalEntry.id).desc(), JournalEntry.title.asc()
+    ).limit(limit).all()
+    return [{'signal': title, **dict(zip(FINDING_TYPES, type_counts)), 'companies': companies}
+            for title, *type_counts, companies in rows]
 
 
 def _clean_lines(texts) -> list:
