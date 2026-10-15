@@ -166,7 +166,6 @@ def test_summary_collects_latest_research_signals(app_context):
 
     summary = get_company_knowledge_summary(user.id, company.id)
 
-    assert summary['latest_sentiment'] == 'bullish'
     assert summary['latest_conviction'] == 8
     assert [e.key_insight for e in summary['key_insights']] == ['new insight', 'old insight']
     assert [q for q, _ in summary['questions_raised']] == ['new question', 'old question']
@@ -499,3 +498,33 @@ def test_search_joins_company_once_per_note_query(_app, app_context):
     assert len(note_queries) == 3
     for statement in note_queries:
         assert len(re.findall(r'JOIN company\b', statement)) == 1, statement
+
+
+# ── Log entries (decisions, findings) are not knowledge ──
+
+@pytest.mark.parametrize('entry_type', ['investment_action', 'red_flag', 'green_flag', 'must_exit'])
+def test_log_entries_do_not_count_as_notes(app_context, entry_type):
+    user = _make_user()
+    company = _make_company(user.id)
+    _research(user.id, company.id, entry_type=entry_type)
+
+    assert companies_with_notes(user.id) == []
+
+
+def test_log_entries_are_left_out_of_the_page(_app, app_context):
+    user = _make_user()
+    company = _make_company(user.id, 'Noted Co', 'NOTE')
+    _research(user.id, company.id, title='A research note')
+    _research(user.id, company.id, title='Decision: Invest', entry_type='investment_action',
+              tags=['invest-decision'])
+    _research(user.id, company.id, title='Must Exit', entry_type='must_exit')
+    db.session.commit()
+
+    html = _client_for(_app, user).get(
+        f'/journal/knowledge-hub?type=all&company_id={company.id}').get_data(as_text=True)
+
+    assert 'A research note' in html
+    assert 'Decision: Invest' not in html
+    assert 'Must Exit' not in html
+    assert 'invest-decision' not in html  # its tag is not offered as a filter
+    assert re.findall(r'<span class="cc-tab-count">(\d+)</span>', html) == ['1', '1', '0', '0']

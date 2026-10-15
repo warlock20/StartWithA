@@ -154,6 +154,7 @@ def save_project_decision(project_id):
             return redirect(url_for('research_workflow.project_summary', project_id=project_id))
 
         # Update project
+        previous = (project.decision, project.decision_confidence)
         project.decision = decision
         project.decision_summary = decision_summary
         project.decision_confidence = decision_confidence
@@ -167,8 +168,10 @@ def save_project_decision(project_id):
         # Mark as completed if not already
         _apply_completion_status(project)
 
-        # Auto-log decision to company journal
-        if project.company_id:
+        # Auto-log decision to company journal. Only a change of decision or
+        # confidence is logged: re-saving the same conclusion would just repeat
+        # the entry.
+        if project.company_id and (decision, decision_confidence) != previous:
             decision_config = {
                 'invest': ('Decision: Invest', 'bullish', ['invest-decision', 'investment-action']),
                 'pass': ('Decision: Pass', 'bearish', ['pass-decision', 'investment-action']),

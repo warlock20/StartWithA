@@ -227,6 +227,7 @@ def _company_note_rows(user_id):
         JournalEntry.user_id == user_id,
         JournalEntry.company_id.isnot(None),
         JournalEntry.is_archived.is_(False),
+        JournalEntry.is_note(),
     )
     wisdom = select(
         LearningNote.company_id,
@@ -310,7 +311,6 @@ def get_company_knowledge_summary(user_id, company_id, insight_limit=5, item_lim
         user_id=user_id, company_id=company_id, is_archived=False
     ).order_by(JournalEntry.created_at.desc()).all()
 
-    latest_sentiment = next((e.sentiment for e in entries if e.sentiment), None)
     latest_conviction = next((e.conviction_level for e in entries if e.conviction_level), None)
     key_insights = [e for e in entries if e.key_insight][:insight_limit]
     # These JSON lists carry no resolved/done state, so they are "raised",
@@ -352,7 +352,6 @@ def get_company_knowledge_summary(user_id, company_id, insight_limit=5, item_lim
         'first_note_at': first_note_at,
         'last_note_at': last_note_at,
         'current_thesis': current_thesis,
-        'latest_sentiment': latest_sentiment,
         'latest_conviction': latest_conviction,
         'conviction_points': [(d.date(), c) for d, c in points],
         'conviction_sparkline': conviction_sparkline(points),
