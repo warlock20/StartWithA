@@ -118,11 +118,6 @@ class InvestorProfile(db.Model):
             'is_active': self.is_active
         }
     
-    def get_config_value(self, key: str, default: Any = None) -> Any:
-        """Get a specific config value from this profile's overrides."""
-        return self.config_overrides.get(key, default)
-
-
 class UserInvestmentProfile(db.Model):
     """
     Links a user to their chosen investor profile with optional custom overrides.
@@ -172,24 +167,6 @@ class UserInvestmentProfile(db.Model):
             'investment_style': self.investment_style,
             'risk_tolerance': self.risk_tolerance
         }
-    
-    def get_effective_config(self, key: str, system_default: Any = None) -> Any:
-        """
-        Get the effective config value for this user.
-        
-        Priority: custom_overrides > profile_overrides > system_default
-        """
-        # Check custom overrides first
-        if self.custom_overrides and key in self.custom_overrides:
-            return self.custom_overrides[key]
-        
-        # Check profile overrides
-        if self.profile and self.profile.config_overrides:
-            if key in self.profile.config_overrides:
-                return self.profile.config_overrides[key]
-        
-        # Fall back to system default
-        return system_default
     
     def set_custom_override(self, key: str, value: Any) -> None:
         """Set a custom override for a specific config key."""

@@ -19,11 +19,9 @@ Argos Insight Data Classes
 
 Data flow:
     DB Query → InsightCandidate → (LLM scores) → ArgosInsight → ArgosCheckResult → UI
-    PreComputedInsight ← stored on data events
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 from .config import InsightCategory, ConfidenceLevel
@@ -124,44 +122,4 @@ class ArgosCheckResult:
                 'llm_used': self.llm_used,
                 'processing_time_ms': self.processing_time_ms,
             },
-        }
-
-
-@dataclass
-class PreComputedInsight:
-    """What gets stored in DB for fast retrieval."""
-
-    user_id: int
-    source_type: str
-    source_id: int
-
-    # Matching criteria
-    sector: Optional[str]
-    tags: List[str]
-    company_ids: List[int]
-    relevance_keywords: List[str]
-
-    # Content
-    summary: str
-    confidence: ConfidenceLevel
-    severity: str
-
-    # Feedback
-    times_surfaced: int = 0
-    times_helpful: int = 0
-    times_not_helpful: int = 0
-
-    def to_model_dict(self) -> Dict[str, Any]:
-        """For DB model creation"""
-        return {
-            'user_id': self.user_id,
-            'source_type': self.source_type,
-            'source_id': self.source_id,
-            'sector': self.sector,
-            'tags': self.tags,
-            'company_ids': self.company_ids,
-            'relevance_keywords': self.relevance_keywords,
-            'summary': self.summary,
-            'confidence': self.confidence.value,
-            'severity': self.severity,
         }

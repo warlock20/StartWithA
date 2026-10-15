@@ -81,23 +81,6 @@ def calculate_cagr(
         return float(total_return_pct)
 
 
-def calculate_annualized_return(
-    total_return_pct: Union[float, Decimal],
-    days_held: int
-) -> float:
-    """
-    Alias for calculate_cagr for backward compatibility.
-
-    Args:
-        total_return_pct: Total return percentage
-        days_held: Number of days held
-
-    Returns:
-        Annualized return percentage (CAGR)
-    """
-    return calculate_cagr(total_return_pct, days_held)
-
-
 def calculate_total_return(
     initial_value: Union[float, Decimal],
     final_value: Union[float, Decimal]

@@ -26,7 +26,7 @@
 
     {% if current_user.is_authenticated %}
     {# Quote banner in topbar #}
-    {% if show_quote_banner and investor_quote %}
+    {% if investor_quote %}
     <div class="topbar-quote">
         "{{ investor_quote.quote }}" — {{ investor_quote.author }}
     </div>

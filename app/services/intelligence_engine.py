@@ -54,7 +54,7 @@ from app.utils.financial_utils import calculate_cagr
 from sqlalchemy.orm import joinedload
 from app.services.similar_mistakes import get_similar_mistakes_warnings
 from app.services.config_service import get_config
-from app import db, cache
+from app import cache
 
 logger = logging.getLogger(__name__)
 
@@ -903,65 +903,6 @@ class IntelligenceEngine:
     # BEHAVIORAL CHECKS - SELL SIDE
     # ═══════════════════════════════════════════════════════════════
     
-    def _check_selling_winner_early(self, company, shares_to_sell: int) -> Optional[Warning]:
-        """Check if user is selling a winning position too early (disposition effect)"""
-        positions = self._get_portfolio_positions()
-        position = next((p for p in positions if p.company_id == company.id), None)
-
-        if not position:
-            return None
-
-        gain_pct = float(position.unrealized_gain_loss_pct or 0)
-        days_held = position.days_held or 0
-
-        winner_threshold = self.THRESHOLDS['winner_threshold_pct']
-        early_sell_days = self.THRESHOLDS['winner_early_sell_days']
-
-        if gain_pct >= winner_threshold and days_held < early_sell_days:
-            is_full_exit = shares_to_sell >= position.total_shares
-
-            journal = DecisionJournal.query.filter_by(
-                user_id=self.user_id,
-                company_id=company.id,
-                decision_type='BUY',
-                is_portfolio_decision=True
-            ).order_by(DecisionJournal.created_at.desc()).first()
-
-            has_thesis = journal and journal.investment_thesis
-
-            if is_full_exit:
-                severity = 'medium'
-                action_msg = "You're exiting completely."
-            else:
-                severity = 'low'
-                action_msg = f"You're selling {shares_to_sell} of {position.total_shares} shares."
-
-            message = (
-                f'{company.ticker_symbol} is up {gain_pct:.1f}% after only {days_held} days. '
-                f'{action_msg} Winners often keep winning - is your thesis broken, or are you locking in gains too early?'
-            )
-
-            return Warning(
-                code='selling_winner_early',
-                severity=severity,
-                category='behavioral',
-                title='Selling Winner Early?',
-                message=message,
-                data={
-                    'ticker': company.ticker_symbol,
-                    'gain_pct': gain_pct,
-                    'days_held': days_held,
-                    'shares_selling': shares_to_sell,
-                    'total_shares': position.total_shares,
-                    'is_full_exit': is_full_exit,
-                    'has_thesis': has_thesis,
-                    'winner_threshold': winner_threshold,
-                    'early_sell_days': early_sell_days
-                }
-            )
-
-        return None
-    
     def _check_holding_loser_long(self, company) -> Optional[Warning]:
         """Check if user has been holding a losing position too long"""
         positions = self._get_portfolio_positions()
@@ -1314,18 +1255,6 @@ class IntelligenceEngine:
 # ═══════════════════════════════════════════════════════════════
 # CONVENIENCE FUNCTIONS
 # ═══════════════════════════════════════════════════════════════
-
-def check_buy_warnings(user_id: int, company_id: int, amount: float) -> List[Warning]:
-    """Check for warnings before a BUY transaction."""
-    engine = IntelligenceEngine(user_id)
-    return engine.check_buy_transaction(company_id, amount)
-
-
-def check_sell_warnings(user_id: int, company_id: int, shares: int) -> List[Warning]:
-    """Check for warnings before a SELL transaction."""
-    engine = IntelligenceEngine(user_id)
-    return engine.check_sell_transaction(company_id, shares)
-
 
 @cache.memoize(timeout=300)  # 5-minute cache
 def get_portfolio_warnings(user_id: int) -> List[Warning]:

@@ -66,7 +66,7 @@ def companion_warnings(project_id):
         return json_success('Warnings loaded', data={'warnings': warnings})
     except Exception as e:
         logger.error(f"Warnings load failed: {e}")
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 # =========================================================================
@@ -87,7 +87,7 @@ def companion_brief(project_id):
         return json_success('Brief generated', data={'brief': brief})
     except Exception as e:
         logger.error(f"Brief generation failed: {e}")
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 # =========================================================================
@@ -115,7 +115,7 @@ def companion_ask(project_id):
         return json_success('Answer generated', data={'answer': answer})
     except Exception as e:
         logger.error(f"Companion chat failed: {e}")
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 # =========================================================================
@@ -143,7 +143,7 @@ def companion_counter_evidence(project_id):
         return json_success('Counter-evidence generated', data={'counter_evidence': counter_evidence})
     except Exception as e:
         logger.error(f"Counter-evidence generation failed: {e}")
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 # =========================================================================
@@ -181,7 +181,7 @@ def companion_wrapup(project_id):
         return json_success('Session wrapped up', data={'wrapup': wrapup})
     except Exception as e:
         logger.error(f"Session wrap-up failed: {e}")
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 # =========================================================================

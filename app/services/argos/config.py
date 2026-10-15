@@ -22,7 +22,7 @@ All values are configurable per user in the future.
 """
 
 from enum import Enum
-from typing import Dict, List, Set
+from typing import Dict
 
 
 class ConfidenceLevel(Enum):
@@ -133,31 +133,6 @@ ACCOUNTING_KEYWORDS = {
 # =============================================================================
 # Pre-compute Relevance Weights
 # =============================================================================
-
-# Events and their relevance for pre-computing
-EVENT_RELEVANCE = {
-    'mistake_logged': {
-        'always_compute': True,
-        'weight': 10,
-    },
-    'trade_closed_loss': {
-        'always_compute': False,  # Only if loss > threshold
-        'weight': 8,
-    },
-    'trade_closed_profit': {
-        'always_compute': False,  # Usually not insight-worthy
-        'weight': 2,
-    },
-    'research_completed': {
-        'always_compute': False,  # Only if has outcome data
-        'weight': 5,
-    },
-    'thesis_updated': {
-        'always_compute': False,
-        'weight': 3,
-    },
-}
-
 
 # =============================================================================
 # Confidence Calculation Rules

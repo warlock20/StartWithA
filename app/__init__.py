@@ -17,7 +17,7 @@
 # In app/__init__.py
 import logging
 
-from flask import Flask, g, session, render_template, request, jsonify
+from flask import Flask, g, render_template, request, jsonify
 from sqlalchemy import inspect as sa_inspect, text as sa_text
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -246,15 +246,7 @@ def create_app(config_class=Config):
     @app.context_processor
     def inject_investor_quote():
         """Inject the current session's investor quote into all templates"""
-        quote_data = get_session_quote()
-
-        # Check if user has dismissed the banner in this session
-        show_banner = not session.get('quote_banner_dismissed', False)
-
-        return dict(
-            investor_quote=quote_data,
-            show_quote_banner=show_banner
-        )
+        return dict(investor_quote=get_session_quote())
 
     @app.context_processor
     def inject_smart_navigation():

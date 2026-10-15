@@ -164,13 +164,3 @@ def _get_context_label(path):
         return "Analytics"
     else:
         return "Previous Page"
-
-
-def get_return_url_with_label(default_route=None, default_kwargs=None):
-    """
-    Convenience method that returns URL and label separately.
-
-    Returns:
-        tuple: (url, label)
-    """
-    return get_smart_return_url(default_route, default_kwargs)

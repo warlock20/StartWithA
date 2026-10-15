@@ -110,10 +110,11 @@ def import_transactions():
 
         return redirect(url_for('portfolio.import_loading', task_id=task_id))
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Failed to start import')
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
-        flash(f"Failed to start import: {str(e)}", "error")
+        flash("Failed to start import. Please try again.", "error")
         return redirect(url_for('portfolio.dashboard'))
 
 
@@ -128,7 +129,7 @@ def import_loading(task_id):
 @login_required
 def import_complete(task_id):
     """Flash the import result and redirect to dashboard."""
-    task_status = BackgroundTaskService.get_task_status(task_id)
+    task_status = BackgroundTaskService.get_task_status(task_id, current_user.id)
     if task_status and task_status['status'] == 'completed':
         result = task_status.get('result', {})
         msg = result.get('message', 'Import completed!') if result else 'Import completed!'
@@ -142,7 +143,7 @@ def import_complete(task_id):
 @login_required
 def import_status(task_id):
     """Check the status of a running import task. Returns JSON for AJAX polling."""
-    task_status = BackgroundTaskService.get_task_status(task_id)
+    task_status = BackgroundTaskService.get_task_status(task_id, current_user.id)
 
     if not task_status:
         return jsonify({'state': 'NOT_FOUND', 'current': 0, 'total': 100, 'status': 'Task not found'})
@@ -197,9 +198,10 @@ def reset_portfolio():
 
         flash(f"Portfolio reset complete. Deleted {num_transactions} transactions and {num_positions} positions.", "success")
         
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error resetting portfolio')
         db.session.rollback()
-        flash(f"Error resetting portfolio: {str(e)}", "error")
+        flash("Error resetting portfolio. Please try again.", "error")
         
     return redirect(url_for('portfolio.dashboard'))
 
@@ -245,10 +247,11 @@ def force_resync():
         flash(f"Resync Complete: Recalculated positions for {recalculated} companies based on {len(company_ids)} transaction sets.", "success")
             
     except Exception as e:
+        current_app.logger.exception('Debug failed')
         db.session.rollback()
         # Log the full error for debugging
         print(f"Resync Error: {str(e)}") 
-        flash(f"Debug failed: {str(e)}", 'error')
+        flash("Debug failed. Please try again.", 'error')
         
     return redirect(url_for('portfolio.dashboard'))
 
@@ -452,9 +455,10 @@ def edit_transaction(transaction_id):
             flash('Transaction updated successfully', 'success')
             return redirect(url_for('portfolio.transactions'))
 
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error updating transaction')
             db.session.rollback()
-            flash(f'Error updating transaction: {str(e)}', 'error')
+            flash('Error updating transaction. Please try again.', 'error')
             return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 
     # GET request — resolve currency symbol for the form
@@ -508,9 +512,10 @@ def delete_transaction(transaction_id):
 
         flash(f'Transaction for {company_ticker} deleted successfully', 'success')
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error deleting transaction')
         db.session.rollback()
-        flash(f'Error deleting transaction: {str(e)}', 'error')
+        flash('Error deleting transaction. Please try again.', 'error')
 
     return redirect(url_for('portfolio.transactions'))
 

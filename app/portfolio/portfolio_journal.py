@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
-from flask import  request, render_template, flash, redirect, url_for
+from flask import  request, render_template, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 
 from app import db
@@ -161,9 +161,10 @@ def sell_postmortem(journal_id):
             db.session.commit()
             flash('Post-mortem analysis saved successfully', 'success')
             return redirect(url_for('portfolio.dashboard'))
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error saving post-mortem')
             db.session.rollback()
-            flash(f'Error saving post-mortem: {str(e)}', 'error')
+            flash('Error saving post-mortem. Please try again.', 'error')
 
     return render_template('sell_postmortem.html',
                           journal=journal,

@@ -52,15 +52,7 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from app.services.ai.prompt_service import get_intelligence_prompt
-from .config import (
-    get_ai_config,
-    AIConfig,
-    AIProvider,
-    AIModel,
-    AITaskType,
-    QUALITY_TASKS,
-    FAST_TASKS,
-)
+from .config import get_ai_config, AIConfig, AIProvider, AIModel, AITaskType
 from .providers.base import AIProvider as AIProviderBase
 from .providers.gemini import GeminiProvider
 from .providers.claude import ClaudeProvider
@@ -557,68 +549,6 @@ class AIService:
 
         return self.generate_text(prompt, task=AITaskType.PATTERN_EXPLANATION)
     
-    def answer_research_question(
-        self,
-        question: str,
-        documents: List[str],
-        company_context: Dict[str, Any]
-    ) -> str:
-        """
-        Answer research question based on documents.
-        
-        Uses Gemini by default (cost-effective for document Q&A).
-        
-        Args:
-            question: The research question
-            documents: List of document texts
-            company_context: Company information
-            
-        Returns:
-            Answer based on documents
-        """
-        # Limit documents to avoid token limits
-        doc_text = "\n\n---\n\n".join(documents[:3])
-
-        # Use YAML prompt
-        prompt = get_intelligence_prompt(
-            'research_qa',
-            company_name=company_context.get('company_name', 'Unknown'),
-            sector=company_context.get('sector', 'Unknown'),
-            documents_text=doc_text,
-            question=question
-        )
-
-        return self.generate_text(prompt, task=AITaskType.DOCUMENT_QA)
-    
-    def summarize(
-        self,
-        text: str,
-        max_length: Optional[int] = None,
-        focus: str = "key_points"
-    ) -> str:
-        """
-        Summarize text content.
-        
-        Args:
-            text: Text to summarize
-            max_length: Maximum words in summary
-            focus: Focus area (key_points, risks, opportunities)
-            
-        Returns:
-            Summary text
-        """
-        length_instruction = f"Keep summary under {max_length} words." if max_length else "No specific length requirement."
-
-        # Use YAML prompt
-        prompt = get_intelligence_prompt(
-            'text_summarization',
-            focus=focus,
-            text_content=text,
-            length_instruction=length_instruction
-        )
-
-        return self.generate_text(prompt, task=AITaskType.SUMMARIZATION)
-    
     # ============================================================
     # Helper Methods
     # ============================================================
@@ -732,16 +662,6 @@ def get_ai_service() -> AIService:
     if _ai_service is None:
         _ai_service = AIService()
     return _ai_service
-
-
-def reset_ai_service():
-    """
-    Reset the AI service singleton.
-    
-    Useful for testing or reloading configuration.
-    """
-    global _ai_service
-    _ai_service = None
 
 
 # ============================================================

@@ -35,7 +35,6 @@ from app.companion import companion_bp
 from app.models.journal import JournalEntry
 from app.models.research import ResearchProject
 from app.models.company import Company
-from app.models.background_task import BackgroundTask
 from app.services.argos import ArgosService
 from app.services.argos.page_context import build_context_chips
 from app.services.argos.selection_assist import find_evidence_for_selection
@@ -113,18 +112,17 @@ def ask():
         return json_success('Companion working', data={'task_id': task_id})
     except Exception as e:
         logger.error(f"Companion ask kickoff failed: {e}")
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @companion_bp.route('/ask/status/<task_id>', methods=['GET'])
 @login_required
 def ask_status(task_id):
     """Poll a companion task. Returns {status, result?/error?}. Ownership-checked."""
-    task = BackgroundTask.query.filter_by(id=task_id, user_id=current_user.id).first()
-    if not task:
+    status = BackgroundTaskService.get_task_status(task_id, current_user.id)
+    if not status:
         return json_error('Task not found', status_code=404)
 
-    status = BackgroundTaskService.get_task_status(task_id)
     return json_success('Task status', data=status)
 
 
@@ -182,7 +180,7 @@ def selection():
         return json_success('Evidence loaded', data={'evidence': evidence})
     except Exception as e:
         logger.error(f"Companion selection lookup failed: {e}")
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @companion_bp.route('/warnings', methods=['GET'])
@@ -199,4 +197,4 @@ def warnings():
                             data={'warnings': argos.get_warnings_by_company(company_id)})
     except Exception as e:
         logger.error(f"Companion warnings failed: {e}")
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)

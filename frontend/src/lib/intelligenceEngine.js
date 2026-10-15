@@ -82,22 +82,3 @@ export function calcMarginOfSafety(eps, growthRate, currentPrice) {
   return { intrinsicValue, currentPrice, margin };
 }
 
-/**
- * Break-even Calculator — accounts for trading fees.
- * @param {number} quantity  Number of shares
- * @param {number} pricePerShare  Price per share
- * @param {number} [fees=0]  Total trading fees
- * @returns {{ totalCost: number, breakEvenPrice: number, feesPerShare: number, quantity: number, pricePerShare: number, fees: number } | null}
- */
-export function calcBreakEven(quantity, pricePerShare, fees = 0) {
-  if (!quantity || !pricePerShare) return null;
-  const totalCost = quantity * pricePerShare + fees;
-  return {
-    totalCost,
-    breakEvenPrice: totalCost / quantity,
-    feesPerShare: fees / quantity,
-    quantity,
-    pricePerShare,
-    fees,
-  };
-}

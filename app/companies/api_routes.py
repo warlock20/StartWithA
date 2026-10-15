@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from flask_login import current_user, login_required
 from app import db
 from app.models import (Company, JournalEntry)
@@ -412,9 +412,10 @@ def api_create_company():
             }
         })
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in api_create_company')
         db.session.rollback()
-        return json_error(str(e))
+        return json_error('Something went wrong. Please try again.')
 
 
 def _owned_company_or_404(company_id):
@@ -528,10 +529,10 @@ def api_company_adopt_isin(company_id):
         confirm_link(current_user.id, sweep_company.id, company.id)
         link_from_isin(current_user.id, company.isin)
         db.session.commit()
-    except Exception as exc:
+    except Exception:
         db.session.rollback()
         logger.exception('Adopting ISIN from sweep row failed')
-        return json_error(str(exc))
+        return json_error('Something went wrong. Please try again.')
 
     return jsonify({
         'success': True,
@@ -581,10 +582,11 @@ def api_lookup_ticker(ticker):
                 'error': f'Could not find company data for ticker "{normalized_ticker}"'
             })
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error looking up ticker')
         return jsonify({
             'success': False,
-            'error': f'Error looking up ticker: {str(e)}'
+            'error': 'Error looking up ticker. Please try again.'
         })
 
 

@@ -384,23 +384,6 @@ class SectorService:
         return sector
 
     @staticmethod
-    def get_sector_companies(sector_id, user_id):
-        """
-        Get all companies in a sector.
-
-        Args:
-            sector_id: Sector ID
-            user_id: User ID
-
-        Returns:
-            List of Company objects
-        """
-        return Company.query.filter_by(
-            user_id=user_id,
-            sector_id=sector_id
-        ).order_by(Company.name).all()
-
-    @staticmethod
     def get_sector_stats(sector_id, user_id):
         """
         Get detailed statistics for a sector.

@@ -25,7 +25,6 @@ Integrates:
 
 import logging
 import json
-import os
 from typing import Dict, Any, Optional
 from datetime import datetime, date
 from app.utils.time_utils import now_utc
@@ -35,7 +34,6 @@ from app.models.portfolio import Transaction, PortfolioPosition
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.ai.ai_service import AIService
 from app.services.ai.prompt_service import PromptService, resolve_model_provider
-from app.services.ai.config import AIProvider, AIModel
 
 logger = logging.getLogger(__name__)
 
@@ -1144,20 +1142,3 @@ class PortfolioAIAnalytics:
 # ================================================================
 # Public API
 # ================================================================
-
-
-def get_portfolio_ai_insights(
-    user_id: int, force_refresh: bool = False
-) -> tuple[Dict[str, Any], int]:
-    """
-    Get AI-powered portfolio insights.
-
-    Args:
-        user_id: User ID
-        force_refresh: Skip cache
-
-    Returns:
-        Tuple of (AI_analysis_dict, tokens_used)
-    """
-    analytics = PortfolioAIAnalytics(user_id)
-    return analytics.get_insights(force_refresh=force_refresh)

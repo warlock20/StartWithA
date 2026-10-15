@@ -141,9 +141,10 @@ def update_settings():
         else:
             flash('Settings updated successfully!', 'success')
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error updating settings')
         db.session.rollback()
-        flash(f'Error updating settings: {str(e)}', 'error')
+        flash('Error updating settings. Please try again.', 'error')
 
     return redirect(url_for('settings.preferences'))
 

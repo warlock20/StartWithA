@@ -27,12 +27,9 @@ This service provides AI-powered features for the research journal:
 
 import json
 import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from typing import Dict, Optional, Any
 
-from app import db
-from app.models import JournalEntry, ThesisEvolution, Company, User
-from app.utils.time_utils import now_utc
+from app.models import JournalEntry, ThesisEvolution, Company
 
 # New imports from unified AI service
 from app.services.ai import ai_service, AITaskType

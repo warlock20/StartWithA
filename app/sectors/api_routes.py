@@ -16,7 +16,7 @@
 
 # app/sectors/api_routes.py
 
-from flask import jsonify, request, url_for
+from flask import jsonify, request, url_for, current_app
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from app import db
@@ -272,41 +272,6 @@ def restore_sector_api(sector_id):
     return jsonify({'message': 'Sector restored successfully'})
 
 
-@sectors_bp.route('/api/sectors/merge', methods=['POST'])
-@login_required
-def merge_sectors():
-    """
-    Merge two sectors together.
-
-    Request body (JSON):
-        source_sector_id: ID of sector to merge from
-        target_sector_id: ID of sector to merge into
-
-    Returns:
-        JSON with success message
-    """
-    data = request.get_json()
-
-    if not data or 'source_sector_id' not in data or 'target_sector_id' not in data:
-        return json_error('source_sector_id and target_sector_id are required')
-
-    source_id = data['source_sector_id']
-    target_id = data['target_sector_id']
-
-    if source_id == target_id:
-        return json_error('Cannot merge sector with itself')
-
-    success = SectorService.merge_sectors(current_user.id, source_id, target_id)
-
-    if not success:
-        return json_error('Failed to merge sectors. Check permissions and IDs.')
-
-    return jsonify({
-        'message': 'Sectors merged successfully',
-        'target_sector_id': target_id
-    })
-
-
 @sectors_bp.route('/api/sectors/<int:sector_id>/analytics', methods=['GET'])
 @login_required
 def get_sector_analytics(sector_id):
@@ -342,54 +307,6 @@ def get_sector_analytics(sector_id):
             'detailed_stats': stats
         }
     })
-
-
-@sectors_bp.route('/api/sectors/analytics', methods=['GET'])
-@login_required
-def get_all_sectors_analytics():
-    """
-    Get analytics for all user's sectors.
-
-    Returns:
-        JSON with categorized sector analytics
-    """
-    analytics = SectorService.get_sector_analytics(current_user.id)
-
-    # Convert to JSON-serializable format
-    result = {
-        'total_sectors': analytics['total_sectors'],
-        'active_research': analytics['active_research'],
-        'sectors': {
-            'all': [{
-                'id': s.id,
-                'display_name': s.display_name,
-                'companies_analyzed': s.companies_analyzed,
-                'success_rate': s.success_rate,
-                'coc_confidence': s.coc_confidence,
-                'competence_level': s.competence_level
-            } for s in analytics['all']],
-            'by_competence': [{
-                'id': s.id,
-                'display_name': s.display_name,
-                'coc_confidence': s.coc_confidence,
-                'competence_level': s.competence_level
-            } for s in analytics['by_competence'][:10]],  # Top 10
-            'by_success': [{
-                'id': s.id,
-                'display_name': s.display_name,
-                'success_rate': s.success_rate,
-                'companies_invested': s.companies_invested
-            } for s in analytics['by_success'][:10]],  # Top 10
-            'by_activity': [{
-                'id': s.id,
-                'display_name': s.display_name,
-                'companies_analyzed': s.companies_analyzed,
-                'total_research_hours': s.total_research_hours
-            } for s in analytics['by_activity'][:10]]  # Top 10
-        }
-    }
-
-    return jsonify(result)
 
 
 @sectors_bp.route('/api/send-to-sector', methods=['POST'])
@@ -508,9 +425,10 @@ def send_to_sector():
         note.linked_companies.append(company)
 
         db.session.commit()
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Failed to save note')
         db.session.rollback()
-        return json_error(f'Failed to save note: {str(e)}', status_code=500)
+        return json_error('Failed to save note. Please try again.', status_code=500)
 
     notebook_url = url_for('sectors.notebook', sector_name=sector.slug)
 
@@ -613,9 +531,10 @@ def track_research_time(analysis_id):
 
     try:
         db.session.commit()
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in track_research_time')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
     return jsonify({
         'success': True,

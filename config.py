@@ -56,7 +56,6 @@ class Config:
     
     # 4. API KEYS (No print statements in production logs!)
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-    NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
     
     # 5. STORAGE: Persistent Volume Path
     # Note: On Railway, local files are deleted on restart. 
@@ -99,8 +98,6 @@ class Config:
     else:
         # Local development
         AUTH0_CALLBACK_URL = os.environ.get('AUTH0_CALLBACK_URL') or 'http://localhost:5000/auth/callback'
-
-    AUTH0_AUDIENCE = os.environ.get('AUTH0_AUDIENCE')
 
     # 9b. DEMO MODE & AUTH0 DETECTION
     DEMO_MODE = os.environ.get('DEMO_MODE', 'false').lower() == 'true'

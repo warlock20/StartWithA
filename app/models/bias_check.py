@@ -135,16 +135,6 @@ class BiasCheckResult(db.Model):
         """Get only biases that were detected (severity != 'none')."""
         return [b for b in (self.biases_detected or []) if b.get('detected') and b.get('severity') != 'none']
 
-    @property
-    def high_severity_count(self):
-        """Count of high severity biases."""
-        return len([b for b in self.biases_with_concerns if b.get('severity') == 'high'])
-
-    @property
-    def medium_severity_count(self):
-        """Count of medium severity biases."""
-        return len([b for b in self.biases_with_concerns if b.get('severity') == 'medium'])
-
     @classmethod
     def get_latest_for_project(cls, project_id):
         """Get the most recent bias check for a project."""

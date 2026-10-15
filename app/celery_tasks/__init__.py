@@ -19,7 +19,7 @@ Celery Tasks Module
 
 All Celery tasks organized by domain:
 - tasks_portfolio: Portfolio AI analytics
-- tasks_research: Competitor analysis, bias check, argos
+- tasks_research: Bias check, Argos deep analysis, AI research assist
 - tasks_financial: Financial data, SEC filings
 - tasks_data_retention: GDPR data retention / anonymization
 - tasks_checkpoint_analysis: Daily checkpoint AI analysis
@@ -37,10 +37,8 @@ from app.celery_tasks.tasks_chart_data import (
 )
 
 from app.celery_tasks.tasks_research import (
-    competitor_analysis_task,
     bias_check_task,
     argos_deep_analysis_task,
-    checklist_item_analyze_task,
     ai_research_assist_task,
 )
 
@@ -83,10 +81,8 @@ __all__ = [
     'portfolio_import_task',
 
     # Research tasks
-    'competitor_analysis_task',
     'bias_check_task',
     'argos_deep_analysis_task',
-    'checklist_item_analyze_task',
     'ai_research_assist_task',
 
     # Financial tasks

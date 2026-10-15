@@ -55,7 +55,6 @@ CATEGORY_LABELS = {
     'checkpoint': 'Checkpoint Analysis',
     'intelligence': 'AI Intelligence',
     'portfolio': 'Portfolio Analytics',
-    'competitor_analysis': 'Competitor Analysis',
     'argos': 'Argos Insights',
     'document_processing': 'Document Processing',
 }
@@ -68,7 +67,6 @@ CATEGORY_ICONS = {
     'checkpoint': 'bi-flag',
     'intelligence': 'bi-lightbulb',
     'portfolio': 'bi-pie-chart',
-    'competitor_analysis': 'bi-people',
     'argos': 'bi-eye',
     'document_processing': 'bi-file-earmark-text',
 }

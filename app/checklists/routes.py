@@ -98,9 +98,10 @@ def new_checklist():
             flash('Checklist created successfully! Now add your questions and items.', 'success')
             # Redirect to edit mode for better item building experience
             return redirect(url_for('checklists.view_checklist', checklist_id=new_checklist_obj.id))
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error creating checklist')
             db.session.rollback()
-            flash(f'Error creating checklist: {str(e)}', 'error')
+            flash('Error creating checklist. Please try again.', 'error')
             return redirect(url_for('checklists.new_checklist'))
 
     # For GET request - render the simplified template
@@ -195,9 +196,10 @@ def delete_checklist_item(item_id):
         db.session.delete(item_to_delete)
         db.session.commit()
         flash('Checklist item and its sub-items deleted successfully.', 'success')
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error deleting checklist item')
         db.session.rollback()
-        flash(f'Error deleting checklist item: {str(e)}', 'error')
+        flash('Error deleting checklist item. Please try again.', 'error')
 
     return redirect(url_for('checklists.view_checklist', checklist_id=parent_checklist_id))
 
@@ -239,9 +241,10 @@ def delete_checklist(checklist_id):
         db.session.delete(checklist)
         db.session.commit()
         flash(f'Checklist "{checklist.name}" deleted successfully.', 'success')
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error deleting checklist')
         db.session.rollback()
-        flash(f'Error deleting checklist: {str(e)}', 'error')
+        flash('Error deleting checklist. Please try again.', 'error')
 
     return redirect(url_for('checklists.list_checklists'))
     
@@ -392,9 +395,10 @@ def move_checklist_item(item_id, direction):
         try:
             db.session.commit()
             flash(f'Item moved successfully.', 'success')
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error saving item order')
             db.session.rollback()
-            flash(f'Error saving item order: {str(e)}', 'error')
+            flash('Error saving item order. Please try again.', 'error')
     
     return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
@@ -428,9 +432,10 @@ def reorder_checklist_items(checklist_id):
         db.session.commit()
         return json_success('Items reordered successfully')
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in reorder_checklist_items')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @checklists_bp.route('/item/<int:item_id>/edit', methods=['GET', 'POST'])
@@ -466,9 +471,10 @@ def edit_checklist_item(item_id):
         try:
             db.session.commit()
             flash('Checklist item updated successfully!', 'success')
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error updating checklist item')
             db.session.rollback()
-            flash(f'Error updating checklist item: {str(e)}', 'error')
+            flash('Error updating checklist item. Please try again.', 'error')
 
         return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
@@ -633,13 +639,14 @@ def process_document(import_id):
         document_import.completed_at = now_utc()
         db.session.commit()
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Processing failed')
         document_import.status = 'failed'
-        document_import.error_message = str(e)
+        document_import.error_message = 'Processing failed.'
         document_import.completed_at = now_utc()
         db.session.commit()
 
-        flash(f'Processing failed: {str(e)}', 'error')
+        flash('Processing failed. Please try again.', 'error')
 
     return render_template('document_processing_result.html',
                          title="Document Processing Result",
@@ -774,109 +781,5 @@ def export_checklist_yaml(checklist_id):
         )
     except Exception as e:
         current_app.logger.error(f"Failed to export checklist {checklist_id}: {e}")
-        flash(f'Error exporting checklist: {str(e)}', 'error')
+        flash('Error exporting checklist. Please try again.', 'error')
         return redirect(url_for('checklists.view_checklist', checklist_id=checklist_id))
-
-
-@checklists_bp.route('/upload-template', methods=['GET', 'POST'])
-@login_required
-def upload_template():
-    """Upload a custom YAML template"""
-    if request.method == 'POST':
-        # Check if file was uploaded
-        if 'template_file' not in request.files:
-            flash('No file uploaded', 'error')
-            return redirect(url_for('checklists.upload_template'))
-
-        file = request.files['template_file']
-
-        if file.filename == '':
-            flash('No file selected', 'error')
-            return redirect(url_for('checklists.upload_template'))
-
-        if not file.filename.endswith(('.yaml', '.yml')):
-            flash('Only YAML files (.yaml or .yml) are supported', 'error')
-            return redirect(url_for('checklists.upload_template'))
-
-        try:
-            # Save temporarily to validate
-            import tempfile
-            with tempfile.NamedTemporaryFile(mode='wb', suffix='.yaml', delete=False) as tmp:
-                file.save(tmp.name)
-                tmp_path = tmp.name
-
-            # Validate the template
-            loader = get_template_loader()
-            template_data = loader.load_template(tmp_path)
-
-            # If user wants to create checklist from template
-            create_checklist = request.form.get('create_checklist') == 'yes'
-
-            if create_checklist:
-                # Create a new checklist from the uploaded template
-                checklist_name = template_data.get('name', 'Imported Checklist')
-                checklist_desc = template_data.get('description', '')
-
-                new_checklist = Checklist(
-                    name=checklist_name,
-                    description=checklist_desc,
-                    author=current_user
-                )
-                db.session.add(new_checklist)
-                db.session.flush()
-
-                # Add items from template
-                items_created, subitems_created = loader.create_checklist_from_template(
-                    tmp_path, new_checklist, db
-                )
-
-                db.session.commit()
-
-                flash(
-                    f'Checklist "{checklist_name}" created with {items_created} items '
-                    f'and {subitems_created} subitems!',
-                    'success'
-                )
-                return redirect(url_for('checklists.view_checklist', checklist_id=new_checklist.id))
-            else:
-                # Save template to templates directory for future use
-                safe_filename = secure_filename(file.filename)
-                template_path = loader.templates_dir / safe_filename
-
-                # Check if template already exists
-                if template_path.exists():
-                    flash(f'Template "{safe_filename}" already exists', 'warning')
-                else:
-                    import shutil
-                    shutil.copy(tmp_path, template_path)
-                    flash(f'Template "{safe_filename}" uploaded successfully!', 'success')
-
-                return redirect(url_for('checklists.new_checklist'))
-
-        except TemplateValidationError as e:
-            flash(f'Invalid template: {str(e)}', 'error')
-            return redirect(url_for('checklists.upload_template'))
-        except Exception as e:
-            current_app.logger.error(f"Failed to upload template: {e}")
-            flash(f'Error uploading template: {str(e)}', 'error')
-            return redirect(url_for('checklists.upload_template'))
-        finally:
-            # Clean up temp file
-            if 'tmp_path' in locals() and os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-
-    # GET request - show upload form
-    return render_template('upload_template.html', title="Upload Checklist Template")
-
-
-@checklists_bp.route('/api/templates')
-@login_required
-def list_templates_api():
-    """API endpoint to list all available templates"""
-    try:
-        loader = get_template_loader()
-        templates = loader.list_available_templates()
-        return json_success(data={'templates': templates})
-    except Exception as e:
-        current_app.logger.error(f"Failed to list templates: {e}")
-        return json_error(str(e), status_code=500)

@@ -129,13 +129,6 @@ class Sector(db.Model):
         return slug
 
     @property
-    def full_name(self):
-        """Get full hierarchical name"""
-        if self.parent_sector:
-            return f"{self.parent_sector.display_name} > {self.display_name}"
-        return self.display_name
-
-    @property
     def success_rate(self):
         """Calculate investment success rate"""
         total = self.companies_analyzed + self.companies_invested
@@ -571,25 +564,6 @@ class SectorAnalysis(db.Model):
             return f"{hours}h {minutes}m"
         else:
             return f"{minutes}m"
-
-    @property
-    def completion_percentage(self):
-        """Calculate research completion based on sections with content"""
-        total_sections = self.sections.count()
-        if total_sections == 0:
-            return 0
-        completed_sections = self.sections.filter(
-            db.and_(
-                SectorResearchSection.content.isnot(None),
-                SectorResearchSection.content != ''
-            )
-        ).count()
-        return int((completed_sections / total_sections) * 100)
-
-    @property
-    def last_edited_section(self):
-        """Get the most recently edited section"""
-        return self.sections.order_by(SectorResearchSection.updated_at.desc()).first()
 
     def __repr__(self):
         sector_name = self.sector.display_name if self.sector else 'Unknown'

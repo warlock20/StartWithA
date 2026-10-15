@@ -75,6 +75,7 @@ def portfolio_import_task(self, task_id, user_id, file_path):
             return json.dumps({"status": "success", "result": result})
 
         except (PortfolioImportError, ValueError) as e:
+            db.session.rollback()
             logger.error(f"TASK {self.request.id}: Import error - {e}")
             task.status = 'failed'
             task.completed_at = now_utc()
@@ -83,10 +84,11 @@ def portfolio_import_task(self, task_id, user_id, file_path):
             return json.dumps({"status": "failed", "message": str(e)})
 
         except Exception as e:
+            db.session.rollback()
             logger.error(f"TASK {self.request.id}: Unexpected error - {e}", exc_info=True)
             task.status = 'failed'
             task.completed_at = now_utc()
-            task.error_message = str(e)
+            task.error_message = 'Something went wrong. Please try again.'
             db.session.commit()
             return json.dumps({"status": "failed", "message": str(e)})
 

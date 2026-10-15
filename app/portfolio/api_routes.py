@@ -30,41 +30,13 @@ from app import db, limiter
 from app.constants import RATELIMIT_AI
 
 from app.services.currency_service import CurrencyService
-from app.services.intelligence_engine import check_sell_warnings
 from app.services.price_service import PriceService
 from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_thesis
-from app.services.similar_mistakes import find_similar_past_decisions
 from app.services.financial_data import FinancialDataService
 from app.utils.blocknote_utils import blocknote_to_html
 from app.services.findings import FINDING_TYPES
 
 logger = logging.getLogger(__name__)
-
-@portfolio_bp.route('/api/company-search')
-@login_required
-def company_search():
-    """API endpoint for company autocomplete search"""
-    query = request.args.get('q', '').strip()
-
-    if not query or len(query) < 2:
-        return jsonify([])
-
-    companies = Company.query.filter(
-        Company.user_id == current_user.id,
-        db.or_(
-            Company.name.ilike(f'%{query}%'),
-            Company.ticker_symbol.ilike(f'%{query}%')
-        )
-    ).order_by(Company.name).limit(10).all()
-
-    results = [{
-        'id': c.id,
-        'name': c.name,
-        'ticker': c.ticker_symbol,
-        'label': f'{c.ticker_symbol} - {c.name}'
-    } for c in companies]
-
-    return jsonify(results)
 
 @portfolio_bp.route('/api/check-warnings', methods=['POST'])
 @login_required
@@ -106,7 +78,7 @@ def check_transaction_warnings():
             amount = float(quantity) * float(price_per_share)
             engine = IntelligenceEngine(current_user.id)
             warnings = engine.check_buy_transaction(int(company_id), amount)
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError):
             # Invalid input, return no warnings
             pass
     
@@ -133,46 +105,6 @@ def check_transaction_warnings():
         'has_high_severity': has_high
     })
     
-@portfolio_bp.route('/api/check-sell-warnings', methods=['POST'])
-@login_required
-def check_sell_transaction_warnings():
-    """API endpoint to check warnings before SELL transaction."""
-    try:
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({'warnings': [], 'count': 0, 'error': None})
-        
-        company_id = data.get('company_id')
-        shares = data.get('shares')
-        
-        # Input validation
-        if not company_id or not shares:
-            return jsonify({'warnings': [], 'count': 0, 'error': None})
-        
-        try:
-            company_id = int(company_id)
-            shares = int(shares)
-            if shares <= 0:
-                return jsonify({'warnings': [], 'count': 0, 'error': 'Invalid share count'})
-        except (ValueError, TypeError):
-            return jsonify({'warnings': [], 'count': 0, 'error': 'Invalid input'})
-        
-        warnings = check_sell_warnings(current_user.id, company_id, shares)
-        
-        return jsonify({
-            'warnings': [w.to_dict() for w in warnings],
-            'count': len(warnings),
-            'has_high_severity': any(w.severity == 'high' for w in warnings),
-            'error': None
-        })
-        
-    except Exception as e:
-        logger.error(f"Error checking sell warnings: {e}")
-        # Return empty warnings - don't block the transaction
-        return jsonify({'warnings': [], 'count': 0, 'error': None})
-    
-
 @portfolio_bp.route('/api/analyze-thesis', methods=['POST'])
 @login_required
 @limiter.limit(RATELIMIT_AI)
@@ -299,35 +231,6 @@ def quick_thesis_check():
             'elements_detected': 0,
             'quick_score': 0
         })
-
-
-# TODO: Not integrated to the system - needs UI hookup in add_transaction.html or decision_journal
-@portfolio_bp.route('/api/similar-decisions', methods=['POST'])
-@login_required
-def find_similar_decisions_api():
-    """Find similar past decisions based on thesis text."""    
-    try:
-        data = request.get_json()
-        thesis = data.get('thesis', '').strip()
-        company_id = data.get('company_id')
-        
-        if not thesis or len(thesis) < 20:
-            return jsonify({'similar_decisions': [], 'count': 0})
-        
-        similar = find_similar_past_decisions(
-            user_id=current_user.id,
-            thesis=thesis,
-            company_id=company_id,
-            max_results=5
-        )
-        
-        return jsonify({
-            'similar_decisions': [d.to_dict() for d in similar],
-            'count': len(similar)
-        })
-    except Exception as e:
-        logger.error(f"Error finding similar decisions: {e}")
-        return jsonify({'similar_decisions': [], 'count': 0, 'error': str(e)})
 
 
 @portfolio_bp.route('/api/quick-note', methods=['POST'])
@@ -467,7 +370,7 @@ def refresh_positions_batch():
         results = PriceService.update_all_positions_batch(current_user.id)
     except Exception as e:
         logger.error("Batch price refresh failed: %s", e)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Something went wrong. Please try again.'}), 500
 
     # Return updated position data for all active positions
     positions = PortfolioPosition.query.filter_by(

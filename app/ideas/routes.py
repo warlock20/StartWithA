@@ -17,12 +17,23 @@
 # app/ideas/routes.py
 
 import copy
-from flask import render_template, request, redirect, url_for, flash, jsonify, make_response
+from flask import render_template, request, redirect, url_for, flash, jsonify, make_response, current_app
 from flask_login import current_user, login_required
 from app import db
-from app.models import (IdeaPipeline, KillChecklist, KillCriterion, ResearchTemplate,
-                       KillSession, KillAnswer, Company, ResearchProject, ResearchLog, JournalEntry,
-                       KillChecklistSuggestion, MistakeLog, SectorAnalysis)
+from app.models import (
+    IdeaPipeline,
+    KillChecklist,
+    KillCriterion,
+    ResearchTemplate,
+    KillSession,
+    KillAnswer,
+    Company,
+    ResearchProject,
+    ResearchLog,
+    JournalEntry,
+    KillChecklistSuggestion,
+    SectorAnalysis,
+)
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.decorators import require_feature
 from app.services.currency_service import CurrencyService
@@ -375,9 +386,10 @@ def add_idea():
 
             flash(f'"{name}" added to your idea inbox!', 'success')
             return redirect(url_for('ideas.inbox'))
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error adding idea')
             db.session.rollback()
-            flash(f'Error adding idea: {str(e)}', 'error')
+            flash('Error adding idea. Please try again.', 'error')
 
     # Get URL parameters for pre-filling and highlighting
     prefill_type = request.args.get('type', '')
@@ -816,9 +828,10 @@ def promote_idea(idea_id):
                 
                 flash(f'Research project started for {idea.name}!', 'success')
                 return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
-            except Exception as e:
+            except Exception:
+                current_app.logger.exception('Error starting research project')
                 db.session.rollback()
-                flash(f'Error starting research project: {str(e)}', 'error')
+                flash('Error starting research project. Please try again.', 'error')
                 return redirect(url_for('ideas.inbox'))
     
     # Ensure the user has at least one template (creates default if needed)
@@ -885,9 +898,10 @@ def edit_idea(idea_id):
                 return redirect(url_for('research_workflow.my_projects'))
             else:
                 return redirect(url_for('ideas.inbox'))
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error updating idea')
             db.session.rollback()
-            flash(f'Error updating idea: {str(e)}', 'error')
+            flash('Error updating idea. Please try again.', 'error')
 
     base_ticker, exchange_suffix = '', ''
     if idea.ticker_symbol:
@@ -924,9 +938,10 @@ def delete_idea(idea_id):
         db.session.delete(idea)
         db.session.commit()
         flash(f'"{idea.name}" deleted permanently', 'info')
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error deleting idea')
         db.session.rollback()
-        flash(f'Error deleting idea: {str(e)}', 'error')
+        flash('Error deleting idea. Please try again.', 'error')
 
     return redirect(url_for('ideas.inbox'))
 
@@ -945,9 +960,10 @@ def resurrect_idea(idea_id):
     try:
         db.session.commit()
         return json_success()
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in resurrect_idea')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 @ideas_bp.route('/<int:idea_id>/mark_someday', methods=['GET'])
 @login_required
@@ -963,9 +979,10 @@ def mark_someday(idea_id):
     try:
         db.session.commit()
         flash(f'"{idea.name}" moved to Someday/Maybe', 'info')
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error updating idea')
         db.session.rollback()
-        flash(f'Error updating idea: {str(e)}', 'error')
+        flash('Error updating idea. Please try again.', 'error')
     
     return redirect(url_for('ideas.inbox'))
 
@@ -984,9 +1001,10 @@ def set_default_checklist(checklist_id):
     try:
         db.session.commit()
         flash(f'"{checklist.name}" set as default kill checklist', 'success')
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error updating checklist')
         db.session.rollback()
-        flash(f'Error updating checklist: {str(e)}', 'error')
+        flash('Error updating checklist. Please try again.', 'error')
     
     return redirect(url_for('ideas.manage_kill_checklists'))
 
@@ -1072,8 +1090,9 @@ def get_checklist_suggestions(checklist_id):
             }
         })
 
-    except Exception as e:
-        return json_error(str(e), status_code=500)
+    except Exception:
+        current_app.logger.exception('Unexpected error in get_checklist_suggestions')
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @ideas_bp.route('/api/kill-checklist/<int:checklist_id>/analyze', methods=['POST'])
@@ -1110,9 +1129,10 @@ def analyze_checklist(checklist_id):
             'suggestions_created': suggestions_created
         })
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in analyze_checklist')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @ideas_bp.route('/api/suggestions/<int:suggestion_id>/apply', methods=['POST'])
@@ -1127,8 +1147,9 @@ def apply_suggestion(suggestion_id):
         else:
             return json_error('Failed to apply suggestion')
 
-    except Exception as e:
-        return json_error(str(e), status_code=500)
+    except Exception:
+        current_app.logger.exception('Unexpected error in apply_suggestion')
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @ideas_bp.route('/api/suggestions/<int:suggestion_id>/reject', methods=['POST'])
@@ -1151,9 +1172,10 @@ def reject_suggestion(suggestion_id):
 
         return jsonify({'message': 'Suggestion rejected'})
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in reject_suggestion')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 @ideas_bp.route('/api/kill-checklist/<int:checklist_id>/effectiveness')
@@ -1204,48 +1226,9 @@ def get_effectiveness_analysis(checklist_id):
             }
         })
 
-    except Exception as e:
-        return json_error(str(e), status_code=500)
-
-
-@ideas_bp.route('/api/mistake-log/<int:mistake_id>/suggest-criteria', methods=['POST'])
-@login_required
-def suggest_criteria_from_mistake(mistake_id):
-    """Analyze a mistake and suggest kill criteria to prevent similar issues"""
-    try:
-        mistake = MistakeLog.query.filter_by(
-            id=mistake_id,
-            user_id=current_user.id
-        ).first()
-
-        if not mistake:
-            return json_error('Mistake not found', status_code=404)
-
-        # Generate suggestion from mistake
-        suggestion = KillChecklistAnalytics.analyze_mistake_for_criteria(mistake_id)
-
-        if suggestion:
-            db.session.add(suggestion)
-            db.session.commit()
-
-            return jsonify({
-                'message': 'Suggestion generated from mistake analysis',
-                'suggestion': {
-                    'id': suggestion.id,
-                    'title': suggestion.title,
-                    'description': suggestion.description,
-                    'suggested_criterion': suggestion.suggestion_data.get('new_criterion', {}).get('question')
-                }
-            })
-        else:
-            return jsonify({
-                'message': 'No actionable criteria could be extracted from this mistake',
-                'reason': 'The mistake description may not contain specific patterns that can be converted to kill criteria'
-            })
-
-    except Exception as e:
-        db.session.rollback()
-        return json_error(str(e), status_code=500)
+    except Exception:
+        current_app.logger.exception('Unexpected error in get_effectiveness_analysis')
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 
 # Webhook for milestone-based suggestions (called from kill session completion)

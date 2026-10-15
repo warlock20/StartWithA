@@ -59,7 +59,7 @@ from dataclasses import dataclass
 
 from app.services.ai import ai_service
 from app.services.ai.prompt_service import prompt_service
-from app.services.ai.config import AIProvider, AIModel, resolve_model_name
+from app.services.ai.config import resolve_model_name
 
 logger = logging.getLogger(__name__)
 
@@ -394,55 +394,6 @@ class AIResearchAssistant:
             return False, "'company_name' cannot be empty"
 
         return True, None
-
-    def get_available_modes(self) -> list[str]:
-        """
-        Get list of available AI assistance modes.
-
-        Returns:
-            List of mode names
-        """
-        return VALID_MODES.copy()
-
-    def get_mode_info(self, mode: str) -> Dict[str, Any]:
-        """
-        Get information about a specific mode.
-
-        Args:
-            mode: Mode name (challenge/elaboration/factcheck)
-
-        Returns:
-            Dict with mode metadata
-
-        Raises:
-            ValueError: If mode is invalid
-        """
-        if mode not in VALID_MODES:
-            raise ValueError(f"Invalid mode '{mode}'. Valid modes: {VALID_MODES}")
-
-        prompt_name = f"{mode}_mode"
-
-        try:
-            info = self.prompt_service.get_prompt_info(
-                category=PROMPT_CATEGORY,
-                name=prompt_name
-            )
-            return {
-                'mode': mode,
-                'name': info.get('name', mode),
-                'description': info.get('description', ''),
-                'version': info.get('version', '1.0'),
-                'max_tokens': info.get('max_tokens', 500),
-                'temperature': info.get('temperature', 0.7),
-                'required_variables': info.get('required_variables', []),
-            }
-        except Exception as e:
-            logger.error(f"Failed to get mode info for '{mode}': {e}")
-            return {
-                'mode': mode,
-                'error': str(e)
-            }
-
 
 # Singleton instance for easy access
 _ai_research_assistant = None

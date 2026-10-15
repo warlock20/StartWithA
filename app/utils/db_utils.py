@@ -98,11 +98,11 @@ def safe_commit(
         logger.info(f"{operation_name} completed successfully")
         return True, None
 
-    except Exception as e:
+    except Exception:
         db_session.rollback()
 
-        error_msg = f"{error_message or 'Error during ' + operation_name}: {str(e)}"
-        logger.exception(error_msg)
+        error_msg = f"{error_message or 'Error during ' + operation_name}. Please try again."
+        logger.exception(f"{operation_name} failed")
 
         if flash_error:
             flash(error_msg, 'error')
@@ -147,10 +147,10 @@ def safe_add_and_commit(
             flash_success,
             flash_error
         )
-    except Exception as e:
+    except Exception:
         db_session.rollback()
-        error_msg = f"Error during {operation_name}: {str(e)}"
-        logger.exception(error_msg)
+        error_msg = f"Error during {operation_name}. Please try again."
+        logger.exception(f"{operation_name} failed")
 
         if flash_error:
             flash(error_msg, 'error')
@@ -194,10 +194,10 @@ def safe_delete_and_commit(
             flash_success,
             flash_error
         )
-    except Exception as e:
+    except Exception:
         db_session.rollback()
-        error_msg = f"Error during {operation_name}: {str(e)}"
-        logger.exception(error_msg)
+        error_msg = f"Error during {operation_name}. Please try again."
+        logger.exception(f"{operation_name} failed")
 
         if flash_error:
             flash(error_msg, 'error')

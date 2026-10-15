@@ -24,22 +24,19 @@ Location: app/services/ai/prompt_service.py
 Prompts:  app/services/ai/prompts/
 
 Usage:
-    from app.services.ai.prompt_service import prompt_service, get_kill_checklist_prompt
-    
+    from app.services.ai.prompt_service import prompt_service, get_research_journal_prompt
+
     # Get a formatted prompt
     prompt = prompt_service.get_prompt(
-        'kill_checklist',
-        'mistake_analysis',
-        mistake_title="Bad investment",
-        mistake_cost=25000
+        'research_journal',
+        'entry_analysis',
+        entry_title="...",
     )
-    
+
     # Convenience functions
-    prompt = get_kill_checklist_prompt('mistake_analysis', mistake_title="...", ...)
     prompt = get_research_journal_prompt('entry_analysis', entry_title="...", ...)
 """
 
-import os
 import yaml
 import re
 import logging
@@ -268,16 +265,6 @@ class PromptService:
         """
         return dict(self._cache.get(category, {}).get(name) or {})
 
-    def list_categories(self) -> List[str]:
-        """List all available prompt categories."""
-        return list(self._cache.keys())
-
-    def list_prompts(self, category: str) -> List[str]:
-        """List all prompts in a category."""
-        if category not in self._cache:
-            raise ValueError(f"Category '{category}' not found")
-        return list(self._cache[category].keys())
-
     def list_templates(self, category: str) -> List[str]:
         """Prompts in a category that have a template (data files like presets are skipped)."""
         return [name for name, data in self._cache.get(category, {}).items()
@@ -286,12 +273,6 @@ class PromptService:
     def list_all_prompts(self) -> Dict[str, List[str]]:
         """List all prompts organized by category."""
         return {cat: list(prompts.keys()) for cat, prompts in self._cache.items()}
-
-    def reload_prompts(self):
-        """Reload all prompts from disk (useful for development)."""
-        self._cache.clear()
-        self._load_all_prompts()
-        logger.info("Prompts reloaded")
 
     def test_prompt(self, category: str, name: str, **kwargs) -> Dict[str, Any]:
         """
@@ -493,24 +474,9 @@ def get_effective_model_display(
 # Convenience Functions
 # ============================================================
 
-def get_kill_checklist_prompt(name: str, **kwargs) -> str:
-    """Convenience function for kill checklist prompts."""
-    return prompt_service.get_prompt('kill_checklist', name, **kwargs)
-
-
 def get_research_journal_prompt(name: str, **kwargs) -> str:
     """Convenience function for research journal prompts."""
     return prompt_service.get_prompt('research_journal', name, **kwargs)
-
-
-def get_research_template_prompt(name: str, **kwargs) -> str:
-    """Convenience function for research template prompts."""
-    return prompt_service.get_prompt('research_template', name, **kwargs)
-
-
-def get_sector_research_prompt(name: str, **kwargs) -> str:
-    """Convenience function for sector research prompts."""
-    return prompt_service.get_prompt('sector_research', name, **kwargs)
 
 
 def get_document_processing_prompt(name: str, **kwargs) -> str:
@@ -518,19 +484,9 @@ def get_document_processing_prompt(name: str, **kwargs) -> str:
     return prompt_service.get_prompt('document_processing', name, **kwargs)
 
 
-def get_competitor_analysis_prompt(name: str, **kwargs) -> str:
-    """Convenience function for competitor analysis prompts."""
-    return prompt_service.get_prompt('competitor_analysis', name, **kwargs)
-
-
 def get_intelligence_prompt(name: str, **kwargs) -> str:
     """Convenience function for intelligence prompts."""
     return prompt_service.get_prompt('intelligence', name, **kwargs)
-
-
-def get_checkpoint_prompt(name: str, **kwargs) -> str:
-    """Convenience function for checkpoint prompts."""
-    return prompt_service.get_prompt('checkpoint', name, **kwargs)
 
 
 def list_all_prompts() -> Dict[str, List[str]]:

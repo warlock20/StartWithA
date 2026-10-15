@@ -19,8 +19,7 @@ Portfolio Utilities
 Reusable calculation functions for portfolio analytics and metrics.
 """
 
-from typing import List, Optional, Dict
-from decimal import Decimal
+from typing import List, Dict
 
 
 def calculate_win_rate(positions: List) -> float:

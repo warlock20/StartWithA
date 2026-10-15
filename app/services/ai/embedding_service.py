@@ -450,12 +450,6 @@ def get_embedding_service(
     return _embedding_service
 
 
-def reset_embedding_service():
-    """Reset the embedding service singleton"""
-    global _embedding_service
-    _embedding_service = None
-
-
 # ============================================================
 # Convenience Functions
 # ============================================================

@@ -27,7 +27,8 @@ celery = Celery('app.celery_tasks',
                 backend=REDIS_URL,
                 include=[
                     'app.celery_tasks.tasks_portfolio',        # Portfolio AI analytics tasks
-                    'app.celery_tasks.tasks_research',         # Research & competitor analysis tasks
+                    'app.celery_tasks.tasks_chart_data',       # Portfolio chart data tasks
+                    'app.celery_tasks.tasks_research',         # Bias check, Argos and AI assist tasks
                     'app.celery_tasks.tasks_financial',        # Financial data & SEC filings tasks
                     'app.celery_tasks.tasks_data_retention',   # GDPR data retention tasks
                     'app.celery_tasks.tasks_import',           # Portfolio import tasks

@@ -28,8 +28,7 @@ This module handles all routes related to work session and research session mana
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import current_user, login_required
 from app import db
-from app.models import (WorkSession, ChecklistAnalysis, ChecklistAnswer,
-                       ResearchProject, KillChecklist, CompanyResource, JournalEntry)
+from app.models import WorkSession, ResearchProject, KillChecklist, CompanyResource, JournalEntry
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc, calculate_duration_minutes
 from app.utils.response_utils import json_success
@@ -111,49 +110,6 @@ def _apply_screening_kill(project, step_notes):
     project.decision_date = now_utc()
     project.completed_at = now_utc()
     project.kill_reason = f"Failed screening: {step_notes}"
-
-
-@research_workflow_bp.route('/research_sessions/<int:session_id>/delete', methods=['POST'])
-@login_required
-def delete_research_session(session_id):
-    """Delete a research session that is not in progress or completed"""
-    session = ChecklistAnalysis.query.get_or_404(session_id)
-
-    # Authorization check
-    if session.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
-
-    # Allow deletion of in-progress sessions but with warning (handled in frontend)
-
-    # For completed sessions, only allow deletion if they're incomplete/failed
-    if session.status == 'completed':
-        total_answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session_id).all()
-        total_item_count = len(total_answers)
-        satisfied_count = len([ans for ans in total_answers if ans.satisfaction_status == 'satisfied'])
-
-        # Don't allow deletion of successfully completed sessions
-        if total_item_count > 0 and satisfied_count == total_item_count:
-            flash('Cannot delete successfully completed research sessions', 'error')
-            return redirect(url_for('research_workflow.my_projects'))
-
-    try:
-        # Delete related research answers first to handle foreign key constraints
-        ChecklistAnswer.query.filter_by(checklist_analysis_id=session_id).delete()
-
-        # Commit the deletion of related records
-        db.session.commit()
-
-        # Delete the research session itself
-        db.session.delete(session)
-        db.session.commit()
-
-        flash(f'Research session for "{session.company.name if session.company else "Unknown"}" has been deleted', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error deleting research session: {str(e)}', 'error')
-
-    return redirect(url_for('research_workflow.my_projects'))
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/sessions/<int:session_id>/complete-checklist', methods=['POST'])
@@ -259,7 +215,7 @@ def complete_checklist_step(project_id, session_id):
         else:
             return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash('Error saving checklist results', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
@@ -358,7 +314,7 @@ def complete_kill_checklist_step(project_id, session_id):
             else:
                 return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash('Error saving screening results', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
@@ -499,13 +455,12 @@ User's Analysis Request:
             'extracted_text_sample': document_context[:500] + '...' if len(document_context) > 500 else document_context
         })
 
-    except Exception as e:
-        error_msg = str(e)
-        print(f"Gemini API error: {error_msg}")
+    except Exception:
+        logger.exception('AI analysis failed')
 
         return jsonify({
             'status': 'error_ai_failed',
-            'message': f'AI analysis failed: {error_msg}',
+            'message': 'AI analysis failed. Please try again.',
             'received_prompt': llm_prompt,
             'selected_documents_info': processed_docs_info
         }), 500

@@ -372,44 +372,6 @@ class ConfigService:
     # ============================================
     
     @classmethod
-    def update_system_default(
-        cls,
-        key: str,
-        value: Any,
-        description: Optional[str] = None
-    ) -> SystemConfig:
-        """
-        Update a system default value (admin only).
-        """
-        config = SystemConfig.query.filter_by(key=key).first()
-        
-        if not config:
-            raise ValueError(f"Config key '{key}' not found")
-        
-        config.value = value
-        if description:
-            config.description = description
-        config.updated_at = now_utc()
-        
-        db.session.commit()
-        
-        # Invalidate cache
-        cls._invalidate_cache()
-        
-        logger.info(f"Updated system default: {key}={value}")
-        return config
-    
-    @classmethod
-    def get_all_system_configs(cls) -> List[Dict[str, Any]]:
-        """Get all system configs for admin dashboard."""
-        configs = SystemConfig.query.order_by(
-            SystemConfig.category,
-            SystemConfig.key
-        ).all()
-        
-        return [c.to_dict() for c in configs]
-    
-    @classmethod
     def get_configs_by_category(cls) -> Dict[str, List[Dict[str, Any]]]:
         """Get system configs grouped by category."""
         configs = SystemConfig.query.order_by(SystemConfig.key).all()

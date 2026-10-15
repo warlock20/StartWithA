@@ -44,6 +44,7 @@ from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task
 from app.utils.ticker_validator import TickerValidator
 from app.services.financial_data import FinancialDataService
 from app.services.price_service import PriceService
+from app.services.background_tasks import BackgroundTaskService
 from app.models import PortfolioPosition
 from app.services.currency_service import CurrencyService
 from app.services.company_state import company_state, company_states
@@ -404,9 +405,10 @@ def delete_company(company_id):
         db.session.commit()
 
         flash(f'Company "{company_to_delete.name}" and all its data have been deleted.', 'success')
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error deleting company')
         db.session.rollback()
-        flash(f'Error deleting company: {str(e)}', 'error')
+        flash('Error deleting company. Please try again.', 'error')
 
     return redirect(url_for('companies.list_companies'))
 
@@ -799,9 +801,10 @@ def set_intrinsic_value(company_id):
         flash("Intrinsic value updated successfully.", "success")
     except (ValueError, TypeError):
         flash("Invalid number format for intrinsic value.", "error")
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('An error occurred')
         db.session.rollback()
-        flash(f"An error occurred: {e}", "error")
+        flash("An error occurred. Please try again.", "error")
 
     return redirect(request.referrer or url_for('companies.company_detail', company_id=company.id))
 
@@ -818,6 +821,7 @@ def fetch_sec_filings(company_id):
         years = data.get('years', 5)
 
         task = fetch_sec_filings_task.delay(company.id, current_user.id, years)
+        BackgroundTaskService.remember_celery_task(task.id)
 
         return jsonify({
             'success': True,
@@ -828,7 +832,7 @@ def fetch_sec_filings(company_id):
         current_app.logger.error(f"Error starting SEC filings fetch task: {str(e)}")
         return jsonify({
             'success': False,
-            'error': f'Failed to start task: {str(e)}'
+            'error': 'Failed to start task. Please try again.'
         }), 500
     
 @companies_bp.route('/<int:company_id>/toggle_portfolio', methods=['POST'])
@@ -912,9 +916,10 @@ def swot_analysis(company_id):
         try:
             db.session.commit()
             flash('SWOT analysis saved successfully.', 'success')
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('An error occurred while saving')
             db.session.rollback()
-            flash(f'An error occurred while saving: {e}', 'error')
+            flash('An error occurred while saving. Please try again.', 'error')
 
         # Preserve research workflow context if present
         project_id = request.args.get('project_id')
@@ -947,6 +952,7 @@ def fetch_financials(company_id):
 
         # Call the background task, passing only the company ID
         task = fetch_financial_data_task.delay(company.id)
+        BackgroundTaskService.remember_celery_task(task.id)
 
         # Return JSON response with task ID for polling
         return jsonify({
@@ -958,7 +964,7 @@ def fetch_financials(company_id):
         current_app.logger.error(f"Error starting financial fetch task: {str(e)}")
         return jsonify({
             'success': False,
-            'error': f'Failed to start task: {str(e)}'
+            'error': 'Failed to start task. Please try again.'
         }), 500
  
 @companies_bp.route('/<int:company_id>/financials')
@@ -1200,11 +1206,12 @@ def edit_company(company_id):
         else:
             flash('Company details saved.', 'success')
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Error updating company')
         db.session.rollback()
         if is_ajax:
-            return jsonify({'success': False, 'error': f'Error updating company: {str(e)}'}), 500
-        flash(f'Error updating company: {str(e)}', 'error')
+            return jsonify({'success': False, 'error': 'Error updating company. Please try again.'}), 500
+        flash('Error updating company. Please try again.', 'error')
 
     return redirect(url_for('companies.company_detail', company_id=company_id))
 

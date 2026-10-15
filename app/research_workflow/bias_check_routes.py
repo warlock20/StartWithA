@@ -216,29 +216,6 @@ def submit_bias_check_feedback(result_id):
     return json_success()
 
 
-@research_workflow_bp.route('/api/bias-check/user-patterns', methods=['GET'])
-@login_required
-def get_user_bias_patterns():
-    """
-    Get recurring bias patterns for the current user.
-
-    Returns aggregated data about which biases appear most frequently
-    in the user's research.
-
-    Returns:
-        JSON with bias pattern statistics
-    """
-    patterns = BiasCheckResult.get_user_bias_patterns(current_user.id)
-    avg_score = BiasCheckResult.get_user_average_score(current_user.id)
-
-    return jsonify({
-        'success': True,
-        'patterns': patterns,
-        'average_score': avg_score,
-        'total_checks': BiasCheckResult.query.filter_by(user_id=current_user.id).count()
-    })
-
-
 @research_workflow_bp.route('/api/bias-check/<int:project_id>/preview', methods=['GET'])
 @login_required
 def preview_bias_check_data(project_id):

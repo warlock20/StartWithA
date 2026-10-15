@@ -45,6 +45,8 @@ mockups/
 !data/market-sweeps/
 !data/market-sweeps/*.xlsx
 !data/market-sweeps/*.csv
+# Investor quotes shown in the topbar (app/utils/quotes.py)
+!data/investor_quotes.yaml
 
 # Tests
 unittests/

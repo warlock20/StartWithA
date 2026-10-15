@@ -227,12 +227,6 @@ class PortfolioPosition(db.Model):
             return 0
         return (now_utc().date() - self.first_purchase_date).days
 
-    @property
-    def allocation_percentage(self):
-        """Calculate position allocation % (requires total portfolio value from user)"""
-        # This will be calculated at the view/controller level
-        return None
-
     def update_market_data(self, current_price):
         """
         Update current market price and recalculate values.

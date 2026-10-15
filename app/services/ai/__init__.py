@@ -64,9 +64,6 @@ Investment-Specific Methods:
     
     # Explain behavioral patterns
     explanation = ai_service.explain_pattern(pattern_type, data, context)
-    
-    # Answer research questions from documents
-    answer = ai_service.answer_research_question(question, documents, context)
 
 Configuration:
     Set these environment variables:
@@ -96,14 +93,12 @@ from .config import (
     AITaskType,
     AIConfig,
     get_ai_config,
-    reload_ai_config,
 )
 
 # Service exports
 from .ai_service import (
     AIService,
     get_ai_service,
-    reset_ai_service,
     # Main functions
     generate_text,
     generate_json,
@@ -127,12 +122,8 @@ from .prompt_service import (
     PromptService,
     resolve_model_provider,
     get_effective_model_display,
-    get_kill_checklist_prompt,
     get_research_journal_prompt,
-    get_research_template_prompt,
-    get_sector_research_prompt,
     get_document_processing_prompt,
-    get_competitor_analysis_prompt,
     list_all_prompts,
     test_prompt,
 )
@@ -147,7 +138,6 @@ __all__ = [
     # Service class and factory
     'AIService',
     'get_ai_service',
-    'reset_ai_service',
 
     # Main convenience functions
     'generate_text',
@@ -160,7 +150,6 @@ __all__ = [
     'AITaskType',
     'AIConfig',
     'get_ai_config',
-    'reload_ai_config',
 
     # Providers (for advanced usage)
     'GeminiProvider',
@@ -169,12 +158,8 @@ __all__ = [
     # Prompt service
     'prompt_service',
     'PromptService',
-    'get_kill_checklist_prompt',
     'get_research_journal_prompt',
-    'get_research_template_prompt',
-    'get_sector_research_prompt',
     'get_document_processing_prompt',
-    'get_competitor_analysis_prompt',
     'list_all_prompts',
     'test_prompt',
 ]

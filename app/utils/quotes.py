@@ -50,9 +50,3 @@ def get_session_quote():
             session['current_quote'] = None
 
     return session.get('current_quote')
-
-
-def clear_session_quote():
-    """Clear the current session quote (useful for testing or manual refresh)"""
-    if 'current_quote' in session:
-        session.pop('current_quote')

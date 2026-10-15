@@ -183,9 +183,9 @@ def ai_assist_status(task_id):
     """
     # A task the worker never consumed would otherwise stay 'pending' forever,
     # making the client wait out its entire poll budget on a dead job.
-    BackgroundTaskService.fail_if_stalled(task_id, Config.AI_ASSIST_HARD_TIME_LIMIT)
+    BackgroundTaskService.fail_if_stalled(task_id, current_user.id, Config.AI_ASSIST_HARD_TIME_LIMIT)
 
-    task_status = BackgroundTaskService.get_task_status(task_id)
+    task_status = BackgroundTaskService.get_task_status(task_id, current_user.id)
 
     if not task_status:
         return jsonify({'state': 'NOT_FOUND'}), 404

@@ -5,7 +5,7 @@
  * platform-standard defaults, scroll indicators, and export support.
  *
  * Usage in React islands:
- *   import { createDataTable, quickFilter, refreshTableData } from '../lib/dataTable';
+ *   import { createDataTable } from '../lib/dataTable';
  *   import { ColumnFormatters } from '../lib/columnFormatters';
  */
 export { ColumnFormatters } from './columnFormatters';
@@ -137,18 +137,4 @@ function makeBtn(label, icon, onClick) {
   btn.innerHTML = `<i class="bi ${icon}"></i> ${label}`;
   btn.addEventListener('click', onClick);
   return btn;
-}
-
-/** Quick filter helper. Pass 'all' or empty to clear. */
-export function quickFilter(table, field, value) {
-  if (!value || value === 'all') {
-    table.clearFilter();
-  } else {
-    table.setFilter(field, '=', value);
-  }
-}
-
-/** Refresh table data from AJAX source. */
-export function refreshTableData(table) {
-  if (table && table.replaceData) table.replaceData();
 }

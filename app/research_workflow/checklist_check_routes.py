@@ -24,7 +24,7 @@ from flask_login import current_user, login_required
 from flask import session as flask_session
 
 from app import db
-from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyResource, QualitativeAnalysis
+from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyResource
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_error, json_unauthorized
@@ -33,6 +33,7 @@ from app.services.ai_check.setup import ai_check_available, available_setups
 
 # Import unified LLM service
 from app.services.ai.prompt_service import prompt_service
+from app.services.background_tasks import BackgroundTaskService
 from celery_app import celery
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
 from app.utils.blocknote_utils import blocknote_to_html
@@ -368,9 +369,10 @@ def autosave_research_answer(analysis_id, item_id):
             'timestamp': research_answer.answered_at.isoformat() if research_answer.answered_at else None
         })
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in autosave_research_answer')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/save_and_next', methods=['POST'])
 @login_required
@@ -439,9 +441,10 @@ def save_and_next(analysis_id, item_id):
                 'summary_url': url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)
             })
 
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception('Unexpected error in save_and_next')
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        return json_error('Something went wrong. Please try again.', status_code=500)
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/summary', methods=['GET', 'POST'])
 @login_required
@@ -461,11 +464,12 @@ def view_checklist_session_summary(analysis_id):
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'success': True, 'message': 'Conclusion saved successfully.'})
             flash('Session conclusion saved successfully.', 'success')
-        except Exception as e:
+        except Exception:
+            current_app.logger.exception('Error saving conclusion')
             db.session.rollback()
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': False, 'error': str(e)}), 500
-            flash(f'Error saving conclusion: {str(e)}', 'error')
+                return jsonify({'success': False, 'error': 'Something went wrong. Please try again.'}), 500
+            flash('Error saving conclusion. Please try again.', 'error')
         return redirect(url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id))
 
     # --- GET Request Logic ---
@@ -639,6 +643,9 @@ def task_status(task_id):
     """
     Checks the status of a Celery background task.
     """
+    if not BackgroundTaskService.owns_celery_task(task_id):
+        return jsonify({'state': 'NOT_FOUND', 'status_message': 'Task not found'}), 404
+
     task = celery.AsyncResult(task_id)
 
     response_data = {
@@ -665,31 +672,3 @@ def task_status(task_id):
         response_data['status_message'] = 'Task is in progress...'
 
     return jsonify(response_data)
-
-@research_workflow_bp.route('/for_company/<int:company_id>/select_model')
-@login_required
-def select_model(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to access this company.", "error")
-        return redirect(url_for('companies.list_companies'))
-
-    # NEW: Check if there is at least one completed research session for this company
-    has_completed_research = ChecklistAnalysis.query.filter_by(
-        user_id=current_user.id,
-        company_id=company.id,
-        status='completed'
-    ).first() is not None
-
-    # Check if a SWOT analysis exists for this company
-    has_swot_analysis = QualitativeAnalysis.query.filter_by(
-        user_id=current_user.id,
-        company_id=company.id,
-        model_type='SWOT'
-    ).first() is not None
-    
-    return render_template('select_model.html',
-                           company=company,
-                           has_completed_research=has_completed_research,
-                           has_swot_analysis=has_swot_analysis,
-                           title=f"Select Analysis Model for {company.name}")

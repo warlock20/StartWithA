@@ -142,12 +142,13 @@ def portfolio_ai_analysis_task(self, task_id, user_id, template_name='portfolio_
             })
 
         except Exception as e:
+            db.session.rollback()
             logger.error(f"TASK {self.request.id}: Failed - {e}", exc_info=True)
 
             # Update task status to failed
             task.status = 'failed'
             task.completed_at = now_utc()
-            task.error_message = str(e)
+            task.error_message = 'Something went wrong. Please try again.'
             db.session.commit()
 
             # Return error as JSON string
