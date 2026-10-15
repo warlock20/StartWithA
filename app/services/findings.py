@@ -28,7 +28,6 @@ DEFAULT_SIGNAL.
 """
 
 import json
-from collections import Counter
 from typing import Optional
 
 from app import db
@@ -172,37 +171,3 @@ def signal_suggestions(user_id: int, query: str = '', limit: int = 10) -> list:
     ).limit(limit).all()
     return [{'signal': title, **dict(zip(FINDING_TYPES, type_counts)), 'companies': companies}
             for title, *type_counts, companies in rows]
-
-
-def _clean_lines(texts) -> list:
-    return [t.strip() for t in texts or [] if t and t.strip()]
-
-
-def replace_findings(user_id: int, company_id: int, finding_type: str, texts,
-                     project_id: Optional[int] = None, loaded=None) -> None:
-    """Apply an edited list of one finding type to the company.
-
-    `loaded` is the list the form showed when it was opened. Only the edits made
-    against it are applied, so findings added elsewhere since then survive.
-    Without it the stored findings are the baseline (a full replace). Kept
-    entries keep their original dates; new texts are added in order.
-    """
-    wanted = _clean_lines(texts)
-    entries = finding_entries(user_id, company_id, finding_type)
-    baseline = _clean_lines(loaded) if loaded is not None else [e.content for e in entries]
-
-    removed = Counter(baseline) - Counter(wanted)
-    for entry in entries:
-        if removed[entry.content] > 0:
-            removed[entry.content] -= 1
-            delete_finding(entry)
-
-    added = Counter(wanted) - Counter(baseline)
-    present = Counter(e.content for e in entries)
-    for text in wanted:
-        if added[text] > 0:
-            added[text] -= 1
-            if present[text] > 0:  # already recorded elsewhere since the form loaded
-                present[text] -= 1
-                continue
-            add_finding(user_id, company_id, finding_type, text, project_id=project_id)

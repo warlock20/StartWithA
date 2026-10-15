@@ -37,8 +37,7 @@ from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.services.export_service import resolve_checklist_id
 from app.services.research_quality import calculate_research_quality
 from app.services.findings import (
-    FINDING_LABELS, GREEN_FLAG, MUST_EXIT, RED_FLAG,
-    add_finding as record_finding, normalize_finding_type, replace_findings,
+    FINDING_LABELS, add_finding as record_finding, finding_entries, normalize_finding_type,
 )
 
 
@@ -117,9 +116,13 @@ def project_summary(project_id):
         print(traceback.format_exc())
     # ═══════════════════════════════════════════════════════════════
 
+    findings = (finding_entries(project.user_id, project.company_id)
+                if project.company_id else [])
+
     return render_template('project_summary.html',
                           title=f"Summary: {project.subject_display_name}",
                           project=project,
+                          findings=findings,
                           all_notes=all_notes,
                           checklist_analyses=checklist_analyses,
                           free_research_questions=free_research_questions,
@@ -158,15 +161,6 @@ def save_project_decision(project_id):
         project.decision_summary = decision_summary
         project.decision_confidence = decision_confidence
         project.decision_date = now_utc()
-        # Findings are shared with the company page, so apply only the edits made
-        # to the lists this form loaded (sent back as <field>_loaded).
-        for finding_type, field in ((GREEN_FLAG, 'green_flags'), (RED_FLAG, 'red_flags'),
-                                    (MUST_EXIT, 'must_exit_criteria')):
-            raw = request.form.get(field, '')
-            loaded_raw = request.form.get(f'{field}_loaded')
-            replace_findings(project.user_id, project.company_id, finding_type,
-                             raw.split('\n'), project_id=project.id,
-                             loaded=loaded_raw.split('\n') if loaded_raw is not None else None)
 
         # Clear mid-research watchlist fields when making a final decision
         if decision != 'watchlist':

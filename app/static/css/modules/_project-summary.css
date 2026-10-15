@@ -756,7 +756,7 @@
 }
 
 /* =============================================================================
-   EXPANDED PANEL (Green/Red Flags)
+   EXPANDED PANEL (findings, see partials/_findings_editor.html)
    ============================================================================= */
 .summary-expanded-panel {
     display: none;
@@ -764,8 +764,10 @@
     bottom: 75px;
     left: 50%;
     transform: translateX(-50%);
-    width: 650px;
+    width: 900px;
     max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
     background: white;
     border-radius: var(--radius-lg);
     border: 1px solid var(--border-light);
@@ -782,56 +784,6 @@
 @keyframes panelSlideUp {
     from { opacity: 0; transform: translateX(-50%) translateY(15px); }
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
-
-.summary-flags-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.25rem;
-}
-
-.summary-flag-section label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.summary-flag-section label.green { color: var(--success-600); }
-.summary-flag-section label.red { color: var(--danger-600); }
-
-.summary-flag-section textarea {
-    width: 100%;
-    height: 100px;
-    padding: 0.75rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-light);
-    background: var(--gray-50);
-    color: var(--gray-800);
-    font-size: var(--font-size-sm);
-    resize: none;
-    font-family: inherit;
-    line-height: 1.5;
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.summary-flag-section textarea:focus {
-    outline: none;
-    border-color: var(--primary-600);
-    box-shadow: 0 0 0 3px var(--primary-50);
-    background: white;
-}
-
-.summary-flag-section textarea::placeholder {
-    color: var(--gray-400);
-}
-
-.summary-flag-hint {
-    font-size: var(--font-size-xs);
-    color: var(--gray-500);
-    margin-top: 0.35rem;
 }
 
 /* =============================================================================
@@ -876,10 +828,6 @@
     }
 
     .summary-ai-section {
-        grid-template-columns: 1fr;
-    }
-
-    .summary-flags-grid {
         grid-template-columns: 1fr;
     }
 

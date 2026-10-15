@@ -662,8 +662,9 @@ def append_journey_note(company_id):
 @login_required
 def api_finding_signals():
     """The user's signals for the search-or-add field, filtered by ?q=."""
-    return jsonify({'success': True,
-                    'signals': signal_suggestions(current_user.id, request.args.get('q', ''))})
+    limit = max(1, min(request.args.get('limit', 10, type=int), 200))
+    return jsonify({'success': True, 'signals': signal_suggestions(
+        current_user.id, request.args.get('q', ''), limit=limit)})
 
 
 @companies_bp.route('/api/<int:company_id>/findings', methods=['POST'])

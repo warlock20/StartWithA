@@ -219,29 +219,12 @@
 
 <!-- Expanded Panel (Green/Red Flags) -->
 <div class="summary-expanded-panel" id="summaryExpandedPanel">
-    <div class="summary-flags-grid">
-        <div class="summary-flag-section">
-            <label class="green">
-                <i class="bi bi-plus-circle-fill"></i> Key Positives
-            </label>
-            <textarea id="greenFlagsInput" placeholder="One finding per line...">{% if project.green_flags %}{{ project.green_flags|join('\n') }}{% endif %}</textarea>
-            <div class="summary-flag-hint">One per line</div>
-        </div>
-        <div class="summary-flag-section">
-            <label class="red">
-                <i class="bi bi-dash-circle-fill"></i> Key Risks
-            </label>
-            <textarea id="redFlagsInput" placeholder="One risk per line...">{% if project.red_flags %}{{ project.red_flags|join('\n') }}{% endif %}</textarea>
-            <div class="summary-flag-hint">One per line</div>
-        </div>
-        <div class="summary-flag-section" style="grid-column: 1 / -1;">
-            <label style="color: #f59e0b;">
-                <i class="bi bi-exclamation-triangle-fill"></i> Must Exit Criteria
-            </label>
-            <textarea id="mustExitInput" placeholder="One criterion per line...">{% if project.must_exit_criteria %}{{ project.must_exit_criteria|join('\n') }}{% endif %}</textarea>
-            <div class="summary-flag-hint">One per line — conditions that would trigger selling</div>
-        </div>
-    </div>
+    {% if project.company_id %}
+    {% set findings_url = url_for('companies.api_add_finding', company_id=project.company_id) %}
+    {% include 'partials/_findings_editor.html' %}
+    {% else %}
+    <p class="text-muted small mb-0">Link this project to a company to record findings.</p>
+    {% endif %}
 </div>
 
 <!-- Sticky Decision Bar -->
@@ -314,8 +297,13 @@ const SummaryPage = {
     projectId: {{ project.id }},
     currentDecision: '{{ project.decision or "" }}',
     companyName: {{ project.subject_display_name|tojson }},
-    mustExitCriteria: {{ (project.must_exit_criteria or [])|tojson }},
     companyId: {{ project.company_id or 'null' }},
+
+    // Must-exit criteria as listed in the findings panel, including ones added on this page
+    get mustExitCriteria() {
+        return Array.from(document.querySelectorAll('[data-finding-type="must_exit"] .finding-text'),
+                          el => el.textContent.trim());
+    },
     urls: {
         addTransaction: {% if project.company_id %}'{{ url_for('portfolio.add_transaction', company_id=project.company_id) }}'{% else %}null{% endif %},
         myProjects: '{{ url_for('research_workflow.my_projects') }}',
@@ -453,12 +441,6 @@ const SummaryPage = {
 
         // Get form data
         const confidence = document.getElementById('confidenceSlider').value;
-        // Findings are shared with the company page; the server applies only the
-        // edits made against what these boxes loaded (their defaultValue).
-        const greenFlagsInput = document.getElementById('greenFlagsInput');
-        const redFlagsInput = document.getElementById('redFlagsInput');
-        const mustExitInput = document.getElementById('mustExitInput');
-
         // Show loading
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Saving...';
@@ -471,19 +453,11 @@ const SummaryPage = {
                 },
                 body: new URLSearchParams({
                     decision: this.currentDecision,
-                    confidence: confidence,
-                    green_flags: greenFlagsInput.value,
-                    green_flags_loaded: greenFlagsInput.defaultValue,
-                    red_flags: redFlagsInput.value,
-                    red_flags_loaded: redFlagsInput.defaultValue,
-                    must_exit_criteria: mustExitInput.value,
-                    must_exit_criteria_loaded: mustExitInput.defaultValue
+                    confidence: confidence
                 })
             });
 
             if (response.ok) {
-                // The saved lists are the new baseline for the next save.
-                [greenFlagsInput, redFlagsInput, mustExitInput].forEach(el => { el.defaultValue = el.value; });
                 // Update the badge in header
                 const badge = document.querySelector('.summary-decision-badge');
                 badge.className = 'summary-decision-badge ' + this.currentDecision;

@@ -199,36 +199,8 @@
             </div>
             {% endif %}
 
-            {% set finding_columns = [
-                ('red_flag', 'red', 'exclamation-triangle-fill', 'Red Flags', 'What counts against investing?'),
-                ('green_flag', 'green', 'check-circle-fill', 'Green Flags', 'What counts in favour?'),
-                ('must_exit', 'must_exit', 'box-arrow-right', 'Must Exit', 'Sell if… e.g. revenue drops below $2B'),
-            ] %}
-            <div class="research-findings-grid findings-editable" data-findings-url="{{ url_for('companies.api_add_finding', company_id=company.id) }}">
-                {% for ftype, css, icon, heading, placeholder in finding_columns %}
-                {% set items = findings|selectattr('entry_type', 'equalto', ftype)|list %}
-                <div class="research-findings-col {{ css }}" data-finding-type="{{ ftype }}">
-                    <h6><i class="bi bi-{{ icon }}"></i> {{ heading }}</h6>
-                    <ul class="findings-list">
-                        {% for entry in items %}
-                        <li data-finding-id="{{ entry.id }}">
-                            <span class="finding-text">{{ entry.content }}</span>
-                            <span class="finding-date">{{ entry.created_at.strftime('%b %d, %Y') if entry.created_at }}</span>
-                            <button type="button" class="finding-delete" title="Delete" aria-label="Delete">
-                                <i class="bi bi-x"></i>
-                            </button>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    <form class="finding-add-form">
-                        <input type="text" class="finding-add-input" placeholder="{{ placeholder }}" maxlength="500">
-                        <button type="submit" class="action-btn" title="Add">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
+            {% set findings_url = url_for('companies.api_add_finding', company_id=company.id) %}
+            {% include 'partials/_findings_editor.html' %}
         </div>
 
         <!-- ====== SECTION: Journal ====== -->
@@ -298,82 +270,4 @@ function hideStartResearchModal(event) {
 // Expose to global scope for onclick handlers
 window.hideStartResearchModal = hideStartResearchModal;
 {% endif %}
-
-// Findings: add / delete red flags, green flags and must-exit criteria
-(function () {
-    var grid = document.querySelector('#research-findings .findings-editable');
-    if (!grid) return;
-    var baseUrl = grid.dataset.findingsUrl;
-
-    function findingItem(finding) {
-        var li = document.createElement('li');
-        li.dataset.findingId = finding.id;
-        var text = document.createElement('span');
-        text.className = 'finding-text';
-        text.textContent = finding.text;
-        var date = document.createElement('span');
-        date.className = 'finding-date';
-        date.textContent = finding.date;
-        var del = document.createElement('button');
-        del.type = 'button';
-        del.className = 'finding-delete';
-        del.title = 'Delete';
-        del.setAttribute('aria-label', 'Delete');
-        del.innerHTML = '<i class="bi bi-x"></i>';
-        li.append(text, date, del);
-        return li;
-    }
-
-    function notify(message, type) {
-        if (window.showToast) window.showToast(message, type);
-    }
-
-    // A login redirect or server error page is HTML, not JSON
-    function readJson(r, fallback) {
-        var isJson = (r.headers.get('Content-Type') || '').indexOf('application/json') !== -1;
-        if (!isJson) {
-            throw new Error(r.redirected ? 'Your session expired. Reload the page and sign in.' : fallback);
-        }
-        return r.json();
-    }
-
-    grid.addEventListener('submit', function (e) {
-        var form = e.target.closest('.finding-add-form');
-        if (!form) return;
-        e.preventDefault();
-        var col = form.closest('[data-finding-type]');
-        var input = form.querySelector('.finding-add-input');
-        var text = input.value.trim();
-        if (!text) return;
-        var button = form.querySelector('button');
-        button.disabled = true;
-        fetch(baseUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: col.dataset.findingType, text: text })
-        })
-            .then(function (r) { return readJson(r, 'Could not save'); })
-            .then(function (data) {
-                if (!data.success) throw new Error(data.error || 'Could not save');
-                col.querySelector('.findings-list').appendChild(findingItem(data.finding));
-                input.value = '';
-            })
-            .catch(function (err) { notify(err.message, 'error'); })
-            .finally(function () { button.disabled = false; });
-    });
-
-    grid.addEventListener('click', function (e) {
-        var del = e.target.closest('.finding-delete');
-        if (!del) return;
-        var li = del.closest('li');
-        if (!confirm('Delete this finding?')) return;
-        fetch(baseUrl + '/' + li.dataset.findingId, { method: 'DELETE' })
-            .then(function (r) { return readJson(r, 'Could not delete'); })
-            .then(function (data) {
-                if (!data.success) throw new Error(data.error || 'Could not delete');
-                li.remove();
-            })
-            .catch(function (err) { notify(err.message, 'error'); });
-    });
-})();
 </script>

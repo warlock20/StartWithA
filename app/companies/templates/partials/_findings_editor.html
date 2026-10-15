@@ -1,0 +1,53 @@
+{# Findings editor: red flags, green flags and must-exit criteria, one point per finding.
+   "+" opens a form with a signal (search your signals, or type a new one) and details.
+   Needs: findings (finding journal entries), findings_url (companies.api_add_finding).
+   Long details are clamped; the shared detail card (detail-card.js) shows them in full.
+   Behaviour: static/js/findings-editor.js #}
+{% set finding_columns = [
+    ('red_flag', 'red', 'exclamation-triangle-fill', 'Red Flags', 'What counts against investing?'),
+    ('green_flag', 'green', 'check-circle-fill', 'Green Flags', 'What counts in favour?'),
+    ('must_exit', 'must_exit', 'box-arrow-right', 'Must Exit', 'Sell if… e.g. revenue drops below $2B'),
+] %}
+<div class="research-findings-grid findings-editable"
+     data-findings-url="{{ findings_url }}"
+     data-signals-url="{{ url_for('companies.api_finding_signals') }}">
+    {% for ftype, css, icon, heading, placeholder in finding_columns %}
+    {% set items = findings|selectattr('entry_type', 'equalto', ftype)|list %}
+    <div class="research-findings-col {{ css }}" data-finding-type="{{ ftype }}">
+        <div class="findings-col-head">
+            <h6><i class="bi bi-{{ icon }}"></i> {{ heading }}</h6>
+            <button type="button" class="finding-add-toggle" title="Add" aria-label="Add {{ heading|lower }}">
+                <i class="bi bi-plus-lg"></i>
+            </button>
+        </div>
+        <ul class="findings-list">
+            {% for entry in items %}
+            <li data-finding-id="{{ entry.id }}">
+                <div class="finding-body">
+                    <div class="finding-meta">
+                        <span class="finding-signal">{{ entry.title }}</span>
+                        <span class="finding-date">{{ entry.created_at.strftime('%b %d, %Y') if entry.created_at }}</span>
+                    </div>
+                    <span class="finding-text">{{ entry.content }}</span>
+                </div>
+                <button type="button" class="finding-delete" title="Delete" aria-label="Delete">
+                    <i class="bi bi-x"></i>
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+        <form class="finding-add-form" hidden>
+            <input type="text" class="finding-signal-input" list="finding-signals" maxlength="200"
+                   placeholder="Signal: search or add, e.g. Financial engineering" autocomplete="off">
+            <textarea class="finding-add-input" rows="3" placeholder="{{ placeholder }}"></textarea>
+            <div class="finding-add-actions">
+                <button type="button" class="action-btn finding-add-cancel">Cancel</button>
+                <button type="submit" class="action-btn primary">Save</button>
+            </div>
+        </form>
+    </div>
+    {% endfor %}
+    <datalist id="finding-signals"></datalist>
+</div>
+<script src="{{ url_for('static', filename='js/detail-card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/findings-editor.js') }}"></script>
