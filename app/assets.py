@@ -87,6 +87,7 @@ css_companies = Bundle(
     'css/modules/_company-dashboard.css',
     'css/modules/_company-tags.css',
     'css/modules/_investment-journey.css',
+    'css/modules/_company-timeline.css',
     'css/modules/_position-detail.css',
     'css/modules/_companies-list.css',
     'css/modules/_destination-analysis.css',
