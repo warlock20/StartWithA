@@ -34,7 +34,8 @@ from app.constants import RATELIMIT_AI
 from app.models import ResearchProject, BiasCheckResult, BackgroundTask
 from app.services.background_tasks import BackgroundTaskService
 from app.services.research_data_service import ResearchDataService
-from app.utils.response_utils import json_success, json_error, json_unauthorized
+from app.utils.response_utils import json_success
+from app.utils.auth_utils import owned_or_404
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +57,7 @@ def run_bias_check(project_id):
     Returns task_id for polling.
     """
     # Get project
-    project = ResearchProject.query.get_or_404(project_id)
-
-    # Verify ownership
-    if project.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
+    project = owned_or_404(ResearchProject, project_id)
 
     # 1. DUPLICATE PREVENTION - Check for running task
     existing_task = BackgroundTask.query.filter_by(
@@ -127,10 +124,7 @@ def get_bias_check_status(task_id):
     Returns:
         JSON with state and result when completed
     """
-    task = BackgroundTask.query.get(task_id)
-
-    if not task or task.user_id != current_user.id:
-        return jsonify({'state': 'NOT_FOUND'}), 404
+    task = owned_or_404(BackgroundTask, task_id)
 
     response = {
         'state': task.status.upper(),
@@ -164,10 +158,7 @@ def get_latest_bias_check(project_id):
     Returns:
         JSON with latest bias check result or null if none exists
     """
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
+    project = owned_or_404(ResearchProject, project_id)
 
     result = BiasCheckResult.get_latest_for_project(project_id)
 
@@ -190,12 +181,9 @@ def submit_bias_check_feedback(result_id):
     Returns:
         JSON success response
     """
-    result = BiasCheckResult.query.get_or_404(result_id)
+    result = owned_or_404(BiasCheckResult, result_id)
 
-    if result.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
-
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     feedback = data.get('feedback')
 
     if feedback not in ('helpful', 'not_helpful'):
@@ -227,10 +215,7 @@ def preview_bias_check_data(project_id):
     Returns:
         JSON with research stats and word count
     """
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
+    project = owned_or_404(ResearchProject, project_id)
 
     stats = ResearchDataService.get_research_stats(project)
 

@@ -34,6 +34,7 @@ from app.services.ai_check.pipeline import (
 )
 from app.services.ai_check.setup import ai_check_available
 from app.utils.response_utils import json_error, json_unauthorized
+from app.utils.auth_utils import owned_or_404
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +52,7 @@ def _session_and_item(analysis_id, item_id):
 
 
 def _own_run(run_id):
-    run = AICheckRun.query.get_or_404(run_id)
-    if run.user_id != current_user.id:
-        return None, json_unauthorized('Unauthorized')
+    run = owned_or_404(AICheckRun, run_id)
     return run, None
 
 

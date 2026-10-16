@@ -21,6 +21,7 @@ from app.models import QuestionBankItem, SectorAnalysis
 from app.models.sector import Sector
 from app.services.ai_check.context import ai_context_from_form, ai_context_from_llm_prompt, ai_context_status
 from . import question_bank_bp
+from app.utils.auth_utils import owned_or_404
 
 
 @question_bank_bp.route('/', methods=['GET', 'POST'])
@@ -88,10 +89,7 @@ def index():
 @question_bank_bp.route('/<int:item_id>/delete', methods=['POST'])
 @login_required
 def delete_question(item_id):
-    question = QuestionBankItem.query.get_or_404(item_id)
-    if question.user_id != current_user.id:
-        flash('You are not authorized to delete this item.', 'error')
-        return redirect(url_for('question_bank.index'))
+    question = owned_or_404(QuestionBankItem, item_id)
 
     db.session.delete(question)
     db.session.commit()
@@ -102,10 +100,7 @@ def delete_question(item_id):
 @question_bank_bp.route('/<int:item_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_question(item_id):
-    question = QuestionBankItem.query.get_or_404(item_id)
-    if question.user_id != current_user.id:
-        flash('You are not authorized to edit this item.', 'error')
-        return redirect(url_for('question_bank.index'))
+    question = owned_or_404(QuestionBankItem, item_id)
 
     if request.method == 'POST':
         text = request.form.get('text')

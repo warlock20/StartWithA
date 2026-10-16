@@ -35,6 +35,7 @@ from app.models import (ResearchTemplate, ResearchProject, Company, Checklist,
 from app.research_workflow import research_workflow_bp
 from app.utils.decorators import require_feature
 from app.utils.time_utils import now_utc
+from app.utils.auth_utils import owned_or_404
 import json
 
 # Available step types for research templates
@@ -323,11 +324,7 @@ def create_template():
 @require_feature('research_templates')
 def view_template(template_id):
     """View/preview a research template to visualize workflow steps"""
-    template = ResearchTemplate.query.get_or_404(template_id)
-    
-    if template.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.template_list'))
+    template = owned_or_404(ResearchTemplate, template_id)
     
     # Calculate total estimated time
     total_minutes = 0
@@ -366,11 +363,7 @@ def view_template(template_id):
 @login_required
 def edit_template(template_id):
     """Edit an existing research template"""
-    template = ResearchTemplate.query.get_or_404(template_id)
-    
-    if template.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    template = owned_or_404(ResearchTemplate, template_id)
 
     if request.method == 'POST':
         template.name = request.form.get('name', template.name)
@@ -434,11 +427,7 @@ def edit_template(template_id):
 @require_feature('research_templates')
 def delete_template(template_id):
     """Delete a research template"""
-    template = ResearchTemplate.query.get_or_404(template_id)
-    
-    if template.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.template_list'))
+    template = owned_or_404(ResearchTemplate, template_id)
     
     # Check if template has active projects
     active_projects = ResearchProject.query.filter_by(
@@ -468,11 +457,7 @@ def delete_template(template_id):
 @require_feature('research_templates')
 def force_delete_template(template_id):
     """Force delete a research template even if it has been used"""
-    template = ResearchTemplate.query.get_or_404(template_id)
-    
-    if template.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.template_list'))
+    template = owned_or_404(ResearchTemplate, template_id)
     
     template_name = template.name
     project_count = ResearchProject.query.filter_by(template_id=template_id).count()
@@ -494,11 +479,7 @@ def force_delete_template(template_id):
 @require_feature('research_templates')
 def archive_template(template_id):
     """Archive a research template"""
-    template = ResearchTemplate.query.get_or_404(template_id)
-    
-    if template.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.template_list'))
+    template = owned_or_404(ResearchTemplate, template_id)
     
     template.is_active = False
     
@@ -518,11 +499,7 @@ def archive_template(template_id):
 @require_feature('research_templates')
 def restore_template(template_id):
     """Restore an archived research template"""
-    template = ResearchTemplate.query.get_or_404(template_id)
-    
-    if template.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.template_list'))
+    template = owned_or_404(ResearchTemplate, template_id)
     
     template.is_active = True
     

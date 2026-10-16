@@ -38,7 +38,9 @@ from app.models.research_reopening import ResearchReopening
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from app.utils.time_utils import now_utc, ensure_timezone_aware, format_for_javascript
-from app.utils.response_utils import json_success, json_error, json_unauthorized
+from app.utils.response_utils import json_success, json_error
+from app.utils.decorators import json_errors
+from app.utils.auth_utils import owned_or_404
 from app.research_workflow.checklist_check_routes import get_all_ordered_items_for_checklist
 from app.research_workflow.session_routes import (
     finalize_session, update_project_time, complete_project_step,
@@ -75,16 +77,10 @@ def start_project():
         return redirect(request.referrer or url_for('research_workflow.template_list'))
 
     # Verify template ownership
-    template = ResearchTemplate.query.get_or_404(template_id)
-    if template.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.template_list'))
+    template = owned_or_404(ResearchTemplate, template_id)
 
     # Get company
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.template_list'))
+    company = owned_or_404(Company, company_id)
 
     # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY (regardless of
     # template or status). Filtering to active/paused let a completed or
@@ -147,11 +143,7 @@ def start_project():
 @login_required
 def project_dashboard(project_id):
     """Main dashboard for a research project"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     # Update last_worked_at timestamp when user views the dashboard
     #project.last_worked_at = now_utc()
@@ -273,11 +265,7 @@ def _project_findings(project):
 @login_required
 def execute_step(project_id, step_index):
     """Execute a specific step in the research workflow"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     # Get the step details
     step = project.get_step(step_index)
@@ -515,11 +503,7 @@ def execute_step(project_id, step_index):
 @login_required
 def complete_step(project_id):
     """Mark a step as complete and save notes"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     step_index = request.form.get('step_index', type=int)
     notes = request.form.get('notes')
@@ -604,11 +588,7 @@ def complete_step(project_id):
 @login_required
 def mark_too_hard(project_id):
     """Mark a research project as too hard (abandon mid-research)"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     if request.method == 'GET':
         # Show the mark as too hard form
@@ -709,11 +689,7 @@ def reactivate_project(project_id):
     behaviour instead of the destructive one; the project dashboard's own
     control is the Reopen modal.
     """
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     if project.decision != 'pass':
         flash('This project is not in a passed/too-hard state', 'warning')
@@ -790,11 +766,7 @@ def reactivate_project(project_id):
 @login_required
 def reopen_step(project_id, step_index):
     """Reopen a completed step so the user can redo it"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     if project.status != 'active':
         flash('Can only reopen steps on active projects', 'warning')
@@ -832,11 +804,7 @@ def reopen_step(project_id, step_index):
 @login_required
 def complete_research_step(project_id, step_index):
     """Complete a checklist step when returning from research session"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     try:
         # Mark step as complete
@@ -884,12 +852,10 @@ def complete_research_step(project_id, step_index):
 
 @research_workflow_bp.route('/projects/<int:project_id>/skip-step/<int:step_index>', methods=['POST'])
 @login_required
+@json_errors
 def skip_step(project_id, step_index):
     """Skip a non-critical step in the workflow"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        return json_unauthorized('Access denied')
+    project = owned_or_404(ResearchProject, project_id)
 
     step = project.get_step(step_index)
     if not step:
@@ -917,24 +883,15 @@ def skip_step(project_id, step_index):
 
     project.last_worked_at = now_utc()
 
-    try:
-        db.session.commit()
-        return json_success('Step skipped')
-    except Exception:
-        current_app.logger.exception('Unexpected error in skip_step')
-        db.session.rollback()
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    db.session.commit()
+    return json_success('Step skipped')
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/update-step-checklist/<int:step_index>', methods=['POST'])
 @login_required
 def update_step_checklist(project_id, step_index):
     """Update the checklist for a specific step (with option to update template)"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     checklist_id = request.form.get('checklist_id', type=int)
     update_template = request.form.get('update_template') == 'yes'
@@ -944,10 +901,7 @@ def update_step_checklist(project_id, step_index):
         return redirect(url_for('research_workflow.execute_step', project_id=project_id, step_index=step_index))
 
     # Verify checklist exists and belongs to user
-    checklist = Checklist.query.get(checklist_id)
-    if not checklist or checklist.user_id != current_user.id:
-        flash('Invalid checklist selection', 'error')
-        return redirect(url_for('research_workflow.execute_step', project_id=project_id, step_index=step_index))
+    checklist = owned_or_404(Checklist, checklist_id)
 
     # Check if there are other active projects using this template
     other_active_projects = ResearchProject.query.filter(
@@ -1001,11 +955,7 @@ def update_step_checklist(project_id, step_index):
 @login_required
 def return_from_checklist(project_id, step_index):
     """Handle return from legacy checklist execution to research workflow"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     # Get the research context from session
     research_context = flask_session.pop('research_context', None)
@@ -1144,11 +1094,7 @@ def move_to_watchlist(project_id):
 @login_required
 def remove_from_watchlist(project_id):
     """Remove an active project from the watchlist (undo mid-research watchlisting)"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     if project.status != 'active' or project.decision != 'watchlist':
         flash('This project is not on the watchlist as an active project', 'warning')
@@ -1180,11 +1126,7 @@ def edit_project_workflow(project_id):
     """Edit the workflow steps for this specific project (snapshot only, not the source template)"""
     from app.research_workflow.template_routes import STEP_TYPES, MENTAL_MODELS
 
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     if request.method == 'POST':
         # Rebuild workflow steps from form data (same logic as edit_template)

@@ -282,7 +282,7 @@ def api_search_companies():
 def api_create_company():
     """AJAX endpoint for creating new companies"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         ticker_input = (data.get('ticker_symbol') or '').strip()
         name = (data.get('name') or '').strip()
@@ -506,7 +506,7 @@ def api_company_adopt_isin(company_id):
     if company is None:
         return json_not_found('Company not found')
 
-    sweep_company_id = (request.get_json() or {}).get('sweep_company_id')
+    sweep_company_id = (request.get_json(silent=True) or {}).get('sweep_company_id')
     sweep_company = MarketSweepCompany.query.get(sweep_company_id) \
         if sweep_company_id is not None else None
     if sweep_company is None:
@@ -612,7 +612,7 @@ def save_journey_notes(company_id):
     if not company:
         return json_not_found('Company not found')
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data or 'content' not in data:
         return json_error('No content provided')
 
@@ -636,7 +636,7 @@ def append_journey_note(company_id):
     if not company:
         return json_not_found('Company not found')
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     note = data.get('content') or data.get('text') or ''
     # The editor always sends a document, so emptiness is about the text inside
     # it, not the string being blank.
@@ -676,7 +676,7 @@ def api_add_finding(company_id):
     if not company:
         return json_not_found('Company not found')
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     finding_type = normalize_finding_type(data.get('type'))
     text = (data.get('text') or '').strip()
     if not finding_type:
@@ -756,7 +756,7 @@ def api_create_research_question(company_id):
     if not company:
         return json_not_found('Company')
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data or not data.get('question_text', '').strip():
         return json_error('Question text is required')
 

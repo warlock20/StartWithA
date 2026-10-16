@@ -35,6 +35,7 @@ from app.utils.time_utils import now_utc
 from app.utils.response_utils import serialize_model_to_dict
 from app.utils.db_utils import safe_db_transaction
 from app.utils.audit_logger import log_consent_change, log_data_export, log_account_deletion
+from app.utils.decorators import json_errors
 
 logger = logging.getLogger(__name__)
 
@@ -147,21 +148,17 @@ def _collect_user_data(user):
 
 @auth_bp.route('/account/ai-consent', methods=['POST'])
 @login_required
+@json_errors('Failed to save consent')
 def grant_ai_consent():
     """
     GDPR Art. 6(1)(a) - Record user consent for AI feature data processing.
     Called when user accepts the AI consent modal.
     """
-    try:
-        current_user.ai_consent_given = True
-        current_user.ai_consent_date = now_utc()
-        db.session.commit()
-        log_consent_change(current_user.id, 'ai_features', granted=True)
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
-        logger.exception(f"AI consent grant failed for user {current_user.id}: {e}")
-        return jsonify({'success': False, 'error': 'Failed to save consent'}), 500
+    current_user.ai_consent_given = True
+    current_user.ai_consent_date = now_utc()
+    db.session.commit()
+    log_consent_change(current_user.id, 'ai_features', granted=True)
+    return jsonify({'success': True})
 
 
 @auth_bp.route('/account/ai-consent/revoke', methods=['POST'])

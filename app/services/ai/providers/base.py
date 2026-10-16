@@ -34,6 +34,18 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 
 
+def strip_code_fences(text: str) -> str:
+    """Remove a ```json / ``` markdown fence wrapped around a model's JSON reply."""
+    text = text.strip()
+    if text.startswith('```json'):
+        text = text[7:]
+    elif text.startswith('```'):
+        text = text[3:]
+    if text.endswith('```'):
+        text = text[:-3]
+    return text.strip()
+
+
 class AIProvider(ABC):
     """
     Abstract interface for AI providers.

@@ -55,8 +55,8 @@ from app.constants import (
     RECENT_TRANSACTIONS_LIMIT, RECENT_DECISIONS_LIMIT, UPCOMING_CHECKPOINTS_LIMIT,
     DEFAULT_CHECKPOINT_LOOKBACK_DAYS,
     MAX_DYNAMIC_FORM_FIELDS,
-    GRADE_A_THRESHOLD, GRADE_B_THRESHOLD, GRADE_C_THRESHOLD, GRADE_D_THRESHOLD
 )
+from app.utils.grading import score_to_grade
 from app.services.portfolio_intelligence import (
     get_thesis_reality_check, PortfolioIntelligenceService,
     get_learning_insights, get_correlation_data
@@ -941,16 +941,7 @@ def intelligence_hub():
     # Average quality grade
     if outcomes:
         avg_score = sum(o.research_quality_score or 0 for o in outcomes) / len(outcomes)
-        if avg_score >= GRADE_A_THRESHOLD:
-            avg_grade = 'A'
-        elif avg_score >= GRADE_B_THRESHOLD:
-            avg_grade = 'B'
-        elif avg_score >= GRADE_C_THRESHOLD:
-            avg_grade = 'C'
-        elif avg_score >= GRADE_D_THRESHOLD:
-            avg_grade = 'D'
-        else:
-            avg_grade = 'F'
+        avg_grade = score_to_grade(avg_score)
     else:
         avg_grade = '—'
     

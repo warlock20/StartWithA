@@ -14,13 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-from flask import render_template, request, jsonify, current_app
+from flask import render_template, request, jsonify
 from flask_login import current_user, login_required
 from app import db
 from app.models import MistakeLog
 from app.learning import learning_bp
 from app.utils.time_utils import now_utc
-from datetime import datetime, timedelta, date
+from app.utils.decorators import json_errors
+from app.utils.auth_utils import owned_or_404
 
 @learning_bp.route('/mistakes')
 @login_required
@@ -58,29 +59,22 @@ def mistake_log():
 
 @learning_bp.route('/mistakes/<int:mistake_id>/review', methods=['POST'])
 @login_required
+@json_errors
 def review_mistake(mistake_id):
    """Mark a mistake as reviewed"""
-   mistake = MistakeLog.query.get_or_404(mistake_id)
-   
-   if mistake.user_id != current_user.id:
-       return jsonify({'error': 'Access denied'}), 403
+   mistake = owned_or_404(MistakeLog, mistake_id)
    
    mistake.times_reviewed += 1
    mistake.last_reviewed = now_utc()
    
    # Check if similar mistake was prevented
-   prevented = request.json.get('prevented_similar', False)
+   prevented = (request.get_json(silent=True) or {}).get('prevented_similar', False)
    if prevented:
        mistake.prevented_similar += 1
    
-   try:
-       db.session.commit()
-       return jsonify({
-           'success': True,
-           'times_reviewed': mistake.times_reviewed,
-           'prevented_similar': mistake.prevented_similar
-       })
-   except Exception:
-       current_app.logger.exception('Unexpected error in review_mistake')
-       db.session.rollback()
-       return jsonify({'error': 'Something went wrong. Please try again.'}), 500
+   db.session.commit()
+   return jsonify({
+       'success': True,
+       'times_reviewed': mistake.times_reviewed,
+       'prevented_similar': mistake.prevented_similar
+   })

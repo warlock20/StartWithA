@@ -165,7 +165,7 @@ def api_get_current_profile():
 @login_required
 def api_select_profile():
     """API endpoint to select profile."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     profile_name = data.get('profile_name')
     
     try:
@@ -182,7 +182,7 @@ def api_select_profile():
 @login_required
 def api_customize_setting():
     """API endpoint to customize a setting."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     key = data.get('key')
     value = data.get('value')
     

@@ -283,7 +283,7 @@ def sweep_company_isin(sweep_company_id):
                           status_code=403)
 
     sweep_company = MarketSweepCompany.query.get_or_404(sweep_company_id)
-    isin = normalize_isin((request.get_json() or {}).get('isin'))
+    isin = normalize_isin((request.get_json(silent=True) or {}).get('isin'))
 
     if isin is not None and not is_valid_isin(isin):
         return json_error(
@@ -436,7 +436,7 @@ def _clear_kill_embeddings(user_id, idea_id):
 @login_required
 def sweep_decide():
     """Submit a decision for a market sweep company."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     sweep_company_id = data.get('sweep_company_id')
     decision_type = data.get('decision')
     notes = data.get('notes')
@@ -670,7 +670,7 @@ def sweep_decide():
 def sweep_undo():
     """Undo a decision for a market sweep company, deleting the decision row
     and cleaning up any auto-created IdeaPipeline / kill embeddings."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     sweep_company_id = data.get('sweep_company_id')
 
     if not sweep_company_id:
@@ -714,7 +714,7 @@ def _row_id(raw):
 @login_required
 def sweep_link_confirm():
     """Record the user's answer to "which company is this row"."""
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     sweep_company_id = _row_id(data.get('sweep_company_id'))
     company_id = _row_id(data.get('company_id'))
 
@@ -741,7 +741,7 @@ def sweep_link_confirm():
 @login_required
 def sweep_link_remove():
     """Forget which company a row is. The sweep decision is untouched."""
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     sweep_company_id = _row_id(data.get('sweep_company_id'))
 
     if not sweep_company_id:

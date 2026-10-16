@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-from flask import render_template, request, redirect, url_for, flash, jsonify, current_app, send_file
+from flask import render_template, request, redirect, url_for, flash, current_app, send_file
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 import os
@@ -22,7 +22,9 @@ import asyncio
 from io import BytesIO
 from app import db
 from app.utils.time_utils import now_utc
-from app.utils.response_utils import json_success, json_error, json_unauthorized
+from app.utils.response_utils import json_success
+from app.utils.decorators import json_errors
+from app.utils.auth_utils import owned_or_404
 from app.models import Checklist, ChecklistItem, Company, QuestionBankItem, DocumentImport, ChecklistAnalysis, ChecklistAnswer
 from app.checklists import checklists_bp 
 from app.services.ai.document_processor import (
@@ -133,10 +135,7 @@ def _add_template_items(checklist, template_type):
 @checklists_bp.route('/<int:checklist_id>/view')
 @login_required
 def view_readonly_checklist(checklist_id):
-    checklist = Checklist.query.get_or_404(checklist_id)
-    if checklist.user_id != current_user.id:
-        flash('You are not authorized to view this checklist.', 'error')
-        return redirect(url_for('checklists.list_checklists'))
+    checklist = owned_or_404(Checklist, checklist_id)
 
     top_level_items = checklist.items.filter_by(parent_id=None).order_by(ChecklistItem.order).all()
     user_companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
@@ -206,12 +205,7 @@ def delete_checklist_item(item_id):
 @checklists_bp.route('/checklist/<int:checklist_id>/delete', methods=['POST'])
 @login_required
 def delete_checklist(checklist_id):
-    checklist = Checklist.query.get_or_404(checklist_id)
-
-    # Authorization: Ensure the checklist belongs to the current user
-    if checklist.user_id != current_user.id:
-        flash('You are not authorized to delete this checklist.', 'error')
-        return redirect(url_for('checklists.list_checklists'))
+    checklist = owned_or_404(Checklist, checklist_id)
 
     try:
         # First, delete any research answers that reference items in this checklist
@@ -295,10 +289,7 @@ def view_checklist(checklist_id):
 @checklists_bp.route('/<int:checklist_id>/add_item', methods=['POST'])
 @login_required
 def add_checklist_item(checklist_id):
-    checklist = Checklist.query.get_or_404(checklist_id)
-    if checklist.user_id != current_user.id:
-        flash('You are not authorized to modify this checklist.', 'error')
-        return redirect(url_for('checklists.list_checklists'))
+    checklist = owned_or_404(Checklist, checklist_id)
 
     item_text = request.form.get('item_text')
     item_description = request.form.get('description')
@@ -405,37 +396,28 @@ def move_checklist_item(item_id, direction):
 
 @checklists_bp.route('/checklist/<int:checklist_id>/reorder', methods=['POST'])
 @login_required
+@json_errors
 def reorder_checklist_items(checklist_id):
     """
     Handle bulk reordering of checklist items via drag-and-drop.
     Expects JSON payload with item IDs in new order.
     """
-    checklist = Checklist.query.get_or_404(checklist_id)
+    checklist = owned_or_404(Checklist, checklist_id)
 
-    # Authorization check
-    if checklist.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
+    data = request.get_json(silent=True) or {}
+    items_order = data.get('items', [])
+    parent_id = data.get('parent_id', None)  # None for top-level, item_id for sub-items
 
-    try:
-        data = request.get_json()
-        items_order = data.get('items', [])
-        parent_id = data.get('parent_id', None)  # None for top-level, item_id for sub-items
+    # Update order for each item
+    for index, item_id in enumerate(items_order):
+        item = ChecklistItem.query.get(item_id)
+        if item and item.checklist_id == checklist_id:
+            # Verify the item belongs to the correct parent
+            if item.parent_id == parent_id:
+                item.order = index
 
-        # Update order for each item
-        for index, item_id in enumerate(items_order):
-            item = ChecklistItem.query.get(item_id)
-            if item and item.checklist_id == checklist_id:
-                # Verify the item belongs to the correct parent
-                if item.parent_id == parent_id:
-                    item.order = index
-
-        db.session.commit()
-        return json_success('Items reordered successfully')
-
-    except Exception:
-        current_app.logger.exception('Unexpected error in reorder_checklist_items')
-        db.session.rollback()
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    db.session.commit()
+    return json_success('Items reordered successfully')
 
 
 @checklists_bp.route('/item/<int:item_id>/edit', methods=['GET', 'POST'])
@@ -569,12 +551,7 @@ def import_document():
 def process_document(import_id):
     """Process uploaded document"""
 
-    document_import = DocumentImport.query.get_or_404(import_id)
-
-    # Authorization check
-    if document_import.user_id != current_user.id:
-        flash('Unauthorized access.', 'error')
-        return redirect(url_for('checklists.list_checklists'))
+    document_import = owned_or_404(DocumentImport, import_id)
 
     # If already processed, show results
     if document_import.status in ['completed', 'failed']:
@@ -658,12 +635,7 @@ def process_document(import_id):
 def create_from_import(import_id):
     """Create checklist from processed document import"""
 
-    document_import = DocumentImport.query.get_or_404(import_id)
-
-    # Authorization check
-    if document_import.user_id != current_user.id:
-        flash('Unauthorized access.', 'error')
-        return redirect(url_for('checklists.list_checklists'))
+    document_import = owned_or_404(DocumentImport, import_id)
 
     if document_import.status != 'completed':
         flash('Document processing not completed.', 'error')
@@ -754,12 +726,7 @@ def import_history():
 @login_required
 def export_checklist_yaml(checklist_id):
     """Export a checklist as a YAML template file"""
-    checklist = Checklist.query.get_or_404(checklist_id)
-
-    # Authorization check
-    if checklist.user_id != current_user.id:
-        flash('You are not authorized to export this checklist.', 'error')
-        return redirect(url_for('checklists.list_checklists'))
+    checklist = owned_or_404(Checklist, checklist_id)
 
     try:
         loader = get_template_loader()

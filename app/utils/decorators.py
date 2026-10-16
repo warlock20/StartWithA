@@ -19,9 +19,50 @@ Utility decorators for the investment checklist platform.
 """
 
 from functools import wraps
-from flask import jsonify, redirect, url_for, flash, request
+from flask import current_app, jsonify, redirect, url_for, flash, request
 from flask_login import current_user
+from werkzeug.exceptions import HTTPException
+from app import db
 from app.features import user_has_feature
+from app.utils.response_utils import json_error
+
+GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.'
+
+
+def json_errors(view_or_message=None):
+    """
+    Turn an unexpected exception in a JSON route into a logged, generic 500.
+
+    Rolls back the session, logs the traceback with the request path, and
+    returns json_error(message, 500), so exception text never reaches the
+    client. HTTP errors (abort(403), get_or_404) pass through untouched.
+
+    Usage:
+        @bp.route('/api/thing', methods=['POST'])
+        @login_required
+        @json_errors
+        def thing(): ...
+
+        @json_errors('Failed to save note. Please try again.')
+        def save_note(): ...
+    """
+    message = view_or_message if isinstance(view_or_message, str) else GENERIC_ERROR_MESSAGE
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except HTTPException:
+                raise
+            except Exception:
+                db.session.rollback()
+                current_app.logger.exception('Unhandled error in %s %s', request.method, request.path)
+                return json_error(message, status_code=500)
+
+        return decorated_function
+
+    return decorator(view_or_message) if callable(view_or_message) else decorator
 
 
 def require_ai_tokens(tokens_needed=5000):

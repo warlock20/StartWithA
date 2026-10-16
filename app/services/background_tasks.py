@@ -162,209 +162,80 @@ class BackgroundTaskService:
         return task_id in session.get('celery_task_ids', [])
 
     @staticmethod
-    def start_portfolio_analysis(user_id, template_name):
-        """Start a portfolio AI analysis task in the background
+    def _enqueue(user_id, task_type, celery_task, *task_args, project_id=None, reuse_active=True):
+        """Create a BackgroundTask row and queue celery_task.delay(task_id, *task_args).
 
-        Uses composite task_type format: 'portfolio_analysis:{template_name}'
-        This allows different analysis types to run concurrently while preventing duplicates.
+        With reuse_active, returns the id of the user's in-flight task of the same
+        type (and project) instead of starting a duplicate.
         """
-
-        # Create composite task_type
-        task_type_full = f'portfolio_analysis:{template_name}'
-
-        # Check if a task with the same type is already running
-        existing_task = BackgroundTaskService._find_active_task(user_id, task_type_full)
-
-        if existing_task:
-            logger.info(f"Task {existing_task.id} already running for {template_name}, reusing it")
-            return existing_task.id
-
-        # Create new task record
-        task_id = str(uuid.uuid4())
-        task = BackgroundTask(
-            id=task_id,
-            user_id=user_id,
-            task_type=task_type_full,  # Use composite format
-            status='pending'
-        )
-
-        db.session.add(task)
-        db.session.commit()
-
-        # Start Celery task with task_id as first parameter
-        celery_task = portfolio_ai_analysis_task.delay(task_id, user_id, template_name)
-
-        logger.info(f"Started portfolio analysis task {task_id} (Celery: {celery_task.id}, template: {template_name}) for user {user_id}")
-
-        return task_id
-
-    @staticmethod
-    def start_chart_data_task(user_id, time_periods=12):
-        """Start a chart data computation task in the background.
-
-        Uses composite task_type 'chart_data:{time_periods}'.
-        No AI tokens consumed — purely data retrieval.
-        """
-        task_type = f'chart_data:{time_periods}'
-
-        # Check for existing running task
-        existing_task = BackgroundTaskService._find_active_task(user_id, task_type)
-
-        if existing_task:
-            logger.info(f"Chart data task {existing_task.id} already running for {time_periods}M, reusing it")
-            return existing_task.id
-
-        # Create new task record
-        task_id = str(uuid.uuid4())
-        task = BackgroundTask(
-            id=task_id,
-            user_id=user_id,
-            task_type=task_type,
-            status='pending'
-        )
-
-        db.session.add(task)
-        db.session.commit()
-
-        # Start Celery task
-        celery_task = portfolio_chart_data_task.delay(task_id, user_id, time_periods)
-
-        logger.info(f"Started chart data task {task_id} (Celery: {celery_task.id}, periods: {time_periods}) for user {user_id}")
-
-        return task_id
-
-    @staticmethod
-    def start_portfolio_import(user_id, file_path):
-        """Start a portfolio import task in the background.
-
-        Uses task_type 'portfolio_import' to prevent duplicate concurrent imports.
-        """
-        task_type = 'portfolio_import'
-
-        existing_task = BackgroundTaskService._find_active_task(user_id, task_type)
-
-        if existing_task:
-            logger.info(f"Import task {existing_task.id} already running for user {user_id}")
-            return existing_task.id
+        if reuse_active:
+            filters = {'project_id': project_id} if project_id is not None else {}
+            existing_task = BackgroundTaskService._find_active_task(user_id, task_type, **filters)
+            if existing_task:
+                logger.info(f"Reusing in-flight {task_type} task {existing_task.id} for user {user_id}")
+                return existing_task.id
 
         task_id = str(uuid.uuid4())
-        task = BackgroundTask(
-            id=task_id,
-            user_id=user_id,
-            task_type=task_type,
-            status='pending'
-        )
-
-        db.session.add(task)
-        db.session.commit()
-
-        celery_task = portfolio_import_task.delay(task_id, user_id, file_path)
-
-        logger.info(f"Started portfolio import task {task_id} (Celery: {celery_task.id}) for user {user_id}")
-
-        return task_id
-
-    @staticmethod
-    def start_bias_check(user_id, project_id):
-        """Start a cognitive bias check task in the background.
-
-        Uses task_type 'bias_check' to prevent duplicate concurrent tasks.
-        """
-        task_type = 'bias_check'
-
-        # Check for existing running task for this project
-        existing_task = BackgroundTaskService._find_active_task(user_id, task_type, project_id=project_id)
-
-        if existing_task:
-            logger.info(f"Bias check task {existing_task.id} already running for project {project_id}")
-            return existing_task.id
-
-        # Create new task record
-        task_id = str(uuid.uuid4())
-        task = BackgroundTask(
+        db.session.add(BackgroundTask(
             id=task_id,
             user_id=user_id,
             task_type=task_type,
             project_id=project_id,
-            status='pending'
-        )
-
-        db.session.add(task)
+            status='pending',
+        ))
         db.session.commit()
 
-        # Start Celery task
-        celery_task = bias_check_task.delay(task_id, user_id, project_id)
-
-        logger.info(f"Started bias check task {task_id} (Celery: {celery_task.id}) for project {project_id}")
-
+        celery_result = celery_task.delay(task_id, *task_args)
+        logger.info(f"Started {task_type} task {task_id} (Celery: {celery_result.id}) for user {user_id}")
         return task_id
+
+    @staticmethod
+    def start_portfolio_analysis(user_id, template_name):
+        """Portfolio AI analysis. One task per template can run at a time."""
+        return BackgroundTaskService._enqueue(
+            user_id, f'portfolio_analysis:{template_name}', portfolio_ai_analysis_task, user_id, template_name)
+
+    @staticmethod
+    def start_chart_data_task(user_id, time_periods=12):
+        """Chart data computation (no AI tokens). One task per period length."""
+        return BackgroundTaskService._enqueue(
+            user_id, f'chart_data:{time_periods}', portfolio_chart_data_task, user_id, time_periods)
+
+    @staticmethod
+    def start_portfolio_import(user_id, file_path):
+        """Portfolio import. One import per user at a time."""
+        return BackgroundTaskService._enqueue(
+            user_id, 'portfolio_import', portfolio_import_task, user_id, file_path)
+
+    @staticmethod
+    def start_bias_check(user_id, project_id):
+        """Cognitive bias check. One task per project at a time."""
+        return BackgroundTaskService._enqueue(
+            user_id, 'bias_check', bias_check_task, user_id, project_id, project_id=project_id)
 
     @staticmethod
     def start_companion_ask(user_id, question, history, focus):
-        """Start a companion agentic-chat task in the background. Returns task_id."""
-        task_id = str(uuid.uuid4())
-        task = BackgroundTask(
-            id=task_id,
-            user_id=user_id,
-            task_type='companion_ask',
-            status='pending',
-        )
-        db.session.add(task)
-        db.session.commit()
-
-        celery_task = companion_ask_task.delay(task_id, user_id, question, history, focus)
-        logger.info(f"Started companion_ask task {task_id} (Celery: {celery_task.id}) "
-                    f"for user {user_id}")
-        return task_id
+        """Companion agentic chat. Every question gets its own task."""
+        return BackgroundTaskService._enqueue(
+            user_id, 'companion_ask', companion_ask_task, user_id, question, history, focus,
+            reuse_active=False)
 
     @staticmethod
     def start_argos_deep_analysis(user_id, company_id, step_type, step_context, current_text, include_companion_warnings):
-        """Start an Argos deep analysis task in the background.
-
-        Uses task_type 'argos_deep_analysis' to prevent duplicate concurrent tasks.
-        Company-level analysis (no project_id needed).
-        """
-        task_type = 'argos_deep_analysis'
-
-        # Check for existing running task for this user
-        existing_task = BackgroundTaskService._find_active_task(user_id, task_type)
-
-        if existing_task:
-            logger.info(f"Argos deep analysis task {existing_task.id} already running for user {user_id}")
-            return existing_task.id
-
-        # Create new task record
-        task_id = str(uuid.uuid4())
-        task = BackgroundTask(
-            id=task_id,
-            user_id=user_id,
-            task_type=task_type,
-            status='pending'
-        )
-
-        db.session.add(task)
-        db.session.commit()
-
-        # Start Celery task
-        celery_task = argos_deep_analysis_task.delay(
-            task_id, user_id, company_id, step_type, step_context, current_text, include_companion_warnings
-        )
-
-        logger.info(f"Started argos deep analysis task {task_id} (Celery: {celery_task.id}) for user {user_id}")
-
-        return task_id
+        """Argos deep analysis (company-level). One task per user at a time."""
+        return BackgroundTaskService._enqueue(
+            user_id, 'argos_deep_analysis', argos_deep_analysis_task,
+            user_id, company_id, step_type, step_context, current_text, include_companion_warnings)
 
     @staticmethod
     def start_ai_research_assist(user_id, mode, question_text, answer_text,
                                  company_name, use_google_search=False,
                                  analysis_id=None, item_id=None):
-        """Start an AI Research Assistant task (Challenge/Elaboration/Fact-Check) in the background.
+        """AI Research Assistant (Challenge/Elaboration/Fact-Check).
 
-        Uses task_type 'ai_research_assist' to prevent duplicate concurrent tasks.
+        A new request supersedes the user's in-flight one rather than reusing it.
         """
         task_type = 'ai_research_assist'
-
-        # Cancel any stale running/pending tasks for this user
         BackgroundTask.query.filter(
             BackgroundTask.user_id == user_id,
             BackgroundTask.task_type == task_type,
@@ -372,55 +243,13 @@ class BackgroundTaskService:
         ).update({'status': 'failed', 'error_message': 'Superseded by new request'}, synchronize_session='fetch')
         db.session.commit()
 
-        # Create new task record
-        task_id = str(uuid.uuid4())
-        task = BackgroundTask(
-            id=task_id,
-            user_id=user_id,
-            task_type=task_type,
-            status='pending'
-        )
-
-        db.session.add(task)
-        db.session.commit()
-
-        # Start Celery task
-        celery_task = ai_research_assist_task.delay(
-            task_id, user_id, mode, question_text, answer_text,
-            company_name, use_google_search, analysis_id, item_id
-        )
-
-        logger.info(f"Started AI research assist task {task_id} (Celery: {celery_task.id}, mode: {mode}) for user {user_id}")
-
-        return task_id
+        return BackgroundTaskService._enqueue(
+            user_id, task_type, ai_research_assist_task,
+            user_id, mode, question_text, answer_text, company_name, use_google_search, analysis_id, item_id,
+            reuse_active=False)
 
     @staticmethod
     def start_screening_analysis(user_id):
-        """Start a screening analysis task in the background.
-
-        Uses task_type 'screening_analysis' to prevent duplicate concurrent tasks.
-        """
-        task_type = 'screening_analysis'
-
-        existing_task = BackgroundTaskService._find_active_task(user_id, task_type)
-
-        if existing_task:
-            logger.info(f"Screening analysis task {existing_task.id} already running for user {user_id}")
-            return existing_task.id
-
-        task_id = str(uuid.uuid4())
-        task = BackgroundTask(
-            id=task_id,
-            user_id=user_id,
-            task_type=task_type,
-            status='pending'
-        )
-
-        db.session.add(task)
-        db.session.commit()
-
-        celery_task = screening_analysis_task.delay(task_id, user_id)
-
-        logger.info(f"Started screening analysis task {task_id} (Celery: {celery_task.id}) for user {user_id}")
-
-        return task_id
+        """Screening analysis. One task per user at a time."""
+        return BackgroundTaskService._enqueue(
+            user_id, 'screening_analysis', screening_analysis_task, user_id)

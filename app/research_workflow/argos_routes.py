@@ -31,7 +31,8 @@ from app.models import Company, BackgroundTask
 from app.research_workflow import research_workflow_bp
 from app.services.argos import ArgosService, argos_check
 from app.services.background_tasks import BackgroundTaskService
-from app.utils.response_utils import json_success, json_error, json_unauthorized
+from app.utils.response_utils import json_success, json_error
+from app.utils.decorators import json_errors
 from app.constants import RATELIMIT_AI
 
 logger = logging.getLogger(__name__)
@@ -39,24 +40,22 @@ logger = logging.getLogger(__name__)
 
 @research_workflow_bp.route('/api/argos/warnings/<int:company_id>')
 @login_required
+@json_errors
 def argos_warnings_by_company(company_id):
     """Get companion warnings by company_id. Free DB queries, no rate limit."""
     company = Company.query.filter_by(id=company_id, user_id=current_user.id).first()
     if not company:
         return json_error('Company not found', status_code=404)
 
-    try:
-        argos = ArgosService(user_id=current_user.id)
-        warnings = argos.get_warnings_by_company(company_id)
-        return json_success('Warnings loaded', data={'warnings': warnings, 'count': len(warnings)})
-    except Exception as e:
-        logger.error(f"Company warnings load failed: {e}", exc_info=True)
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    argos = ArgosService(user_id=current_user.id)
+    warnings = argos.get_warnings_by_company(company_id)
+    return json_success('Warnings loaded', data={'warnings': warnings, 'count': len(warnings)})
 
 
 @research_workflow_bp.route('/api/argos/check', methods=['POST'])
 @login_required
 @limiter.limit(RATELIMIT_AI)
+@json_errors
 def argos_check_endpoint():
     """
     Perform Argos Check for current research context.
@@ -81,7 +80,7 @@ def argos_check_endpoint():
             }
         }
     """
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
 
     # Validate required fields
     company_id = data.get('company_id')
@@ -92,40 +91,33 @@ def argos_check_endpoint():
     step_context = data.get('step_context', {})
     current_text = data.get('current_text')
 
-    try:
-        # Perform Argos Check
-        result = argos_check(
-            user_id=current_user.id,
+    # Perform Argos Check
+    result = argos_check(
+        user_id=current_user.id,
+        company_id=company_id,
+        step_type=step_type,
+        step_context=step_context,
+    )
+
+    # If current_text provided, do another check with semantic matching
+    if current_text:
+        argos = ArgosService(user_id=current_user.id)
+        result = argos.check(
             company_id=company_id,
             step_type=step_type,
             step_context=step_context,
+            current_text=current_text,
         )
 
-        # If current_text provided, do another check with semantic matching
-        if current_text:
-            argos = ArgosService(user_id=current_user.id)
-            result = argos.check(
-                company_id=company_id,
-                step_type=step_type,
-                step_context=step_context,
-                current_text=current_text,
-            )
-
-        return jsonify({
-            'success': True,
-            'result': result.to_dict(),
-        })
-
-    except Exception as e:
-        logger.error(f"Argos check failed: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': 'Something went wrong. Please try again.',
-        }), 500
+    return jsonify({
+        'success': True,
+        'result': result.to_dict(),
+    })
 
 
 @research_workflow_bp.route('/api/argos/feedback', methods=['POST'])
 @login_required
+@json_errors
 def argos_feedback_endpoint():
     """
     Submit feedback for an Argos insight.
@@ -141,7 +133,7 @@ def argos_feedback_endpoint():
             "success": true
         }
     """
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
 
     insight_id = data.get('insight_id')
     feedback = data.get('feedback')
@@ -149,37 +141,33 @@ def argos_feedback_endpoint():
     if not insight_id or feedback not in ('helpful', 'not_helpful'):
         return json_error('insight_id and feedback (helpful/not_helpful) required')
 
-    try:
-        # Parse insight_id to get source_type and source_id
-        # Format: "mistake_log_123" or "trade_loss_456"
-        parts = insight_id.rsplit('_', 1)
-        if len(parts) != 2:
-            return json_error('Invalid insight_id format')
+    # Parse insight_id to get source_type and source_id
+    # Format: "mistake_log_123" or "trade_loss_456"
+    parts = insight_id.rsplit('_', 1)
+    if len(parts) != 2:
+        return json_error('Invalid insight_id format')
 
-        source_type = parts[0]
-        source_id = int(parts[1])
+    source_type = parts[0]
+    source_id = int(parts[1])
 
-        # Update feedback in EmbeddingStore or ArgosInsightBase
-        # For now, just log it - we'll implement proper storage later
-        logger.info(
-            f"Argos feedback: user={current_user.id}, "
-            f"insight={insight_id}, feedback={feedback}"
-        )
+    # Update feedback in EmbeddingStore or ArgosInsightBase
+    # For now, just log it - we'll implement proper storage later
+    logger.info(
+        f"Argos feedback: user={current_user.id}, "
+        f"insight={insight_id}, feedback={feedback}"
+    )
 
-        # TODO: Store feedback for algorithm improvement
-        # - Update times_helpful or times_not_helpful in ArgosInsightBase
-        # - Or store in a separate feedback table
+    # TODO: Store feedback for algorithm improvement
+    # - Update times_helpful or times_not_helpful in ArgosInsightBase
+    # - Or store in a separate feedback table
 
-        return json_success()
-
-    except Exception as e:
-        logger.error(f"Argos feedback failed: {e}", exc_info=True)
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    return json_success()
 
 
 @research_workflow_bp.route('/api/argos/deep-analysis', methods=['POST'])
 @login_required
 @limiter.limit(RATELIMIT_AI)
+@json_errors
 def argos_deep_analysis_endpoint():
     """
     Trigger an Argos deep analysis as a background task.
@@ -199,7 +187,7 @@ def argos_deep_analysis_endpoint():
             "task_id": "uuid-string"
         }
     """
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
 
     company_id = data.get('company_id')
     if not company_id:
@@ -210,21 +198,16 @@ def argos_deep_analysis_endpoint():
     current_text = data.get('current_text')
     include_companion_warnings = data.get('include_companion_warnings', False)
 
-    try:
-        task_id = BackgroundTaskService.start_argos_deep_analysis(
-            user_id=current_user.id,
-            company_id=company_id,
-            step_type=step_type,
-            step_context=step_context,
-            current_text=current_text,
-            include_companion_warnings=include_companion_warnings,
-        )
+    task_id = BackgroundTaskService.start_argos_deep_analysis(
+        user_id=current_user.id,
+        company_id=company_id,
+        step_type=step_type,
+        step_context=step_context,
+        current_text=current_text,
+        include_companion_warnings=include_companion_warnings,
+    )
 
-        return json_success('Deep analysis started', data={'task_id': task_id})
-
-    except Exception as e:
-        logger.error(f"Argos deep analysis trigger failed: {e}", exc_info=True)
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    return json_success('Deep analysis started', data={'task_id': task_id})
 
 
 @research_workflow_bp.route('/api/argos/deep-analysis/status/<task_id>')

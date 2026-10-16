@@ -47,6 +47,7 @@ import json
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from app.services.ai.prompt_service import prompt_service, resolve_model_provider
+from app.utils.grading import score_to_grade
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +308,7 @@ class ThesisAnalyzer:
             
             return ThesisAnalysisResult(
                 quality_score=quality_score,
-                quality_grade=self._score_to_grade(quality_score),
+                quality_grade=score_to_grade(quality_score),
                 summary=response.get('summary', 'Analysis complete.'),
                 strengths=response.get('strengths', []),
                 weaknesses=response.get('weaknesses', []),
@@ -419,7 +420,7 @@ class ThesisAnalyzer:
         
         return ThesisAnalysisResult(
             quality_score=score,
-            quality_grade=self._score_to_grade(score),
+            quality_grade=score_to_grade(score),
             summary=summary,
             strengths=strengths,
             weaknesses=weaknesses,
@@ -449,19 +450,6 @@ class ThesisAnalyzer:
                     break  # Only add each bias once
         
         return detected
-    
-    def _score_to_grade(self, score: int) -> str:
-        """Convert numeric score to letter grade"""
-        if score >= 90:
-            return 'A'
-        elif score >= 80:
-            return 'B'
-        elif score >= 70:
-            return 'C'
-        elif score >= 60:
-            return 'D'
-        else:
-            return 'F'
     
     def _generate_summary(
         self,

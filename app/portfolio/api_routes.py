@@ -34,6 +34,7 @@ from app.services.price_service import PriceService
 from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_thesis
 from app.services.financial_data import FinancialDataService
 from app.utils.blocknote_utils import blocknote_to_html
+from app.utils.decorators import json_errors
 from app.services.findings import FINDING_TYPES
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ def check_transaction_warnings():
             "has_high_severity": true
         }
     """    
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     
     if not data:
         return jsonify({'warnings': [], 'count': 0, 'has_high_severity': False})
@@ -108,6 +109,7 @@ def check_transaction_warnings():
 @portfolio_bp.route('/api/analyze-thesis', methods=['POST'])
 @login_required
 @limiter.limit(RATELIMIT_AI)
+@json_errors('Failed to analyze thesis')
 def analyze_investment_thesis():
     """
     API endpoint to analyze investment thesis quality.
@@ -137,61 +139,53 @@ def analyze_investment_thesis():
             }
         }
     """
-    try:
-        data = request.get_json()
+    data = request.get_json(silent=True) or {}
         
-        if not data:
-            return jsonify({
-                'success': False,
-                'error': 'No data provided'
-            }), 400
-        
-        thesis = data.get('thesis', '').strip()
-        
-        if not thesis:
-            return jsonify({
-                'success': False,
-                'error': 'Thesis text is required'
-            }), 400
-        
-        # Get company context if provided
-        company_name = None
-        ticker = None
-        sector = None
-        
-        company_id = data.get('company_id')
-        if company_id:
-            company = Company.query.filter_by(
-                id=company_id,
-                user_id=current_user.id
-            ).first()
-            if company:
-                company_name = company.name
-                ticker = company.ticker_symbol
-                sector = company.sector.display_name if company.sector else None
-        
-        # Analyze thesis
-        result = analyze_thesis(
-            thesis=thesis,
-            company_name=company_name,
-            ticker=ticker,
-            sector=sector,
-            expected_return=data.get('expected_return'),
-            expected_timeframe=data.get('expected_timeframe'),
-            confidence_score=data.get('confidence_score')
-        )
-        
-        return jsonify({
-            'success': True,
-            'analysis': result.to_dict()
-        })
-        
-    except Exception as e:
-        logger.error(f"Error analyzing thesis: {e}")
+    if not data:
         return jsonify({
             'success': False,
-            'error': 'Failed to analyze thesis'
-        }), 500
+            'error': 'No data provided'
+        }), 400
+        
+    thesis = data.get('thesis', '').strip()
+        
+    if not thesis:
+        return jsonify({
+            'success': False,
+            'error': 'Thesis text is required'
+        }), 400
+        
+    # Get company context if provided
+    company_name = None
+    ticker = None
+    sector = None
+        
+    company_id = data.get('company_id')
+    if company_id:
+        company = Company.query.filter_by(
+            id=company_id,
+            user_id=current_user.id
+        ).first()
+        if company:
+            company_name = company.name
+            ticker = company.ticker_symbol
+            sector = company.sector.display_name if company.sector else None
+        
+    # Analyze thesis
+    result = analyze_thesis(
+        thesis=thesis,
+        company_name=company_name,
+        ticker=ticker,
+        sector=sector,
+        expected_return=data.get('expected_return'),
+        expected_timeframe=data.get('expected_timeframe'),
+        confidence_score=data.get('confidence_score')
+    )
+        
+    return jsonify({
+        'success': True,
+        'analysis': result.to_dict()
+    })
 
 
 @portfolio_bp.route('/api/thesis-quick-check', methods=['POST'])
@@ -216,7 +210,7 @@ def quick_thesis_check():
     """
     
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         thesis = data.get('thesis', '') if data else ''
         
         result = get_quick_thesis_assessment(thesis)
@@ -235,57 +229,52 @@ def quick_thesis_check():
 
 @portfolio_bp.route('/api/quick-note', methods=['POST'])
 @login_required
+@json_errors('Failed to create note')
 def quick_add_note():
     """Quick-add a journal entry note from position detail page."""
-    try:
-        data = request.get_json()
-        company_id = data.get('company_id')
-        content = data.get('content', '').strip()
-        entry_type = data.get('entry_type', 'observation')
-        sentiment = data.get('sentiment')
+    data = request.get_json(silent=True) or {}
+    company_id = data.get('company_id')
+    content = data.get('content', '').strip()
+    entry_type = data.get('entry_type', 'observation')
+    sentiment = data.get('sentiment')
 
-        if not content:
-            return json_error('Content is required')
+    if not content:
+        return json_error('Content is required')
 
-        if not company_id:
-            return json_error('Company ID is required')
+    if not company_id:
+        return json_error('Company ID is required')
 
-        company = Company.query.filter_by(
-            id=company_id,
-            user_id=current_user.id
-        ).first()
-        if not company:
-            return json_not_found('Company')
+    company = Company.query.filter_by(
+        id=company_id,
+        user_id=current_user.id
+    ).first()
+    if not company:
+        return json_not_found('Company')
 
-        tags = extract_tags_from_content(content)
+    tags = extract_tags_from_content(content)
 
-        entry = JournalEntry(
-            user_id=current_user.id,
-            company_id=company_id,
-            content=content,
-            entry_type=entry_type,
-            sentiment=sentiment if sentiment else None,
-            tags=tags if tags else None
-        )
-        db.session.add(entry)
-        db.session.commit()
+    entry = JournalEntry(
+        user_id=current_user.id,
+        company_id=company_id,
+        content=content,
+        entry_type=entry_type,
+        sentiment=sentiment if sentiment else None,
+        tags=tags if tags else None
+    )
+    db.session.add(entry)
+    db.session.commit()
 
-        return jsonify({
-            'success': True,
-            'entry': {
-                'id': entry.id,
-                'content': entry.content,
-                'entry_type': entry.entry_type,
-                'sentiment': entry.sentiment,
-                'created_at': entry.created_at.strftime('%b %d, %Y %H:%M'),
-                'tags': entry.tags or []
-            }
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating quick note: {e}")
-        return json_error('Failed to create note', status_code=500)
+    return jsonify({
+        'success': True,
+        'entry': {
+            'id': entry.id,
+            'content': entry.content,
+            'entry_type': entry.entry_type,
+            'sentiment': entry.sentiment,
+            'created_at': entry.created_at.strftime('%b %d, %Y %H:%M'),
+            'tags': entry.tags or []
+        }
+    })
 
 
 @portfolio_bp.route('/api/notes/<int:company_id>')
@@ -414,6 +403,7 @@ def _serialize_position(position):
 
 @portfolio_bp.route('/api/company-intelligence/<int:company_id>')
 @login_required
+@json_errors('Failed to fetch market data')
 def get_company_intelligence(company_id):
     """
     Fetch live valuation metrics for a company (PE, EPS, price).
@@ -447,40 +437,32 @@ def get_company_intelligence(company_id):
             'error': 'Company has no ticker symbol'
         }), 400
 
-    try:
-        service = FinancialDataService()
-        metrics = service.get_valuation_metrics(company.ticker_symbol)
+    service = FinancialDataService()
+    metrics = service.get_valuation_metrics(company.ticker_symbol)
 
-        if not metrics:
-            return jsonify({
-                'success': True,
-                'data': {
-                    'ticker': company.ticker_symbol,
-                    'pe_ratio': None,
-                    'eps_ttm': None,
-                    'current_price': None,
-                    'sector': company.sector.display_name if company.sector else None,
-                    'currency': company.reporting_currency or CurrencyService.detect_currency_from_ticker(company.ticker_symbol),
-                    'data_unavailable': True
-                }
-            })
-
+    if not metrics:
         return jsonify({
             'success': True,
             'data': {
                 'ticker': company.ticker_symbol,
-                'pe_ratio': metrics['pe_ratio'],
-                'eps_ttm': metrics['eps_ttm'],
-                'current_price': metrics['current_price'],
-                'sector': metrics['sector'] or (company.sector.display_name if company.sector else None),
-                'currency': metrics['currency'],
-                'data_unavailable': False
+                'pe_ratio': None,
+                'eps_ttm': None,
+                'current_price': None,
+                'sector': company.sector.display_name if company.sector else None,
+                'currency': company.reporting_currency or CurrencyService.detect_currency_from_ticker(company.ticker_symbol),
+                'data_unavailable': True
             }
         })
 
-    except Exception as e:
-        logger.error(f"Error fetching intelligence for company {company_id}: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Failed to fetch market data'
-        }), 500
+    return jsonify({
+        'success': True,
+        'data': {
+            'ticker': company.ticker_symbol,
+            'pe_ratio': metrics['pe_ratio'],
+            'eps_ttm': metrics['eps_ttm'],
+            'current_price': metrics['current_price'],
+            'sector': metrics['sector'] or (company.sector.display_name if company.sector else None),
+            'currency': metrics['currency'],
+            'data_unavailable': False
+        }
+    })

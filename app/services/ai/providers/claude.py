@@ -42,7 +42,7 @@ import json
 import logging
 from typing import Dict, List, Optional, Any
 
-from .base import AIProvider
+from .base import AIProvider, strip_code_fences
 from ..config import get_ai_config, AIModel, AIProvider as AIProviderEnum
 from ..prompt_service import get_intelligence_prompt
 from ..analytics import log_prompt_usage
@@ -393,18 +393,7 @@ IMPORTANT: Respond ONLY with valid JSON. No markdown code blocks, no explanation
                 prompt_version=prompt_version
             )
 
-            # Clean up response
-            text = response_text.strip()
-
-            # Remove markdown code blocks if present
-            if text.startswith('```json'):
-                text = text[7:]
-            elif text.startswith('```'):
-                text = text[3:]
-            if text.endswith('```'):
-                text = text[:-3]
-
-            return json.loads(text.strip())
+            return json.loads(strip_code_fences(response_text))
 
         except json.JSONDecodeError as e:
             logger.error(f"Claude JSON parse error: {e}")
