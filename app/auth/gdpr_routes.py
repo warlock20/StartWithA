@@ -52,7 +52,7 @@ def _collect_user_data(user):
         IdeaPipeline, KillChecklist, KillSession, KillChecklistSuggestion,
         IdeaSourceAnalysis, MistakeLog,
         ChecklistAnalysis, ResearchTemplate, ResearchProject, WorkSession,
-        TemplateStep, ResearchMetrics, ResearchLog, FreeResearchQuestion,
+        ResearchMetrics, ResearchLog, FreeResearchQuestion,
         ResearchSettings,
         Sector, SectorAnalysis,
         DecisionJournal, JournalEntry, ThesisEvolution, LearningNote,
@@ -102,7 +102,6 @@ def _collect_user_data(user):
         ('research_templates', ResearchTemplate, ResearchTemplate.user_id == user.id),
         ('research_projects', ResearchProject, ResearchProject.user_id == user.id),
         ('work_sessions', WorkSession, WorkSession.user_id == user.id),
-        ('template_steps', TemplateStep, TemplateStep.user_id == user.id),
         ('research_logs', ResearchLog, ResearchLog.user_id == user.id),
         ('free_research_questions', FreeResearchQuestion, FreeResearchQuestion.user_id == user.id),
         ('sectors', Sector, Sector.user_id == user.id),
@@ -242,7 +241,7 @@ def delete_account():
             DocumentImport, ChecklistAnalysis, ChecklistAnswer,
             IdeaPipeline, KillChecklist, KillCriterion, KillSession, KillAnswer,
             KillChecklistSuggestion, IdeaSourceAnalysis, MistakeLog,
-            ResearchTemplate, ResearchProject, WorkSession, TemplateStep,
+            ResearchTemplate, ResearchProject, WorkSession,
             ResearchMetrics, ResearchLog, FreeResearchQuestion, ResearchSettings,
             Sector, SectorAnalysis,
             DecisionJournal, JournalEntry, JournalAttachment, ThesisEvolution,
@@ -250,7 +249,7 @@ def delete_account():
             PatternRecognition,
             Transaction, PortfolioPosition,
             BackgroundTask,
-            ResearchOutcome, AIInsight, EmbeddingStore, MLPredictionLog,
+            ResearchOutcome, AIInsight, EmbeddingStore,
             UserInvestmentProfile,
             PromptUsageLog,
             AIResearchFeedback,
@@ -268,7 +267,6 @@ def delete_account():
             AIInsight.query.filter_by(user_id=user_id).delete()
             ResearchOutcome.query.filter_by(user_id=user_id).delete()
             EmbeddingStore.query.filter_by(user_id=user_id).delete()
-            MLPredictionLog.query.filter_by(user_id=user_id).delete()
             PortfolioUIInsight.query.filter_by(user_id=user_id).delete()
             BackgroundTask.query.filter_by(user_id=user_id).delete()
 
@@ -294,7 +292,6 @@ def delete_account():
             ResearchMetrics.query.filter_by(user_id=user_id).delete()
             ResearchSettings.query.filter_by(user_id=user_id).delete()
             WorkSession.query.filter_by(user_id=user_id).delete()
-            TemplateStep.query.filter_by(user_id=user_id).delete()
 
             # Research sessions (with answers)
             sessions = ChecklistAnalysis.query.filter_by(user_id=user_id).all()

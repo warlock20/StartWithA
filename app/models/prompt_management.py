@@ -17,71 +17,11 @@
 """
 Prompt Management Models
 
-Models for managing AI prompts, versions, and usage analytics.
+Usage analytics for AI prompt calls (prompts themselves live in YAML).
 """
 
 from datetime import datetime
 from app import db
-
-
-class PromptVersion(db.Model):
-    """
-    Track versions of AI prompts for A/B testing and rollback.
-    """
-    __tablename__ = 'prompt_version'
-
-    id = db.Column(db.Integer, primary_key=True)
-
-    # Prompt identification
-    name = db.Column(db.String(100), nullable=False, index=True)
-    category = db.Column(db.String(50), nullable=False, index=True)
-    version = db.Column(db.String(20), nullable=False)  # e.g., "1.0", "1.1", "2.0-beta"
-
-    # Version details
-    template = db.Column(db.Text, nullable=False)
-    system_context = db.Column(db.Text)
-
-    # AI configuration
-    preferred_provider = db.Column(db.String(20))  # "claude", "gemini", "openai"
-    model = db.Column(db.String(50))
-    max_tokens = db.Column(db.Integer)
-    temperature = db.Column(db.Float)
-
-    # Status
-    is_active = db.Column(db.Boolean, default=False, index=True)
-    is_default = db.Column(db.Boolean, default=False)
-
-    # Metadata
-    description = db.Column(db.Text)
-    created_by = db.Column(db.String(100))
-    notes = db.Column(db.Text)  # A/B test notes, tuning observations
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    activated_at = db.Column(db.DateTime)
-
-    # Relationships
-    usage_logs = db.relationship('PromptUsageLog', back_populates='version_record',
-                                 lazy='dynamic', cascade='all, delete-orphan')
-
-    def __repr__(self):
-        return f'<PromptVersion {self.name} v{self.version}>'
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'category': self.category,
-            'version': self.version,
-            'is_active': self.is_active,
-            'is_default': self.is_default,
-            'preferred_provider': self.preferred_provider,
-            'model': self.model,
-            'max_tokens': self.max_tokens,
-            'temperature': self.temperature,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'activated_at': self.activated_at.isoformat() if self.activated_at else None,
-        }
 
 
 class PromptUsageLog(db.Model):
@@ -93,10 +33,8 @@ class PromptUsageLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # Prompt details
-    prompt_version_id = db.Column(db.Integer, db.ForeignKey('prompt_version.id'), index=True)
     prompt_name = db.Column(db.String(100), nullable=False, index=True)
-    # The version string as recorded at call time (e.g. "1.0"). Distinct from the
-    # `version_record` relationship below — that link is optional, this always holds.
+    # The prompt YAML's version string as recorded at call time (e.g. "1.0").
     prompt_version = db.Column(db.String(20))
 
     # Execution details
@@ -124,9 +62,6 @@ class PromptUsageLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     # Relationships
-    # NOTE: named `version_record`, not `prompt_version` — the latter is the string
-    # column above, and rebinding the name would silently drop that column.
-    version_record = db.relationship('PromptVersion', back_populates='usage_logs')
     user = db.relationship('User', backref=db.backref('prompt_usage', lazy='dynamic'))
 
     def __repr__(self):

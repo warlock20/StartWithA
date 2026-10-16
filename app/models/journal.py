@@ -268,7 +268,6 @@ class LearningNote(db.Model):
 
     # Categorization
     category = db.Column(db.String(100))  # 'mistake', 'success', 'process', 'market_wisdom', 'insight'
-    subcategory = db.Column(db.String(100))  # More specific classification
 
     # Context
     context = db.Column(db.Text)  # The situation that led to this learning
@@ -278,7 +277,6 @@ class LearningNote(db.Model):
 
     # Examples
     examples = db.Column(db.JSON)  # Specific examples of this lesson
-    anti_examples = db.Column(db.JSON)  # Counter-examples
 
     # Enhanced Source Attribution (for insights from legendary investors)
     source_type = db.Column(db.String(50))  # 'experience', 'book', 'mentor', 'article', 'podcast', 'video', 'letter', 'conference'
@@ -388,7 +386,6 @@ class InvestmentPostMortem(db.Model):
 
     # Key lessons
     primary_lesson = db.Column(db.Text)
-    secondary_lessons = db.Column(db.JSON)
 
     # Process improvements
     process_improvements = db.Column(db.JSON)  # Changes to make

@@ -82,10 +82,6 @@ class BiasCheckResult(db.Model):
     feedback = db.Column(db.String(20), nullable=True)  # 'helpful', 'not_helpful'
     feedback_at = db.Column(db.DateTime, nullable=True)
 
-    # For Argos correlation (populated later when outcome is known)
-    investment_outcome = db.Column(db.String(20), nullable=True)  # 'win', 'loss', 'pending'
-    return_percentage = db.Column(db.Float, nullable=True)
-
     # Timestamps
     created_at = db.Column(db.DateTime, default=now_utc, nullable=False, index=True)
 

@@ -37,7 +37,6 @@ from app.models import (
     SystemConfig,
     InvestorProfile,
     UserInvestmentProfile,
-    PromptVersion,
     PromptUsageLog,
     User,
     AIResearchFeedback,
@@ -97,46 +96,6 @@ class InvestorProfileView(SecureModelView):
     can_create = True
     can_edit = True
     can_delete = False
-
-
-class PromptVersionView(SecureModelView):
-    """Admin view for PromptVersion"""
-    column_list = ['name', 'version', 'category', 'is_active', 'is_default', 'preferred_provider', 'created_at']
-    column_searchable_list = ['name', 'category', 'version', 'description']
-    column_filters = ['category', 'is_active', 'is_default', 'preferred_provider']
-    column_editable_list = ['is_active', 'is_default']
-    column_default_sort = [('created_at', True)]
-
-    form_columns = [
-        'name', 'category', 'version', 'description',
-        'template', 'system_context',
-        'preferred_provider', 'model', 'max_tokens', 'temperature',
-        'is_active', 'is_default',
-        'created_by', 'notes'
-    ]
-
-    form_widget_args = {
-        'template': {
-            'rows': 15,
-            'style': 'font-family: monospace;'
-        },
-        'system_context': {
-            'rows': 5,
-            'style': 'font-family: monospace;'
-        },
-        'description': {
-            'rows': 3
-        },
-        'notes': {
-            'rows': 3
-        }
-    }
-
-    can_create = True
-    can_edit = True
-    can_delete = True
-
-    page_size = 25
 
 
 class PromptUsageLogView(SecureModelView):
@@ -372,7 +331,6 @@ def init_admin(app):
     admin.add_view(SystemConfigView(SystemConfig, db.session, name='System Config', category='Configuration'))
     admin.add_view(InvestorProfileView(InvestorProfile, db.session, name='Investor Profiles', category='Configuration'))
 
-    admin.add_view(PromptVersionView(PromptVersion, db.session, name='Prompt Versions', category='AI Prompts'))
     admin.add_view(PromptUsageLogView(PromptUsageLog, db.session, name='Usage Analytics', category='AI Prompts'))
     admin.add_view(AIResearchFeedbackView(AIResearchFeedback, db.session, name='AI Research Feedback', category='AI Prompts'))
 

@@ -158,65 +158,6 @@ class SectorService:
         return 0
 
     @staticmethod
-    def merge_sectors(user_id, source_sector_id, target_sector_id):
-        """
-        Merge one sector into another.
-        All references to source sector will point to target sector.
-
-        Args:
-            user_id: User ID (for security check)
-            source_sector_id: ID of sector to merge from
-            target_sector_id: ID of sector to merge into
-
-        Returns:
-            True if successful, False otherwise
-        """
-        source = Sector.query.get(source_sector_id)
-        target = Sector.query.get(target_sector_id)
-
-        # Validation
-        if not source or not target:
-            return False
-
-        if source.user_id != user_id or target.user_id != user_id:
-            return False
-
-        if source.id == target.id:
-            return False
-
-        # Update all references
-        Company.query.filter_by(sector_id=source_sector_id).update({'sector_id': target_sector_id})
-
-        # Note: SectorAnalysis has unique constraint on (user_id, sector_id)
-        # So we need to handle potential conflicts
-        existing_target_analysis = db.session.query(func.count()).filter_by(
-            user_id=user_id,
-            sector_id=target_sector_id
-        ).scalar()
-
-        if existing_target_analysis > 0:
-            # Target already has analysis, delete source analyses
-            from app.models import SectorAnalysis
-            SectorAnalysis.query.filter_by(sector_id=source_sector_id).delete()
-        else:
-            # Safe to migrate
-            from app.models import SectorAnalysis
-            SectorAnalysis.query.filter_by(sector_id=source_sector_id).update({'sector_id': target_sector_id})
-
-        ResearchProject.query.filter_by(sector_id=source_sector_id).update({'sector_id': target_sector_id})
-        IdeaPipeline.query.filter_by(sector_id=source_sector_id).update({'sector_id': target_sector_id})
-
-        # Mark source as merged
-        source.status = 'merged'
-        source.merged_into_id = target_sector_id
-
-        # Update target analytics
-        target.update_analytics()
-
-        db.session.commit()
-        return True
-
-    @staticmethod
     def get_sector_analytics(user_id, sector_id=None):
         """
         Get comprehensive sector analytics.

@@ -83,7 +83,6 @@ class MarketSweepDecision(db.Model):
 
     user = db.relationship('User')
     sector = db.relationship('Sector')
-    promoted_idea = db.relationship('IdeaPipeline')
 
     def __repr__(self):
         return f'<MarketSweepDecision {self.decision}>'

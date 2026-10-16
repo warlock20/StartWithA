@@ -22,7 +22,7 @@ Created as part of Week 1-2 Foundation Layer
 
 from app import db
 from app.utils.time_utils import now_utc
-from sqlalchemy.dialects.postgresql import JSON, ARRAY
+from sqlalchemy.dialects.postgresql import JSON
 from pgvector.sqlalchemy import Vector
 
 
@@ -83,9 +83,6 @@ class ResearchOutcome(db.Model):
 
     # ===== LEARNING METRICS (computed by ML) =====
     outcome_category = db.Column(db.String(20), nullable=True, index=True)  # 'big_win', 'small_win', 'small_loss', 'big_loss'
-    predictive_factors = db.Column(JSON, nullable=True)  # Which research factors predicted this outcome
-    correlation_confidence = db.Column(db.Float, nullable=True)
-    lessons_extracted = db.Column(JSON, nullable=True)  # AI-generated lessons
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=now_utc)
@@ -128,24 +125,6 @@ class AIInsight(db.Model):
     ai_provider = db.Column(db.String(50), nullable=True)  # 'claude', 'gemini', 'ml_model'
     model_version = db.Column(db.String(50), nullable=True)
     confidence = db.Column(db.Float, nullable=True)  # 0-1 confidence score
-    generation_prompt = db.Column(db.Text, nullable=True)  # For debugging/improvement
-
-    # Related patterns/history
-    related_mistake_ids = db.Column(ARRAY(db.Integer), nullable=True)  # Links to mistake_log entries
-    related_outcome_ids = db.Column(ARRAY(db.Integer), nullable=True)  # Links to research_outcome entries
-    similar_past_insights = db.Column(ARRAY(db.Integer), nullable=True)  # Links to previous similar insights
-
-    # User interaction tracking
-    was_shown = db.Column(db.Boolean, default=False)
-    shown_at = db.Column(db.DateTime, nullable=True)
-    user_action = db.Column(db.String(50), nullable=True)  # 'dismissed', 'acknowledged', 'applied', 'helpful', 'not_helpful'
-    user_feedback = db.Column(db.Text, nullable=True)
-    action_taken_at = db.Column(db.DateTime, nullable=True)
-
-    # Outcome validation (did the warning prove correct?)
-    was_validated = db.Column(db.Boolean, nullable=True, index=True)
-    validation_outcome = db.Column(db.String(50), nullable=True, index=True)  # 'correct', 'incorrect', 'partially_correct', 'unknown'
-    validated_at = db.Column(db.DateTime, nullable=True)
 
     # Status
     is_active = db.Column(db.Boolean, default=True, index=True)
@@ -186,7 +165,6 @@ class EmbeddingStore(db.Model):
 
     # Metadata
     embedding_model = db.Column(db.String(100), nullable=False)  # 'all-MiniLM-L6-v2', 'text-embedding-ada-002'
-    embedding_version = db.Column(db.Integer, default=1)
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=now_utc)
@@ -203,46 +181,3 @@ class EmbeddingStore(db.Model):
         return f'<EmbeddingStore {self.id}: {self.entity_type} #{self.entity_id}>'
 
 
-class MLPredictionLog(db.Model):
-    """
-    Tracks ML model predictions for validation.
-    Enables model improvement over time by comparing predictions to actual outcomes.
-    """
-    __tablename__ = 'ml_prediction_log'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
-
-    # Model info
-    model_name = db.Column(db.String(100), nullable=False, index=True)  # 'research_quality', 'bias_detector', 'outcome_predictor'
-    model_version = db.Column(db.String(50), nullable=False, index=True)
-
-    # Prediction details
-    prediction_type = db.Column(db.String(50), nullable=False)  # 'score', 'classification', 'probability'
-    input_features = db.Column(JSON, nullable=False)  # Features used for prediction
-
-    # Prediction output
-    predicted_value = db.Column(db.Float, nullable=True)
-    predicted_label = db.Column(db.String(100), nullable=True)
-    prediction_probabilities = db.Column(JSON, nullable=True)  # For multi-class predictions
-    confidence = db.Column(db.Float, nullable=True)
-
-    # Context
-    context_type = db.Column(db.String(50), nullable=True)  # 'research', 'transaction', 'portfolio'
-    context_id = db.Column(db.Integer, nullable=True)
-
-    # Validation (filled in later when outcome is known)
-    actual_value = db.Column(db.Float, nullable=True)
-    actual_label = db.Column(db.String(100), nullable=True)
-    prediction_error = db.Column(db.Float, nullable=True)  # For regression: actual - predicted
-    was_correct = db.Column(db.Boolean, nullable=True, index=True)  # For classification
-    validated_at = db.Column(db.DateTime, nullable=True)
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=now_utc)
-
-    # Relationships
-    user = db.relationship('User', backref=db.backref('ml_predictions', lazy='dynamic'))
-
-    def __repr__(self):
-        return f'<MLPredictionLog {self.id}: {self.model_name} v{self.model_version}>'

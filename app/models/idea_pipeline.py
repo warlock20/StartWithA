@@ -66,7 +66,6 @@ class KillChecklist(db.Model):
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     is_default = db.Column(db.Boolean, default=False)
-    applicable_to = db.Column(db.String(100), default='all')
     criteria = db.relationship('KillCriterion', backref='kill_checklist', lazy='dynamic', cascade='all, delete-orphan', order_by='KillCriterion.order')
     kill_sessions = db.relationship('KillSession', backref='checklist', lazy='dynamic', cascade='all, delete-orphan')
     total_ideas_evaluated = db.Column(db.Integer, default=0)
@@ -107,7 +106,6 @@ class KillCriterion(db.Model):
     last_used = db.Column(db.DateTime)
 
     killed_ideas = db.relationship('IdeaPipeline', backref='failed_criterion', foreign_keys='IdeaPipeline.failed_criterion_id')
-    source_mistake = db.relationship('MistakeLog', backref='generated_criteria')
 
     @property
     def failure_rate(self):
@@ -132,7 +130,6 @@ class KillSession(db.Model):
     completed_at = db.Column(db.DateTime)
     outcome = db.Column(db.String(50))  # 'killed', 'survived', 'paused'
     answers = db.relationship('KillAnswer', backref='session', lazy='dynamic', cascade='all, delete-orphan')
-    time_taken_seconds = db.Column(db.Integer)
 
     def __repr__(self):
         return f'<KillSession for Idea {self.idea_id}>'
@@ -230,7 +227,6 @@ class IdeaSourceAnalysis(db.Model):
     survival_rate = db.Column(db.Float)  # % that pass kill test
     investment_rate = db.Column(db.Float)  # % that become investments
     average_research_hours = db.Column(db.Float)
-    average_confidence = db.Column(db.Float)
 
     # Outcome tracking
     successful_investments = db.Column(db.Integer, default=0)

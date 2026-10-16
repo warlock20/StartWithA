@@ -183,7 +183,6 @@ class DocumentImport(db.Model):
 
     # Relationships
     user = db.relationship('User', backref='document_imports')
-    created_checklist = db.relationship('Checklist', backref='document_import', uselist=False)
 
     def __repr__(self):
         return f'<DocumentImport {self.filename} - {self.status}>'
