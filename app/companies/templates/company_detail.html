@@ -601,8 +601,10 @@ window.companyConfig = {
 
         // ---- Timeline Filter Sub-Tabs ----
 
-        var filterTabs = document.querySelectorAll('#timelineFilterTabs .journey-tab');
-        var timelineItems = document.querySelectorAll('.journey-item');
+        var filterTabs = document.querySelectorAll('#timelineFilterTabs .tl-filter');
+        var timelineItems = document.querySelectorAll('#timelineList .tl-item');
+        var monthLabels = document.querySelectorAll('#timelineList .tl-month');
+        var expandAllBtn = document.getElementById('timelineExpandAll');
 
         filterTabs.forEach(function(filterTab) {
             filterTab.addEventListener('click', function() {
@@ -610,12 +612,30 @@ window.companyConfig = {
                 if (!filter) return;
                 filterTabs.forEach(function(t) { t.classList.remove('active'); });
                 this.classList.add('active');
+                var visibleMonths = {};
                 timelineItems.forEach(function(item) {
-                    var itemType = item.getAttribute('data-type');
-                    item.style.display = (filter === 'all' || itemType === filter) ? 'block' : 'none';
+                    var show = filter === 'all' || item.getAttribute('data-type') === filter;
+                    item.hidden = !show;
+                    if (show) visibleMonths[item.getAttribute('data-month')] = true;
+                });
+                // Hide month headings that have no visible events under the filter
+                monthLabels.forEach(function(label) {
+                    label.hidden = !visibleMonths[label.getAttribute('data-month')];
                 });
             });
         });
+
+        if (expandAllBtn) {
+            expandAllBtn.addEventListener('click', function() {
+                var expand = this.getAttribute('aria-pressed') !== 'true';
+                document.querySelectorAll('#timelineList details.tl-entry').forEach(function(d) {
+                    d.open = expand;
+                });
+                this.setAttribute('aria-pressed', expand ? 'true' : 'false');
+                this.querySelector('i').className = expand ? 'bi bi-arrows-collapse' : 'bi bi-arrows-expand';
+                this.querySelector('span').textContent = expand ? 'Collapse all' : 'Expand all';
+            });
+        }
     }); // end DOMContentLoaded
 })();
 </script>
