@@ -91,7 +91,3 @@ button {
 button:hover {
     opacity: 0.9;
 }
-
-.table-responsive {
-    overflow: visible;
-}

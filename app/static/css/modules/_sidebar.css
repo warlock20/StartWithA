@@ -135,6 +135,10 @@
 .topbar-dropdown .dropdown-menu {
     min-width: 200px !important;
     margin-top: var(--space-xs) !important;
+    /* The global .dropdown-menu rule disables Popper's placement, which left this
+       menu hanging off the toggle's left edge and past the screen on phones.
+       Anchor it to the toggle's right edge instead. */
+    right: 0 !important;
 }
 
 /* ── Tier badge in topbar ── */
