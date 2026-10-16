@@ -82,9 +82,6 @@
 }
 
 /* Row pulse while a position is being updated */
-.row-updating {
-    animation: row-pulse 1s ease-in-out infinite;
-}
 
 @keyframes row-pulse {
     0%, 100% { opacity: 1; }
@@ -92,12 +89,6 @@
 }
 
 /* Flash green/red when a row finishes updating */
-.row-updated-gain {
-    animation: flash-gain 0.6s ease;
-}
-.row-updated-loss {
-    animation: flash-loss 0.6s ease;
-}
 
 @keyframes flash-gain {
     0%   { background: rgba(16, 185, 129, 0.15); }

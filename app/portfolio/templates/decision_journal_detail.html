@@ -250,12 +250,12 @@
                     </div>
                     <div class="mb-2">
                         <label class="form-label fw-semibold small">Current Value</label>
-                        <div>${{ '{:,.2f}'.format(position.current_value or 0) }}</div>
+                        <div>{{ position.currency|currency_symbol }}{{ '{:,.2f}'.format(position.current_value or 0) }}</div>
                     </div>
                     <div class="mb-2">
                         <label class="form-label fw-semibold small">Unrealized P/L</label>
                         <div class="{% if position.unrealized_gain_loss and position.unrealized_gain_loss > 0 %}text-success{% elif position.unrealized_gain_loss and position.unrealized_gain_loss < 0 %}text-danger{% endif %}">
-                            ${{ '{:,.2f}'.format(position.unrealized_gain_loss or 0) }}
+                            {{ current_user.base_currency|currency_symbol }}{{ '{:,.2f}'.format(position.unrealized_gain_loss or 0) }}
                             {% if position.unrealized_gain_loss_pct %}
                             ({{ '{:,.1f}'.format(position.unrealized_gain_loss_pct) }}%)
                             {% endif %}
@@ -289,7 +289,7 @@
                                     <span class="ms-2">{{ txn.quantity }} shares</span>
                                 </div>
                                 <div class="text-end">
-                                    <div class="small">${{ '{:,.2f}'.format(txn.price_per_share) }}</div>
+                                    <div class="small">{{ txn.currency|currency_symbol }}{{ '{:,.2f}'.format(txn.price_per_share) }}</div>
                                     <div class="small text-muted">{{ txn.date.strftime('%Y-%m-%d') }}</div>
                                 </div>
                             </div>

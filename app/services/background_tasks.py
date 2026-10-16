@@ -47,6 +47,17 @@ MAX_REMEMBERED_CELERY_TASKS = 20
 # likely one the worker never received, and reusing it would block the user.
 PENDING_REUSE_SECONDS = 120
 
+# Progress reported to polling clients for each task status.
+TASK_PROGRESS = {'pending': 10, 'running': 50, 'completed': 100, 'failed': 0}
+
+# The PENDING/STARTED/SUCCESS/FAILURE states and progress older polling pages expect.
+LEGACY_POLL_STATES = {
+    'pending': ('PENDING', 10),
+    'running': ('STARTED', 50),
+    'completed': ('SUCCESS', 100),
+    'failed': ('FAILURE', 100),
+}
+
 
 def parse_task_type(task_type: str) -> tuple:
     """
@@ -143,6 +154,37 @@ class BackgroundTaskService:
             result['error'] = task.error_message
 
         return result
+
+    @staticmethod
+    def owned_task(task_id, user_id):
+        """The user's BackgroundTask with this id, or None."""
+        return BackgroundTask.query.filter_by(id=task_id, user_id=user_id).first()
+
+    @staticmethod
+    def stored_result(task):
+        """The task's JSON result decoded, or None."""
+        return json.loads(task.result) if task.result else None
+
+    @staticmethod
+    def poll_payload(task, result=None, failure_default='Analysis failed'):
+        """Polling response: state (status upper-cased), progress, and the result or error."""
+        payload = {'state': task.status.upper(), 'current': TASK_PROGRESS.get(task.status, 0), 'total': 100}
+        if task.status == 'completed' and result is not None:
+            payload['result'] = result
+        elif task.status == 'failed':
+            payload['error'] = task.error_message or failure_default
+        return payload
+
+    @staticmethod
+    def legacy_poll_payload(task, messages):
+        """Polling response in the PENDING/STARTED/SUCCESS/FAILURE shape, with a status message per state."""
+        if task.status not in LEGACY_POLL_STATES:
+            return {'state': 'UNKNOWN', 'current': 0, 'total': 100, 'status': f'Task state: {task.status}'}
+        state, current = LEGACY_POLL_STATES[task.status]
+        payload = {'state': state, 'current': current, 'total': 100, 'status': messages[task.status]}
+        if task.status == 'failed':
+            payload['error'] = task.error_message or 'Unknown error'
+        return payload
 
     @staticmethod
     def remember_celery_task(task_id):

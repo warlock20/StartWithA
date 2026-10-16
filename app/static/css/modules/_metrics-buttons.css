@@ -228,315 +228,23 @@
 }
 
 /* Legacy stats grid - kept for backward compatibility */
-.portfolio-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--space-md);
-    margin-bottom: var(--space-lg);
-}
-
-.portfolio-stat-card {
-    background: var(--background-white);
-    padding: var(--space-lg);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-fast);
-}
-
-.portfolio-stat-card:hover {
-    box-shadow: var(--shadow-medium);
-    transform: translateY(-2px);
-}
-
-.portfolio-stat-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    margin-bottom: 0.75rem;
-}
-
-.portfolio-stat-icon.blue {
-    background: var(--primary-100);
-    color: var(--primary-600);
-}
-
-.portfolio-stat-icon.green {
-    background: var(--success-50);
-    color: var(--success-600);
-}
-
-.portfolio-stat-icon.purple {
-    background: #ede9fe;
-    color: #8b5cf6;
-}
-
-.portfolio-stat-icon.gray {
-    background: var(--gray-100);
-    color: var(--gray-600);
-}
-
-.portfolio-stat-icon.red {
-    background: var(--danger-50);
-    color: var(--danger-500);
-}
-
-.portfolio-stat-icon.orange {
-    background: var(--warning-50);
-    color: var(--warning-500);
-}
-
-.portfolio-stat-label {
-    font-size: var(--font-size-xs);
-    font-weight: 500;
-    color: var(--text-muted);
-    margin-bottom: 0.25rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.portfolio-stat-value {
-    font-size: var(--font-size-xl);
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 0.15rem;
-}
-
-.portfolio-stat-trend {
-    font-size: var(--font-size-xs);
-    font-weight: 500;
-    color: var(--text-muted);
-}
-
-.portfolio-stat-trend.up {
-    color: var(--success-500);
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.portfolio-stat-trend.down {
-    color: var(--danger-500);
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-@media (max-width: 576px) {
-    .portfolio-stats-grid {
-        grid-template-columns: 1fr;
-    }
-}
 
 /* =============================================================================
    TABLE CELL STYLES
    ============================================================================= */
-.portfolio-company-ticker {
-    font-weight: 600;
-    color: var(--gray-900);
-    font-size: 1rem;
-}
-
-.portfolio-company-name {
-    font-size: var(--font-size-sm);
-    color: var(--gray-600);
-    margin-top: 0.25rem;
-}
-
-.portfolio-value-positive {
-    color: var(--success-600);
-    font-weight: 600;
-}
-
-.portfolio-value-negative {
-    color: var(--danger-600);
-    font-weight: 600;
-}
-
-.portfolio-badge-modern {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    background: var(--gray-100);
-    color: var(--gray-600);
-    border-radius: 20px;
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-}
-
-.portfolio-btn-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    border: 1px solid var(--border-light);
-    background: white;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    margin: 0 0.25rem;
-    color: var(--gray-700);
-    text-decoration: none;
-}
-
-.portfolio-btn-icon:hover {
-    background: var(--primary-600);
-    border-color: var(--primary-600);
-    color: white;
-    transform: translateY(-2px);
-    text-decoration: none;
-}
-
-.portfolio-btn-export {
-    padding: 0.625rem 1.25rem;
-    border-radius: 8px;
-    border: 1px solid var(--border-light);
-    background: var(--background-white);
-    color: var(--gray-900);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.portfolio-btn-export:hover {
-    background: var(--gray-100);
-    border-color: var(--primary-600);
-}
 
 /* =============================================================================
    LEGACY STYLES - For Backward Compatibility
    ============================================================================= */
 /* Portfolio Section - Minimalist with dividers */
-.portfolio-section {
-    background: var(--background-white);
-    margin-bottom: var(--space-2xl);
-}
-
-.portfolio-section-header {
-    padding: var(--space-lg) 0;
-    border-bottom: 3px solid var(--gray-800);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0;
-}
-
-.portfolio-section-title {
-    font-family: 'Poppins', sans-serif;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--gray-800);
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-}
-
-.portfolio-section-title i {
-    color: var(--primary-600);
-}
-
-.portfolio-section-badge {
-    background: var(--primary-600);
-    color: white;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    margin-left: var(--space-sm);
-}
-
-.portfolio-section-controls {
-    display: flex;
-    gap: var(--space-sm);
-    align-items: center;
-}
 
 /* Table container - no padding for full-width tables */
-.portfolio-table-container {
-    overflow-x: auto;
-}
-
-.portfolio-table-container table {
-    margin: 0;
-    width: 100%;
-}
-
-.portfolio-table-container thead th {
-    background: transparent;
-    border-top: none;
-    border-bottom: 2px solid var(--gray-300);
-    color: var(--gray-700);
-    font-weight: 600;
-    font-size: 0.8125rem;
-    padding: 1rem 0.75rem;
-    white-space: nowrap;
-}
-
-.portfolio-table-container tbody td {
-    padding: 1.25rem 0.75rem;
-    vertical-align: middle;
-    border-color: var(--border-light);
-}
-
-.portfolio-table-container tbody tr:hover {
-    background-color: var(--gray-50);
-}
-
-.portfolio-table-container tbody tr:last-child td {
-    border-bottom: none;
-}
 
 /* Portfolio Table Styles */
-.portfolio-holdings-table th a {
-    text-decoration: none;
-    color: inherit;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.portfolio-holdings-table th a:hover {
-    color: var(--primary-600);
-}
-
-.portfolio-holdings-table .sort-icon {
-    font-size: 0.75rem;
-    opacity: 0.7;
-}
 
 /* Checkpoint Status Badges */
-.checkpoint-overdue {
-    background-color: var(--danger-500);
-    color: white;
-}
-
-.checkpoint-due-soon {
-    background-color: var(--warning-500);
-    color: #000;
-}
-
-.checkpoint-future {
-    background-color: var(--gray-500);
-    color: white;
-}
 
 /* Position Detail Checkpoint Actions */
-.checkpoint-quick-actions {
-    display: flex;
-    gap: 0.25rem;
-}
-
-.checkpoint-quick-actions .btn {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
-}
 
 /* Empty state within portfolio sections */
 .portfolio-empty-state {
@@ -558,35 +266,13 @@
     margin-bottom: var(--space-sm);
 }
 
-.portfolio-empty-state-description {
-    color: var(--gray-500);
-    margin-bottom: var(--space-lg);
-}
-
 /* =============================================================================
    PROMOTED — Stat label (Phase 3 split — shared across all bundles)
    ============================================================================= */
-.stat-label {
-    font-size: 0.875rem;
-    color: var(--gray-600);
-    font-weight: 500;
-}
 
 /* =============================================================================
    PROMOTED — Progress components (Phase 3 split — shared by portfolio/companies)
    ============================================================================= */
-.progress-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-}
-
-.progress-value {
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--primary-600);
-}
 
 .progress-bar-container {
     width: 100%;

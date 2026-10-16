@@ -21,18 +21,3 @@
 }
 
 /* AI Analysis Result Boxes */
-.ai-error {
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-    padding: 1rem;
-    background-color: #f8d7da;
-    border-radius: 0.25rem;
-}
-
-.ai-warning {
-    color: #856404;
-    border: 1px solid #ffeeba;
-    padding: 1rem;
-    background-color: #fff3cd;
-    border-radius: 0.25rem;
-}

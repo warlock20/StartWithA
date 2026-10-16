@@ -178,31 +178,20 @@ def ai_assist_status(task_id):
     # making the client wait out its entire poll budget on a dead job.
     BackgroundTaskService.fail_if_stalled(task_id, current_user.id, Config.AI_ASSIST_HARD_TIME_LIMIT)
 
-    task_status = BackgroundTaskService.get_task_status(task_id, current_user.id)
-
-    if not task_status:
+    task = BackgroundTaskService.owned_task(task_id, current_user.id)
+    if not task:
         return jsonify({'state': 'NOT_FOUND'}), 404
 
-    response = {'current': 0, 'total': 100}
-
-    if task_status['status'] == 'pending':
-        response['state'] = 'PENDING'
-        response['current'] = 10
-    elif task_status['status'] == 'running':
-        response['state'] = 'RUNNING'
-        response['current'] = 50
-    elif task_status['status'] == 'completed':
-        response['state'] = 'COMPLETED'
-        response['current'] = 100
-        result = task_status.get('result', {})
-        response['response'] = result.get('response', '')
-        response['mode'] = result.get('mode', '')
-        response['tokens_used'] = result.get('tokens_used', 0)
-        response['feedback_id'] = result.get('feedback_id')
-    elif task_status['status'] == 'failed':
-        response['state'] = 'FAILED'
-        response['error'] = task_status.get('error', 'AI analysis failed')
-
+    response = BackgroundTaskService.poll_payload(task, failure_default='AI analysis failed')
+    if task.status == 'completed':
+        # This client reads the result fields at the top level.
+        result = BackgroundTaskService.stored_result(task) or {}
+        response.update(
+            response=result.get('response', ''),
+            mode=result.get('mode', ''),
+            tokens_used=result.get('tokens_used', 0),
+            feedback_id=result.get('feedback_id'),
+        )
     return jsonify(response)
 
 

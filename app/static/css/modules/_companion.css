@@ -132,30 +132,6 @@
 }
 
 /* Dismiss for sidebar items */
-.companion-alert-dismiss {
-    position: absolute;
-    top: 0.4rem;
-    right: 0.4rem;
-    background: none;
-    border: none;
-    color: var(--gray-300);
-    cursor: pointer;
-    padding: 0.15rem;
-    border-radius: 3px;
-    line-height: 1;
-    font-size: 0.7rem;
-    opacity: 0;
-    transition: opacity var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
-}
-
-.companion-alert-item:hover .companion-alert-dismiss {
-    opacity: 1;
-}
-
-.companion-alert-dismiss:hover {
-    background: rgba(0,0,0,0.05);
-    color: var(--gray-600);
-}
 
 /* Dismiss animation */
 .companion-alert-item.dismissing {

@@ -213,18 +213,6 @@
     text-decoration: none;
 }
 
-.rcl-action--danger {
-    border-color: #fca5a5;
-    color: #dc2626;
-}
-
-.rcl-action--danger:hover {
-    background: #fef2f2;
-    border-color: #dc2626;
-    color: #dc2626;
-    text-decoration: none;
-}
-
 /* ── EMPTY STATE ──────────────────────────────────── */
 
 .rcl-empty-state {
@@ -329,7 +317,6 @@
 .rcl-activity-dot.c-success { background: var(--success-500); }
 .rcl-activity-dot.c-warning { background: var(--warning-500); }
 .rcl-activity-dot.c-danger  { background: var(--danger-500); }
-.rcl-activity-dot.c-violet  { background: #8b5cf6; }
 
 .rcl-activity-text {
     font-size: var(--font-size-sm);
@@ -406,33 +393,6 @@
 .rcl-funnel-bar--invested  { background: var(--warning-500); }
 
 /* Quick stats */
-.rcl-quick-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-}
-
-.rcl-quick-stat {
-    text-align: center;
-    padding: 0.75rem var(--space-sm);
-    background: var(--gray-50);
-    border-radius: var(--radius-sm);
-}
-
-.rcl-quick-stat-value {
-    font-family: 'Space Mono', monospace;
-    font-size: var(--font-size-lg);
-    font-weight: 700;
-    color: var(--gray-800);
-}
-
-.rcl-quick-stat-label {
-    font-size: var(--font-size-xs);
-    color: var(--gray-400);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-top: 0.125rem;
-}
 
 /* ── TABULATOR OVERRIDES (scoped to .rcl-panel) ───── */
 /*

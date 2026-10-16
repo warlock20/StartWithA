@@ -20,14 +20,13 @@ Argos API Routes
 Endpoints for Argos intelligent research assistant.
 """
 
-import json
 import logging
 
 from flask import jsonify, request
 from flask_login import current_user, login_required
 
 from app import limiter
-from app.models import Company, BackgroundTask
+from app.models import Company
 from app.research_workflow import research_workflow_bp
 from app.services.argos import ArgosService, argos_check
 from app.services.background_tasks import BackgroundTaskService
@@ -225,19 +224,9 @@ def argos_deep_analysis_status(task_id):
     Response JSON (failed):
         {"state": "FAILED", "error": "..."}
     """
-    task = BackgroundTask.query.get(task_id)
+    task = BackgroundTaskService.owned_task(task_id, current_user.id)
     if not task:
         return json_error('Task not found', status_code=404)
 
-    if task.user_id != current_user.id:
-        return json_error('Task not found', status_code=404)
-
-    if task.status == 'completed':
-        result = json.loads(task.result) if task.result else {}
-        return jsonify({'state': 'COMPLETED', 'result': result})
-    elif task.status == 'failed':
-        return jsonify({'state': 'FAILED', 'error': task.error_message or 'Unknown error'})
-    elif task.status == 'running':
-        return jsonify({'state': 'RUNNING'})
-    else:
-        return jsonify({'state': 'PENDING'})
+    return jsonify(BackgroundTaskService.poll_payload(
+        task, BackgroundTaskService.stored_result(task) or {}, failure_default='Unknown error'))

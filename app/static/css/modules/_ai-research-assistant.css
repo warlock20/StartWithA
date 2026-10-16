@@ -13,31 +13,7 @@ Styles for the unified AI Research Assistant accordion section
    AI Mode Cards - Interactive Grid
    ============================================================================= */
 
-.ai-mode-card {
-    transition: all 0.2s ease;
-    cursor: pointer;
-    border-width: 2px;
-}
-
-.ai-mode-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.ai-mode-card .card-body {
-    padding: 1rem;
-}
-
-.ai-mode-card:active {
-    transform: translateY(-2px);
-}
-
 /* Disabled state for optional features */
-.ai-mode-card.disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    pointer-events: none;
-}
 
 /* =============================================================================
    AI Response Area - Content Formatting
@@ -206,25 +182,6 @@ Styles for the unified AI Research Assistant accordion section
    Document Analysis Section
    ============================================================================= */
 
-.document-list {
-    max-height: 150px;
-    overflow-y: auto;
-    background: white;
-}
-
-.document-list .form-check {
-    padding: 0.25rem 0.5rem;
-}
-
-.document-list .form-check:hover {
-    background-color: rgba(0, 0, 0, 0.02);
-}
-
-.document-list .form-check-label {
-    cursor: pointer;
-    user-select: none;
-}
-
 /* =============================================================================
    Accordion Enhancements
    ============================================================================= */
@@ -249,21 +206,6 @@ Styles for the unified AI Research Assistant accordion section
 
 /* Mobile: Stack mode cards vertically */
 @media (max-width: 767px) {
-    .ai-mode-card .card-body {
-        padding: 0.75rem;
-    }
-
-    .ai-mode-card i {
-        font-size: 1.5rem !important;
-    }
-
-    .ai-mode-card h6 {
-        font-size: 0.9rem;
-    }
-
-    .ai-mode-card p {
-        font-size: 0.8rem;
-    }
 
     .ai-feedback-buttons {
         flex-wrap: wrap;
@@ -276,28 +218,14 @@ Styles for the unified AI Research Assistant accordion section
 }
 
 /* Tablet: 2 columns */
-@media (min-width: 768px) and (max-width: 991.98px) {
-    .ai-mode-card .card-body {
-        padding: 0.85rem;
-    }
-}
 
 /* Desktop: 3-4 columns based on available space */
-@media (min-width: 992px) {
-    .ai-mode-card {
-        min-height: 140px;
-    }
-}
 
 /* =============================================================================
    Accessibility Enhancements
    ============================================================================= */
 
 /* Focus states for keyboard navigation */
-.ai-mode-card:focus-visible {
-    outline: 3px solid var(--bs-primary);
-    outline-offset: 2px;
-}
 
 .ai-feedback-buttons .btn:focus-visible {
     outline: 2px solid var(--bs-primary);
@@ -306,13 +234,6 @@ Styles for the unified AI Research Assistant accordion section
 
 /* Reduce motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
-    .ai-mode-card {
-        transition: none;
-    }
-
-    .ai-mode-card:hover {
-        transform: none;
-    }
 
     .ai-response-content {
         animation: none;
@@ -356,9 +277,6 @@ Styles for the unified AI Research Assistant accordion section
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
-    .ai-mode-card {
-        border-width: 3px;
-    }
 
     .ai-response-content .alert {
         border-width: 2px;

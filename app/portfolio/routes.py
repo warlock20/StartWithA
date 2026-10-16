@@ -17,7 +17,6 @@
 # app/portfolio/routes.py
 
 import logging
-from datetime import datetime
 from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, jsonify, session, current_app
 from flask_login import login_required, current_user
@@ -31,28 +30,24 @@ from app.models import (
     PortfolioPosition,
     Company,
     DecisionJournal,
-    ResearchProject,
-    DestinationCheckpoint,
     ThesisEvolution,
     ResearchOutcome,
     BackgroundTask,
-    JournalEntry,
 )
 from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
-from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.utils.response_utils import json_error
 from app.utils.portfolio_utils import (
-     filter_positions_by_performance,
     calculate_holding_period_stats,
-    calculate_confidence_stats, count_positions_by_status
+    calculate_confidence_stats,
+    count_positions_by_status,
 )
 from app.services.background_tasks import BackgroundTaskService
 
 from app.constants import (
     MIN_TRADES_FOR_INSIGHTS,
-    RECENT_TRANSACTIONS_LIMIT, RECENT_DECISIONS_LIMIT, UPCOMING_CHECKPOINTS_LIMIT,
+    RECENT_DECISIONS_LIMIT,
     DEFAULT_CHECKPOINT_LOOKBACK_DAYS,
     MAX_DYNAMIC_FORM_FIELDS,
 )
@@ -64,7 +59,6 @@ from app.services.portfolio_intelligence import (
 from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
 from app.services.ai.prompt_service import get_effective_model_display
-from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.cash_service import CashService
 from app.services.portfolio_performance import PortfolioPerformanceService
 
@@ -462,6 +456,7 @@ def analytics():
                                       insights=insights,
                                       has_error=has_error,
                                       chart_data=chart_data,
+                                      chart_task_id=chart_task_id,
                                       selected_period=time_periods,
                                       sector_momentum=sector_momentum,
                                       tax_optimization=tax_optimization)
@@ -489,6 +484,7 @@ def analytics():
                                       insights=insights,
                                       has_error=False,
                                       chart_data=chart_data,
+                                      chart_task_id=chart_task_id,
                                       selected_period=time_periods,
                                       sector_momentum=sector_momentum,
                                       tax_optimization=tax_optimization,
@@ -502,6 +498,7 @@ def analytics():
                                       insights=placeholder_insights,
                                       has_error=True,
                                       chart_data=chart_data,
+                                      chart_task_id=chart_task_id,
                                       selected_period=time_periods,
                                       sector_momentum=sector_momentum,
                                       tax_optimization=tax_optimization,
@@ -525,6 +522,7 @@ def analytics():
                           insights=placeholder_insights,
                           has_error=False,
                           chart_data=chart_data,
+                          chart_task_id=chart_task_id,
                           selected_period=time_periods,
                           sector_momentum=sector_momentum,
                           tax_optimization=tax_optimization,
@@ -538,10 +536,8 @@ def analytics_status(task_id):
     Check the status of a running portfolio analytics task.
     Returns JSON for AJAX polling from loading page.
     """
-    # Get task status from database
-    task_status = BackgroundTaskService.get_task_status(task_id, current_user.id)
-
-    if not task_status:
+    task = BackgroundTaskService.owned_task(task_id, current_user.id)
+    if not task:
         return jsonify({
             'state': 'NOT_FOUND',
             'current': 0,
@@ -550,37 +546,15 @@ def analytics_status(task_id):
             'error': 'Task ID not found in database'
         })
 
-    # Map database status to response format
-    response = {
-        'current': 0,
-        'total': 100,
-        'status': ''
-    }
-
-    if task_status['status'] == 'pending':
-        response['state'] = 'PENDING'
-        response['status'] = 'Task is waiting to start...'
-        response['current'] = 10
-    elif task_status['status'] == 'running':
-        response['state'] = 'STARTED'
-        response['status'] = 'Analysis in progress...'
-        response['current'] = 50
-    elif task_status['status'] == 'completed':
-        response['state'] = 'SUCCESS'
-        response['status'] = 'Analysis completed!'
-        response['current'] = 100
-        # Include the result
-        if task_status.get('result'):
-            response['result'] = task_status['result']
-    elif task_status['status'] == 'failed':
-        response['state'] = 'FAILURE'
-        response['status'] = 'Analysis failed'
-        response['current'] = 100
-        response['error'] = task_status.get('error', 'Unknown error')
-    else:
-        response['state'] = 'UNKNOWN'
-        response['status'] = f"Task state: {task_status['status']}"
-
+    response = BackgroundTaskService.legacy_poll_payload(task, {
+        'pending': 'Task is waiting to start...',
+        'running': 'Analysis in progress...',
+        'completed': 'Analysis completed!',
+        'failed': 'Analysis failed',
+    })
+    result = BackgroundTaskService.stored_result(task)
+    if task.status == 'completed' and result:
+        response['result'] = result
     return jsonify(response)
 
 

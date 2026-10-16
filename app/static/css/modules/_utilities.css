@@ -81,37 +81,7 @@
     background: #e9ecef;
 }
 
-.timeline-item {
-    margin-bottom: 20px;
-    position: relative;
-    padding-left: 50px;
-}
-
-.timeline-icon {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    text-align: center;
-    line-height: 40px;
-    font-size: 1.2rem;
-    border: 2px solid #e9ecef;
-    background-color: #fff;
-    color: #fff;
-}
-
-.timeline-content {
-    position: relative;
-}
-
 /* Checklist Inspector */
-.checklist-tree-container {
-    max-height: 80vh;
-    overflow-y: auto;
-    padding-right: 10px;
-}
 
 .checklist-tree-item a {
     display: block;

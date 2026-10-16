@@ -255,20 +255,7 @@ def get_screening_analysis_status(task_id):
     Returns state and result when completed.
     """
     task = owned_or_404(BackgroundTask, task_id)
-
-    response = {
-        'state': task.status.upper(),
-        'current': {'pending': 10, 'running': 50, 'completed': 100, 'failed': 0}.get(task.status, 0),
-        'total': 100
-    }
-
-    if task.status == 'completed' and task.result:
-        response['result'] = json.loads(task.result)
-
-    elif task.status == 'failed':
-        response['error'] = task.error_message or 'Analysis failed'
-
-    return jsonify(response)
+    return jsonify(BackgroundTaskService.poll_payload(task, BackgroundTaskService.stored_result(task)))
 
 
 @analytics_bp.route('/api/screening-analysis/latest')

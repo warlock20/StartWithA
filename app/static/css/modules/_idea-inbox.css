@@ -40,25 +40,6 @@
 /* ── TABLE CELL COMPONENTS ───────────────────────── */
 
 /* Idea name cell */
-.idea-name-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-}
-
-.idea-name-primary {
-    font-weight: 600;
-    color: var(--gray-900);
-    font-size: var(--font-size-sm);
-    line-height: 1.3;
-}
-
-.idea-name-ticker {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.6875rem;
-    color: var(--gray-400);
-    letter-spacing: 0.04em;
-}
 
 /* Purpose badge */
 .idea-purpose-badge {
@@ -219,17 +200,6 @@
 .action-kill:hover {
     background: #fecaca;
     border-color: rgba(239, 68, 68, 0.4);
-}
-
-.action-continue {
-    background: var(--warning-50);
-    color: #92400e;
-    border-color: rgba(245, 158, 11, 0.2);
-}
-
-.action-continue:hover {
-    background: #fde68a;
-    border-color: rgba(245, 158, 11, 0.4);
 }
 
 .action-promote {

@@ -74,26 +74,8 @@
 }
 
 /* Readonly Mode Tree Styles */
-.checklist-tree-readonly {
-    font-size: var(--font-size-sm);
-}
-
-.checklist-tree-readonly .checklist-item {
-    padding: var(--space-sm);
-    margin-bottom: var(--space-xs);
-    border-radius: var(--border-radius);
-    transition: background-color var(--transition-normal);
-}
-
-.checklist-tree-readonly .checklist-item:hover {
-    background-color: var(--color-background-hover);
-}
 
 /* Make items with LLM prompts visually distinct */
-.checklist-tree-readonly [data-has-llm="true"] {
-    border-left: 3px solid var(--color-primary);
-    padding-left: calc(var(--space-sm) + 3px);
-}
 
 /* Inspector Panel Animations */
 #inspector-content {
@@ -162,15 +144,6 @@
 }
 
 /* Metric Cards Hover Effect */
-.checklist-view-metric-card {
-    transition: all var(--transition-normal);
-    cursor: default;
-}
-
-.checklist-view-metric-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-medium);
-}
 
 /* Action Grid Responsiveness */
 @media (max-width: 768px) {
@@ -192,10 +165,6 @@
 @media (max-width: 576px) {
     .checklist-view-tree-container {
         padding: var(--space-sm);
-    }
-
-    .checklist-view-metric-card {
-        margin-bottom: var(--space-sm);
     }
 }
 

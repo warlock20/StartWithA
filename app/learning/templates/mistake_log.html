@@ -24,7 +24,7 @@
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon gray"><i class="bi bi-currency-dollar"></i></div>
                 <div class="portfolio-metric-label">Estimated Cost</div>
-                <div class="portfolio-metric-value loss">${{ "{:,.0f}".format(total_cost) if total_cost else 0 }}</div>
+                <div class="portfolio-metric-value loss">{{ current_user.base_currency|currency_symbol }}{{ "{:,.0f}".format(total_cost) if total_cost else 0 }}</div>
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon purple"><i class="bi bi-arrow-repeat"></i></div>
@@ -75,7 +75,7 @@
                                                 </span>
                                                 {% if mistake.cost_estimate %}
                                                 <span class="mistake-cost-badge">
-                                                    ${{ "{:,.0f}".format(mistake.cost_estimate) }}
+                                                    {{ current_user.base_currency|currency_symbol }}{{ "{:,.0f}".format(mistake.cost_estimate) }}
                                                 </span>
                                                 {% endif %}
                                             </div>
@@ -189,7 +189,7 @@
                         {% if mistake.cost_estimate %}
                         <li class="insight-list-item">
                             <div class="insight-item-title">{{ mistake.title }}</div>
-                            <div class="insight-item-meta">Cost: ${{ "{:,.0f}".format(mistake.cost_estimate) }}</div>
+                            <div class="insight-item-meta">Cost: {{ current_user.base_currency|currency_symbol }}{{ "{:,.0f}".format(mistake.cost_estimate) }}</div>
                             <p class="insight-item-lesson">Lesson: {{ mistake.lesson_learned|truncate(100) }}</p>
                         </li>
                         {% endif %}

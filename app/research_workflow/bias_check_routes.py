@@ -23,7 +23,6 @@ Based on Charlie Munger's "Psychology of Human Misjudgment" framework.
 Uses background tasks for non-blocking analysis.
 """
 
-import json
 import logging
 from flask import jsonify, request
 from flask_login import current_user, login_required
@@ -126,26 +125,13 @@ def get_bias_check_status(task_id):
     """
     task = owned_or_404(BackgroundTask, task_id)
 
-    response = {
-        'state': task.status.upper(),
-        'current': {'pending': 10, 'running': 50, 'completed': 100, 'failed': 0}.get(task.status, 0),
-        'total': 100
-    }
+    # The task stores only the BiasCheckResult id; send the full result.
+    result_id = (BackgroundTaskService.stored_result(task) or {}).get('result_id')
+    bias_result = BiasCheckResult.query.get(result_id) if result_id else None
 
-    if task.status == 'completed' and task.result:
-        task_result = json.loads(task.result)
-        result_id = task_result.get('result_id')
-
-        # Fetch the full bias check result
-        if result_id:
-            bias_result = BiasCheckResult.query.get(result_id)
-            if bias_result:
-                response['result'] = bias_result.to_dict()
-                response['result_id'] = result_id
-
-    elif task.status == 'failed':
-        response['error'] = task.error_message or 'Analysis failed'
-
+    response = BackgroundTaskService.poll_payload(task, bias_result.to_dict() if bias_result else None)
+    if 'result' in response:
+        response['result_id'] = result_id
     return jsonify(response)
 
 

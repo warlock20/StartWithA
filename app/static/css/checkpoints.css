@@ -339,44 +339,8 @@
 }
 
 /* Stat Card Icon Color Variants */
-.portfolio-stat-icon.red {
-    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-    color: #dc2626;
-}
-
-.portfolio-stat-icon.orange {
-    background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
-    color: #ea580c;
-}
-
-.portfolio-stat-icon.yellow {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    color: #f59e0b;
-}
-
-.portfolio-stat-icon.green {
-    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-    color: #16a34a;
-}
-
-.portfolio-stat-icon.purple {
-    background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%);
-    color: #9333ea;
-}
-
-.portfolio-stat-icon.blue {
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    color: #2563eb;
-}
 
 /* Stat Card Highlights */
-.portfolio-stat-card.danger-highlight {
-    border-color: #fecaca;
-}
-
-.portfolio-stat-card.warning-highlight {
-    border-color: #fde68a;
-}
 
 /* Responsive Adjustments */
 @media (max-width: 768px) {
