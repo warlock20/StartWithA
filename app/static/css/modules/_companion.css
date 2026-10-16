@@ -924,6 +924,67 @@
         width: 100%;
     }
 
+    /* A full-height 44px strip costs a phone ~12% of its width, so collapsed
+       becomes a floating orb instead and the page gets its full width back. */
+    .app-layout:has(.companion-rail) .app-main {
+        padding-right: 0;
+    }
+
+    .companion-rail.collapsed {
+        top: auto;
+        right: 1rem;
+        bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        width: 48px;
+        height: 48px;
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .companion-rail.collapsed .companion-rail-tab {
+        position: relative;
+        padding: 0;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .companion-rail.collapsed .companion-rail-tab:hover {
+        background: transparent;
+    }
+
+    .companion-rail.collapsed .companion-rail-orb-sm {
+        width: 48px;
+        height: 48px;
+        font-size: 1rem;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+    }
+
+    .companion-rail.collapsed .companion-rail-tab-badge {
+        top: 2px;
+        right: 2px;
+        width: 11px;
+        height: 11px;
+    }
+
+    /* The orb already breathes while a question runs, so the spinner is
+       redundant here. Insights become a small pill on the orb's corner. */
+    .companion-rail.collapsed .companion-rail-spinner {
+        display: none !important;
+    }
+
+    .companion-rail.collapsed .companion-rail-light {
+        position: absolute;
+        top: -6px;
+        left: -6px;
+        flex-direction: row;
+        gap: 0.15rem;
+        padding: 2px 5px;
+        background: #fff;
+        border-radius: 999px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    }
+
     /* Keep the composer clear of the home indicator on notched phones. */
     .companion-rail-footer {
         padding-bottom: env(safe-area-inset-bottom, 0px);

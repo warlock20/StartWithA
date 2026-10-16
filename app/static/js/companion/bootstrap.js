@@ -28,7 +28,11 @@
   // Restore the rail's expanded state across navigation (tab-global). Markup
   // ships collapsed, so this only ever expands. Don't focus the input on
   // restore — that would steal focus/scroll on every page load.
-  if (sessionStorage.getItem(CompanionChat.keys.open)) {
+  // Not on phones: there the open rail is full-screen and locks the page, so
+  // restoring it would bury every page the user navigates to. An answer that
+  // lands meanwhile still lights the badge on the collapsed orb.
+  const isPhone = window.matchMedia('(max-width: 768px)').matches;
+  if (!isPhone && sessionStorage.getItem(CompanionChat.keys.open)) {
     CompanionChat.setOpen(true);
   }
 
