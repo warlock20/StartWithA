@@ -19,7 +19,6 @@ import tempfile
 from decimal import Decimal, InvalidOperation
 import json
 import logging
-import datetime
 from flask import request, render_template, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
@@ -29,7 +28,6 @@ from app.models import (
                         Company,Transaction, PortfolioPosition,
                         ResearchProject, update_portfolio_position)
 from app import db
-from app.services.portfolio_importer import PortfolioImportError
 from app.services.background_tasks import BackgroundTaskService
 from app.services.currency_service import CurrencyService
 from app.services.transaction_service import TransactionService
@@ -143,33 +141,19 @@ def import_complete(task_id):
 @login_required
 def import_status(task_id):
     """Check the status of a running import task. Returns JSON for AJAX polling."""
-    task_status = BackgroundTaskService.get_task_status(task_id, current_user.id)
-
-    if not task_status:
+    task = BackgroundTaskService.owned_task(task_id, current_user.id)
+    if not task:
         return jsonify({'state': 'NOT_FOUND', 'current': 0, 'total': 100, 'status': 'Task not found'})
 
-    response = {'current': 0, 'total': 100, 'status': ''}
-
-    if task_status['status'] == 'pending':
-        response['state'] = 'PENDING'
-        response['status'] = 'Import queued, waiting to start...'
-        response['current'] = 10
-    elif task_status['status'] == 'running':
-        response['state'] = 'STARTED'
-        response['status'] = 'Importing transactions and fetching company data...'
-        response['current'] = 50
-    elif task_status['status'] == 'completed':
-        response['state'] = 'SUCCESS'
-        response['current'] = 100
-        result = task_status.get('result', {})
-        response['status'] = result.get('message', 'Import completed!') if result else 'Import completed!'
+    result = BackgroundTaskService.stored_result(task) or {}
+    response = BackgroundTaskService.legacy_poll_payload(task, {
+        'pending': 'Import queued, waiting to start...',
+        'running': 'Importing transactions and fetching company data...',
+        'completed': result.get('message', 'Import completed!'),
+        'failed': 'Import failed',
+    })
+    if task.status == 'completed':
         response['result'] = result
-    elif task_status['status'] == 'failed':
-        response['state'] = 'FAILURE'
-        response['current'] = 100
-        response['status'] = 'Import failed'
-        response['error'] = task_status.get('error', 'Unknown error')
-
     return jsonify(response)
 
 @portfolio_bp.route('/transactions/reset', methods=['POST'])

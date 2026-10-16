@@ -33,6 +33,7 @@ from app.research_workflow import research_workflow_bp
 from app.research_workflow.template_routes import ensure_default_template
 from app.analytics.utils import log_research_activity
 from app.services.company_state import company_state
+from app.utils.auth_utils import owned_or_404
 
 
 @research_workflow_bp.route('/intelligent-routing')
@@ -46,10 +47,7 @@ def intelligent_routing():
         flash('Company ID is required for intelligent routing', 'error')
         return redirect(url_for('dashboard.main'))
 
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('dashboard.main'))
+    company = owned_or_404(Company, company_id)
 
     # The ladder answers "is this company dead" across all four tables. The
     # status queries below cannot: a screening kill leaves status='killed',

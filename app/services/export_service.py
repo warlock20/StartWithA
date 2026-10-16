@@ -21,12 +21,11 @@ and company journey data.
 """
 
 import io
-import json
 import logging
 import os
 import zipfile
 
-from app.utils.blocknote_utils import blocknote_to_text
+from app.utils.blocknote_utils import blocknote_to_markdown
 from app.utils.time_utils import now_utc
 from app.models import (
     ResearchProject, CompanyResource,
@@ -69,69 +68,6 @@ def safe_name(text):
         c if c.isalnum() or c in (' ', '-', '_') else '_'
         for c in (text or 'Unknown')
     ).strip()
-
-
-def blocknote_to_markdown(content):
-    """
-    Convert BlockNote JSON content into lightweight markdown preserving
-    headings, paragraphs, lists, and inline formatting.  Falls back to
-    plain text when the content is not valid BlockNote JSON.
-    """
-    if not content or not str(content).strip():
-        return ''
-
-    try:
-        blocks = json.loads(content)
-        if not isinstance(blocks, list):
-            return blocknote_to_text(content)
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return blocknote_to_text(content)
-
-    parts = []
-    for block in blocks:
-        if not isinstance(block, dict):
-            continue
-
-        block_type = block.get('type', '')
-        content_list = block.get('content', [])
-        props = block.get('props', {}) or {}
-
-        text = ''
-        if isinstance(content_list, list):
-            for item in content_list:
-                if isinstance(item, dict) and item.get('type') == 'text':
-                    t = item.get('text', '') or ''
-                    styles = item.get('styles', {}) or {}
-                    if styles.get('bold'):
-                        t = f"**{t}**"
-                    if styles.get('italic'):
-                        t = f"*{t}*"
-                    if styles.get('strike'):
-                        t = f"~~{t}~~"
-                    text += t
-
-        if not text.strip() and block_type not in ('bulletListItem', 'numberedListItem'):
-            parts.append('')
-            continue
-
-        if block_type == 'heading':
-            level = props.get('level', 2)
-            try:
-                level = int(level)
-            except (TypeError, ValueError):
-                level = 2
-            level = max(1, min(level, 6))
-            parts.append(f"{'#' * level} {text}")
-        elif block_type == 'bulletListItem':
-            parts.append(f"- {text}")
-        elif block_type == 'numberedListItem':
-            parts.append(f"1. {text}")
-        elif block_type == 'quote':
-            parts.append(f"> {text}")
-        else:
-            parts.append(text)
-
-    return "\n".join(parts).strip()
 
 
 def format_dt(dt):

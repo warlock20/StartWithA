@@ -171,13 +171,6 @@
 }
 
 /* Quick Actions Section */
-.hub-quick-actions {
-    display: flex;
-    justify-content: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-top: 1rem;
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {

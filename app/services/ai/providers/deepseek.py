@@ -35,7 +35,7 @@ import json
 import logging
 from typing import Dict, List, Optional, Any
 
-from .base import AIProvider
+from .base import AIProvider, strip_code_fences
 from ..config import get_ai_config, AIModel, AIProvider as AIProviderEnum
 from ..analytics import log_prompt_usage
 from app.utils.time_utils import now_utc
@@ -315,17 +315,7 @@ IMPORTANT: Respond ONLY with valid JSON. No markdown code blocks, no explanation
             if not response.choices or not response.choices[0].message.content:
                 raise ValueError("Empty response from DeepSeek")
 
-            text = response.choices[0].message.content.strip()
-
-            # Clean up markdown code blocks if present (fallback)
-            if text.startswith('```json'):
-                text = text[7:]
-            elif text.startswith('```'):
-                text = text[3:]
-            if text.endswith('```'):
-                text = text[:-3]
-
-            return json.loads(text.strip())
+            return json.loads(strip_code_fences(response.choices[0].message.content))
 
         except json.JSONDecodeError as e:
             success = False

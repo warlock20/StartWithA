@@ -3,12 +3,6 @@
    Clean, centered login/register pages with no nav/footer
    ============================================================================= */
 
-.auth-page-body {
-    margin: 0;
-    padding: 0;
-    background: var(--public-bg);
-}
-
 .auth-page {
     min-height: 100vh;
     display: flex;
@@ -35,14 +29,6 @@
     height: 56px;
     max-width: 100%;
     margin: 0 auto;
-}
-
-.auth-brand-name {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--public-text);
-    letter-spacing: -0.02em;
 }
 
 .auth-brand-tagline {
@@ -320,9 +306,5 @@
 
     .auth-card-footer {
         padding: 0.875rem 1.25rem;
-    }
-
-    .auth-brand-name {
-        font-size: 1.25rem;
     }
 }

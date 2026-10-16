@@ -37,6 +37,8 @@ import fitz
 import numpy as np
 import pytest
 from flask import current_app
+from flask.sessions import SecureCookieSessionInterface
+from itsdangerous import BadSignature
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine.url import make_url
 
@@ -64,6 +66,28 @@ class TestConfig(Config):
     WTF_CSRF_ENABLED = False
     # The session-wide in-memory limiter would otherwise carry hits across tests (flaky 429s).
     RATELIMIT_ENABLED = False
+
+
+class ClockTolerantSessionInterface(SecureCookieSessionInterface):
+    """Verify the session signature but not its age.
+
+    WSL2 steps the wall clock back several seconds whenever it resyncs with the
+    host. A cookie signed just before that carries a timestamp in the future,
+    and itsdangerous rejects negative ages, so a random test would be logged
+    out mid-test. Tests never exercise session expiry, so skip the age check.
+    """
+
+    def open_session(self, app, request):
+        serializer = self.get_signing_serializer(app)
+        if serializer is None:
+            return None
+        value = request.cookies.get(self.get_cookie_name(app))
+        if not value:
+            return self.session_class()
+        try:
+            return self.session_class(serializer.loads(value))
+        except BadSignature:
+            return self.session_class()
 
 
 def _ensure_scratch_db():
@@ -98,6 +122,7 @@ def _app():
     """Session-scoped Flask app bound to the scratch DB with the schema built."""
     _ensure_scratch_db()
     app = create_app(TestConfig)
+    app.session_interface = ClockTolerantSessionInterface()
     with app.app_context():
         db.create_all()
     yield app

@@ -27,7 +27,8 @@ from app.models import ResearchProject, QuestionBankItem
 from app.models.research import FreeResearchQuestion
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import format_for_javascript, now_utc
-from app.utils.response_utils import json_success, json_error, json_unauthorized
+from app.utils.response_utils import json_success, json_error
+from app.utils.auth_utils import owned_or_404
 import logging
 
 logger = logging.getLogger(__name__)
@@ -49,10 +50,7 @@ def update_project_activity(project_id):
 @login_required
 def get_free_research_questions(project_id, step_index):
     """Get all questions for a free research step"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        return json_unauthorized('Access denied')
+    project = owned_or_404(ResearchProject, project_id)
 
     questions = FreeResearchQuestion.query.filter_by(
         project_id=project_id,
@@ -82,12 +80,9 @@ def get_free_research_questions(project_id, step_index):
 @login_required
 def add_free_research_question(project_id, step_index):
     """Add a new question to a free research step"""
-    project = ResearchProject.query.get_or_404(project_id)
+    project = owned_or_404(ResearchProject, project_id)
 
-    if project.user_id != current_user.id:
-        return json_unauthorized('Access denied')
-
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data or not data.get('question_text'):
         return json_error('Question text is required')
 
@@ -132,12 +127,9 @@ def add_free_research_question(project_id, step_index):
 @login_required
 def update_free_research_question(question_id):
     """Update a question's answer or status"""
-    question = FreeResearchQuestion.query.get_or_404(question_id)
+    question = owned_or_404(FreeResearchQuestion, question_id)
 
-    if question.user_id != current_user.id:
-        return json_unauthorized('Access denied')
-
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data:
         return json_error('No data provided')
 
@@ -182,10 +174,7 @@ def update_free_research_question(question_id):
 @login_required
 def delete_free_research_question(question_id):
     """Delete a question"""
-    question = FreeResearchQuestion.query.get_or_404(question_id)
-
-    if question.user_id != current_user.id:
-        return json_unauthorized('Access denied')
+    question = owned_or_404(FreeResearchQuestion, question_id)
 
     project_id = question.project_id
 
@@ -204,12 +193,9 @@ def delete_free_research_question(question_id):
 @login_required
 def reorder_free_research_questions(project_id, step_index):
     """Reorder questions via drag and drop"""
-    project = ResearchProject.query.get_or_404(project_id)
+    project = owned_or_404(ResearchProject, project_id)
 
-    if project.user_id != current_user.id:
-        return json_unauthorized('Access denied')
-
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data or 'question_ids' not in data:
         return json_error('Question IDs required')
 
@@ -257,7 +243,7 @@ def get_question_bank():
 @login_required
 def save_to_question_bank():
     """Save a question to the Question Bank from Free Research."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data or not data.get('text'):
         return json_error('Question text is required')
 
@@ -300,10 +286,7 @@ def save_to_question_bank():
 @login_required
 def use_question_bank_item(question_id):
     """Track when a Question Bank item is used (inserted into a research step)."""
-    question = QuestionBankItem.query.get_or_404(question_id)
-
-    if question.user_id != current_user.id:
-        return json_unauthorized('Access denied')
+    question = owned_or_404(QuestionBankItem, question_id)
 
     question.times_used = (question.times_used or 0) + 1
     question.last_used_at = now_utc()
@@ -319,10 +302,7 @@ def use_question_bank_item(question_id):
 @login_required
 def delete_question_bank_item(question_id):
     """Delete a Question Bank item via API."""
-    question = QuestionBankItem.query.get_or_404(question_id)
-
-    if question.user_id != current_user.id:
-        return json_unauthorized('Access denied')
+    question = owned_or_404(QuestionBankItem, question_id)
 
     db.session.delete(question)
     db.session.commit()

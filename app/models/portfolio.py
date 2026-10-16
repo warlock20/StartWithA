@@ -16,7 +16,6 @@
 
 # app/models/portfolio.py
 
-from datetime import datetime
 from decimal import Decimal
 from app import db
 from app.utils.time_utils import now_utc
@@ -90,7 +89,6 @@ class Transaction(db.Model):
 
     # Pattern tracking: Buying without research
     bought_without_research = db.Column(db.Boolean, default=False, index=True)
-    reason_without_research = db.Column(db.Text, nullable=True)
 
     # Adding to existing position tracking
     is_add_to_position = db.Column(db.Boolean, default=False, index=True)
@@ -181,10 +179,6 @@ class PortfolioPosition(db.Model):
     # Unrealized gains/losses (in base currency)
     unrealized_gain_loss = db.Column(db.Numeric(12, 2), nullable=True)
     unrealized_gain_loss_pct = db.Column(db.Numeric(6, 2), nullable=True)
-
-    # Currency-specific gains/losses (separate from stock performance)
-    currency_gain_loss = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)
-    currency_gain_loss_pct = db.Column(db.Numeric(6, 2), default=0.00, nullable=False)
 
     # Realized gains/losses (from sells - cumulative, in base currency)
     realized_gain_loss = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)

@@ -59,7 +59,6 @@ from .research import (
     ResearchTemplate,
     ResearchProject,
     WorkSession,
-    TemplateStep,
     ResearchMetrics,
     ResearchLog,
     FreeResearchQuestion,
@@ -98,7 +97,6 @@ from .ai_intelligence import (
     ResearchOutcome,
     AIInsight,
     EmbeddingStore,
-    MLPredictionLog,
 )
 from .configuration import (
     SystemConfig,
@@ -106,7 +104,6 @@ from .configuration import (
     UserInvestmentProfile,
 )
 from .prompt_management import (
-    PromptVersion,
     PromptUsageLog,
 )
 from .ai_research_feedback import (
@@ -178,7 +175,6 @@ __all__ = [
     'ResearchTemplate',
     'ResearchProject',
     'WorkSession',
-    'TemplateStep',
     'ResearchMetrics',
     'ResearchLog',
     'FreeResearchQuestion',
@@ -218,13 +214,11 @@ __all__ = [
     'ResearchOutcome',
     'AIInsight',
     'EmbeddingStore',
-    'MLPredictionLog',
     # Configuration models
     'SystemConfig',
     'InvestorProfile',
     'UserInvestmentProfile',
     # Prompt Management models
-    'PromptVersion',
     'PromptUsageLog',
     # AI Research Feedback models
     'AIResearchFeedback',

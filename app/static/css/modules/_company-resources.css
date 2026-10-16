@@ -42,8 +42,7 @@
     background: #fff;
 }
 
-.pdf-page-canvas:last-child,
-.pdf-page-wrapper:last-child .pdf-page-canvas {
+.pdf-page-canvas:last-child {
     margin-bottom: 0;
 }
 

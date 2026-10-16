@@ -218,10 +218,7 @@ class ResearchProject(db.Model):
     abandoned_at = db.Column(db.DateTime)  # When marked as too hard (kept for backwards compatibility)
 
     # If invested, track the outcome
-    investment_amount = db.Column(db.Float)
-    investment_date = db.Column(db.Date)
     exit_date = db.Column(db.Date)
-    return_percentage = db.Column(db.Float)
 
     # Key findings that influenced the decision
     key_findings = db.Column(db.JSON, default=list)
@@ -405,58 +402,13 @@ class WorkSession(db.Model):
     # Work product
     notes = db.Column(db.Text)
     findings = db.Column(db.JSON)  # Structured findings
-    documents_reviewed = db.Column(db.JSON)  # List of documents consulted
 
     # Quality markers
     confidence_level = db.Column(db.Integer)  # 1-10 scale for this session's work
     needs_followup = db.Column(db.Boolean, default=False)
-    followup_notes = db.Column(db.Text)
 
     def __repr__(self):
         return f'<WorkSession {self.id} for Project {self.project_id}>'
-
-
-class TemplateStep(db.Model):
-    """
-    A library of reusable research steps that can be assembled into templates.
-    This allows users to build templates from pre-defined components while
-    still maintaining flexibility to create custom steps.
-    """
-    __tablename__ = 'template_step'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)  # Null for system-provided steps
-
-    # Step definition
-    name = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    step_type = db.Column(db.String(50), nullable=False)  # 'checklist', 'model', 'document_review', 'valuation', 'custom'
-
-    # Configuration for the step
-    config = db.Column(db.JSON)  # Type-specific configuration
-
-    # Expected time and importance
-    estimated_minutes = db.Column(db.Integer, default=60)
-    is_critical = db.Column(db.Boolean, default=False)  # Must be completed
-
-    # Guidance for completing this step
-    instructions = db.Column(db.Text)
-    success_criteria = db.Column(db.Text)
-    common_pitfalls = db.Column(db.Text)
-
-    # For learning and improvement
-    times_used = db.Column(db.Integer, default=0)
-    average_actual_minutes = db.Column(db.Float)
-    skip_rate = db.Column(db.Float)  # How often this step gets skipped
-
-    # Categorization
-    category = db.Column(db.String(100))  # 'fundamental', 'technical', 'qualitative', etc.
-    tags = db.Column(db.JSON, default=list)
-
-    created_at = db.Column(db.DateTime, default=now_utc)
-
-    def __repr__(self):
-        return f'<TemplateStep {self.name}>'
 
 
 class ResearchMetrics(db.Model):
@@ -478,14 +430,10 @@ class ResearchMetrics(db.Model):
 
     # Kill Rate Analysis
     kill_rate = db.Column(db.Float)  # Percentage
-    most_common_kill_reason = db.Column(db.String(500))
-    fastest_kill_minutes = db.Column(db.Integer)
-    slowest_kill_minutes = db.Column(db.Integer)
 
     # Research Time Metrics
     total_research_hours = db.Column(db.Float, default=0)
     average_hours_per_company = db.Column(db.Float)
-    average_hours_per_decision = db.Column(db.Float)
     most_time_consuming_step = db.Column(db.String(200))
 
     # Decision Quality Metrics
@@ -494,21 +442,9 @@ class ResearchMetrics(db.Model):
     pass_decisions = db.Column(db.Integer, default=0)
     average_confidence_score = db.Column(db.Float)
 
-    # Success Tracking (if they track outcomes)
-    winning_investments = db.Column(db.Integer, default=0)
-    losing_investments = db.Column(db.Integer, default=0)
-    average_return = db.Column(db.Float)
-    best_investment_return = db.Column(db.Float)
-    worst_investment_return = db.Column(db.Float)
-
-    # Source Quality
-    best_idea_source = db.Column(db.String(200))
-    best_source_success_rate = db.Column(db.Float)
-
     # Behavioral Patterns
     most_productive_day = db.Column(db.String(20))  # Monday, Tuesday, etc.
     most_productive_hour = db.Column(db.Integer)  # 0-23
-    average_session_duration = db.Column(db.Float)  # minutes
     research_streak_days = db.Column(db.Integer, default=0)
     last_research_date = db.Column(db.Date)
 

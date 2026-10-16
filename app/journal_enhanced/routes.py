@@ -24,11 +24,12 @@ from app.journal_enhanced import journal_enhanced_bp
 from app.journal_enhanced.utils import (extract_tags_from_content, get_related_entries,
                                        companies_with_notes, get_company_knowledge_summary)
 from app.utils.time_utils import now_utc, parse_date_to_date_object
-from app.utils.response_utils import json_success, json_error, json_unauthorized
+from app.utils.response_utils import json_success
 from app.utils.blocknote_utils import blocknote_to_text
+from app.utils.decorators import json_errors
+from app.utils.auth_utils import owned_or_404
 from app.services.findings import FINDING_TYPES, finding_signal, finding_text_from_editor
 from sqlalchemy.orm import contains_eager
-from datetime import datetime, timedelta
 import os
 from werkzeug.utils import secure_filename
 import json
@@ -353,11 +354,7 @@ def new_entry():
 @login_required
 def entry_detail(entry_id):
     """View journal entry details"""
-    entry = JournalEntry.query.get_or_404(entry_id)
-    
-    if entry.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
+    entry = owned_or_404(JournalEntry, entry_id)
 
     # Don't automatically mark as reviewed - let user control this manually
     
@@ -377,11 +374,7 @@ def entry_detail(entry_id):
 @login_required
 def edit_entry(entry_id):
    """Edit a journal entry"""
-   entry = JournalEntry.query.get_or_404(entry_id)
-
-   if entry.user_id != current_user.id:
-       flash('Access denied', 'error')
-       return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
+   entry = owned_or_404(JournalEntry, entry_id)
 
    if request.method == 'POST':
        entry.title = request.form.get('title')
@@ -442,32 +435,21 @@ def edit_entry(entry_id):
 
 @journal_enhanced_bp.route('/entry/<int:entry_id>/star', methods=['POST'])
 @login_required
+@json_errors
 def toggle_star(entry_id):
    """Toggle star status of an entry"""
-   entry = JournalEntry.query.get_or_404(entry_id)
-   
-   if entry.user_id != current_user.id:
-       return json_unauthorized('Access denied')
+   entry = owned_or_404(JournalEntry, entry_id)
    
    entry.is_starred = not entry.is_starred
    
-   try:
-       db.session.commit()
-       return jsonify({'starred': entry.is_starred})
-   except Exception:
-       current_app.logger.exception('Unexpected error in toggle_star')
-       db.session.rollback()
-       return json_error('Something went wrong. Please try again.', status_code=500)
+   db.session.commit()
+   return jsonify({'starred': entry.is_starred})
 
 @journal_enhanced_bp.route('/entry/<int:entry_id>/archive', methods=['POST'])
 @login_required
 def archive_entry(entry_id):
    """Archive a journal entry"""
-   entry = JournalEntry.query.get_or_404(entry_id)
-
-   if entry.user_id != current_user.id:
-       flash('Access denied', 'error')
-       return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
+   entry = owned_or_404(JournalEntry, entry_id)
 
    entry.is_archived = True
    
@@ -485,11 +467,7 @@ def archive_entry(entry_id):
 @login_required
 def thesis_evolution(company_id):
    """View thesis evolution for a company"""
-   company = Company.query.get_or_404(company_id)
-   
-   if company.user_id != current_user.id:
-       flash('Access denied', 'error')
-       return redirect(url_for('companies.list_companies'))
+   company = owned_or_404(Company, company_id)
    
    # Get all thesis versions
    thesis_versions = ThesisEvolution.query.filter_by(
@@ -531,11 +509,7 @@ def new_thesis_version(company_id):
 @login_required
 def learning_note_detail(note_id):
    """View learning note detail"""
-   note = LearningNote.query.get_or_404(note_id)
-
-   if note.user_id != current_user.id:
-       flash('Access denied', 'error')
-       return redirect(url_for('journal_enhanced.knowledge_hub', type='wisdom'))
+   note = owned_or_404(LearningNote, note_id)
 
    # Auto-track review: Update last_reviewed when user views the insight
    note.last_reviewed = now_utc()
@@ -553,50 +527,32 @@ def learning_note_detail(note_id):
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/toggle-favorite', methods=['POST'])
 @login_required
+@json_errors
 def toggle_favorite_note(note_id):
    """Toggle favorite status of a learning note"""
-   note = LearningNote.query.get_or_404(note_id)
-
-   if note.user_id != current_user.id:
-       return json_unauthorized('Access denied')
+   note = owned_or_404(LearningNote, note_id)
 
    note.is_favorite = not note.is_favorite
 
-   try:
-       db.session.commit()
-       return json_success(data={'is_favorite': note.is_favorite})
-   except Exception:
-       current_app.logger.exception('Unexpected error in toggle_favorite_note')
-       db.session.rollback()
-       return json_error('Something went wrong. Please try again.', status_code=500)
+   db.session.commit()
+   return json_success(data={'is_favorite': note.is_favorite})
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/delete', methods=['POST'])
 @login_required
+@json_errors
 def delete_learning_note(note_id):
    """Delete a learning note"""
-   note = LearningNote.query.get_or_404(note_id)
+   note = owned_or_404(LearningNote, note_id)
 
-   if note.user_id != current_user.id:
-       return json_unauthorized('Access denied')
-
-   try:
-       db.session.delete(note)
-       db.session.commit()
-       return json_success()
-   except Exception:
-       current_app.logger.exception('Unexpected error in delete_learning_note')
-       db.session.rollback()
-       return json_error('Something went wrong. Please try again.', status_code=500)
+   db.session.delete(note)
+   db.session.commit()
+   return json_success()
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_learning_note(note_id):
    """Edit a learning note"""
-   note = LearningNote.query.get_or_404(note_id)
-
-   if note.user_id != current_user.id:
-       flash('Access denied', 'error')
-       return redirect(url_for('journal_enhanced.knowledge_hub', type='wisdom'))
+   note = owned_or_404(LearningNote, note_id)
 
    if request.method == 'POST':
        note.title = request.form.get('title')
@@ -928,12 +884,7 @@ def download_attachment(attachment_id):
 @login_required
 def delete_entry(entry_id):
     """Delete a journal entry"""
-    entry = JournalEntry.query.get_or_404(entry_id)
-
-    # Security check: ensure user owns the entry
-    if entry.user_id != current_user.id:
-        flash('Access denied', 'error')
-        abort(403)
+    entry = owned_or_404(JournalEntry, entry_id)
 
     try:
         # Delete associated attachments and their files
@@ -963,11 +914,7 @@ def delete_entry(entry_id):
 @login_required
 def analyze_entry(entry_id):
     """Run AI analysis on a journal entry"""
-    entry = JournalEntry.query.get_or_404(entry_id)
-
-    # Security check
-    if entry.user_id != current_user.id:
-        return json_unauthorized('Access denied')
+    entry = owned_or_404(JournalEntry, entry_id)
 
     try:
         # Set processing status
@@ -1024,11 +971,7 @@ def analyze_entry(entry_id):
 @login_required
 def api_get_related_entries(entry_id):
     """Get related entries for a journal entry"""
-    entry = JournalEntry.query.get_or_404(entry_id)
-
-    # Security check
-    if entry.user_id != current_user.id:
-        return json_unauthorized('Access denied')
+    entry = owned_or_404(JournalEntry, entry_id)
 
     # Get related entries from stored IDs or run analysis
     related_entry_ids = entry.related_entry_ids or []
@@ -1071,11 +1014,7 @@ def api_get_related_entries(entry_id):
 @login_required
 def get_contradictions(entry_id):
     """Get thesis contradictions for a journal entry"""
-    entry = JournalEntry.query.get_or_404(entry_id)
-
-    # Security check
-    if entry.user_id != current_user.id:
-        return json_unauthorized('Access denied')
+    entry = owned_or_404(JournalEntry, entry_id)
 
     contradictions = entry.contradiction_flags or {}
 
@@ -1095,105 +1034,77 @@ def get_contradictions(entry_id):
 
 @journal_enhanced_bp.route('/api/hashtags', methods=['GET'])
 @login_required
+@json_errors('Failed to fetch hashtags')
 def get_hashtags():
     """Get all unique hashtags used by the current user"""
-    try:
-        # Get all tags from journal entries
-        journal_tags = db.session.query(JournalEntry.tags).filter(
-            JournalEntry.user_id == current_user.id,
-            JournalEntry.tags.isnot(None)
-        ).all()
+    # Get all tags from journal entries
+    journal_tags = db.session.query(JournalEntry.tags).filter(
+        JournalEntry.user_id == current_user.id,
+        JournalEntry.tags.isnot(None)
+    ).all()
         
-        # Get all tags from learning notes
-        learning_tags = db.session.query(LearningNote.tags).filter(
-            LearningNote.user_id == current_user.id,
-            LearningNote.tags.isnot(None)
-        ).all()
+    # Get all tags from learning notes
+    learning_tags = db.session.query(LearningNote.tags).filter(
+        LearningNote.user_id == current_user.id,
+        LearningNote.tags.isnot(None)
+    ).all()
         
-        # Combine and extract unique hashtags
-        all_tags = set()
-        for (tags,) in journal_tags + learning_tags:
-            if tags and isinstance(tags, list):
-                for tag in tags:
-                    if tag and tag.startswith('#'):
-                        all_tags.add(tag)
+    # Combine and extract unique hashtags
+    all_tags = set()
+    for (tags,) in journal_tags + learning_tags:
+        if tags and isinstance(tags, list):
+            for tag in tags:
+                if tag and tag.startswith('#'):
+                    all_tags.add(tag)
         
-        # Sort alphabetically
-        hashtags_list = sorted(list(all_tags))
+    # Sort alphabetically
+    hashtags_list = sorted(list(all_tags))
         
-        return jsonify({
-            'success': True,
-            'hashtags': hashtags_list
-        })
-    except Exception as e:
-        logger.error(f"Error fetching hashtags: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': 'Failed to fetch hashtags'
-        }), 500
+    return jsonify({
+        'success': True,
+        'hashtags': hashtags_list
+    })
 
 @journal_enhanced_bp.route('/entry/<int:entry_id>/update-tags', methods=['POST'])
 @login_required
+@json_errors
 def update_entry_tags(entry_id):
     """Update tags for a journal entry"""
-    entry = JournalEntry.query.get_or_404(entry_id)
+    entry = owned_or_404(JournalEntry, entry_id)
     
-    # Check ownership
-    if entry.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
-    
-    try:
-        data = request.get_json()
-        tags = data.get('tags', [])
+    data = request.get_json(silent=True) or {}
+    tags = data.get('tags', [])
 
-        # Strip # from all tags before saving (store without #)
-        normalized_tags = [tag.lstrip('#') for tag in tags]
+    # Strip # from all tags before saving (store without #)
+    normalized_tags = [tag.lstrip('#') for tag in tags]
 
-        # Update tags
-        entry.tags = normalized_tags
-        db.session.commit()
+    # Update tags
+    entry.tags = normalized_tags
+    db.session.commit()
         
-        return jsonify({
-            'success': True,
-            'tags': tags
-        })
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating tags: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': 'Something went wrong. Please try again.'
-        }), 500
+    return jsonify({
+        'success': True,
+        'tags': tags
+    })
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/update-tags', methods=['POST'])
 @login_required
+@json_errors
 def update_learning_note_tags(note_id):
     """Update tags for a learning note"""
-    note = LearningNote.query.get_or_404(note_id)
+    note = owned_or_404(LearningNote, note_id)
 
-    # Check ownership
-    if note.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
+    data = request.get_json(silent=True) or {}
+    tags = data.get('topic_tags', [])
 
-    try:
-        data = request.get_json()
-        tags = data.get('topic_tags', [])
+    # Strip # from all tags before saving (store without #)
+    normalized_tags = [tag.lstrip('#') for tag in tags]
 
-        # Strip # from all tags before saving (store without #)
-        normalized_tags = [tag.lstrip('#') for tag in tags]
+    # Update topic_tags
+    note.topic_tags = normalized_tags if normalized_tags else None
+    db.session.commit()
 
-        # Update topic_tags
-        note.topic_tags = normalized_tags if normalized_tags else None
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'topic_tags': normalized_tags
-        })
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating learning note tags: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': 'Something went wrong. Please try again.'
-        }), 500
+    return jsonify({
+        'success': True,
+        'topic_tags': normalized_tags
+    })

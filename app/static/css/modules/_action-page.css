@@ -19,7 +19,6 @@
     width: min(92%, var(--action-max-width, 1020px));
     margin: 0 auto;
 }
-.action-container--sm  { --action-max-width: 640px; }
 .action-container--md  { --action-max-width: 840px; }
 .action-container--lg  { --action-max-width: 1020px; }
 .action-container--xl  { --action-max-width: 1200px; }

@@ -56,15 +56,6 @@
 }
 
 /* Annotation overlay wrapper (created by JS, sits on top of text layer) */
-.pdf-page-wrapper {
-    position: relative;
-    display: block;
-    margin: 0 auto 1rem;
-}
-
-.pdf-page-wrapper:last-child {
-    margin-bottom: 0;
-}
 
 /* Text highlight marks on the text layer spans */
 .annotation-highlight {

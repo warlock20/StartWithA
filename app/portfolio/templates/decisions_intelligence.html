@@ -412,7 +412,7 @@
                             </div>
                             <div class="di-timeline-content">
                                 <div class="di-timeline-title">
-                                    {{ txn.type }} <span class="di-mono" style="color: #374151;">{{ txn.company.ticker_symbol }}</span> &middot; ${{ "%.2f"|format(txn.price_per_share) }}
+                                    {{ txn.type }} <span class="di-mono" style="color: #374151;">{{ txn.company.ticker_symbol }}</span> &middot; {{ txn.currency|currency_symbol }}{{ "%.2f"|format(txn.price_per_share) }}
                                     {% if txn.type == 'BUY' and txn.decision_journal and txn.decision_journal.linked_research_id %}
                                     <span class="di-inline-badge success">WITH RESEARCH</span>
                                     {% elif txn.type == 'BUY' %}

@@ -267,11 +267,6 @@
   line-height: 1.5;
 }
 .calc-insight i { color: #f59e0b; font-size: 0.85rem; margin-top: 0.1rem; flex-shrink: 0; }
-.calc-insight--neutral {
-  background: var(--gray-50);
-  border-color: var(--gray-200);
-}
-.calc-insight--neutral i { color: #10b981; }
 
 /* Formula explanation block */
 .calc-formula {

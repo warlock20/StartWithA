@@ -14,25 +14,23 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, jsonify
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 from app import db, limiter
-from app.models import (ResearchMetrics, IdeaPipeline, ResearchProject,
-                       DecisionJournal, ResearchLog, Company, KillSession,
-                       BackgroundTask)
+from app.models import IdeaPipeline, ResearchProject, KillSession, BackgroundTask
 from app.models.idea_pipeline import KillCriterion
 from app.analytics import analytics_bp
-from app.analytics.utils import (update_user_metrics, analyze_idea_sources,
-                                get_time_allocation_data, log_research_activity)
+from app.analytics.utils import update_user_metrics, analyze_idea_sources
 from app.services.too_hard_service import TooHardBasketService
 from app.services.background_tasks import BackgroundTaskService
 from app.services.company_state import company_states
 from app.services.screening_analysis_service import ScreeningAnalysisService
 from app.services.ai.prompt_service import prompt_service
 from app.constants import RATELIMIT_AI
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.utils.auth_utils import owned_or_404
 import json
 import logging
 
@@ -256,24 +254,8 @@ def get_screening_analysis_status(task_id):
 
     Returns state and result when completed.
     """
-    task = BackgroundTask.query.get(task_id)
-
-    if not task or task.user_id != current_user.id:
-        return jsonify({'state': 'NOT_FOUND'}), 404
-
-    response = {
-        'state': task.status.upper(),
-        'current': {'pending': 10, 'running': 50, 'completed': 100, 'failed': 0}.get(task.status, 0),
-        'total': 100
-    }
-
-    if task.status == 'completed' and task.result:
-        response['result'] = json.loads(task.result)
-
-    elif task.status == 'failed':
-        response['error'] = task.error_message or 'Analysis failed'
-
-    return jsonify(response)
+    task = owned_or_404(BackgroundTask, task_id)
+    return jsonify(BackgroundTaskService.poll_payload(task, BackgroundTaskService.stored_result(task)))
 
 
 @analytics_bp.route('/api/screening-analysis/latest')

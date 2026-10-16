@@ -285,16 +285,6 @@
     font-weight: 600;
 }
 
-.table-cell-warning {
-    color: var(--warning-500);
-    font-weight: 600;
-}
-
 .table-cell-muted {
     color: var(--gray-500);
-}
-
-.table-cell-strong {
-    font-weight: 600;
-    color: var(--gray-800);
 }

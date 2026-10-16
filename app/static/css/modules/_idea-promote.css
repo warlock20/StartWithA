@@ -458,11 +458,6 @@
 }
 
 /* Divider */
-.promote-divider {
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gray-200), transparent);
-    margin: 2rem 0;
-}
 
 /* Submit Section */
 .promote-submit-section {

@@ -15,9 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import json
-import os
 import re
-import fitz
 from datetime import datetime
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
 from flask_login import current_user, login_required
@@ -32,11 +30,12 @@ from app.services.ai_check.context import has_ai_context
 from app.services.ai_check.setup import ai_check_available, available_setups
 
 # Import unified LLM service
-from app.services.ai.prompt_service import prompt_service
 from app.services.background_tasks import BackgroundTaskService
 from celery_app import celery
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
-from app.utils.blocknote_utils import blocknote_to_html
+from app.utils.blocknote_utils import blocknote_to_html, blocknote_to_markdown
+from app.utils.decorators import json_errors
+from app.utils.auth_utils import owned_or_404
 
 AI_CHECK_DOC_EXTENSIONS = ('.pdf', '.txt')
 ANNUAL_REPORT_PATTERN = re.compile(r'10-K|20-F|annual report', re.IGNORECASE)
@@ -69,11 +68,7 @@ def _ai_check_available(item):
 @research_workflow_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
 @login_required
 def select_checklist_for_company(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-    # Or if company.creator != current_user: (if using the backref)
-        flash('You are not authorized to access this company.', 'error')
-        return redirect(url_for('companies.list_companies'))
+    company = owned_or_404(Company, company_id)
 
     user_checklists = Checklist.query.filter_by(user_id=current_user.id).order_by(Checklist.name).all()
     
@@ -312,139 +307,129 @@ def research_step_json(analysis_id, item_id):
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/autosave', methods=['POST'])
 @login_required
+@json_errors
 def autosave_research_answer(analysis_id, item_id):
     """
     Auto-save endpoint for research answers - returns JSON for AJAX requests
     """
-    try:
-        session = ChecklistAnalysis.query.get_or_404(analysis_id)
-        current_item = ChecklistItem.query.get_or_404(item_id)
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
+    current_item = ChecklistItem.query.get_or_404(item_id)
 
-        # Authorization check
-        if session.researcher != current_user:
-            return json_unauthorized('Unauthorized')
+    # Authorization check
+    if session.researcher != current_user:
+        return json_unauthorized('Unauthorized')
 
-        # Security check: ensure the item belongs to the session's checklist
-        if current_item.checklist_id != session.checklist_id:
-            return json_error('Invalid item for this session')
+    # Security check: ensure the item belongs to the session's checklist
+    if current_item.checklist_id != session.checklist_id:
+        return json_error('Invalid item for this session')
 
-        # Get data from request (supports both JSON and form data)
-        # Only update satisfaction_status if explicitly provided (BlockNote editor
-        # autosave only sends content, so we must not overwrite the verdict).
-        if request.is_json:
-            data = request.get_json()
-            answer_text = data.get('content', '')
-            has_status = 'satisfaction_status' in data
-            satisfaction_status = data.get('satisfaction_status') or None
-        else:
-            answer_text = request.form.get('answer_text', '')
-            has_status = 'satisfaction_status' in request.form
-            satisfaction_status = request.form.get('satisfaction_status') or None
+    # Get data from request (supports both JSON and form data)
+    # Only update satisfaction_status if explicitly provided (BlockNote editor
+    # autosave only sends content, so we must not overwrite the verdict).
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        answer_text = data.get('content', '')
+        has_status = 'satisfaction_status' in data
+        satisfaction_status = data.get('satisfaction_status') or None
+    else:
+        answer_text = request.form.get('answer_text', '')
+        has_status = 'satisfaction_status' in request.form
+        satisfaction_status = request.form.get('satisfaction_status') or None
 
-        # Find or create research answer
-        research_answer = ChecklistAnswer.query.filter_by(
+    # Find or create research answer
+    research_answer = ChecklistAnswer.query.filter_by(
+        checklist_analysis_id=session.id,
+        checklist_item_id=current_item.id
+    ).first()
+
+    if research_answer:
+        research_answer.answer_text = answer_text
+        research_answer.answered_at = now_utc()
+        if has_status:
+            research_answer.satisfaction_status = satisfaction_status
+    else:
+        research_answer = ChecklistAnswer(
+            answer_text=answer_text,
             checklist_analysis_id=session.id,
-            checklist_item_id=current_item.id
-        ).first()
+            checklist_item_id=current_item.id,
+            satisfaction_status=satisfaction_status if has_status else None
+        )
+        db.session.add(research_answer)
 
-        if research_answer:
-            research_answer.answer_text = answer_text
-            research_answer.answered_at = now_utc()
-            if has_status:
-                research_answer.satisfaction_status = satisfaction_status
-        else:
-            research_answer = ChecklistAnswer(
-                answer_text=answer_text,
-                checklist_analysis_id=session.id,
-                checklist_item_id=current_item.id,
-                satisfaction_status=satisfaction_status if has_status else None
-            )
-            db.session.add(research_answer)
+    db.session.commit()
 
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'message': 'Answer saved',
-            'timestamp': research_answer.answered_at.isoformat() if research_answer.answered_at else None
-        })
-
-    except Exception:
-        current_app.logger.exception('Unexpected error in autosave_research_answer')
-        db.session.rollback()
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    return jsonify({
+        'success': True,
+        'message': 'Answer saved',
+        'timestamp': research_answer.answered_at.isoformat() if research_answer.answered_at else None
+    })
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/save_and_next', methods=['POST'])
 @login_required
+@json_errors
 def save_and_next(analysis_id, item_id):
     """
     AJAX endpoint: saves the answer and returns the next item ID (or summary URL for last item).
     """
-    try:
-        session = ChecklistAnalysis.query.get_or_404(analysis_id)
-        current_item = ChecklistItem.query.get_or_404(item_id)
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
+    current_item = ChecklistItem.query.get_or_404(item_id)
 
-        if session.researcher != current_user:
-            return json_unauthorized('Unauthorized')
-        if current_item.checklist_id != session.checklist_id:
-            return json_error('Invalid item for this session')
+    if session.researcher != current_user:
+        return json_unauthorized('Unauthorized')
+    if current_item.checklist_id != session.checklist_id:
+        return json_error('Invalid item for this session')
 
-        # Parse request body
-        if request.is_json:
-            data = request.get_json()
-            answer_text = data.get('content', '')
-            satisfaction_status = data.get('satisfaction_status') or None
-        else:
-            answer_text = request.form.get('answer_text', '')
-            satisfaction_status = request.form.get('satisfaction_status') or None
+    # Parse request body
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        answer_text = data.get('content', '')
+        satisfaction_status = data.get('satisfaction_status') or None
+    else:
+        answer_text = request.form.get('answer_text', '')
+        satisfaction_status = request.form.get('satisfaction_status') or None
 
-        # Save answer
-        research_answer = ChecklistAnswer.query.filter_by(
+    # Save answer
+    research_answer = ChecklistAnswer.query.filter_by(
+        checklist_analysis_id=session.id,
+        checklist_item_id=current_item.id
+    ).first()
+
+    if research_answer:
+        research_answer.answer_text = answer_text
+        research_answer.answered_at = now_utc()
+        research_answer.satisfaction_status = satisfaction_status
+    else:
+        research_answer = ChecklistAnswer(
+            answer_text=answer_text,
             checklist_analysis_id=session.id,
-            checklist_item_id=current_item.id
-        ).first()
-
-        if research_answer:
-            research_answer.answer_text = answer_text
-            research_answer.answered_at = now_utc()
-            research_answer.satisfaction_status = satisfaction_status
-        else:
-            research_answer = ChecklistAnswer(
-                answer_text=answer_text,
-                checklist_analysis_id=session.id,
-                checklist_item_id=current_item.id,
-                satisfaction_status=satisfaction_status
-            )
-            db.session.add(research_answer)
-        db.session.commit()
-
-        # Determine next item
-        all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
-        current_item_index = next(
-            (i for i, item in enumerate(all_items_in_order) if item.id == current_item.id), -1
+            checklist_item_id=current_item.id,
+            satisfaction_status=satisfaction_status
         )
+        db.session.add(research_answer)
+    db.session.commit()
 
-        if current_item_index + 1 < len(all_items_in_order):
-            next_item = all_items_in_order[current_item_index + 1]
-            return jsonify({
-                'success': True,
-                'is_last_item': False,
-                'next_item_id': next_item.id
-            })
-        else:
-            # Last item — mark session complete
-            session.status = 'completed'
-            db.session.commit()
-            return jsonify({
-                'success': True,
-                'is_last_item': True,
-                'summary_url': url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)
-            })
+    # Determine next item
+    all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
+    current_item_index = next(
+        (i for i, item in enumerate(all_items_in_order) if item.id == current_item.id), -1
+    )
 
-    except Exception:
-        current_app.logger.exception('Unexpected error in save_and_next')
-        db.session.rollback()
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    if current_item_index + 1 < len(all_items_in_order):
+        next_item = all_items_in_order[current_item_index + 1]
+        return jsonify({
+            'success': True,
+            'is_last_item': False,
+            'next_item_id': next_item.id
+        })
+    else:
+        # Last item — mark session complete
+        session.status = 'completed'
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'is_last_item': True,
+            'summary_url': url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)
+        })
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/summary', methods=['GET', 'POST'])
 @login_required
@@ -530,44 +515,6 @@ def view_checklist_session_summary(analysis_id):
         questions_json=questions_json,
     )
 
-def blocknote_to_text(blocknote_json):
-    """Convert BlockNote JSON format to plain text"""
-    if not blocknote_json:
-        return ""
-
-    try:
-        blocks = json.loads(blocknote_json) if isinstance(blocknote_json, str) else blocknote_json
-
-        text_parts = []
-        for block in blocks:
-            if block.get('type') == 'paragraph':
-                content = block.get('content', [])
-                paragraph_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
-                if paragraph_text.strip():
-                    text_parts.append(paragraph_text)
-            elif block.get('type') == 'heading':
-                content = block.get('content', [])
-                heading_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
-                level = block.get('props', {}).get('level', 1)
-                if heading_text.strip():
-                    text_parts.append('#' * level + ' ' + heading_text)
-            elif block.get('type') == 'bulletListItem':
-                content = block.get('content', [])
-                item_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
-                if item_text.strip():
-                    text_parts.append('- ' + item_text)
-            elif block.get('type') == 'numberedListItem':
-                content = block.get('content', [])
-                item_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
-                if item_text.strip():
-                    text_parts.append('1. ' + item_text)
-
-        return '\n\n'.join(text_parts)
-    except:
-        # If parsing fails, return the raw text
-        return str(blocknote_json)
-
-
 @research_workflow_bp.route('/checklist/<int:analysis_id>/export/txt')
 @login_required
 def export_session_to_txt(analysis_id):
@@ -594,7 +541,7 @@ def export_session_to_txt(analysis_id):
     if session.conclusion:
         export_content.append(f"## Overall Conclusion")
         export_content.append(f"--------------------------")
-        conclusion_text = blocknote_to_text(session.conclusion)
+        conclusion_text = blocknote_to_markdown(session.conclusion)
         export_content.append(conclusion_text)
         export_content.append("\n")
 
@@ -618,7 +565,7 @@ def export_session_to_txt(analysis_id):
         if answer_obj:
             status = answer_obj.satisfaction_status.replace('_', ' ').capitalize() if answer_obj.satisfaction_status else 'Not Set'
             # Convert BlockNote JSON to readable text
-            answer_text = blocknote_to_text(answer_obj.answer_text) if answer_obj.answer_text else "No text provided."
+            answer_text = blocknote_to_markdown(answer_obj.answer_text) if answer_obj.answer_text else "No text provided."
             export_content.append(f"{indent}  - **Status:** {status}")
             export_content.append(f"{indent}  - **Answer:** {answer_text}")
         else:

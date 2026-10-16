@@ -485,19 +485,6 @@
 }
 
 /* AI Response within the tools section */
-.cl-ai-response {
-    margin-top: var(--space-md);
-    padding: var(--space-md);
-    background: var(--background-white);
-    border-radius: var(--radius-md);
-    border-left: 4px solid var(--primary-600);
-    display: none;
-}
-
-.cl-ai-response.visible {
-    display: block;
-    animation: clSlideDown 0.3s ease;
-}
 
 @keyframes clSlideDown {
     from { opacity: 0; transform: translateY(-10px); }
@@ -652,15 +639,6 @@
 }
 
 /* Status icon in map */
-.cl-map-item-status {
-    flex-shrink: 0;
-    font-size: var(--font-size-sm);
-}
-
-.cl-map-item-status.satisfied { color: var(--success-500); }
-.cl-map-item-status.not-satisfied { color: var(--danger-500); }
-.cl-map-item-status.needs-attention { color: var(--warning-500); }
-.cl-map-item-status.neutral { color: var(--info-500); }
 
 /* =============================================================================
    DOCUMENTS (Sidebar, collapsed)

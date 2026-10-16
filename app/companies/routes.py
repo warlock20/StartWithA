@@ -14,8 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import os
-import uuid
 import logging
 import json
 
@@ -24,16 +22,29 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from app.utils.time_utils import now_utc
-from app.utils.auth_utils import get_user_resource_or_403
+from app.utils.auth_utils import owned_or_404
 from app.utils.isin import is_valid_isin, normalize_isin
-from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify, Response, Response
+from flask import render_template, request, redirect, url_for, flash, current_app, jsonify, Response, Response
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import (ResearchProject, Company, CompanyResource, DestinationCheckpoint,
-                        ChecklistAnalysis, QualitativeAnalysis,
-                        FinancialData, Sector, ResearchLog, ThesisEvolution, DecisionJournal,
-                        JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem, IdeaPipeline,
-                        Transaction)
+from app.models import (
+    ResearchProject,
+    Company,
+    CompanyResource,
+    DestinationCheckpoint,
+    ChecklistAnalysis,
+    QualitativeAnalysis,
+    FinancialData,
+    Sector,
+    ResearchLog,
+    ThesisEvolution,
+    DecisionJournal,
+    JournalEntry,
+    LearningNote,
+    MistakeLog,
+    InvestmentPostMortem,
+    Transaction,
+)
 from app.models.research import FreeResearchQuestion
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
@@ -42,6 +53,7 @@ from app.services.findings import FINDING_TYPES, GREEN_FLAG, MUST_EXIT, RED_FLAG
 from app.companies import companies_bp
 from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task
 from app.utils.ticker_validator import TickerValidator
+from app.utils.decorators import json_errors
 from app.services.financial_data import FinancialDataService
 from app.services.price_service import PriceService
 from app.services.background_tasks import BackgroundTaskService
@@ -364,12 +376,7 @@ def add_company_confirmed():
 @companies_bp.route('/<int:company_id>/delete', methods=['POST'])
 @login_required
 def delete_company(company_id):
-    company_to_delete = Company.query.get_or_404(company_id)
-
-    # Authorization check
-    if company_to_delete.user_id != current_user.id:
-        flash("You are not authorized to delete this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+    company_to_delete = owned_or_404(Company, company_id)
 
     try:
         # Two-phase deletion to handle foreign key constraints
@@ -644,7 +651,7 @@ def _format_intrinsic_value_label(company):
 @login_required
 def company_detail(company_id):
     """Unified company page — merges dashboard + journey into one."""
-    company = get_user_resource_or_403(Company, company_id, current_user.id)
+    company = owned_or_404(Company, company_id)
 
     # Journey data (timeline, thesis, position, stats, research)
     journey_data = _gather_journey_data(company, current_user.id)
@@ -757,11 +764,7 @@ def reopen_research(company_id):
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
 @login_required
 def toggle_favorite(company_id):
-    company = Company.query.get_or_404(company_id)
-    # Authorization: Ensure user can only favorite their own companies
-    if company.user_id != current_user.id:
-        flash("You are not authorized to modify this company's favorite status.", "error")
-        return redirect(url_for('companies.list_companies'))
+    company = owned_or_404(Company, company_id)
 
     if company in current_user.favorites:
         # If it's already a favorite, remove it
@@ -779,10 +782,7 @@ def toggle_favorite(company_id):
 @companies_bp.route('/<int:company_id>/set_intrinsic_value', methods=['POST'])
 @login_required
 def set_intrinsic_value(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+    company = owned_or_404(Company, company_id)
 
     value_str = request.form.get('value', '').replace(',', '')
     multiplier_str = request.form.get('unit_multiplier', '1')
@@ -810,30 +810,22 @@ def set_intrinsic_value(company_id):
 
 @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
 @login_required
+@json_errors('Failed to start task. Please try again.')
 def fetch_sec_filings(company_id):
-    try:
-        company = Company.query.get_or_404(company_id)
-        if company.user_id != current_user.id:
-            return jsonify({'success': False, 'error': 'You are not authorized to perform this action.'}), 403
+    company = owned_or_404(Company, company_id)
 
-        data = request.get_json(silent=True) or {}
-        filing_type = data.get('filing_type', '10-K')
-        years = data.get('years', 5)
+    data = request.get_json(silent=True) or {}
+    filing_type = data.get('filing_type', '10-K')
+    years = data.get('years', 5)
 
-        task = fetch_sec_filings_task.delay(company.id, current_user.id, years)
-        BackgroundTaskService.remember_celery_task(task.id)
+    task = fetch_sec_filings_task.delay(company.id, current_user.id, years)
+    BackgroundTaskService.remember_celery_task(task.id)
 
-        return jsonify({
-            'success': True,
-            'task_id': task.id,
-            'message': f'{years} year(s) of {filing_type} filings being fetched in the background'
-        })
-    except Exception as e:
-        current_app.logger.error(f"Error starting SEC filings fetch task: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': 'Failed to start task. Please try again.'
-        }), 500
+    return jsonify({
+        'success': True,
+        'task_id': task.id,
+        'message': f'{years} year(s) of {filing_type} filings being fetched in the background'
+    })
     
 @companies_bp.route('/<int:company_id>/toggle_portfolio', methods=['POST'])
 @login_required
@@ -845,12 +837,7 @@ def toggle_portfolio(company_id):
     The new portfolio system requires actual transactions (BUY/SELL)
     to track shares, cost basis, and gains/losses properly.
     """
-    company = Company.query.get_or_404(company_id)
-
-    # Authorization check
-    if company.user_id != current_user.id:
-        flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+    company = owned_or_404(Company, company_id)
 
     # Check if already in portfolio (has active position)
     position = PortfolioPosition.query.filter_by(
@@ -872,11 +859,7 @@ def toggle_portfolio(company_id):
 @companies_bp.route('/<int:company_id>/swot', methods=['GET', 'POST'])
 @login_required
 def swot_analysis(company_id):
-    company = Company.query.get_or_404(company_id)
-    # Authorization check
-    if company.user_id != current_user.id:
-        flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+    company = owned_or_404(Company, company_id)
 
     # Try to find an existing SWOT analysis for this company and user
     analysis = QualitativeAnalysis.query.filter_by(
@@ -944,36 +927,25 @@ def swot_analysis(company_id):
     
 @companies_bp.route('/<int:company_id>/fetch_financials', methods=['POST'])
 @login_required
+@json_errors('Failed to start task. Please try again.')
 def fetch_financials(company_id):
-    try:
-        company = Company.query.get_or_404(company_id)
-        if company.user_id != current_user.id:
-            return jsonify({'success': False, 'error': 'You are not authorized to perform this action.'}), 403
+    company = owned_or_404(Company, company_id)
 
-        # Call the background task, passing only the company ID
-        task = fetch_financial_data_task.delay(company.id)
-        BackgroundTaskService.remember_celery_task(task.id)
+    # Call the background task, passing only the company ID
+    task = fetch_financial_data_task.delay(company.id)
+    BackgroundTaskService.remember_celery_task(task.id)
 
-        # Return JSON response with task ID for polling
-        return jsonify({
-            'success': True,
-            'task_id': task.id,
-            'message': 'Financial data fetch started in background'
-        })
-    except Exception as e:
-        current_app.logger.error(f"Error starting financial fetch task: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': 'Failed to start task. Please try again.'
-        }), 500
+    # Return JSON response with task ID for polling
+    return jsonify({
+        'success': True,
+        'task_id': task.id,
+        'message': 'Financial data fetch started in background'
+    })
  
 @companies_bp.route('/<int:company_id>/financials')
 @login_required
 def financials(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+    company = owned_or_404(Company, company_id)
 
     # Fetch all financial data for this company, ordered by date
     all_financial_data = company.financial_data.order_by(FinancialData.period_date.asc()).all()
@@ -1007,14 +979,14 @@ def financials(company_id):
 @companies_bp.route('/<int:company_id>/add_competitor', methods=['POST'])
 @login_required
 def add_competitor(company_id):
-    company = get_user_resource_or_403(Company, company_id, current_user.id)
+    company = owned_or_404(Company, company_id)
 
     competitor_id = request.form.get('competitor_id', type=int)
     if not competitor_id:
         flash('No competitor selected.', 'error')
         return redirect(url_for('companies.company_detail', company_id=company_id))
 
-    competitor = get_user_resource_or_403(Company, competitor_id, current_user.id)
+    competitor = owned_or_404(Company, competitor_id)
 
     if competitor in company.competitors:
         flash(f'"{competitor.name}" is already a competitor.', 'warning')
@@ -1028,7 +1000,7 @@ def add_competitor(company_id):
 @companies_bp.route('/<int:company_id>/remove_competitor/<int:competitor_id>', methods=['POST'])
 @login_required
 def remove_competitor(company_id, competitor_id):
-    company = get_user_resource_or_403(Company, company_id, current_user.id)
+    company = owned_or_404(Company, company_id)
 
     competitor = Company.query.get_or_404(competitor_id)
     if competitor in company.competitors:
@@ -1219,7 +1191,7 @@ def edit_company(company_id):
 @login_required
 def validate_ticker_api():
     """API endpoint for real-time ticker validation"""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     ticker = data.get('ticker', '').strip().upper()
 
     if not ticker:

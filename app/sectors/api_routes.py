@@ -25,6 +25,7 @@ from app.services.sector_service import SectorService
 from app.sectors import sectors_bp
 from app.sectors.routes import initialize_default_sections
 from app.utils.response_utils import json_error, json_unauthorized
+from app.utils.auth_utils import owned_or_404
 
 
 @sectors_bp.route('/api/sectors/autocomplete', methods=['GET'])
@@ -123,7 +124,7 @@ def create_sector():
     Returns:
         JSON with created sector object
     """
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
     if not data or 'name' not in data:
         return json_error('Sector name is required')
@@ -178,11 +179,7 @@ def get_sector(sector_id):
     Returns:
         JSON with sector details and statistics
     """
-    sector = Sector.query.get_or_404(sector_id)
-
-    # Security check
-    if sector.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
+    sector = owned_or_404(Sector, sector_id)
 
     # Update analytics
     sector.update_analytics()
@@ -221,7 +218,7 @@ def update_sector(sector_id):
     Returns:
         JSON with updated sector
     """
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data:
         return json_error('No data provided')
 
@@ -331,7 +328,7 @@ def send_to_sector():
     Returns:
         JSON with created note and sector notebook URL
     """
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data:
         return json_error('No data provided')
 

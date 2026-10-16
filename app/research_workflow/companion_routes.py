@@ -43,8 +43,9 @@ from app.research_workflow import research_workflow_bp
 from app.services.argos import ArgosService
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_validation_error
-from app.utils.auth_utils import get_user_resource_or_403
+from app.utils.auth_utils import owned_or_404
 from app.utils.db_utils import safe_commit, safe_add_and_commit
+from app.utils.decorators import json_errors
 
 logger = logging.getLogger(__name__)
 
@@ -55,18 +56,15 @@ logger = logging.getLogger(__name__)
 
 @research_workflow_bp.route('/companion/<int:project_id>/warnings', methods=['GET'])
 @login_required
+@json_errors
 def companion_warnings(project_id):
     """Get proactive warnings for a project — pattern warnings + journal insights + mistakes.
     Pure DB queries, zero token cost. Auto-loaded on page load."""
-    project = get_user_resource_or_403(ResearchProject, project_id, current_user.id)
+    project = owned_or_404(ResearchProject, project_id)
 
-    try:
-        argos = ArgosService(user_id=current_user.id)
-        warnings = argos.get_warnings(project_id)
-        return json_success('Warnings loaded', data={'warnings': warnings})
-    except Exception as e:
-        logger.error(f"Warnings load failed: {e}")
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    argos = ArgosService(user_id=current_user.id)
+    warnings = argos.get_warnings(project_id)
+    return json_success('Warnings loaded', data={'warnings': warnings})
 
 
 # =========================================================================
@@ -75,19 +73,16 @@ def companion_warnings(project_id):
 
 @research_workflow_bp.route('/companion/<int:project_id>/brief', methods=['POST'])
 @login_required
+@json_errors
 def companion_brief(project_id):
     """Generate a pre-session research brief."""
-    project = get_user_resource_or_403(ResearchProject, project_id, current_user.id)
-    step_index = request.json.get('step_index', project.current_step_index)
+    project = owned_or_404(ResearchProject, project_id)
+    step_index = (request.get_json(silent=True) or {}).get('step_index', project.current_step_index)
 
-    try:
-        argos = ArgosService(user_id=current_user.id)
-        context = argos.build_research_context(project_id, step_index=step_index)
-        brief = argos.generate_brief(context)
-        return json_success('Brief generated', data={'brief': brief})
-    except Exception as e:
-        logger.error(f"Brief generation failed: {e}")
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    argos = ArgosService(user_id=current_user.id)
+    context = argos.build_research_context(project_id, step_index=step_index)
+    brief = argos.generate_brief(context)
+    return json_success('Brief generated', data={'brief': brief})
 
 
 # =========================================================================
@@ -96,11 +91,12 @@ def companion_brief(project_id):
 
 @research_workflow_bp.route('/companion/<int:project_id>/ask', methods=['POST'])
 @login_required
+@json_errors
 def companion_ask(project_id):
     """Ask the companion a question during research."""
-    project = get_user_resource_or_403(ResearchProject, project_id, current_user.id)
+    project = owned_or_404(ResearchProject, project_id)
 
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     user_question = data.get('question', '').strip()
     conversation_history = data.get('conversation_history', [])
     step_index = data.get('step_index', project.current_step_index)
@@ -108,14 +104,10 @@ def companion_ask(project_id):
     if not user_question:
         return json_validation_error('Question is required')
 
-    try:
-        argos = ArgosService(user_id=current_user.id)
-        context = argos.build_research_context(project_id, step_index=step_index)
-        answer = argos.ask_companion(context, user_question, conversation_history)
-        return json_success('Answer generated', data={'answer': answer})
-    except Exception as e:
-        logger.error(f"Companion chat failed: {e}")
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    argos = ArgosService(user_id=current_user.id)
+    context = argos.build_research_context(project_id, step_index=step_index)
+    answer = argos.ask_companion(context, user_question, conversation_history)
+    return json_success('Answer generated', data={'answer': answer})
 
 
 # =========================================================================
@@ -124,11 +116,12 @@ def companion_ask(project_id):
 
 @research_workflow_bp.route('/companion/<int:project_id>/counter-evidence', methods=['POST'])
 @login_required
+@json_errors
 def companion_counter_evidence(project_id):
     """Generate counter-evidence challenging a research finding."""
-    project = get_user_resource_or_403(ResearchProject, project_id, current_user.id)
+    project = owned_or_404(ResearchProject, project_id)
 
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     finding = data.get('finding', '').strip()
     research_question = data.get('research_question', '').strip() or None
     step_index = data.get('step_index', project.current_step_index)
@@ -136,14 +129,10 @@ def companion_counter_evidence(project_id):
     if not finding:
         return json_validation_error('Finding is required')
 
-    try:
-        argos = ArgosService(user_id=current_user.id)
-        context = argos.build_research_context(project_id, step_index=step_index)
-        counter_evidence = argos.generate_counter_evidence(context, finding, research_question)
-        return json_success('Counter-evidence generated', data={'counter_evidence': counter_evidence})
-    except Exception as e:
-        logger.error(f"Counter-evidence generation failed: {e}")
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    argos = ArgosService(user_id=current_user.id)
+    context = argos.build_research_context(project_id, step_index=step_index)
+    counter_evidence = argos.generate_counter_evidence(context, finding, research_question)
+    return json_success('Counter-evidence generated', data={'counter_evidence': counter_evidence})
 
 
 # =========================================================================
@@ -152,36 +141,33 @@ def companion_counter_evidence(project_id):
 
 @research_workflow_bp.route('/companion/<int:project_id>/wrapup', methods=['POST'])
 @login_required
+@json_errors
 def companion_wrapup(project_id):
     """Generate a session wrap-up summary."""
-    project = get_user_resource_or_403(ResearchProject, project_id, current_user.id)
+    project = owned_or_404(ResearchProject, project_id)
 
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     session_findings = data.get('session_findings', [])
     duration_minutes = data.get('duration_minutes', 0)
     counter_evidence = data.get('counter_evidence', [])
     step_index = data.get('step_index', project.current_step_index)
 
-    try:
-        argos = ArgosService(user_id=current_user.id)
-        context = argos.build_research_context(project_id, step_index=step_index)
-        wrapup = argos.wrap_up_session(context, session_findings, duration_minutes, counter_evidence)
+    argos = ArgosService(user_id=current_user.id)
+    context = argos.build_research_context(project_id, step_index=step_index)
+    wrapup = argos.wrap_up_session(context, session_findings, duration_minutes, counter_evidence)
 
-        # Store in session_history
-        if not project.session_history:
-            project.session_history = []
-        project.session_history = project.session_history + [{
-            'step_index': step_index,
-            'duration_minutes': duration_minutes,
-            'summary': wrapup,
-            'timestamp': now_utc().isoformat(),
-        }]
-        safe_commit(db.session, 'session wrap-up')
+    # Store in session_history
+    if not project.session_history:
+        project.session_history = []
+    project.session_history = project.session_history + [{
+        'step_index': step_index,
+        'duration_minutes': duration_minutes,
+        'summary': wrapup,
+        'timestamp': now_utc().isoformat(),
+    }]
+    safe_commit(db.session, 'session wrap-up')
 
-        return json_success('Session wrapped up', data={'wrapup': wrapup})
-    except Exception as e:
-        logger.error(f"Session wrap-up failed: {e}")
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    return json_success('Session wrapped up', data={'wrapup': wrapup})
 
 
 # =========================================================================
@@ -192,9 +178,9 @@ def companion_wrapup(project_id):
 @login_required
 def companion_capture(project_id):
     """Capture a research finding from external source as a JournalEntry."""
-    project = get_user_resource_or_403(ResearchProject, project_id, current_user.id)
+    project = owned_or_404(ResearchProject, project_id)
 
-    data = request.json or {}
+    data = request.get_json(silent=True) or {}
     text = data.get('text', '').strip()
     url = data.get('url', '').strip() or None
     source_title = data.get('source_title', '').strip() or None

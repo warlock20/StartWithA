@@ -78,53 +78,12 @@
 /* =============================================================================
    FILTER TABS
    ============================================================================= */
-.journey-filter-tabs {
-    display: flex;
-    gap: var(--space-xs);
-    margin-bottom: var(--space-xl);
-    padding: var(--space-xs);
-    background: var(--background-white);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-}
-
-.journey-filter-tab {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-sm);
-    padding: var(--space-sm) var(--space-md);
-    border: none;
-    background: transparent;
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    color: var(--text-secondary);
-}
-
-.journey-filter-tab:hover {
-    background: var(--gray-100);
-    color: var(--text-primary);
-}
-
-.journey-filter-tab.active {
-    background: var(--primary-600);
-    color: white;
-}
 
 .journey-tab-count {
     background: rgba(255, 255, 255, 0.2);
     padding: 0.1rem 0.5rem;
     border-radius: var(--radius-pill);
     font-size: var(--font-size-xs);
-}
-
-.journey-filter-tab:not(.active) .journey-tab-count {
-    background: var(--gray-200);
-    color: var(--text-secondary);
 }
 
 /* =============================================================================
@@ -678,26 +637,6 @@
 /* =============================================================================
    NOTES LIST VIEW (dedicated card layout, shown when Notes tab active)
    ============================================================================= */
-.journey-notes-search {
-    margin-bottom: var(--space-lg);
-}
-
-.journey-notes-search-input {
-    width: 100%;
-    padding: 0.6rem 1rem 0.6rem 2.5rem;
-    border: 1px solid var(--border-medium);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    font-family: inherit;
-    background: var(--background-white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") no-repeat 0.75rem center;
-    transition: border-color var(--transition-fast);
-}
-
-.journey-notes-search-input:focus {
-    outline: none;
-    border-color: var(--primary-600);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
 
 .journey-note-card {
     background: var(--background-white);
@@ -806,24 +745,6 @@
     border-color: var(--primary-600);
 }
 
-.journey-notes-empty {
-    text-align: center;
-    padding: var(--space-3xl) var(--space-xl);
-    color: var(--text-muted);
-}
-
-.journey-notes-empty i {
-    font-size: 2.5rem;
-    color: var(--gray-300);
-    display: block;
-    margin-bottom: var(--space-md);
-}
-
-.journey-notes-empty p {
-    font-size: var(--font-size-sm);
-    margin: 0;
-}
-
 /* =============================================================================
    EMPTY STATE
    ============================================================================= */
@@ -900,21 +821,7 @@
     background: rgba(255, 255, 255, 0.25);
 }
 
-.journey-tab-separator {
-    width: 1px;
-    background: var(--border-light);
-    margin: 0.25rem;
-    align-self: stretch;
-}
-
 /* Tab Panels */
-.journey-tab-panel {
-    display: none;
-}
-
-.journey-tab-panel.active {
-    display: block;
-}
 
 /* =============================================================================
    COMPANY STATE BADGE
@@ -1552,18 +1459,6 @@
 @media (max-width: 768px) {
     .journey-stat {
         flex: 1 1 45%;
-    }
-
-    .journey-filter-tabs {
-        flex-wrap: wrap;
-    }
-
-    .journey-filter-tab {
-        flex: 1 1 45%;
-    }
-
-    .journey-filter-tab span:not(.journey-tab-count) {
-        display: none;
     }
 
     .journey-bull-bear {

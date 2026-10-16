@@ -15,6 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from app.utils.time_utils import parse_date_to_date_object
+from app.utils.auth_utils import owned_or_404
 from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user, login_required
 from app import db
@@ -24,11 +25,7 @@ from app.companies import companies_bp
 @companies_bp.route('/<int:company_id>/add_checkpoint', methods=['POST'])
 @login_required
 def add_checkpoint(company_id):
-    company = Company.query.get_or_404(company_id)
-    # Authorization check
-    if company.user_id != current_user.id:
-        flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+    company = owned_or_404(Company, company_id)
 
     metric = request.form.get('metric')
     expectation = request.form.get('expectation')
@@ -69,10 +66,7 @@ def add_checkpoint(company_id):
 @companies_bp.route('/<int:company_id>/destination_analysis')
 @login_required
 def destination_analysis(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+    company = owned_or_404(Company, company_id)
 
     checkpoints = company.destination_checkpoints.order_by(DestinationCheckpoint.target_date.asc()).all()
 
@@ -86,12 +80,7 @@ def destination_analysis(company_id):
 @companies_bp.route('/checkpoint/<int:checkpoint_id>/update', methods=['POST'])
 @login_required
 def update_checkpoint(checkpoint_id):
-    checkpoint = DestinationCheckpoint.query.get_or_404(checkpoint_id)
-
-    # Authorization check
-    if checkpoint.user_id != current_user.id:
-        flash("You are not authorized to update this checkpoint.", "error")
-        return redirect(url_for('companies.list_companies'))
+    checkpoint = owned_or_404(DestinationCheckpoint, checkpoint_id)
 
     # Get data from the form
     new_status = request.form.get('status')
@@ -115,12 +104,7 @@ def update_checkpoint(checkpoint_id):
 @companies_bp.route('/checkpoint/<int:checkpoint_id>/delete', methods=['POST'])
 @login_required
 def delete_checkpoint(checkpoint_id):
-    checkpoint = DestinationCheckpoint.query.get_or_404(checkpoint_id)
-
-    # Authorization check
-    if checkpoint.user_id != current_user.id:
-        flash("You are not authorized to delete this checkpoint.", "error")
-        return redirect(url_for('companies.list_companies'))
+    checkpoint = owned_or_404(DestinationCheckpoint, checkpoint_id)
 
     company_id = checkpoint.company_id # Store for redirect before deleting
     try:
@@ -137,12 +121,7 @@ def delete_checkpoint(checkpoint_id):
 @companies_bp.route('/checkpoint/<int:checkpoint_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_checkpoint(checkpoint_id):
-    checkpoint = DestinationCheckpoint.query.get_or_404(checkpoint_id)
-
-    # Authorization check
-    if checkpoint.user_id != current_user.id:
-        flash("You are not authorized to edit this checkpoint.", "error")
-        return redirect(url_for('companies.list_companies'))
+    checkpoint = owned_or_404(DestinationCheckpoint, checkpoint_id)
 
     if request.method == 'POST':
         # Handle the form submission for updating

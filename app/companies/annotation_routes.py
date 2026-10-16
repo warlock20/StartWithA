@@ -30,6 +30,7 @@ from app.companies import companies_bp
 from app.utils.response_utils import (
     json_success, json_error, json_created, json_deleted, json_updated, json_unauthorized,
 )
+from app.utils.auth_utils import owned_or_404
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +51,7 @@ def _get_resource_or_403(resource_id):
 
 def _get_annotation_or_403(annotation_id):
     """Return a DocumentAnnotation owned by the current user, or abort 403."""
-    annotation = DocumentAnnotation.query.get_or_404(annotation_id)
-    if annotation.user_id != current_user.id:
-        return None, json_unauthorized()
+    annotation = owned_or_404(DocumentAnnotation, annotation_id)
     return annotation, None
 
 
@@ -88,9 +87,7 @@ def api_list_annotations(resource_id):
 @login_required
 def api_list_company_annotations(company_id):
     """List all annotations across all documents for a company."""
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        return json_unauthorized()
+    company = owned_or_404(Company, company_id)
 
     annotations = (
         DocumentAnnotation.query
@@ -130,7 +127,7 @@ def api_create_annotation(resource_id):
     if err:
         return err
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data:
         return json_error('Request body must be JSON', status_code=400)
 
@@ -197,7 +194,7 @@ def api_update_annotation(annotation_id):
     if err:
         return err
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data:
         return json_error('Request body must be JSON', status_code=400)
 

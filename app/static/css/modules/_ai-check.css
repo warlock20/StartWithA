@@ -66,7 +66,6 @@
 .aic-num { text-align: right; }
 .aic-mono { font-family: var(--font-mono); }
 .aic-strong { font-weight: 600; }
-.aic-quote { color: var(--gray-600); }
 .aic-note { margin-top: 4px; font-size: var(--font-size-xs); color: var(--text-secondary); font-family: var(--font-mono); }
 .aic-calc tr.is-total td { font-weight: 700; border-bottom: 2px solid var(--border-medium); }
 .aic-calc tr.is-comparison td, .aic-calc tr.is-context td { color: var(--text-secondary); }

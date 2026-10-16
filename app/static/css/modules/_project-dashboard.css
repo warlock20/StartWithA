@@ -141,20 +141,6 @@
 }
 
 /* Evolving thesis card */
-.evolving-thesis-card {
-    background: white;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-light);
-    border: 1px solid var(--gray-200);
-    padding: 1.5rem;
-}
-
-.evolving-thesis-text {
-    font-size: var(--font-size-sm);
-    color: var(--gray-600);
-    font-style: italic;
-    line-height: 1.6;
-}
 
 /* Key findings card */
 .key-findings-card {

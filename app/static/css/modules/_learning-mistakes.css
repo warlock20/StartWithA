@@ -29,22 +29,6 @@
     box-shadow: var(--shadow-medium);
 }
 
-.mistake-stat-card.stat-total {
-    border-left: 4px solid #dc2626;
-}
-
-.mistake-stat-card.stat-cost {
-    border-left: 4px solid #f59e0b;
-}
-
-.mistake-stat-card.stat-common {
-    border-left: 4px solid #8b5cf6;
-}
-
-.mistake-stat-card.stat-prevented {
-    border-left: 4px solid #10b981;
-}
-
 .mistake-stat-header {
     display: flex;
     justify-content: space-between;
@@ -68,22 +52,6 @@
     align-items: center;
     justify-content: center;
     font-size: 1.25rem;
-}
-
-.stat-total .mistake-stat-icon {
-    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-}
-
-.stat-cost .mistake-stat-icon {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-}
-
-.stat-common .mistake-stat-icon {
-    background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
-}
-
-.stat-prevented .mistake-stat-icon {
-    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
 }
 
 .mistake-stat-value {

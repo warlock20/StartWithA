@@ -44,6 +44,7 @@ from dataclasses import dataclass, field
 import logging
 
 from app.services.config_service import get_config
+from app.utils.grading import score_to_grade
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +168,7 @@ class ResearchQualityCalculator:
             breadth_score=round(breadth, 1),
             time_score=round(time, 1),
             document_score=round(documents, 1),
-            grade=self._score_to_grade(overall),
+            grade=score_to_grade(overall),
             improvement_tips=tips,
             comparison_to_average=round(comparison, 1),
             
@@ -471,19 +472,6 @@ class ResearchQualityCalculator:
             tips.append("Spend more time on research - thorough analysis typically takes 1-2 hours")
         
         return tips[:3]  # Max 3 tips
-    
-    def _score_to_grade(self, score: float) -> str:
-        """Convert numeric score to letter grade"""
-        if score >= 90:
-            return 'A'
-        elif score >= 80:
-            return 'B'
-        elif score >= 70:
-            return 'C'
-        elif score >= 60:
-            return 'D'
-        else:
-            return 'F'
     
     def _get_user_average(self, user_id: Optional[int]) -> float:
         """Get user's historical average score"""

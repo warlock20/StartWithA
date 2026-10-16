@@ -117,10 +117,6 @@
 }
 
 /* Sidebar cards */
-.sticky-sidebar > .sector-sidebar-card {
-    flex-shrink: 0;
-    margin-bottom: 0 !important; /* Use gap instead */
-}
 
 /* Custom scrollbars for professional look */
 .research-tab-content::-webkit-scrollbar,
@@ -183,9 +179,7 @@
 }
 
 /* Snippets, Sources, AI Insights, Takeaways tabs */
-.snippets-container,
 .sources-tab-container,
-.ai-insights-container,
 .takeaways-container {
     height: 100%;
     display: flex;
@@ -193,30 +187,9 @@
     padding: 1.5rem;
 }
 
-.snippets-header,
-.sources-tab-header,
-.ai-insights-header,
 .takeaways-header {
     flex-shrink: 0;
     margin-bottom: 1rem;
-}
-
-.snippet-category-filter {
-    flex-shrink: 0;
-}
-
-.snippets-grid,
-.sources-grid,
-.ai-insights-grid {
-    flex: 1;
-    overflow-y: auto;
-    min-height: 0;
-}
-
-.takeaways-editor-container {
-    flex: 1;
-    overflow-y: auto;
-    min-height: 0;
 }
 
 /* Scroll fade effects for visual polish */
@@ -282,41 +255,8 @@
 }
 
 /* Collector items scrolling */
-.collector-items {
-    max-height: 300px !important;
-    overflow-y: auto;
-}
-
-.collector-items::-webkit-scrollbar {
-    width: 6px;
-}
-
-.collector-items::-webkit-scrollbar-track {
-    background: #f9fafb;
-}
-
-.collector-items::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 3px;
-}
 
 /* Question bank and company list scrolling */
-.sector-sidebar-card .card-body > div[style*="max-height"] {
-    overflow-y: auto;
-}
-
-.sector-sidebar-card .card-body > div[style*="max-height"]::-webkit-scrollbar {
-    width: 6px;
-}
-
-.sector-sidebar-card .card-body > div[style*="max-height"]::-webkit-scrollbar-track {
-    background: #f9fafb;
-}
-
-.sector-sidebar-card .card-body > div[style*="max-height"]::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 3px;
-}
 
 /* =============================================================================
    ACCORDION-STYLE TOOLS SIDEBAR (MS Paint-style framed panel)

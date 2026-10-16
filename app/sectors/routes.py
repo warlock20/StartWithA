@@ -27,6 +27,8 @@ from app.services.sector_service import SectorService
 from app.services.too_hard_service import TooHardBasketService
 from app.services.company_state import company_states
 from app.utils.time_utils import now_utc
+from app.utils.decorators import json_errors
+from app.utils.auth_utils import owned_or_404
 from sqlalchemy import func
 from . import sectors_bp
 from .research_templates import get_all_templates, get_template_list, get_template
@@ -479,10 +481,7 @@ def add_question_to_bank(sector_name):
 @login_required
 def delete_question_from_bank(item_id):
     """Delete a question from the bank, redirecting back to the notebook page."""
-    question = QuestionBankItem.query.get_or_404(item_id)
-    if question.user_id != current_user.id:
-        flash('You are not authorized to delete this item.', 'error')
-        return redirect(url_for('sectors.index'))
+    question = owned_or_404(QuestionBankItem, item_id)
 
     # Get sector slug for redirect before deleting
     sector_slug = question.sector.slug if question.sector else None
@@ -498,11 +497,7 @@ def delete_question_from_bank(item_id):
 @sectors_bp.route('/<int:analysis_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_sector(analysis_id):
-    analysis = SectorAnalysis.query.get_or_404(analysis_id)
-    # Authorization check
-    if analysis.user_id != current_user.id:
-        flash("You are not authorized to edit this sector analysis.", "error")
-        return redirect(url_for('sectors.index'))
+    analysis = owned_or_404(SectorAnalysis, analysis_id)
 
     if request.method == 'POST':
         new_sector_name = request.form.get('sector_name', '').strip()
@@ -734,7 +729,7 @@ def add_snippet(sector_name):
         sector_id=sector.id
     ).first_or_404()
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     content = data.get('content', '').strip()
     category = data.get('category', '').strip()
     tags = data.get('tags', '').strip()
@@ -793,7 +788,7 @@ def create_section(sector_name):
         sector_id=sector.id
     ).first_or_404()
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     title = data.get('title', '').strip()
 
     if not title:
@@ -836,7 +831,7 @@ def update_section(section_id):
     if section.sector_analysis.author != current_user:
         return json_unauthorized('Unauthorized')
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
     if 'title' in data:
         section.title = data['title'].strip()
@@ -1095,6 +1090,7 @@ def get_research_notes(sector_name):
 
 @sectors_bp.route('/<path:sector_name>/research-notes', methods=['POST'])
 @login_required
+@json_errors
 def save_research_notes(sector_name):
     """Save research notes content from the simplified editor"""
     # Look up sector by slug
@@ -1113,7 +1109,7 @@ def save_research_notes(sector_name):
         sector_id=sector.id
     ).first_or_404()
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     content = data.get('content')
     takeaways = data.get('takeaways')
 
@@ -1124,19 +1120,11 @@ def save_research_notes(sector_name):
 
     analysis.updated_at = now_utc()
 
-    try:
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'message': 'Document saved successfully'
-        })
-    except Exception:
-        current_app.logger.exception('Unexpected error in save_research_notes')
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'error': 'Something went wrong. Please try again.'
-        }), 500
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'message': 'Document saved successfully'
+    })
 
 @sectors_bp.route('/<string:sector_name>/archive', methods=['POST'])
 @login_required
@@ -1177,25 +1165,18 @@ def unarchive_sector(sector_name):
 
 @sectors_bp.route('/analysis/<int:analysis_id>/toggle-learning', methods=['POST'])
 @login_required
+@json_errors
 def toggle_continuous_learning(analysis_id):
     """Toggle continuous learning tracking for a sector analysis"""
-    analysis = SectorAnalysis.query.get_or_404(analysis_id)
+    analysis = owned_or_404(SectorAnalysis, analysis_id)
 
-    if analysis.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
-
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     enabled = data.get('enabled', False)
 
     analysis.continuous_learning_enabled = enabled
 
-    try:
-        db.session.commit()
-        return jsonify({'success': True, 'enabled': enabled})
-    except Exception:
-        current_app.logger.exception('Unexpected error in toggle_continuous_learning')
-        db.session.rollback()
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    db.session.commit()
+    return jsonify({'success': True, 'enabled': enabled})
 
 
 # ============================================================================
@@ -1208,7 +1189,7 @@ def detect_companies():
     """Detect company mentions in text and return suggestions"""
     from app.utils.company_detection import get_company_suggestions_for_text
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     text = data.get('text', '')
 
     if not text or not text.strip():
@@ -1292,7 +1273,7 @@ def link_companies_to_note(note_id):
     if note.sector_analysis.author != current_user:
         return json_unauthorized('Unauthorized')
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     company_ids = data.get('company_ids', [])
 
     if not company_ids:
@@ -1346,10 +1327,7 @@ def unlink_company_from_note(note_id, company_id):
     if note.sector_analysis.author != current_user:
         return json_unauthorized('Unauthorized')
 
-    company = Company.query.get_or_404(company_id)
-
-    if company.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
+    company = owned_or_404(Company, company_id)
 
     # Remove the link
     note.linked_companies.remove(company)
@@ -1368,7 +1346,7 @@ def link_companies_to_snippet(snippet_id):
     if snippet.sector_analysis.author != current_user:
         return json_unauthorized('Unauthorized')
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     company_ids = data.get('company_ids', [])
 
     if not company_ids:
@@ -1422,10 +1400,7 @@ def unlink_company_from_snippet(snippet_id, company_id):
     if snippet.sector_analysis.author != current_user:
         return json_unauthorized('Unauthorized')
 
-    company = Company.query.get_or_404(company_id)
-
-    if company.user_id != current_user.id:
-        return json_unauthorized('Unauthorized')
+    company = owned_or_404(Company, company_id)
 
     # Remove the link
     snippet.linked_companies.remove(company)

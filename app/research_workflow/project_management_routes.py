@@ -24,16 +24,14 @@ This module handles the unified Company Research page and project management inc
 """
 
 import json
-from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import (ResearchTemplate, ResearchProject, ResearchSettings, Company,
-                       ResearchLog, JournalEntry, IdeaPipeline)
+from app.models import ResearchProject, ResearchSettings, Company, ResearchLog, JournalEntry, IdeaPipeline
 from app.research_workflow import research_workflow_bp
-from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.utils.time_utils import now_utc
+from app.utils.auth_utils import owned_or_404
 from app.services.too_hard_service import TooHardBasketService
-from app.services.sector_service import SectorService
 from app.services.research_priority import ResearchPriorityService
 
 
@@ -290,12 +288,7 @@ def my_projects():
 @login_required
 def delete_research_project(project_id):
     """Delete a research project"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    # Authorization check
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     # Prevent deletion of completed projects with successful outcomes
     if project.status == 'completed' and project.decision in ['invest', 'pass']:
@@ -334,10 +327,7 @@ def delete_research_project(project_id):
 @login_required
 def touch_project(project_id):
     """Reset the idle clock — user acknowledged the staleness nudge."""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        return jsonify({'ok': False, 'error': 'Access denied'}), 403
+    project = owned_or_404(ResearchProject, project_id)
 
     project.last_worked_at = now_utc()
     db.session.commit()
@@ -349,11 +339,7 @@ def touch_project(project_id):
 @login_required
 def pin_project(project_id):
     """Pin a project as the current research focus, overriding algorithmic selection."""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+    project = owned_or_404(ResearchProject, project_id)
 
     if project.status != 'active':
         flash('Only active projects can be pinned as focus', 'warning')

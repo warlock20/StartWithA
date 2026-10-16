@@ -35,6 +35,7 @@ from app.utils.time_utils import now_utc
 from app.utils.response_utils import serialize_model_to_dict
 from app.utils.db_utils import safe_db_transaction
 from app.utils.audit_logger import log_consent_change, log_data_export, log_account_deletion
+from app.utils.decorators import json_errors
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ def _collect_user_data(user):
         IdeaPipeline, KillChecklist, KillSession, KillChecklistSuggestion,
         IdeaSourceAnalysis, MistakeLog,
         ChecklistAnalysis, ResearchTemplate, ResearchProject, WorkSession,
-        TemplateStep, ResearchMetrics, ResearchLog, FreeResearchQuestion,
+        ResearchMetrics, ResearchLog, FreeResearchQuestion,
         ResearchSettings,
         Sector, SectorAnalysis,
         DecisionJournal, JournalEntry, ThesisEvolution, LearningNote,
@@ -101,7 +102,6 @@ def _collect_user_data(user):
         ('research_templates', ResearchTemplate, ResearchTemplate.user_id == user.id),
         ('research_projects', ResearchProject, ResearchProject.user_id == user.id),
         ('work_sessions', WorkSession, WorkSession.user_id == user.id),
-        ('template_steps', TemplateStep, TemplateStep.user_id == user.id),
         ('research_logs', ResearchLog, ResearchLog.user_id == user.id),
         ('free_research_questions', FreeResearchQuestion, FreeResearchQuestion.user_id == user.id),
         ('sectors', Sector, Sector.user_id == user.id),
@@ -147,21 +147,17 @@ def _collect_user_data(user):
 
 @auth_bp.route('/account/ai-consent', methods=['POST'])
 @login_required
+@json_errors('Failed to save consent')
 def grant_ai_consent():
     """
     GDPR Art. 6(1)(a) - Record user consent for AI feature data processing.
     Called when user accepts the AI consent modal.
     """
-    try:
-        current_user.ai_consent_given = True
-        current_user.ai_consent_date = now_utc()
-        db.session.commit()
-        log_consent_change(current_user.id, 'ai_features', granted=True)
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
-        logger.exception(f"AI consent grant failed for user {current_user.id}: {e}")
-        return jsonify({'success': False, 'error': 'Failed to save consent'}), 500
+    current_user.ai_consent_given = True
+    current_user.ai_consent_date = now_utc()
+    db.session.commit()
+    log_consent_change(current_user.id, 'ai_features', granted=True)
+    return jsonify({'success': True})
 
 
 @auth_bp.route('/account/ai-consent/revoke', methods=['POST'])
@@ -245,7 +241,7 @@ def delete_account():
             DocumentImport, ChecklistAnalysis, ChecklistAnswer,
             IdeaPipeline, KillChecklist, KillCriterion, KillSession, KillAnswer,
             KillChecklistSuggestion, IdeaSourceAnalysis, MistakeLog,
-            ResearchTemplate, ResearchProject, WorkSession, TemplateStep,
+            ResearchTemplate, ResearchProject, WorkSession,
             ResearchMetrics, ResearchLog, FreeResearchQuestion, ResearchSettings,
             Sector, SectorAnalysis,
             DecisionJournal, JournalEntry, JournalAttachment, ThesisEvolution,
@@ -253,7 +249,7 @@ def delete_account():
             PatternRecognition,
             Transaction, PortfolioPosition,
             BackgroundTask,
-            ResearchOutcome, AIInsight, EmbeddingStore, MLPredictionLog,
+            ResearchOutcome, AIInsight, EmbeddingStore,
             UserInvestmentProfile,
             PromptUsageLog,
             AIResearchFeedback,
@@ -271,7 +267,6 @@ def delete_account():
             AIInsight.query.filter_by(user_id=user_id).delete()
             ResearchOutcome.query.filter_by(user_id=user_id).delete()
             EmbeddingStore.query.filter_by(user_id=user_id).delete()
-            MLPredictionLog.query.filter_by(user_id=user_id).delete()
             PortfolioUIInsight.query.filter_by(user_id=user_id).delete()
             BackgroundTask.query.filter_by(user_id=user_id).delete()
 
@@ -297,7 +292,6 @@ def delete_account():
             ResearchMetrics.query.filter_by(user_id=user_id).delete()
             ResearchSettings.query.filter_by(user_id=user_id).delete()
             WorkSession.query.filter_by(user_id=user_id).delete()
-            TemplateStep.query.filter_by(user_id=user_id).delete()
 
             # Research sessions (with answers)
             sessions = ChecklistAnalysis.query.filter_by(user_id=user_id).all()

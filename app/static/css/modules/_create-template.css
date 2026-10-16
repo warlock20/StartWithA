@@ -631,8 +631,4 @@ Inspired by modern workflow builder with visual timeline
         top: 1rem;
         right: 1rem;
     }
-
-    .step-type-select {
-        max-width: 100%;
-    }
 }

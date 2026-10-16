@@ -21,6 +21,7 @@ This service provides intelligent analysis and optimization suggestions for Kill
 based on historical usage patterns, effectiveness metrics, and mistake log integration.
 """
 
+import json
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
 from app import db
@@ -209,7 +210,6 @@ class KillChecklistAnalytics:
                 return KillChecklistAnalytics._analyze_mistake_with_rules(mistake_id)
 
             # Parse LLM response
-            import json
             try:
                 criteria_data = json.loads(llm_response)
             except json.JSONDecodeError:

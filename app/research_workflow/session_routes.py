@@ -364,7 +364,7 @@ def analyze_checklist_item(project_id, session_id):
     if not request.is_json:
         return jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({'status': 'error', 'message': 'No JSON data received'}), 400
 

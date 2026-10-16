@@ -283,7 +283,7 @@ def api_get_preferences():
 @login_required
 def api_set_preference():
     """API endpoint to set a model preference."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     category = data.get('category')
     model_id = data.get('model_id')
 

@@ -31,8 +31,9 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.models import Company, CompanyResource
 from app.companies import companies_bp
-from app.utils.auth_utils import get_user_resource_or_403
+from app.utils.auth_utils import owned_or_404
 from app.utils.response_utils import json_success, json_error, json_created, json_deleted, json_unauthorized
+from app.utils.decorators import json_errors
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ ALLOWED_RESOURCE_TYPES = {'pdf', 'txt', 'html'}
 @login_required
 def api_list_resources(company_id):
     """List company resources with optional filters."""
-    company = get_user_resource_or_403(Company, company_id, current_user.id)
+    company = owned_or_404(Company, company_id)
 
     query = CompanyResource.query.filter_by(company_id=company.id)
 
@@ -84,9 +85,10 @@ def api_list_resources(company_id):
 
 @companies_bp.route('/api/<int:company_id>/resources/upload', methods=['POST'])
 @login_required
+@json_errors('Upload failed. Please try again.')
 def api_upload_resource(company_id):
     """Upload a file resource."""
-    company = get_user_resource_or_403(Company, company_id, current_user.id)
+    company = owned_or_404(Company, company_id)
 
     file = request.files.get('file')
     if not file or file.filename == '':
@@ -102,55 +104,51 @@ def api_upload_resource(company_id):
     if file_ext not in ALLOWED_RESOURCE_TYPES:
         return json_error(f'File type not allowed. Allowed: {", ".join(ALLOWED_RESOURCE_TYPES)}')
 
-    try:
-        stored_fn = f"{uuid.uuid4().hex}.{file_ext}"
-        upload_dir = os.path.join(
-            current_app.config['UPLOAD_FOLDER'], 'companies', str(company.id)
-        )
-        os.makedirs(upload_dir, exist_ok=True)
-        file.save(os.path.join(upload_dir, stored_fn))
+    stored_fn = f"{uuid.uuid4().hex}.{file_ext}"
+    upload_dir = os.path.join(
+        current_app.config['UPLOAD_FOLDER'], 'companies', str(company.id)
+    )
+    os.makedirs(upload_dir, exist_ok=True)
+    file.save(os.path.join(upload_dir, stored_fn))
 
-        # Parse optional resource_date
-        resource_date = None
-        date_str = request.form.get('resource_date', '').strip()
-        if date_str:
-            try:
-                resource_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            except ValueError:
-                pass
+    # Parse optional resource_date
+    resource_date = None
+    date_str = request.form.get('resource_date', '').strip()
+    if date_str:
+        try:
+            resource_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
 
-        resource = CompanyResource(
-            company_id=company.id,
-            user_id=current_user.id,
-            resource_type='file',
-            title=title,
-            description=request.form.get('description', '').strip() or None,
-            category=request.form.get('category', '').strip() or None,
-            original_filename=original_fn,
-            stored_filename=os.path.join('companies', str(company.id), stored_fn),
-            file_type=file_ext,
-            file_size=os.path.getsize(os.path.join(upload_dir, stored_fn)),
-            research_project_id=request.form.get('project_id', type=int),
-            research_step_index=request.form.get('step_index', type=int),
-            resource_date=resource_date,
-        )
-        db.session.add(resource)
-        db.session.commit()
+    resource = CompanyResource(
+        company_id=company.id,
+        user_id=current_user.id,
+        resource_type='file',
+        title=title,
+        description=request.form.get('description', '').strip() or None,
+        category=request.form.get('category', '').strip() or None,
+        original_filename=original_fn,
+        stored_filename=os.path.join('companies', str(company.id), stored_fn),
+        file_type=file_ext,
+        file_size=os.path.getsize(os.path.join(upload_dir, stored_fn)),
+        research_project_id=request.form.get('project_id', type=int),
+        research_step_index=request.form.get('step_index', type=int),
+        resource_date=resource_date,
+    )
+    db.session.add(resource)
+    db.session.commit()
 
-        return json_created('File uploaded', data={'resource': resource.to_dict()})
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f'Error uploading resource: {e}')
-        return json_error('Upload failed. Please try again.', status_code=500)
+    return json_created('File uploaded', data={'resource': resource.to_dict()})
 
 
 @companies_bp.route('/api/<int:company_id>/resources/link', methods=['POST'])
 @login_required
+@json_errors('Failed to save link. Please try again.')
 def api_save_link(company_id):
     """Save a link resource."""
-    company = get_user_resource_or_403(Company, company_id, current_user.id)
+    company = owned_or_404(Company, company_id)
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data:
         return json_error('Invalid request body')
 
@@ -159,31 +157,27 @@ def api_save_link(company_id):
     if not title or not url:
         return json_error('Title and URL are required')
 
-    try:
-        resource = CompanyResource(
-            company_id=company.id,
-            user_id=current_user.id,
-            resource_type='link',
-            title=title,
-            url=url,
-            description=(data.get('description') or '').strip() or None,
-            source_name=(data.get('source_name') or '').strip() or None,
-            category=(data.get('category') or '').strip() or None,
-            research_project_id=data.get('project_id'),
-            research_step_index=data.get('step_index'),
-        )
-        db.session.add(resource)
-        db.session.commit()
+    resource = CompanyResource(
+        company_id=company.id,
+        user_id=current_user.id,
+        resource_type='link',
+        title=title,
+        url=url,
+        description=(data.get('description') or '').strip() or None,
+        source_name=(data.get('source_name') or '').strip() or None,
+        category=(data.get('category') or '').strip() or None,
+        research_project_id=data.get('project_id'),
+        research_step_index=data.get('step_index'),
+    )
+    db.session.add(resource)
+    db.session.commit()
 
-        return json_created('Link saved', data={'resource': resource.to_dict()})
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f'Error saving link: {e}')
-        return json_error('Failed to save link. Please try again.', status_code=500)
+    return json_created('Link saved', data={'resource': resource.to_dict()})
 
 
 @companies_bp.route('/api/resources/<int:resource_id>', methods=['DELETE'])
 @login_required
+@json_errors('Failed to delete resource. Please try again.')
 def api_delete_resource(resource_id):
     """Delete a resource."""
     resource = CompanyResource.query.get_or_404(resource_id)
@@ -191,22 +185,17 @@ def api_delete_resource(resource_id):
     if resource.company.user_id != current_user.id:
         return json_unauthorized()
 
-    try:
-        # Delete physical file if it's a file resource
-        if resource.resource_type == 'file' and resource.stored_filename:
-            file_path = os.path.join(
-                current_app.config['UPLOAD_FOLDER'], resource.stored_filename
-            )
-            if os.path.exists(file_path):
-                os.remove(file_path)
+    # Delete physical file if it's a file resource
+    if resource.resource_type == 'file' and resource.stored_filename:
+        file_path = os.path.join(
+            current_app.config['UPLOAD_FOLDER'], resource.stored_filename
+        )
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
-        db.session.delete(resource)
-        db.session.commit()
-        return json_deleted('Resource deleted', resource_id=resource_id)
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f'Error deleting resource: {e}')
-        return json_error('Failed to delete resource. Please try again.', status_code=500)
+    db.session.delete(resource)
+    db.session.commit()
+    return json_deleted('Resource deleted', resource_id=resource_id)
 
 
 @companies_bp.route('/api/resources/<int:resource_id>/download')

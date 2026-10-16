@@ -45,6 +45,7 @@ from sqlalchemy.orm import joinedload
 from app import cache
 from app.utils.time_utils import now_utc
 from app.utils.financial_utils import calculate_cagr
+from app.utils.grading import score_to_grade
 
 from app.models.ai_intelligence import ResearchOutcome
 from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company
@@ -200,7 +201,7 @@ class PortfolioIntelligenceService:
         non_researched_returns = []
         
         for outcome in outcomes:
-            grade = self._score_to_grade(outcome.research_quality_score or 0)
+            grade = score_to_grade(outcome.research_quality_score or 0)
             return_pct = float(outcome.realized_return_pct)
             
             grade_buckets[grade].append({
@@ -295,19 +296,6 @@ class PortfolioIntelligenceService:
         
         correlation = numerator / denominator
         return round(correlation, 2)
-    
-    def _score_to_grade(self, score: float) -> str:
-        """Convert numeric score to letter grade"""
-        if score >= 90:
-            return 'A'
-        elif score >= 80:
-            return 'B'
-        elif score >= 70:
-            return 'C'
-        elif score >= 60:
-            return 'D'
-        else:
-            return 'F'
     
     # =========================================================================
     # STEP 2: Checkpoint Reminders

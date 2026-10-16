@@ -84,8 +84,6 @@ class User(UserMixin, db.Model):  # Add UserMixin here
                                        lazy='dynamic', cascade='all, delete-orphan')
     work_sessions = db.relationship('WorkSession', backref='user',
                                    lazy='dynamic', cascade='all, delete-orphan')
-    template_steps = db.relationship('TemplateStep', backref='creator',
-                                    lazy='dynamic', cascade='all, delete-orphan')
     metrics = db.relationship('ResearchMetrics', backref='user',
                              uselist=False, cascade='all, delete-orphan')
     source_analyses = db.relationship('IdeaSourceAnalysis', backref='user',
@@ -112,7 +110,6 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     # User preferences
     preferred_sprint_duration = db.Column(db.Integer, default=30)  # minutes
     research_experience_level = db.Column(db.String(20), default='intermediate')  # beginner, intermediate, expert
-    notification_preferences = db.Column(db.JSON, default={'pattern_alerts': True, 'weekly_review': True, 'fomo_alerts': True})
 
     # MULTI-CURRENCY SUPPORT
     base_currency = db.Column(db.String(3), nullable=False, default='USD')  # User's preferred reporting currency
@@ -121,13 +118,6 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     # Cash Management
     cash_balance = db.Column(db.Numeric(12, 2), nullable=False, default=0, server_default='0')
     cash_setup_complete = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
-
-    # Community features
-    buddy_system_enabled = db.Column(db.Boolean, default=False)
-
-    # FOMO protection
-    last_fomo_alert = db.Column(db.DateTime)
-    fomo_protection_level = db.Column(db.String(20), default='medium')  # low, medium, high
 
     # GDPR: AI feature consent (Art. 6(1)(a) DSGVO)
     ai_consent_given = db.Column(db.Boolean, default=False)

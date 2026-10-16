@@ -43,6 +43,7 @@ from app.services.background_tasks import BackgroundTaskService
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_validation_error
 from app.utils.db_utils import safe_add_and_commit
+from app.utils.decorators import json_errors
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,7 @@ def _capture_link(focus):
 
 @companion_bp.route('/ask', methods=['POST'])
 @login_required
+@json_errors
 def ask():
     """Kick off the agentic companion in the background. Returns a task_id to poll.
 
@@ -106,13 +108,9 @@ def ask():
     history = data.get('history') or []
     focus = data.get('focus') or {}
 
-    try:
-        task_id = BackgroundTaskService.start_companion_ask(
-            current_user.id, question, history, focus)
-        return json_success('Companion working', data={'task_id': task_id})
-    except Exception as e:
-        logger.error(f"Companion ask kickoff failed: {e}")
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    task_id = BackgroundTaskService.start_companion_ask(
+        current_user.id, question, history, focus)
+    return json_success('Companion working', data={'task_id': task_id})
 
 
 @companion_bp.route('/ask/status/<task_id>', methods=['GET'])
@@ -159,6 +157,7 @@ def capture():
 
 @companion_bp.route('/selection', methods=['POST'])
 @login_required
+@json_errors
 def selection():
     """Evidence from the user's own knowledge for a highlighted phrase.
 
@@ -174,27 +173,20 @@ def selection():
         return json_validation_error('Selection is required')
 
     company_id = data.get('company_id')
-    try:
-        evidence = find_evidence_for_selection(
-            current_user.id, text, company_id=company_id)
-        return json_success('Evidence loaded', data={'evidence': evidence})
-    except Exception as e:
-        logger.error(f"Companion selection lookup failed: {e}")
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    evidence = find_evidence_for_selection(
+        current_user.id, text, company_id=company_id)
+    return json_success('Evidence loaded', data={'evidence': evidence})
 
 
 @companion_bp.route('/warnings', methods=['GET'])
 @login_required
+@json_errors
 def warnings():
     """Proactive warnings for a company — pattern/journal/mistake history. Zero token cost."""
     company_id = request.args.get('company_id', type=int)
     if not company_id:
         return json_validation_error('company_id is required')
 
-    try:
-        argos = ArgosService(user_id=current_user.id)
-        return json_success('Warnings loaded',
-                            data={'warnings': argos.get_warnings_by_company(company_id)})
-    except Exception as e:
-        logger.error(f"Companion warnings failed: {e}")
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    argos = ArgosService(user_id=current_user.id)
+    return json_success('Warnings loaded',
+                        data={'warnings': argos.get_warnings_by_company(company_id)})

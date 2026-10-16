@@ -22,7 +22,7 @@ tunable thresholds throughout the platform.
 """
 
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from app import db
 
 class SystemConfig(db.Model):

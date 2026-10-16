@@ -46,10 +46,7 @@ class Sector(db.Model):
     aliases = db.Column(db.JSON, nullable=True)
     # List: ["FinTech", "Financial Tech", "Financial Technology", "Banking Tech"]
 
-    # Categorization and hierarchy
-    parent_sector_id = db.Column(db.Integer, db.ForeignKey('sector.id'), nullable=True)
-    # For hierarchical sectors: "Cloud Computing" parent of "SaaS"
-
+    # Categorization
     category = db.Column(db.String(50), nullable=True)
     # High-level: 'technology', 'healthcare', 'finance', 'consumer', 'industrial'
 
@@ -77,7 +74,6 @@ class Sector(db.Model):
     is_default = db.Column(db.Boolean, default=False)
     # System-provided vs user-created
 
-    merged_into_id = db.Column(db.Integer, db.ForeignKey('sector.id'), nullable=True)
     # If user merges two sectors, track the target
 
     # Cached analytics (updated periodically via update_analytics())
@@ -99,18 +95,7 @@ class Sector(db.Model):
     # Relationships
     user = db.relationship('User', backref='sectors')
 
-    parent_sector = db.relationship(
-        'Sector',
-        remote_side=[id],
-        backref='sub_sectors',
-        foreign_keys=[parent_sector_id]
-    )
 
-    merged_into = db.relationship(
-        'Sector',
-        remote_side=[id],
-        foreign_keys=[merged_into_id]
-    )
 
     # Ensure unique sector slugs per user
     __table_args__ = (
@@ -643,8 +628,6 @@ class SectorResearchSource(db.Model):
 
     # Publication info
     author = db.Column(db.String(200), nullable=True)
-    publisher = db.Column(db.String(200), nullable=True)
-    published_date = db.Column(db.Date, nullable=True)
 
     # Categorization
     tags = db.Column(db.String(500), nullable=True)  # Comma-separated tags

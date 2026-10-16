@@ -937,14 +937,17 @@
         };
 
         // Performance Chart
+        const chartCurrency = {{ (current_user.base_currency|currency_symbol)|tojson }};
+
         function renderPerformanceChart(labels, currentValues, totalCosts) {
             const canvas = document.getElementById('performanceChart');
             if (!canvas) return;
 
             // Show canvas, hide loading skeleton
             canvas.style.display = '';
+            // Remove rather than hide: Bootstrap's d-flex is display:flex !important.
             const loading = document.getElementById('chartLoading');
-            if (loading) loading.style.display = 'none';
+            if (loading) loading.remove();
             const legend = document.getElementById('chartLegend');
             if (legend) legend.style.display = '';
 
@@ -994,7 +997,7 @@
                             displayColors: false,
                             callbacks: {
                                 label: function (context) {
-                                    return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+                                    return context.dataset.label + ': ' + chartCurrency + context.parsed.y.toLocaleString();
                                 }
                             }
                         }
@@ -1010,7 +1013,7 @@
                                 font: { family: 'Inter' },
                                 color: '#94a3b8',
                                 callback: function (value) {
-                                    return '$' + (value / 1000).toFixed(0) + 'k';
+                                    return chartCurrency + (value / 1000).toFixed(0) + 'k';
                                 }
                             }
                         }

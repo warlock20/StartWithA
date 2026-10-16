@@ -225,6 +225,12 @@ def create_app(config_class=Config):
         from app.utils.blocknote_utils import blocknote_to_html
         return blocknote_to_html(content)
 
+    @app.template_filter('currency_symbol')
+    def currency_symbol_filter(currency):
+        """ISO currency code to display symbol: {{ txn.currency|currency_symbol }} -> '€'."""
+        from app.services.currency_service import CurrencyService
+        return CurrencyService.get_currency_symbol(currency or 'USD')
+
     from app.utils.quotes import get_session_quote
 
     @app.context_processor

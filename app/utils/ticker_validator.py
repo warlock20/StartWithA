@@ -402,14 +402,3 @@ def validate_ticker(ticker: str) -> Tuple[bool, Optional[str], Optional[str]]:
     else:
         error_msg = '; '.join(result['errors'])
         return False, None, error_msg
-
-
-def normalize_ticker(ticker: str) -> Optional[str]:
-    """
-    Normalize ticker to Yahoo Finance format
-
-    Returns:
-        Normalized ticker or None if invalid
-    """
-    result = TickerValidator.parse_and_validate(ticker)
-    return result['normalized_ticker'] if result['is_valid'] else None

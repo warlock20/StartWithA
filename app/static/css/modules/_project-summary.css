@@ -358,10 +358,6 @@
     background: linear-gradient(90deg, var(--success-500), var(--info-500));
 }
 
-.summary-ai-card.blind-spots::before {
-    background: linear-gradient(90deg, var(--warning-500), var(--danger-500));
-}
-
 .summary-ai-card-header {
     display: flex;
     justify-content: space-between;
@@ -423,131 +419,12 @@
 }
 
 /* Bias Items */
-.summary-bias-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--border-light);
-    font-size: var(--font-size-sm);
-    color: var(--gray-700);
-}
-
-.summary-bias-item:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.summary-bias-severity {
-    font-size: 0.6rem;
-    padding: 0.15rem 0.4rem;
-    border-radius: 3px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
-}
-
-.summary-bias-severity.high { background: var(--danger-50); color: var(--danger-600); }
-.summary-bias-severity.medium { background: var(--warning-50); color: var(--warning-600); }
-.summary-bias-severity.low { background: var(--info-50); color: var(--info-600); }
-.summary-bias-severity.none { background: var(--success-50); color: var(--success-600); }
 
 /* Quality Metrics */
-.summary-quality-metrics {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.summary-metric-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.summary-metric-label {
-    font-size: var(--font-size-xs);
-    color: var(--gray-500);
-    width: 85px;
-    flex-shrink: 0;
-}
-
-.summary-metric-bar {
-    flex: 1;
-    height: 6px;
-    background: var(--gray-100);
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.summary-metric-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.5s ease-out;
-}
-
-.summary-metric-fill.blue { background: var(--info-500); }
-.summary-metric-fill.emerald { background: var(--success-500); }
-.summary-metric-fill.amber { background: var(--warning-500); }
-.summary-metric-fill.violet { background: #8b5cf6; }
-
-.summary-metric-value {
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    width: 35px;
-    text-align: right;
-    color: var(--gray-600);
-}
 
 /* Blind Spots */
-.summary-blind-spot-item {
-    padding: 0.75rem;
-    background: var(--gray-50);
-    border-radius: var(--radius-sm);
-    margin-bottom: 0.5rem;
-    border-left: 3px solid var(--warning-500);
-}
-
-.summary-blind-spot-item:last-child {
-    margin-bottom: 0;
-}
-
-.summary-blind-spot-title {
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    color: var(--gray-800);
-    margin-bottom: 0.2rem;
-}
-
-.summary-blind-spot-desc {
-    font-size: var(--font-size-xs);
-    color: var(--gray-500);
-}
 
 /* AI Action Button */
-.summary-ai-action-btn {
-    width: 100%;
-    padding: 0.6rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-light);
-    background: transparent;
-    color: var(--gray-600);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all var(--transition-fast);
-    margin-top: 1rem;
-}
-
-.summary-ai-action-btn:hover {
-    background: var(--primary-50);
-    color: var(--primary-600);
-    border-color: var(--primary-600);
-}
 
 /* Stats Card */
 .summary-stats-card {

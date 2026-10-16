@@ -34,8 +34,8 @@ from app.models import (
     KillChecklistSuggestion,
     SectorAnalysis,
 )
-from app.utils.response_utils import json_success, json_error, json_unauthorized
-from app.utils.decorators import require_feature
+from app.utils.response_utils import json_success, json_error
+from app.utils.decorators import json_errors, require_feature
 from app.services.currency_service import CurrencyService
 from app.services.company_state import company_state
 from app.services.duplicate_detection import DuplicateDetectionService
@@ -46,6 +46,7 @@ from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
 from app.analytics.utils import log_research_activity
 from app.research_workflow.template_routes import ensure_default_template
 from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.utils.auth_utils import owned_or_404
 from sqlalchemy import or_, and_
 import json
 import os
@@ -423,7 +424,7 @@ def kill_room(idea_id):
 
     # ── JSON POST: batch evaluation from inline modal ──────────────
     if request.method == 'POST' and request.is_json:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         # Quick Kill: custom reason without checklist evaluation
         quick_kill_reason = data.get('quick_kill_reason')
@@ -595,10 +596,7 @@ def create_kill_checklist():
 @ideas_bp.route('/kill-checklists/<int:checklist_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_kill_checklist(checklist_id):
-    checklist = KillChecklist.query.get_or_404(checklist_id)
-    if checklist.user_id != current_user.id:
-        flash('You do not have permission to edit this checklist.', 'error')
-        return redirect(url_for('ideas.inbox'))
+    checklist = owned_or_404(KillChecklist, checklist_id)
 
     if request.method == 'POST':
         checklist.name = request.form.get('name')
@@ -643,10 +641,7 @@ def edit_kill_checklist(checklist_id):
 @login_required
 @require_feature('kill_checklists')
 def delete_kill_checklist(checklist_id):
-    checklist = KillChecklist.query.get_or_404(checklist_id)
-    if checklist.user_id != current_user.id:
-        flash('You do not have permission to delete this checklist.', 'error')
-        return redirect(url_for('ideas.manage_kill_checklists'))
+    checklist = owned_or_404(KillChecklist, checklist_id)
     
     db.session.delete(checklist)
     db.session.commit()
@@ -656,10 +651,7 @@ def delete_kill_checklist(checklist_id):
 @ideas_bp.route('/<int:idea_id>/promote', methods=['GET', 'POST'])
 @login_required
 def promote_idea(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.inbox'))
+    idea = owned_or_404(IdeaPipeline, idea_id)
     
     # Validate idea type requirements - only investment company ideas need ticker symbols
     if idea.idea_purpose == 'investment' and idea.idea_type == 'company' and not idea.ticker_symbol:
@@ -735,10 +727,7 @@ def promote_idea(idea_id):
                 return redirect(request.url)
 
             # Verify template ownership
-            template = ResearchTemplate.query.get_or_404(template_id)
-            if template.user_id != current_user.id:
-                flash('Access denied', 'error')
-                return redirect(url_for('ideas.inbox'))
+            template = owned_or_404(ResearchTemplate, template_id)
 
             # Get or create company for research project
             company_for_project = idea.promoted_to_company or idea.company
@@ -848,10 +837,7 @@ def promote_idea(idea_id):
 @ideas_bp.route('/<int:idea_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_idea(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.inbox'))
+    idea = owned_or_404(IdeaPipeline, idea_id)
 
     # Get return URL from query parameter, default to inbox
     return_to = request.args.get('return_to', 'inbox')
@@ -919,10 +905,7 @@ def edit_idea(idea_id):
 @ideas_bp.route('/<int:idea_id>/delete', methods=['POST'])
 @login_required
 def delete_idea(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.inbox'))
+    idea = owned_or_404(IdeaPipeline, idea_id)
 
     try:
         # Delete research logs that reference this idea
@@ -947,31 +930,22 @@ def delete_idea(idea_id):
 
 @ideas_bp.route('/<int:idea_id>/resurrect', methods=['POST'])
 @login_required
+@json_errors
 def resurrect_idea(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        return json_unauthorized('Access denied')
+    idea = owned_or_404(IdeaPipeline, idea_id)
 
     idea.status = 'inbox'
     idea.kill_reason = None
     idea.failed_criterion_id = None
     idea.killed_at = None
 
-    try:
-        db.session.commit()
-        return json_success()
-    except Exception:
-        current_app.logger.exception('Unexpected error in resurrect_idea')
-        db.session.rollback()
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    db.session.commit()
+    return json_success()
 
 @ideas_bp.route('/<int:idea_id>/mark_someday', methods=['GET'])
 @login_required
 def mark_someday(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.inbox'))
+    idea = owned_or_404(IdeaPipeline, idea_id)
     
     idea.status = 'someday'
     idea.last_reviewed_at = now_utc()
@@ -990,10 +964,7 @@ def mark_someday(idea_id):
 @login_required
 @require_feature('kill_checklists')
 def set_default_checklist(checklist_id):
-    checklist = KillChecklist.query.get_or_404(checklist_id)
-    if checklist.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.manage_kill_checklists'))
+    checklist = owned_or_404(KillChecklist, checklist_id)
     
     KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).update({'is_default': False})
     checklist.is_default = True
@@ -1011,10 +982,7 @@ def set_default_checklist(checklist_id):
 @ideas_bp.route('/<int:idea_id>/details')
 @login_required
 def idea_details(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.inbox'))
+    idea = owned_or_404(IdeaPipeline, idea_id)
     return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
 
 @ideas_bp.route('/api/sources/search')
@@ -1047,188 +1015,166 @@ def search_sources():
 
 @ideas_bp.route('/api/kill-checklist/<int:checklist_id>/suggestions')
 @login_required
+@json_errors
 def get_checklist_suggestions(checklist_id):
     """Get intelligent suggestions for optimizing a kill checklist"""
-    try:
-        checklist = KillChecklist.query.filter_by(
-            id=checklist_id,
-            user_id=current_user.id
-        ).first()
+    checklist = KillChecklist.query.filter_by(
+        id=checklist_id,
+        user_id=current_user.id
+    ).first()
 
-        if not checklist:
-            return json_error('Checklist not found', status_code=404)
+    if not checklist:
+        return json_error('Checklist not found', status_code=404)
 
-        # Get pending suggestions for this checklist
-        suggestions = KillChecklistSuggestion.query.filter_by(
-            kill_checklist_id=checklist_id,
-            user_id=current_user.id,
-            status='pending'
-        ).order_by(KillChecklistSuggestion.effectiveness_gain.desc()).all()
+    # Get pending suggestions for this checklist
+    suggestions = KillChecklistSuggestion.query.filter_by(
+        kill_checklist_id=checklist_id,
+        user_id=current_user.id,
+        status='pending'
+    ).order_by(KillChecklistSuggestion.effectiveness_gain.desc()).all()
 
-        # Convert to JSON format
-        suggestions_data = []
-        for suggestion in suggestions:
-            suggestions_data.append({
-                'id': suggestion.id,
-                'type': suggestion.suggestion_type,
-                'title': suggestion.title,
-                'description': suggestion.description,
-                'reasoning': suggestion.reasoning,
-                'effectiveness_gain': suggestion.effectiveness_gain,
-                'confidence_score': suggestion.confidence_score,
-                'created_at': suggestion.created_at.isoformat(),
-                'age_hours': suggestion.age_hours,
-                'suggestion_data': suggestion.suggestion_data
-            })
-
-        return jsonify({
-            'suggestions': suggestions_data,
-            'checklist_stats': {
-                'total_evaluations': checklist.total_ideas_evaluated,
-                'kill_rate': checklist.kill_rate,
-                'criteria_count': checklist.criteria_count
-            }
+    # Convert to JSON format
+    suggestions_data = []
+    for suggestion in suggestions:
+        suggestions_data.append({
+            'id': suggestion.id,
+            'type': suggestion.suggestion_type,
+            'title': suggestion.title,
+            'description': suggestion.description,
+            'reasoning': suggestion.reasoning,
+            'effectiveness_gain': suggestion.effectiveness_gain,
+            'confidence_score': suggestion.confidence_score,
+            'created_at': suggestion.created_at.isoformat(),
+            'age_hours': suggestion.age_hours,
+            'suggestion_data': suggestion.suggestion_data
         })
 
-    except Exception:
-        current_app.logger.exception('Unexpected error in get_checklist_suggestions')
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    return jsonify({
+        'suggestions': suggestions_data,
+        'checklist_stats': {
+            'total_evaluations': checklist.total_ideas_evaluated,
+            'kill_rate': checklist.kill_rate,
+            'criteria_count': checklist.criteria_count
+        }
+    })
 
 
 @ideas_bp.route('/api/kill-checklist/<int:checklist_id>/analyze', methods=['POST'])
 @login_required
+@json_errors
 def analyze_checklist(checklist_id):
     """Trigger analysis and generate new suggestions for a kill checklist"""
-    try:
-        checklist = KillChecklist.query.filter_by(
-            id=checklist_id,
-            user_id=current_user.id
-        ).first()
+    checklist = KillChecklist.query.filter_by(
+        id=checklist_id,
+        user_id=current_user.id
+    ).first()
 
-        if not checklist:
-            return json_error('Checklist not found', status_code=404)
+    if not checklist:
+        return json_error('Checklist not found', status_code=404)
 
-        # Generate reordering suggestions
-        reorder_suggestion = KillChecklistAnalytics.suggest_reordering(checklist_id)
-        suggestions_created = 0
+    # Generate reordering suggestions
+    reorder_suggestion = KillChecklistAnalytics.suggest_reordering(checklist_id)
+    suggestions_created = 0
 
-        if reorder_suggestion:
-            db.session.add(reorder_suggestion)
-            suggestions_created += 1
+    if reorder_suggestion:
+        db.session.add(reorder_suggestion)
+        suggestions_created += 1
 
-        # Generate cleanup suggestions
-        cleanup_suggestions = KillChecklistAnalytics._suggest_cleanup(checklist_id)
-        for suggestion in cleanup_suggestions:
-            db.session.add(suggestion)
-            suggestions_created += 1
+    # Generate cleanup suggestions
+    cleanup_suggestions = KillChecklistAnalytics._suggest_cleanup(checklist_id)
+    for suggestion in cleanup_suggestions:
+        db.session.add(suggestion)
+        suggestions_created += 1
 
-        db.session.commit()
+    db.session.commit()
 
-        return jsonify({
-            'message': f'Analysis complete. {suggestions_created} new suggestions generated.',
-            'suggestions_created': suggestions_created
-        })
-
-    except Exception:
-        current_app.logger.exception('Unexpected error in analyze_checklist')
-        db.session.rollback()
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    return jsonify({
+        'message': f'Analysis complete. {suggestions_created} new suggestions generated.',
+        'suggestions_created': suggestions_created
+    })
 
 
 @ideas_bp.route('/api/suggestions/<int:suggestion_id>/apply', methods=['POST'])
 @login_required
+@json_errors
 def apply_suggestion(suggestion_id):
     """Apply a suggestion to optimize the kill checklist"""
-    try:
-        success = SuggestionEngine.apply_suggestion(suggestion_id, current_user.id)
+    success = SuggestionEngine.apply_suggestion(suggestion_id, current_user.id)
 
-        if success:
-            return jsonify({'message': 'Suggestion applied successfully'})
-        else:
-            return json_error('Failed to apply suggestion')
-
-    except Exception:
-        current_app.logger.exception('Unexpected error in apply_suggestion')
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    if success:
+        return jsonify({'message': 'Suggestion applied successfully'})
+    else:
+        return json_error('Failed to apply suggestion')
 
 
 @ideas_bp.route('/api/suggestions/<int:suggestion_id>/reject', methods=['POST'])
 @login_required
+@json_errors
 def reject_suggestion(suggestion_id):
     """Reject a suggestion"""
-    try:
-        suggestion = KillChecklistSuggestion.query.filter_by(
-            id=suggestion_id,
-            user_id=current_user.id,
-            status='pending'
-        ).first()
+    suggestion = KillChecklistSuggestion.query.filter_by(
+        id=suggestion_id,
+        user_id=current_user.id,
+        status='pending'
+    ).first()
 
-        if not suggestion:
-            return json_error('Suggestion not found', status_code=404)
+    if not suggestion:
+        return json_error('Suggestion not found', status_code=404)
 
-        suggestion.status = 'rejected'
-        suggestion.responded_at = now_utc()
-        db.session.commit()
+    suggestion.status = 'rejected'
+    suggestion.responded_at = now_utc()
+    db.session.commit()
 
-        return jsonify({'message': 'Suggestion rejected'})
-
-    except Exception:
-        current_app.logger.exception('Unexpected error in reject_suggestion')
-        db.session.rollback()
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    return jsonify({'message': 'Suggestion rejected'})
 
 
 @ideas_bp.route('/api/kill-checklist/<int:checklist_id>/effectiveness')
 @login_required
+@json_errors
 def get_effectiveness_analysis(checklist_id):
     """Get detailed effectiveness analysis for a kill checklist"""
-    try:
-        checklist = KillChecklist.query.filter_by(
-            id=checklist_id,
-            user_id=current_user.id
-        ).first()
+    checklist = KillChecklist.query.filter_by(
+        id=checklist_id,
+        user_id=current_user.id
+    ).first()
 
-        if not checklist:
-            return json_error('Checklist not found', status_code=404)
+    if not checklist:
+        return json_error('Checklist not found', status_code=404)
 
-        # Analyze each criterion
-        criteria_analysis = []
-        for criterion in checklist.criteria.order_by(KillCriterion.order):
-            # Calculate/update effectiveness score
-            effectiveness = KillChecklistAnalytics.calculate_criterion_effectiveness(criterion.id)
+    # Analyze each criterion
+    criteria_analysis = []
+    for criterion in checklist.criteria.order_by(KillCriterion.order):
+        # Calculate/update effectiveness score
+        effectiveness = KillChecklistAnalytics.calculate_criterion_effectiveness(criterion.id)
 
-            criteria_analysis.append({
-                'id': criterion.id,
-                'question': criterion.question,
-                'order': criterion.order,
-                'times_evaluated': criterion.times_evaluated,
-                'times_failed': criterion.times_failed,
-                'failure_rate': criterion.failure_rate,
-                'effectiveness_score': effectiveness,
-                'last_used': criterion.last_used.isoformat() if criterion.last_used else None,
-                'auto_suggested': criterion.auto_suggested,
-                'has_source_mistake': criterion.source_mistake_id is not None
-            })
-
-        return jsonify({
-            'checklist': {
-                'id': checklist.id,
-                'name': checklist.name,
-                'total_evaluations': checklist.total_ideas_evaluated,
-                'total_kills': checklist.total_ideas_killed,
-                'kill_rate': checklist.kill_rate
-            },
-            'criteria_analysis': criteria_analysis,
-            'recommendations': {
-                'most_effective': max(criteria_analysis, key=lambda x: x['effectiveness_score'])['question'] if criteria_analysis else None,
-                'least_effective': min(criteria_analysis, key=lambda x: x['effectiveness_score'])['question'] if criteria_analysis else None,
-                'underutilized': [c['question'] for c in criteria_analysis if c['times_evaluated'] < 5]
-            }
+        criteria_analysis.append({
+            'id': criterion.id,
+            'question': criterion.question,
+            'order': criterion.order,
+            'times_evaluated': criterion.times_evaluated,
+            'times_failed': criterion.times_failed,
+            'failure_rate': criterion.failure_rate,
+            'effectiveness_score': effectiveness,
+            'last_used': criterion.last_used.isoformat() if criterion.last_used else None,
+            'auto_suggested': criterion.auto_suggested,
+            'has_source_mistake': criterion.source_mistake_id is not None
         })
 
-    except Exception:
-        current_app.logger.exception('Unexpected error in get_effectiveness_analysis')
-        return json_error('Something went wrong. Please try again.', status_code=500)
+    return jsonify({
+        'checklist': {
+            'id': checklist.id,
+            'name': checklist.name,
+            'total_evaluations': checklist.total_ideas_evaluated,
+            'total_kills': checklist.total_ideas_killed,
+            'kill_rate': checklist.kill_rate
+        },
+        'criteria_analysis': criteria_analysis,
+        'recommendations': {
+            'most_effective': max(criteria_analysis, key=lambda x: x['effectiveness_score'])['question'] if criteria_analysis else None,
+            'least_effective': min(criteria_analysis, key=lambda x: x['effectiveness_score'])['question'] if criteria_analysis else None,
+            'underutilized': [c['question'] for c in criteria_analysis if c['times_evaluated'] < 5]
+        }
+    })
 
 
 # Webhook for milestone-based suggestions (called from kill session completion)
