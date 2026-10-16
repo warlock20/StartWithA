@@ -6,10 +6,19 @@
 
 /* Dashboard header content width control */
 
-/* Ensure actions stay on the right */
+/* Keep actions on the right, but never wider than the header: past that they
+   wrap onto more rows instead of running off the card on tablets. */
 .dashboard-header .dashboard-header-actions {
-    flex-shrink: 0; /* Prevent shrinking */
-    margin-left: auto; /* Push to the right */
+    flex-shrink: 0;
+    max-width: 100%;
+    margin-left: auto;
+}
+
+/* The header stacks on phones; actions sit under the title, left-aligned. */
+@media (max-width: 768px) {
+    .dashboard-header .dashboard-header-actions {
+        margin-left: 0;
+    }
 }
 
 /* Tabs styling */

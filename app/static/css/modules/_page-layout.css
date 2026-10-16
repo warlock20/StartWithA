@@ -181,8 +181,11 @@
         align-items: flex-start;
     }
 
+    /* This was 2rem, larger than the desktop size, which wrapped long titles
+       (company names, checklist names) to three lines on a phone. */
     .dashboard-title {
-        font-size: 2rem;
+        font-size: 1.375rem;
+        line-height: 1.25;
     }
 
     .priority-lane-grid {
@@ -346,6 +349,21 @@
 @media (max-width: 576px) {
     .dashboard-metrics-strip {
         grid-template-columns: 1fr 1fr;
+    }
+
+    .dashboard-header-card {
+        padding: var(--space-md);
+    }
+
+    /* Actions drop to their own row; on one row they don't shrink, so they
+       squeezed the text down to a word per line. */
+    .dashboard-alert-card {
+        flex-wrap: wrap;
+    }
+
+    .dashboard-alert-card__actions {
+        flex-basis: 100%;
+        flex-wrap: wrap;
     }
 }
 

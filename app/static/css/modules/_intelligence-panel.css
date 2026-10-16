@@ -4,7 +4,9 @@
    ═══════════════════════════════════════════════════════════ */
 
 /* ═══ Wider container for intelligence panel layout ═══ */
-.action-container--intel { --action-max-width: 1400px; }
+/* Also the query container for the layout below: what decides stacking is the
+   width left after the sidebar and companion rail, not the viewport's. */
+.action-container--intel { --action-max-width: 1400px; container-type: inline-size; }
 
 /* ═══ Two-Column Layout ═══ */
 .main-layout--intel {
@@ -18,7 +20,7 @@
 /* Warnings container: only add spacing when it has content */
 #warnings-container:not(:empty) { margin-bottom: 1rem; }
 
-@media (max-width: 900px) {
+@container (max-width: 900px) {
   .main-layout--intel { flex-direction: column; }
   .main-layout--intel .intel-column { width: 100%; position: static; }
 }
@@ -26,8 +28,9 @@
 /* ═══ Transaction Type Buttons (tile row) ═══ */
 .tx-type-group { display: flex; gap: 0.35rem; flex-wrap: wrap; }
 .tx-type-btn {
-  flex: 1;
-  min-width: 0;
+  /* Grow to fill the row but never shrink below the label: on a phone the five
+     tiles wrap onto a second row instead of overlapping. */
+  flex: 1 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -63,15 +63,4 @@ Professional styling for the Circle of Competence analytics dashboard.
         align-items: flex-start;
         gap: 1rem;
     }
-
-    .dashboard-header-actions {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .dashboard-header-actions .btn {
-        width: 100%;
-    }
 }

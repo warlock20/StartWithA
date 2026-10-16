@@ -102,7 +102,9 @@
 
 @media (max-width: 1024px) {
     .ai-layout {
-        grid-template-columns: 1fr;
+        /* minmax(0, …) rather than 1fr: a 1fr track won't shrink below its
+           content, so the scrolling .ai-mobile-nav stretched the page sideways. */
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .ai-sidebar {
