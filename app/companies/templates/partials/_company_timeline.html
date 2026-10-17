@@ -68,7 +68,7 @@
         {% set expandable = has_detail %}
     {% elif event.type == 'transaction' %}
         {% set variant = 'transaction ' ~ d.type|lower %}
-        {% set icon = 'bi-arrow-down-left' if d.type == 'BUY' else 'bi-arrow-up-right' %}
+        {% set icon = {'BUY': 'bi-arrow-down-left', 'DIVIDEND': 'bi-cash-coin'}.get(d.type, 'bi-arrow-up-right') %}
         {% set has_detail = false %}
         {% set expandable = d.notes %}
     {% elif event.type == 'decision' %}
@@ -116,7 +116,7 @@
                     <span class="tl-title">{{ d.metric }}</span>
                     {% if d.expectation %}<span class="tl-preview">{{ d.expectation }}</span>{% endif %}
                     {% elif event.type == 'transaction' %}
-                    <span class="tl-title">{{ d.quantity }} shares @ {{ currency_symbol }}{{ "%.2f"|format(d.price_per_share) }}</span>
+                    <span class="tl-title">{{ d.quantity }} shares @ {{ d.currency|currency_symbol }}{{ "%.2f"|format(d.price_per_share) }}</span>
                     {% if d.notes %}<span class="tl-preview tl-preview--keep">{{ d.notes }}</span>{% endif %}
                     {% elif event.type == 'decision' %}
                     <span class="tl-title">{{ decision_text or (d.decision_type|title ~ ' decision') }}</span>
@@ -146,7 +146,7 @@
                         {% else %}<i class="bi bi-clock"></i> Pending{% endif %}
                     </span>
                 {% elif event.type == 'transaction' %}
-                    <span class="tl-amount">{{ currency_symbol }}{{ "{:,.2f}".format(d.total_value) }}</span>
+                    <span class="tl-amount">{{ d.currency|currency_symbol }}{{ "{:,.2f}".format(d.total_value) }}</span>
                 {% elif event.type == 'decision' %}
                     {% if d.confidence_score %}
                     <span class="tl-meta-item"><span class="tl-meta-label">Confidence</span> {{ d.confidence_score }}/10</span>

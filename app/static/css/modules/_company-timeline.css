@@ -350,6 +350,7 @@ details[open] > summary .tl-preview--keep {
 .tl-item--checkpoint.not-met  { --tl-c: var(--danger-600);  --tl-bg: var(--danger-50); }
 .tl-item--transaction.buy     { --tl-c: var(--success-600); --tl-bg: var(--success-50); }
 .tl-item--transaction.sell    { --tl-c: var(--danger-600);  --tl-bg: var(--danger-50); }
+.tl-item--transaction.dividend { --tl-c: var(--info-600);   --tl-bg: var(--info-50); }
 .tl-item--decision            { --tl-c: var(--purple-600);  --tl-bg: var(--purple-50); }
 .tl-item--finding.green       { --tl-c: var(--success-600); --tl-bg: var(--success-50); }
 .tl-item--finding.red         { --tl-c: var(--danger-600);  --tl-bg: var(--danger-50); }

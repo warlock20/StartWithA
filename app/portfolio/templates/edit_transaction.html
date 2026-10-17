@@ -219,7 +219,7 @@
 
             if (TX_TYPE === 'BUY') {
                 total += fees;
-            } else if (TX_TYPE === 'SELL') {
+            } else if (TX_TYPE === 'SELL' || TX_TYPE === 'DIVIDEND') {
                 total -= fees;
             }
 

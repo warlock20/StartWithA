@@ -62,6 +62,7 @@ def transactions():
         'price': float(txn.price_per_share) if txn.price_per_share else 0,
         'fees': float(txn.fees) if txn.fees else 0,
         'total': float(txn.cash_amount or 0) if txn.type in ('DEPOSIT', 'WITHDRAWAL') else (float(txn.total_value) if txn.total_value else 0),
+        'currency_symbol': CurrencyService.get_currency_symbol(txn.currency or current_user.base_currency),
         'notes': txn.notes or '',
         'bought_without_research': bool(txn.bought_without_research),
         'edit_url': url_for('portfolio.edit_transaction', transaction_id=txn.id),
