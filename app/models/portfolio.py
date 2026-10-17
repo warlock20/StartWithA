@@ -113,10 +113,15 @@ class Transaction(db.Model):
 
     @property
     def total_value(self):
-        """Calculate total transaction value including fees"""
+        """Calculate total transaction value: fees add to a buy's cost but
+        come out of sell and dividend proceeds (as in calculate_fifo_cost_basis)."""
         if self.type in ('DEPOSIT', 'WITHDRAWAL'):
             return float(self.cash_amount or 0)
-        return float(self.quantity * self.price_per_share) + float(self.fees)
+        gross = float(self.quantity * self.price_per_share)
+        fees = float(self.fees or 0)
+        if self.type in ('SELL', 'DIVIDEND'):
+            return gross - fees
+        return gross + fees
 
     def to_dict(self):
         """Convert transaction to dictionary for API responses"""

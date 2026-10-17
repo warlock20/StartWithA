@@ -159,7 +159,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     hozAlign: "right",
                     minWidth: 90,
                     formatter: function(cell) {
-                        return currencySymbol + cell.getValue().toFixed(2);
+                        var cs = cell.getRow().getData().currency_symbol || currencySymbol;
+                        return cs + cell.getValue().toFixed(2);
                     }
                 },
                 {
@@ -171,7 +172,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     formatter: function(cell) {
                         var val = cell.getValue();
                         if (val === 0) return '<span class="table-cell-muted">--</span>';
-                        return currencySymbol + val.toFixed(2);
+                        var cs = cell.getRow().getData().currency_symbol || currencySymbol;
+                        return cs + val.toFixed(2);
                     }
                 },
                 {
@@ -181,7 +183,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     hozAlign: "right",
                     minWidth: 100,
                     formatter: function(cell) {
-                        return '<strong>' + currencySymbol + cell.getValue().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong>';
+                        var cs = cell.getRow().getData().currency_symbol || currencySymbol;
+                        return '<strong>' + cs + cell.getValue().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong>';
                     }
                 },
                 {

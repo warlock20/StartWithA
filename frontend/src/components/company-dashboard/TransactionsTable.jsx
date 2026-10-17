@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react';
  * Tabulator instance inside the mount point and cleans it up on unmount.
  *
  * Props:
- *   transactions: Array of { id, date, type, shares, price, total, notes }
+ *   transactions: Array of { id, date, type, shares, price, total, currency_symbol, notes }
  *   currencySymbol: string (default: '$')
  */
 export function TransactionsTable({ transactions, currencySymbol = '$' }) {
@@ -75,7 +75,8 @@ export function TransactionsTable({ transactions, currencySymbol = '$' }) {
           sorter: 'number',
           hozAlign: 'right',
           formatter: function (cell) {
-            return cs + cell.getValue().toFixed(2);
+            var sym = cell.getRow().getData().currency_symbol || cs;
+            return sym + cell.getValue().toFixed(2);
           },
           minWidth: 90,
           widthGrow: 1,
@@ -86,9 +87,10 @@ export function TransactionsTable({ transactions, currencySymbol = '$' }) {
           sorter: 'number',
           hozAlign: 'right',
           formatter: function (cell) {
+            var sym = cell.getRow().getData().currency_symbol || cs;
             return (
               '<strong>' +
-              cs +
+              sym +
               cell.getValue().toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,

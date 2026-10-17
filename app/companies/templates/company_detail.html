@@ -395,6 +395,7 @@ window.companyConfig = {
             shares: {{ txn.quantity }},
             price: {{ txn.price_per_share }},
             total: {{ txn.total_value }},
+            currency_symbol: {{ (txn.currency|currency_symbol)|tojson }},
             notes: {{ txn.notes | tojson | safe if txn.notes else 'null' }}
         }{{ ',' if not loop.last else '' }}
         {% endfor %}

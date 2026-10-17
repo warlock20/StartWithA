@@ -483,7 +483,7 @@ def _gather_journey_data(company, user_id):
         })
 
     for txn in transactions:
-        if txn.type in ['BUY', 'SELL']:
+        if txn.type in ['BUY', 'SELL', 'DIVIDEND']:
             timeline_events.append({
                 'type': 'transaction',
                 'date': txn.date,
