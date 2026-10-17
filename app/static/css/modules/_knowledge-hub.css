@@ -432,6 +432,13 @@
     opacity: 1;
 }
 
+/* No hover on touch screens, so the actions would never show. */
+@media (hover: none) {
+    .cc-card-actions {
+        opacity: 1;
+    }
+}
+
 .cc-card-action-btn {
     background: rgba(255,255,255,0.9);
     border: 1px solid var(--gray-200);

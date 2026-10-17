@@ -45,7 +45,7 @@ def intelligent_routing():
 
     if not company_id:
         flash('Company ID is required for intelligent routing', 'error')
-        return redirect(url_for('dashboard.main'))
+        return redirect(url_for('dashboard.index'))
 
     company = owned_or_404(Company, company_id)
 

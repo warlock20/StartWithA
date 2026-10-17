@@ -144,12 +144,26 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+    /* Mid-height on the right edge, the button sat on top of the editor text.
+       Park it in the bottom-right corner, stacked above the companion orb. */
     .floating-quick-tools {
+        top: auto;
         right: 1rem;
+        bottom: calc(1rem + 48px + 0.75rem + env(safe-area-inset-bottom, 0px));
+        transform: none;
     }
 
+    .quick-tools-pill:hover {
+        transform: none;
+    }
+
+    /* Icon-only on mobile, sized and shaped like the companion orb below it. */
     .quick-tools-pill {
-        padding: 0.875rem 1rem;
+        width: 48px;
+        height: 48px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 50%;
         font-size: 0.875rem;
     }
 

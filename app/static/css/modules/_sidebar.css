@@ -550,6 +550,9 @@ body:not(.has-sidebar) .app-main {
 /* ========== MOBILE ========== */
 @media (max-width: 768px) {
     .app-sidebar {
+        /* The drawer overlays the page, so it can afford more than the docked
+           250px; at that width labels next to a NEW badge were cut off. */
+        --sidebar-width: min(300px, 85vw);
         transform: translateX(-100%);
         width: var(--sidebar-width);
         z-index: 1050;

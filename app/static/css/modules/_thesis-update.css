@@ -42,15 +42,17 @@
 /* =============================================================================
    MAIN CONTENT LAYOUT
    ============================================================================= */
+/* minmax(0, …) rather than 1fr throughout: a 1fr track won't shrink below its
+   content, which pushed the form past the screen edge on phones. */
 .thesis-update-content {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: minmax(0, 1fr) 320px;
     gap: var(--space-xl);
 }
 
 /* When no sidebar (no current thesis) */
 .thesis-update-content:has(.thesis-update-form-section:only-child) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
 }
 
 /* =============================================================================
@@ -478,7 +480,7 @@
    ============================================================================= */
 @media (max-width: 1024px) {
     .thesis-update-content {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .thesis-update-sidebar {
@@ -503,5 +505,9 @@
 
     .thesis-modal-cases {
         grid-template-columns: 1fr;
+    }
+
+    .thesis-update-form-section {
+        padding: var(--space-md);
     }
 }

@@ -335,7 +335,7 @@ def notebook(sector_name):
 
     if not sector:
         flash('Sector not found', 'error')
-        return redirect(url_for('sectors.list_sectors'))
+        return redirect(url_for('sectors.index'))
 
     if should_redirect:
         return redirect(url_for('sectors.notebook', sector_name=sector.slug), code=301)

@@ -393,3 +393,14 @@
         flex-wrap: wrap;
     }
 }
+
+/* 10–11px labels are hard to read on a phone; 12px is the floor there. */
+@media (max-width: 768px) {
+    .success-rate-label,
+    .research-template-success-badge .success-rate-label,
+    .blueprint-title,
+    .research-template-blueprint .blueprint-title,
+    .idea-pipeline-template-stat-label {
+        font-size: 0.75rem;
+    }
+}

@@ -19,8 +19,10 @@
 
 .sector-snapshot-header {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
+    gap: 0.75rem;
     margin-bottom: 1rem;
 }
 
@@ -61,6 +63,8 @@
 
 .sector-snapshot-actions {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 0.5rem;
 }
 

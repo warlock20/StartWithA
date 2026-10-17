@@ -91,3 +91,37 @@ button {
 button:hover {
     opacity: 0.9;
 }
+
+/* =============================================================================
+   TOUCH TARGETS
+   On touch screens, small buttons get an invisible hit area of at least 44×44
+   centred on them, so they're easy to tap without changing how they look.
+   Selectors from page bundles are listed here so the rule lives in one place.
+   ============================================================================= */
+@media (pointer: coarse) {
+    .topbar-toggle,
+    .finding-add-toggle,
+    .cc-card-action-btn,
+    .idea-action-btn,
+    .rcl-action,
+    .tr-row-action-btn,
+    .hub-intel-card-footer a {
+        position: relative;
+    }
+
+    .topbar-toggle::after,
+    .finding-add-toggle::after,
+    .cc-card-action-btn::after,
+    .idea-action-btn::after,
+    .rcl-action::after,
+    .tr-row-action-btn::after,
+    .hub-intel-card-footer a::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: max(100%, 44px);
+        height: max(100%, 44px);
+        transform: translate(-50%, -50%);
+    }
+}

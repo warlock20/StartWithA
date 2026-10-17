@@ -931,3 +931,10 @@
         opacity: 0;
     }
 }
+
+/* 10–11px labels are hard to read on a phone; 12px is the floor there. */
+@media (max-width: 768px) {
+    .dashboard-section-label {
+        font-size: 0.75rem;
+    }
+}

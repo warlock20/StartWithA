@@ -16,6 +16,8 @@
     gap: 0;
     border-top: 1px solid var(--border-light);
     margin-top: var(--space-md);
+    /* Wrap on a phone rather than run off the screen; every tab stays visible. */
+    flex-wrap: wrap;
 }
 
 .ah-tab {
@@ -31,6 +33,8 @@
     transition: color var(--transition-fast), border-color var(--transition-fast);
     display: inline-flex;
     align-items: center;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .ah-tab:hover {
@@ -662,5 +666,11 @@
     .ah-screening-header {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    /* Tighter tabs so fewer rows are needed at phone width. */
+    .ah-tab {
+        padding: 0.75rem 0.6rem;
+        font-size: var(--font-size-sm);
     }
 }

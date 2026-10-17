@@ -162,11 +162,14 @@
     font-size: var(--font-size-sm);
 }
 
+/* min-width: 0 down the chain (control → inline form → select) so a select
+   sized to its longest model name can shrink to the card on a phone. */
 .settings-row-control {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: var(--space-sm);
+    min-width: 0;
 }
 
 .settings-row-control form {
@@ -176,12 +179,14 @@
 .settings-row-control .form-select {
     width: auto;
     max-width: 320px;
+    min-width: 0;
 }
 
 .settings-inline-form {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
+    min-width: 0;
 }
 
 .settings-number {
@@ -440,10 +445,12 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
+    /* Wrap rather than scroll: a sideways-scrolling bar gave no sign that
+       more tabs (AI, Privacy, Profile) were off screen. */
     .settings-nav {
         position: static;
         display: flex;
-        overflow-x: auto;
+        flex-wrap: wrap;
         gap: var(--space-xs);
         padding: 0.375rem;
     }

@@ -152,7 +152,7 @@ export function PortfolioDashboard({
         <div className="rcl-panel" style={{ overflow: 'hidden' }}>
           {/* Tab bar + controls */}
           <div className="portfolio-table-controls">
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               <TabBtn
                 active={view === 'overview'}
                 icon="table"
@@ -175,7 +175,7 @@ export function PortfolioDashboard({
                 Performance
               </TabBtn>
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', gap: 4 }}>
                 <PlFilterChip active={plFilter === 'all'} onClick={() => setPlFilter('all')}>
                   All
