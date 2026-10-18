@@ -58,6 +58,7 @@ css_core = Bundle(
     'css/modules/_page-layout.css',
     'css/modules/_metrics-buttons.css',
     'css/modules/_research-command-center.css',
+    'css/modules/_data-table-cards.css',
 
     # Page-level core
     'css/modules/_auth.css',

@@ -3,6 +3,8 @@
  *
  * Three factory functions that return column definition arrays
  * for use with the DataTable React wrapper.
+ *
+ * The dt-card-* classes pick what a phone card shows (see lib/tableCards).
  */
 import { ColumnFormatters } from '../../lib/columnFormatters';
 import { fmtCur, fmtPct, fmtSign, plColor, plBg, sectorColor } from './portfolioUtils';
@@ -40,6 +42,7 @@ export function overviewColumns(currencySymbol) {
   return [
     {
       title: 'Company',
+      cssClass: 'dt-card-title',
       field: 'ticker',
       sorter: 'string',
       minWidth: 160,
@@ -69,6 +72,7 @@ export function overviewColumns(currencySymbol) {
     },
     {
       title: 'Value',
+      cssClass: 'dt-card-key',
       field: 'current_value',
       sorter: 'number',
       hozAlign: 'right',
@@ -98,6 +102,7 @@ export function overviewColumns(currencySymbol) {
     },
     {
       title: 'Total Return',
+      cssClass: 'dt-card-key',
       field: 'gain_loss_pct',
       sorter: 'number',
       hozAlign: 'right',
@@ -114,6 +119,7 @@ export function overviewColumns(currencySymbol) {
     {
       title: '',
       field: '_actions',
+      cssClass: 'dt-card-actions',
       headerSort: false,
       hozAlign: 'right',
       minWidth: 140,
@@ -129,6 +135,7 @@ export function weightsColumns(currencySymbol, sectorColorMap) {
   return [
     {
       title: 'Company',
+      cssClass: 'dt-card-title',
       field: 'ticker',
       sorter: 'string',
       minWidth: 160,
@@ -157,6 +164,7 @@ export function weightsColumns(currencySymbol, sectorColorMap) {
     },
     {
       title: 'Value',
+      cssClass: 'dt-card-key',
       field: 'current_value',
       sorter: 'number',
       hozAlign: 'right',
@@ -170,6 +178,7 @@ export function weightsColumns(currencySymbol, sectorColorMap) {
     },
     {
       title: 'Weight',
+      cssClass: 'dt-card-key',
       field: 'weightPortfolio',
       sorter: 'number',
       hozAlign: 'right',
@@ -213,6 +222,7 @@ export function weightsColumns(currencySymbol, sectorColorMap) {
     {
       title: '',
       field: '_actions',
+      cssClass: 'dt-card-actions',
       headerSort: false,
       hozAlign: 'right',
       minWidth: 140,
@@ -228,6 +238,7 @@ export function performanceColumns(currencySymbol) {
   return [
     {
       title: 'Company',
+      cssClass: 'dt-card-title',
       field: 'ticker',
       sorter: 'string',
       minWidth: 160,
@@ -236,6 +247,7 @@ export function performanceColumns(currencySymbol) {
     },
     {
       title: 'Total Return',
+      cssClass: 'dt-card-key',
       field: 'gain_loss_pct',
       sorter: 'number',
       hozAlign: 'right',
@@ -251,6 +263,7 @@ export function performanceColumns(currencySymbol) {
     },
     {
       title: 'Total P/L',
+      cssClass: 'dt-card-key',
       field: 'gain_loss',
       sorter: 'number',
       hozAlign: 'right',
@@ -310,6 +323,7 @@ export function performanceColumns(currencySymbol) {
     {
       title: '',
       field: '_actions',
+      cssClass: 'dt-card-actions',
       headerSort: false,
       hozAlign: 'right',
       minWidth: 140,

@@ -20,6 +20,7 @@ import { createDataTable } from '../../lib/dataTable';
  * @param {object}   [props.exportButtons] - Enable export buttons (csv/xlsx/json)
  * @param {object}   [props.exportConfig]  - Export config (filename, sheetName)
  * @param {object}   [props.customConfig]  - Additional Tabulator config overrides
+ * @param {boolean}  [props.mobileCards]   - Render rows as tap-to-open cards on phones (see lib/tableCards)
  * @param {string}   [props.className]     - Extra CSS classes on the wrapper div
  */
 export function DataTable({
@@ -35,6 +36,7 @@ export function DataTable({
   exportButtons,
   exportConfig,
   customConfig,
+  mobileCards,
   className,
 }) {
   const containerRef = useRef(null);
@@ -56,6 +58,7 @@ export function DataTable({
       exportButtons,
       exportConfig,
       customConfig,
+      mobileCards,
     });
 
     tableRef.current = table;

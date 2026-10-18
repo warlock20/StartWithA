@@ -205,6 +205,7 @@ export function PortfolioDashboard({
               columns={overviewCols}
               data={filtered}
               customConfig={tableConfig}
+              mobileCards
             />
           )}
           {view === 'weights' && (
@@ -212,6 +213,7 @@ export function PortfolioDashboard({
               columns={weightsCols}
               data={weightsData}
               customConfig={tableConfig}
+              mobileCards
               rowFormatter={weightsRowFormatter}
             />
           )}
@@ -220,6 +222,7 @@ export function PortfolioDashboard({
               columns={performanceCols}
               data={filtered}
               customConfig={tableConfig}
+              mobileCards
             />
           )}
 

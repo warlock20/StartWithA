@@ -368,6 +368,7 @@
 {% block scripts %}
 {{ super() }}
 {% include 'components/_tabulator_js.html' %}
+<script defer src="{{ url_for('static', filename='js/dist/table-cards.bundle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -384,6 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
             columns: [
                 {
                     title: "Company",
+                    cssClass: "dt-card-title",
                     field: "company_name",
                     sorter: "string",
                     minWidth: 180,
@@ -402,6 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Progress",
+                    cssClass: "dt-card-key",
                     field: "progress",
                     sorter: "number",
                     hozAlign: "center",
@@ -477,6 +480,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     title: "",
                     field: "dashboard_url",
+                    cssClass: "dt-card-actions",
                     headerSort: false,
                     hozAlign: "right",
                     minWidth: 140,
@@ -489,6 +493,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             ],
+            mobileCards: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "last_worked", dir: "desc" }],
@@ -537,6 +542,7 @@ document.addEventListener('DOMContentLoaded', function() {
             columns: [
                 {
                     title: "Company",
+                    cssClass: "dt-card-title",
                     field: "company_name",
                     sorter: "string",
                     minWidth: 180,
@@ -549,6 +555,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Status",
+                    cssClass: "dt-card-key",
                     field: "research_status",
                     sorter: "string",
                     hozAlign: "center",
@@ -601,6 +608,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     title: "",
                     field: "company_url",
+                    cssClass: "dt-card-actions",
                     headerSort: false,
                     hozAlign: "right",
                     minWidth: 180,
@@ -616,6 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             ],
+            mobileCards: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "company_name", dir: "asc" }],
@@ -666,6 +675,7 @@ document.addEventListener('DOMContentLoaded', function() {
             columns: [
                 {
                     title: "Company",
+                    cssClass: "dt-card-title",
                     field: "company_name",
                     sorter: "string",
                     minWidth: 160,
@@ -691,6 +701,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Stage",
+                    cssClass: "dt-card-key",
                     field: "rejection_stage_label",
                     sorter: "string",
                     hozAlign: "center",
@@ -759,6 +770,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     title: "",
                     field: "company_url",
+                    cssClass: "dt-card-actions",
                     headerSort: false,
                     hozAlign: "right",
                     minWidth: 200,
@@ -802,6 +814,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 },
             ],
+            mobileCards: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "rejection_date", dir: "desc" }],
@@ -851,6 +864,7 @@ document.addEventListener('DOMContentLoaded', function() {
             columns: [
                 {
                     title: "Company",
+                    cssClass: "dt-card-title",
                     field: "company_name",
                     sorter: "string",
                     minWidth: 180,
@@ -869,6 +883,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Confidence",
+                    cssClass: "dt-card-key",
                     field: "confidence",
                     sorter: "number",
                     hozAlign: "center",
@@ -902,6 +917,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     title: "",
                     field: "summary_url",
+                    cssClass: "dt-card-actions",
                     headerSort: false,
                     hozAlign: "right",
                     minWidth: 180,
@@ -915,6 +931,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             ],
+            mobileCards: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "completed_at", dir: "desc" }],

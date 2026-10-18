@@ -8,6 +8,8 @@
  *   import { createDataTable } from '../lib/dataTable';
  *   import { ColumnFormatters } from '../lib/columnFormatters';
  */
+import { prepareCardsConfig, enableTableCards } from './tableCards';
+
 export { ColumnFormatters } from './columnFormatters';
 
 const DEFAULT_TABLE_CONFIG = {
@@ -69,11 +71,16 @@ export function createDataTable(selector, options = {}) {
   if (options.rowFormatter) config.rowFormatter = options.rowFormatter;
   if (options.rowClick) config.rowClick = options.rowClick;
   if (options.customConfig) Object.assign(config, options.customConfig);
+  // Tabulator resolves initialSort entries to its own column objects in place;
+  // copy them so a config shared between tables never points at another table.
+  if (config.initialSort) config.initialSort = config.initialSort.map((sorter) => ({ ...sorter }));
+  if (options.mobileCards) prepareCardsConfig(config);
 
   const table = new Tabulator(selector, config);
 
   // Scroll indicator for horizontally scrollable tables
   const tableElement = document.querySelector(selector);
+  if (tableElement && options.mobileCards) enableTableCards(table, tableElement);
   if (tableElement) {
     const wrapper = tableElement.closest('.data-table-wrapper');
     if (wrapper) {

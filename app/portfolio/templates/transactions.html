@@ -87,6 +87,7 @@
 {{ super() }}
 {% include 'components/_tabulator_js.html' %}
 {% if transactions %}
+<script defer src="{{ url_for('static', filename='js/dist/table-cards.bundle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -102,6 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
             columns: [
                 {
                     title: "Date",
+                    cssClass: "dt-card-key",
                     field: "date",
                     sorter: "date",
                     sorterParams: { format: "yyyy-MM-dd" },
@@ -133,6 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Company",
+                    cssClass: "dt-card-title",
                     field: "ticker",
                     sorter: "string",
                     minWidth: 160,
@@ -178,6 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Total",
+                    cssClass: "dt-card-key",
                     field: "total",
                     sorter: "number",
                     hozAlign: "right",
@@ -205,6 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     title: "",
                     field: "id",
+                    cssClass: "dt-card-actions",
                     headerSort: false,
                     hozAlign: "right",
                     minWidth: 120,
@@ -215,6 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             ],
+            mobileCards: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "date", dir: "desc" }],
