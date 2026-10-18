@@ -144,6 +144,7 @@
 {{ super() }}
 {% include 'components/_tabulator_js.html' %}
 {% if idea_count > 0 %}
+<script defer src="{{ url_for('static', filename='js/dist/table-cards.bundle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script src="{{ url_for('static', filename='js/detail-card.js') }}"></script>
 <script>
@@ -184,6 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
             columns: [
                 {
                     title: "Idea",
+                    cssClass: "dt-card-title",
                     field: "name",
                     sorter: "string",
                     minWidth: 180,
@@ -216,6 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "State",
+                    cssClass: "dt-card-key",
                     field: "state",
                     sorter: "string",
                     hozAlign: "center",
@@ -281,6 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     title: "",
                     field: "action",
+                    cssClass: "dt-card-actions",
                     headerSort: false,
                     hozAlign: "right",
                     minWidth: 160,
@@ -307,6 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             ],
+            mobileCards: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "age_days", dir: "desc" }],

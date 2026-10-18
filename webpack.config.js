@@ -29,6 +29,7 @@ module.exports = {
     'checklist-inspector': './frontend/src/checklist-inspector.js',
     'portfolio-dashboard': './frontend/src/portfolio-dashboard.js',
     'home-preview': './frontend/src/home-preview.js',
+    'table-cards': './frontend/src/table-cards.js',
   },
   output: {
     filename: '[name].bundle.js',

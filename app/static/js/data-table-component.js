@@ -6,11 +6,12 @@
  * Platform-wide table component using Tabulator.
  * Provides consistent styling, filtering, sorting, and export functionality.
  *
- * Mobile Support (CSS-based, see _dashboard.css):
- * - Horizontal scrolling enabled on devices ≤768px via CSS overflow
- * - Visual scroll indicators (gradient shadow) signal more content
- * - All columns remain visible (no responsive column hiding)
- * - Native touch/swipe gestures work automatically
+ * Mobile Support:
+ * - With `mobileCards: true`, rows render as tap-to-open cards on phones.
+ *   Mark columns with cssClass dt-card-title / dt-card-key / dt-card-actions
+ *   and load js/dist/table-cards.bundle.js on the page (see
+ *   frontend/src/lib/tableCards.js and _data-table-cards.css).
+ * - Without it, tables scroll sideways inside themselves on phones.
  *
  * Usage:
  * ------
@@ -26,7 +27,7 @@
  * Default configuration for all data tables
  * These settings ensure consistency across the platform
  *
- * Mobile responsiveness handled via CSS (see _dashboard.css MOBILE TABLE section)
+ * Phone layout: see "Mobile Support" above (opt-in card mode)
  * Tables use fitData by default; individual tables may override with fitColumns
  */
 const DEFAULT_TABLE_CONFIG = {
@@ -56,6 +57,7 @@ const DEFAULT_TABLE_CONFIG = {
  * @param {function} options.rowFormatter - Custom row formatter (optional)
  * @param {function} options.rowClick - Row click handler (optional)
  * @param {object} options.customConfig - Override any Tabulator config (optional)
+ * @param {boolean} options.mobileCards - Render rows as cards on phones (optional)
  *
  * @returns {Tabulator} - Tabulator instance
  */
@@ -110,8 +112,17 @@ function createDataTable(selector, options = {}) {
         Object.assign(config, options.customConfig);
     }
 
+    // Phone card mode, provided by table-cards.bundle.js
+    const useCards = options.mobileCards && window.TableCards;
+    if (useCards) {
+        window.TableCards.prepareCardsConfig(config);
+    }
+
     // Initialize Tabulator
     const table = new Tabulator(selector, config);
+    if (useCards) {
+        window.TableCards.enableTableCards(table, document.querySelector(selector));
+    }
 
     // Add scroll indicator logic for horizontally scrollable tables
     const tableElement = document.querySelector(selector);
