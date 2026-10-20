@@ -21,6 +21,7 @@ import { createDataTable } from '../../lib/dataTable';
  * @param {object}   [props.exportConfig]  - Export config (filename, sheetName)
  * @param {object}   [props.customConfig]  - Additional Tabulator config overrides
  * @param {boolean}  [props.mobileCards]   - Render rows as tap-to-open cards on phones (see lib/tableCards)
+ * @param {boolean}  [props.foldColumns]   - Fold columns that don't fit into an expandable row on desktop (see lib/tableFold)
  * @param {string}   [props.className]     - Extra CSS classes on the wrapper div
  */
 export function DataTable({
@@ -37,6 +38,7 @@ export function DataTable({
   exportConfig,
   customConfig,
   mobileCards,
+  foldColumns,
   className,
 }) {
   const containerRef = useRef(null);
@@ -59,6 +61,7 @@ export function DataTable({
       exportConfig,
       customConfig,
       mobileCards,
+      foldColumns,
     });
 
     tableRef.current = table;

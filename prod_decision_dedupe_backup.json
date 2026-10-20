@@ -1,0 +1,38 @@
+[
+  {
+    "id": 18,
+    "user_id": 1,
+    "title": "Decision: Invest",
+    "entry_type": "investment_action",
+    "content": "Invest decision for AIDA ENGINEERING,LTD..\n\nConfidence: 7/10",
+    "key_insight": null,
+    "action_items": null,
+    "questions_raised": null,
+    "sentiment": "bullish",
+    "conviction_level": 7,
+    "company_id": 284,
+    "project_id": 25,
+    "idea_id": null,
+    "tags": [
+      "invest-decision",
+      "investment-action"
+    ],
+    "source": "research_workflow",
+    "source_url": null,
+    "created_at": "2026-07-12 15:21:24.834198",
+    "updated_at": "2026-07-12 15:21:24.834204",
+    "last_reviewed": null,
+    "review_count": 0,
+    "review_notes": null,
+    "is_starred": false,
+    "is_archived": false,
+    "ai_analysis_result": null,
+    "ai_analyzed_at": null,
+    "ai_confidence_score": null,
+    "ai_suggested_tags": null,
+    "ai_themes_extracted": null,
+    "related_entry_ids": null,
+    "contradiction_flags": null,
+    "ai_processing_status": null
+  }
+]

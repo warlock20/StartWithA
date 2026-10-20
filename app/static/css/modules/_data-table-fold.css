@@ -1,0 +1,126 @@
+/* =============================================================================
+   DATA TABLE FOLDED COLUMNS (#377)
+   ============================================================================= */
+/*
+   On desktop, tables created with `foldColumns` hide the columns that don't
+   fit and show them in a row under each record, opened from a chevron.
+   Behaviour lives in frontend/src/lib/tableFold.js; Tabulator renders the
+   toggle (.tabulator-responsive-collapse-toggle) and the folded row
+   (.tabulator-responsive-collapse). Phones use the card layout instead.
+*/
+
+/* ── HEADERS ─────────────────────────────────────── */
+/*
+   Two-word titles wrap (headerWordWrap) once columns narrow. Tabulator sets
+   an inline header height before that happens and doesn't recalculate it,
+   so let the header row size to its tallest title instead.
+*/
+
+.tabulator.dt-fold .tabulator-header .tabulator-headers,
+.tabulator.dt-fold .tabulator-header .tabulator-col {
+    height: auto !important;
+}
+
+/* ── TOGGLE ──────────────────────────────────────── */
+
+.rcl-panel .tabulator .tabulator-row .tabulator-cell.dt-fold-toggle,
+.tabulator .tabulator-row .tabulator-cell.dt-fold-toggle {
+    padding-left: 0.625rem;
+    padding-right: 0;
+    overflow: visible;
+}
+
+.tabulator .tabulator-header .tabulator-col.dt-fold-toggle,
+.rcl-panel .tabulator .tabulator-header .tabulator-col.dt-fold-toggle {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.tabulator .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--gray-400);
+    cursor: pointer;
+}
+
+.tabulator .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle svg {
+    display: none;
+}
+
+/* Chevron: points right when closed, down when open */
+.tabulator .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle::before {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.15s ease;
+}
+
+.tabulator .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle.open::before {
+    transform: rotate(45deg);
+}
+
+.tabulator .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle:hover,
+.tabulator .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle.open {
+    color: var(--accent-color);
+    opacity: 1;
+}
+
+.tabulator .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+/* ── FOLDED ROW ──────────────────────────────────── */
+
+.tabulator .tabulator-row .tabulator-responsive-collapse {
+    padding: 0.625rem 1.25rem 0.75rem 3.5rem;
+    border: none;
+    background: var(--gray-50);
+}
+
+.dt-fold-pairs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.75rem;
+}
+
+.dt-fold-pair {
+    display: grid;
+    gap: 1px;
+}
+
+.dt-fold-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+}
+
+.dt-fold-value {
+    font-size: 0.875rem;
+    color: var(--gray-900);
+}
+
+/* ── ICON-ONLY ACTIONS ───────────────────────────── */
+/*
+   Row actions show only their icon on desktop to save width. The text label
+   stays in the markup for the phone cards, where the buttons have room.
+*/
+
+@media (min-width: 768px) {
+    .tabulator .dt-action-label {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tabulator .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle::before {
+        transition: none;
+    }
+}
