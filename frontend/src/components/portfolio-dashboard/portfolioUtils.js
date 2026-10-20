@@ -93,3 +93,13 @@ export function fmtSign(n, currencySymbol, decimals = 0) {
 // ── P/L color helpers ───────────────────────────────────────────────────────
 export const plColor = (v) => (v >= 0 ? '#059669' : '#dc2626');
 export const plBg = (v) => (v >= 0 ? '#ecfdf5' : '#fef2f2');
+
+/** Escape text for use inside the HTML strings Tabulator formatters return. */
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

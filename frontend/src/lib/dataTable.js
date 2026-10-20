@@ -9,6 +9,7 @@
  *   import { ColumnFormatters } from '../lib/columnFormatters';
  */
 import { prepareCardsConfig, enableTableCards } from './tableCards';
+import { prepareFoldConfig, enableTableFold } from './tableFold';
 
 export { ColumnFormatters } from './columnFormatters';
 
@@ -74,6 +75,7 @@ export function createDataTable(selector, options = {}) {
   // Tabulator resolves initialSort entries to its own column objects in place;
   // copy them so a config shared between tables never points at another table.
   if (config.initialSort) config.initialSort = config.initialSort.map((sorter) => ({ ...sorter }));
+  if (options.foldColumns) prepareFoldConfig(config);
   if (options.mobileCards) prepareCardsConfig(config);
 
   const table = new Tabulator(selector, config);
@@ -81,6 +83,7 @@ export function createDataTable(selector, options = {}) {
   // Scroll indicator for horizontally scrollable tables
   const tableElement = document.querySelector(selector);
   if (tableElement && options.mobileCards) enableTableCards(table, tableElement);
+  if (tableElement && config.responsiveLayout === 'collapse') enableTableFold(table, tableElement);
   if (tableElement) {
     const wrapper = tableElement.closest('.data-table-wrapper');
     if (wrapper) {
