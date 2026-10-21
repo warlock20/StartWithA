@@ -191,6 +191,40 @@
     border-color: var(--primary-600);
 }
 
+/*
+   Phone paginator (#380): Tabulator keeps the paginator on one line, which
+   overflows narrow footers. Applies to every Tabulator footer, including the
+   .rcl-panel tables. Keep the size dropdown, Prev and Next on one row and
+   give the page numbers a row of their own below them.
+*/
+@media (max-width: 767.98px) {
+    .tabulator .tabulator-footer .tabulator-paginator {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem 0.25rem;
+    }
+
+    .tabulator .tabulator-footer .tabulator-paginator > label,
+    .tabulator .tabulator-footer .tabulator-paginator .tabulator-page[data-page="first"],
+    .tabulator .tabulator-footer .tabulator-paginator .tabulator-page[data-page="last"] {
+        display: none;
+    }
+
+    /* Tabulator only hides the numbers when the footer overflows, which wrapping prevents */
+    .tabulator .tabulator-footer .tabulator-paginator .tabulator-pages {
+        order: 1;
+        flex-basis: 100%;
+        text-align: center;
+    }
+
+    /* Tabulator's Bootstrap theme pushes the buttons 5px below the dropdown */
+    .tabulator .tabulator-footer .tabulator-paginator .tabulator-page {
+        margin-top: 0;
+    }
+}
+
 /* Loading overlay */
 .data-table-wrapper .tabulator .tabulator-loader {
     background-color: rgba(255, 255, 255, 0.9);
