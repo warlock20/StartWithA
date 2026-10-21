@@ -3,7 +3,7 @@
     {% for category, message in messages %}
       {# Map our categories to Bootstrap alert classes #}
       {% set alert_class = 'alert-info' %} {# Default #}
-      {% if category == 'error' %}
+      {% if category in ('error', 'danger') %}
         {% set alert_class = 'alert-danger' %}
       {% elif category == 'success' %}
         {% set alert_class = 'alert-success' %}

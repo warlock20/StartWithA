@@ -30,6 +30,17 @@
                 <div class="cl-progress-count">
                     <strong>{{ current_item_number }}</strong> of <strong>{{ total_items }}</strong> items
                 </div>
+                {# Disabled until every item has a verdict; hovering lists what's left. #}
+                <div class="cl-complete-wrap">
+                    <button type="button" class="btn btn-success btn-sm" id="completeBtn"
+                            onclick="completeChecklist()" {{ 'disabled' if remaining_item_ids }}>
+                        <i class="bi bi-flag-fill"></i> Complete
+                    </button>
+                    <div class="cl-complete-popover" id="completePopover" {{ 'hidden' if not remaining_item_ids }}>
+                        <div class="cl-complete-popover-title" id="completePopoverTitle"></div>
+                        <div class="cl-complete-popover-list" id="completePopoverList"></div>
+                    </div>
+                </div>
                 {% with btn_class='btn btn-outline-secondary btn-sm' %}
                     {% include 'components/smart_back_button.html' %}
                 {% endwith %}
@@ -40,7 +51,7 @@
         {% set ns = namespace(satisfied=0, not_satisfied=0, needs_attention=0, neutral_count=0, pending=0) %}
         {% for item in all_items_in_order %}
             {% set ans = answers_map.get(item.id) %}
-            {% if ans %}
+            {% if ans and ans.satisfaction_status %}
                 {% if ans.satisfaction_status == 'satisfied' %}
                     {% set ns.satisfied = ns.satisfied + 1 %}
                 {% elif ans.satisfaction_status == 'not_satisfied' %}
@@ -326,6 +337,73 @@
             };
             currentMapItem.innerHTML = iconMap[status] || '{{ current_item_number }}';
         }
+
+        const currentItem = document.querySelector('.cl-map-item.current');
+        if (currentItem) {
+            remainingItemIds.delete(parseInt(currentItem.dataset.itemId));
+            renderCompleteButton();
+        }
+    }
+
+    // =========================================================================
+    // Complete Button
+    // =========================================================================
+    const COMPLETE_URL = '{{ url_for("research_workflow.complete_checklist_session", analysis_id=session.id) }}';
+    let remainingItemIds = new Set({{ remaining_item_ids | tojson }});
+
+    function renderCompleteButton() {
+        const btn = document.getElementById('completeBtn');
+        const popover = document.getElementById('completePopover');
+        const count = remainingItemIds.size;
+        btn.disabled = count > 0;
+        popover.hidden = count === 0;
+        if (count === 0) return;
+
+        document.getElementById('completePopoverTitle').textContent =
+            `${count} question${count === 1 ? '' : 's'} left to answer`;
+
+        // Reuse the sidebar map entries: same numbering, text and link
+        const list = document.getElementById('completePopoverList');
+        list.innerHTML = '';
+        document.querySelectorAll('.cl-map-item').forEach(mapItem => {
+            const itemId = parseInt(mapItem.dataset.itemId);
+            if (!remainingItemIds.has(itemId)) return;
+            const link = document.createElement('a');
+            link.href = mapItem.href;
+            link.className = 'cl-complete-popover-item';
+            link.innerHTML = `<span class="cl-complete-popover-number">${mapItem.dataset.itemIndex}</span>`;
+            link.append(mapItem.querySelector('.cl-map-item-text').textContent);
+            link.addEventListener('click', e => {
+                e.preventDefault();
+                navigateToItem(itemId, link.href);
+            });
+            list.appendChild(link);
+        });
+    }
+
+    async function completeChecklist() {
+        const btn = document.getElementById('completeBtn');
+        if (btn.disabled) return;
+        const originalBtnHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Completing...';
+
+        // A verdict picked on this item is only saved on navigation — save it first
+        await autoSaveCurrentAnswer();
+
+        try {
+            const response = await fetch(COMPLETE_URL, { method: 'POST' });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                if (data.remaining_item_ids) remainingItemIds = new Set(data.remaining_item_ids);
+                throw new Error(data.message || 'Could not complete the checklist');
+            }
+            window.location.href = data.summary_url;
+        } catch (error) {
+            console.error('Complete failed:', error);
+            btn.innerHTML = originalBtnHtml;
+            renderCompleteButton();
+        }
     }
 
     // =========================================================================
@@ -351,6 +429,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         initializeAnswerEditor();
+        renderCompleteButton();
 
         // Intercept form submit for AJAX Save & Next
         const answerForm = document.getElementById('answerForm');
@@ -807,6 +886,13 @@
                 numberEl.textContent = itemIndex;
             }
         });
+
+        remainingItemIds = new Set(
+            [...document.querySelectorAll('.cl-map-item')]
+                .map(item => parseInt(item.dataset.itemId))
+                .filter(itemId => !iconMap[data.answers_map[itemId]])
+        );
+        renderCompleteButton();
 
         // Update sidebar stats
         const counts = data.status_counts;
