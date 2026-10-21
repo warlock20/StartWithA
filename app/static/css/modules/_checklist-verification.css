@@ -112,6 +112,76 @@
     color: var(--text-primary);
 }
 
+/* Complete button — disabled until every item has a verdict; hover lists what's left */
+.cl-complete-wrap {
+    position: relative;
+}
+
+.cl-complete-popover {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1030;
+    width: 320px;
+    max-width: calc(100vw - 32px);
+    padding-top: var(--space-xs); /* hover bridge between button and panel */
+}
+
+.cl-complete-wrap:hover .cl-complete-popover:not([hidden]) {
+    display: block;
+}
+
+.cl-complete-popover-title {
+    background: var(--background-white);
+    border: 1px solid var(--border-light);
+    border-bottom: none;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-medium);
+}
+
+.cl-complete-popover-list {
+    background: var(--background-white);
+    border: 1px solid var(--border-light);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    box-shadow: var(--shadow-medium);
+    max-height: 280px;
+    overflow-y: auto;
+    padding: var(--space-xs) 0;
+}
+
+.cl-complete-popover-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) var(--space-md);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.cl-complete-popover-item:hover {
+    background: var(--gray-50);
+    color: var(--text-primary);
+}
+
+.cl-complete-popover-number {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--gray-300);
+    color: var(--background-white);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
 /* =============================================================================
    QUESTION CARD
    Main content area for the current checklist item
@@ -698,6 +768,11 @@
 @media (max-width: 767px) {
     .cl-progress-header {
         padding: var(--space-md);
+    }
+
+    .cl-progress-header-top {
+        flex-wrap: wrap;
+        gap: var(--space-sm);
     }
 
     .cl-question-header {

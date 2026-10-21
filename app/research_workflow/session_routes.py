@@ -204,7 +204,7 @@ def complete_checklist_step(project_id, session_id):
         if checklist_results['step_result'] == 'pass':
             flash(f'✅ {checklist_results["step_status_msg"]}', 'success')
         elif checklist_results['step_result'] == 'fail':
-            flash(f'❌ {checklist_results["step_status_msg"]}', 'danger')
+            flash(f'❌ {checklist_results["step_status_msg"]}', 'error')
         elif checklist_results['step_result'] == 'marginal':
             flash(f'⚠️ {checklist_results["step_status_msg"]}', 'warning')
         else:

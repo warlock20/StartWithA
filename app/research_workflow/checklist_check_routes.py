@@ -64,6 +64,13 @@ def ai_check_document_choices(documents):
 
 def _ai_check_available(item):
     return has_ai_context(item.ai_context) and ai_check_available(current_user.id)
+
+
+def unanswered_items(items_in_order, answers_map):
+    """Items with no verdict yet. Notes alone don't count: autosave creates an answer row
+    without a satisfaction_status as soon as the user types."""
+    return [item for item in items_in_order
+            if not (answers_map.get(item.id) and answers_map[item.id].satisfaction_status)]
                                                                              
 @research_workflow_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
 @login_required
@@ -220,6 +227,7 @@ def research_step(analysis_id, item_id):
         research_context=research_context,
         all_items_in_order=all_items_in_order,
         answers_map=answers_map,
+        remaining_item_ids=[item.id for item in unanswered_items(all_items_in_order, answers_map)],
         has_ai_context=_ai_check_available(current_item),
         ai_check_documents=ai_check_document_choices(company_documents_for_llm),
         ai_check_setups=available_setups(current_user.id) if has_ai_context(current_item.ai_context) else [],
@@ -430,6 +438,31 @@ def save_and_next(analysis_id, item_id):
             'is_last_item': True,
             'summary_url': url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)
         })
+
+@research_workflow_bp.route('/checklist/<int:analysis_id>/complete', methods=['POST'])
+@login_required
+@json_errors
+def complete_checklist_session(analysis_id):
+    """
+    AJAX endpoint: marks the session completed once every item has a verdict.
+    """
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
+    if session.researcher != current_user:
+        return json_unauthorized('Unauthorized')
+
+    all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
+    answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
+    remaining = unanswered_items(all_items_in_order, {ans.checklist_item_id: ans for ans in answers})
+    if remaining:
+        return json_error(f'{len(remaining)} question(s) still need a verdict.',
+                          remaining_item_ids=[item.id for item in remaining])
+
+    session.status = 'completed'
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'summary_url': url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)
+    })
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/summary', methods=['GET', 'POST'])
 @login_required
