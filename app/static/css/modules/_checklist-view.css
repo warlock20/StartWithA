@@ -77,9 +77,11 @@
 
 /* Make items with LLM prompts visually distinct */
 
-/* Inspector Panel Animations */
-#inspector-content {
-    animation: slideInUp 0.3s ease-out;
+/* Inspector Panel Animations (desktop; on phones the panel is an offcanvas sheet) */
+@media (min-width: 992px) {
+    #inspector-content {
+        animation: slideInUp 0.3s ease-out;
+    }
 }
 
 @keyframes slideInUp {
@@ -91,16 +93,6 @@
         opacity: 1;
         transform: translateY(0);
     }
-}
-
-/* Pro List Item Hover Effects (for Question Bank) */
-.checklist-view-pro-list-item {
-    transition: all var(--transition-normal);
-}
-
-.checklist-view-pro-list-item:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-medium);
 }
 
 /* Form Enhancements */
@@ -154,10 +146,6 @@
 
     .action-grid .btn {
         width: 100%;
-    }
-
-    .checklist-view-tree-container {
-        max-height: 400px;
     }
 }
 
@@ -241,4 +229,220 @@
 
 .checklist-selection-card input[type="radio"]:checked + .checklist-selection-label .checklist-check-icon {
     display: block !important;
+}
+
+/* =============================================================================
+   CHECKLIST EDIT PAGE: TREE ROWS, ADD PANEL, PHONE SHEETS
+   ============================================================================= */
+
+.checklist-tree .item-link {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.checklist-tree .item-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.checklist-tree .item-chevron {
+    opacity: 0.4;
+    font-size: 0.75rem;
+}
+
+/* Question Bank tab */
+.bank-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.bank-chip {
+    border: none;
+    background: var(--bs-gray-200);
+    color: var(--bs-gray-700);
+    border-radius: 999px;
+    padding: 0.25rem 0.75rem;
+    font-size: var(--font-size-sm);
+}
+
+.bank-chip.active {
+    background: var(--bs-primary);
+    color: #fff;
+}
+
+.bank-list {
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.bank-question {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0;
+    border-bottom: 1px solid var(--bs-gray-200);
+}
+
+.bank-question-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.bank-question-sector {
+    color: var(--bs-gray-600);
+    font-size: 0.75rem;
+}
+
+.bank-add {
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    border: 1px solid var(--bs-success);
+    background: #fff;
+    color: var(--bs-success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bank-add .bi-check-lg,
+.bank-question.is-added .bank-add .bi-plus-lg {
+    display: none;
+}
+
+.bank-question.is-added .bank-add .bi-check-lg {
+    display: inline;
+}
+
+.bank-question.is-added .bank-add {
+    background: var(--bs-success);
+    color: #fff;
+}
+
+.bank-question.is-added .bank-question-text {
+    color: var(--bs-gray-600);
+}
+
+/* Sticky add button (phones only, hidden at lg via d-lg-none) */
+.checklist-add-fab {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    z-index: 1020;
+    border: none;
+    border-radius: 12px;
+    padding: 0.8rem;
+    background: var(--bs-success);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(25, 135, 84, 0.35);
+}
+
+@media (max-width: 991.98px) {
+    /* Room under the list so the sticky button never covers the last item */
+    .research-workspace-dashboard-container:has(.checklist-add-fab) {
+        padding-bottom: 5rem;
+    }
+
+    /* The tree takes the page's own scroll instead of a nested scroll box */
+    .checklist-view-tree-container {
+        overflow-y: visible;
+    }
+
+    .checklist-tree ul,
+    .sortable-list.ps-4 {
+        padding-left: 0.75rem !important;
+    }
+
+    .checklist-tree .item-link {
+        padding-top: 0.75rem !important;
+        padding-bottom: 0.75rem !important;
+    }
+
+    .checklist-tree-card .checklist-edit-header,
+    .checklist-tree-card .checklist-edit-body {
+        padding: 0.75rem;
+    }
+
+    .checklist-tree-card .checklist-view-tree-container {
+        padding: 0;
+    }
+
+    .checklist-tree .item-link {
+        padding-left: 0.25rem !important;
+        padding-right: 0.25rem !important;
+    }
+
+    .checklist-tree .item-number {
+        min-width: 1.5rem;
+    }
+
+    /* Leave room for the companion: a 44px strip on the right edge down to 769px... */
+    .app-layout:has(.companion-rail) .checklist-add-fab {
+        right: calc(var(--rail-collapsed-width) + 1rem);
+    }
+
+    /* Bigger touch target for the grip */
+    .drag-handle {
+        width: 2rem;
+    }
+
+    .drag-handle .bi-grip-vertical {
+        opacity: 0.6;
+        font-size: 1rem;
+    }
+
+    /* Bottom sheets: content-height, rounded, scroll inside */
+    .checklist-sheet.offcanvas-lg {
+        --bs-offcanvas-height: auto;
+        max-height: 88vh;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .checklist-sheet .offcanvas-body {
+        padding: 0;
+        overflow-y: auto;
+    }
+
+    .checklist-sheet .offcanvas-header {
+        padding-bottom: 0;
+    }
+
+    .checklist-sheet .checklist-edit-card {
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    .checklist-sheet .checklist-edit-body {
+        padding: 1rem;
+        overflow: visible;
+    }
+
+    .checklist-sheet .checklist-edit-header {
+        padding: 1rem;
+    }
+
+    .checklist-sheet .checklist-edit-header h3 {
+        font-size: 1rem;
+    }
+
+    .checklist-sheet .bank-list {
+        max-height: none;
+    }
+
+    .tip-pointer-right::after,
+    .tip-pointer-right .pulse-arrow {
+        display: none;
+    }
+}
+
+/* ...and a 48px orb in the bottom-right corner below that (see _companion.css). */
+@media (max-width: 768px) {
+    .app-layout:has(.companion-rail) .checklist-add-fab {
+        right: calc(1rem + 48px + 0.75rem);
+    }
 }

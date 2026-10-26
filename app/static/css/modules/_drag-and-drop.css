@@ -10,11 +10,28 @@
     position: relative;
 }
 
+/* Tree row: grip (the only drag handle) + the item link */
+.tree-row {
+    display: flex;
+    align-items: center;
+}
+
+.tree-row .item-link {
+    flex: 1;
+    min-width: 0;
+}
+
 /* Drag handle styling */
 .drag-handle {
     cursor: move;
     cursor: grab;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    width: 1.5rem;
+    flex-shrink: 0;
 }
 
 .drag-handle:active {

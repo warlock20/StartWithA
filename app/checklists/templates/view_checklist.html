@@ -1,5 +1,5 @@
 {% extends "main/_base_companies.html" %}
-{% from "_macros.html" import display_items_for_edit_tree as display_items %}
+{% from "_macros.html" import display_items_for_edit_tree as display_items, parent_options %}
 
 {% block content %}
 <div class="research-workspace-dashboard-container">
@@ -55,7 +55,7 @@
     <!-- Main Content Area -->
     <div class="row g-4">
         <div class="col-lg-5">
-            <div class="checklist-edit-card h-100">
+            <div class="checklist-edit-card checklist-tree-card h-100">
                 <div class="checklist-edit-header">
                     <div class="d-flex align-items-center">
                         <i class="bi bi-list-check text-primary me-3" style="font-size: 1.5rem;"></i>
@@ -84,7 +84,9 @@
                                     <div class="d-flex align-items-center">
                                         <i class="bi bi-arrow-right text-primary me-2 pulse-arrow"></i>
                                         <span class="small">
-                                            <strong>Tip:</strong> Use the <strong>Item Editor</strong> on the right to add your first item
+                                            <strong>Tip:</strong>
+                                            <span class="d-none d-lg-inline">Use the <strong>Item Editor</strong> on the right to add your first item</span>
+                                            <span class="d-lg-none">Tap <strong>Add question</strong> below to add your first item</span>
                                         </span>
                                     </div>
                                 </div>
@@ -102,8 +104,19 @@
                  data-delete-url-template="{{ url_for('checklists.delete_checklist_item', item_id=0) }}"
                  data-move-url-template="{{ url_for('checklists.move_checklist_item', item_id=0, direction='__DIRECTION__') }}">
 
-                <div id="inspector-overview" class="checklist-edit-card">
-                    <div class="checklist-edit-header">
+                {# Add panel: inline in this column on desktop, a bottom sheet (opened by the
+                   sticky "Add question" button) on phones. Behaviour: addPanel.js #}
+                <div id="inspector-overview" class="offcanvas-lg offcanvas-bottom checklist-sheet" tabindex="-1"
+                     aria-labelledby="addPanelTitle"
+                     data-add-url="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}">
+                    <div class="offcanvas-header">
+                        <h5 class="offcanvas-title font-poppins" id="addPanelTitle">Add question</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"
+                                data-bs-target="#inspector-overview" aria-label="Close"></button>
+                    </div>
+                    <div class="offcanvas-body">
+                    <div class="checklist-edit-card w-100">
+                    <div class="checklist-edit-header d-none d-lg-flex">
                         <div class="d-flex align-items-center">
                             <i class="bi bi-gear text-primary me-3" style="font-size: 1.5rem;"></i>
                             <div>
@@ -113,125 +126,125 @@
                         </div>
                     </div>
                     <div class="checklist-edit-body">
-                    <div class="mb-4">
-                        <p class="text-muted">Select an item from the tree on the left to see its specific details and actions.</p>
-                    </div>
+                        <p class="text-muted d-none d-lg-block">Select an item from the tree on the left to see its specific details and actions.</p>
 
-                    <div class="mb-4">
-                        <h5>Add New Top-Level Item</h5>
-
-                        <!-- Question Bank Integration -->
-                        {% if total_questions > 0 %}
-                        <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-bank text-warning me-3" style="font-size: 1.5rem;"></i>
-                                        <div>
-                                            <h5 class="mb-0 font-poppins">Question Bank</h5>
-                                            <p class="text-muted mb-0 small">{{ total_questions }} questions available</p>
-                                        </div>
-                                    </div>
-                                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse"
-                                            data-bs-target="#editQuestionBankCollapse" aria-expanded="false">
-                                        <i class="bi bi-search"></i> Browse
-                                    </button>
-                                </div>
-                            </div>
+                        <div class="mb-3">
+                            <label for="addParent" class="form-label fw-bold">Add under</label>
+                            <select id="addParent" name="parent_id" form="addItemForm" class="form-select">
+                                <option value="">Top level</option>
+                                {{ parent_options(items, ChecklistItem) }}
+                            </select>
                         </div>
+
+                        {% if total_questions > 0 %}
+                        <ul class="nav nav-pills nav-fill add-panel-tabs mb-3" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="addWriteTab" data-bs-toggle="tab" data-bs-target="#addWritePane"
+                                        type="button" role="tab" aria-controls="addWritePane" aria-selected="true">
+                                    <i class="bi bi-pencil"></i> Write
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="addBankTab" data-bs-toggle="tab" data-bs-target="#addBankPane"
+                                        type="button" role="tab" aria-controls="addBankPane" aria-selected="false">
+                                    <i class="bi bi-bank"></i> Question Bank ({{ total_questions }})
+                                </button>
+                            </li>
+                        </ul>
                         {% endif %}
 
-                        <div class="collapse mb-4" id="editQuestionBankCollapse">
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body">
-                                    <p class="text-muted mb-3">
-                                        <i class="bi bi-info-circle"></i> Click on a question to load it into the form below.
-                                    </p>
-
-                                    <div class="accordion" id="editQuestionBankAccordion">
-                                        {% for sector, questions in questions_by_sector.items() %}
-                                        <div class="accordion-item">
-                                            <h6 class="accordion-header" id="editHeading{{ loop.index }}">
-                                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                                        data-bs-target="#editCollapse{{ loop.index }}" aria-expanded="false">
-                                                    {{ sector }} <span class="badge bg-secondary ms-2">{{ questions|length }}</span>
-                                                </button>
-                                            </h6>
-                                            <div id="editCollapse{{ loop.index }}" class="accordion-collapse collapse"
-                                                 data-bs-parent="#editQuestionBankAccordion">
-                                                <div class="accordion-body">
-                                                    {% for question in questions %}
-                                                    <div class="checklist-view-pro-list-item" style="cursor: pointer;"
-                                                         data-question-text="{{ question.text|replace('"', '&quot;') }}"
-                                                         data-question-prompt="{{ question.llm_prompt|default('', true)|replace('"', '&quot;') }}"
-                                                         data-bank-item-id="{{ question.id }}"
-                                                         onclick="addQuestionToEditForm(this.getAttribute('data-question-text'), this.getAttribute('data-question-prompt'), this)">
-                                                        <div class="list-item-content">
-                                                            <div class="list-item-title">{{ question.text }}</div>
-                                                            {% if question.llm_prompt %}
-                                                            <div class="list-item-subtitle">
-                                                                <i class="bi bi-robot"></i> Has LLM prompt
-                                                            </div>
-                                                            {% endif %}
-                                                        </div>
-                                                        <div class="list-item-action">
-                                                            <i class="bi bi-plus"></i>
-                                                        </div>
-                                                    </div>
-                                                    {% endfor %}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {% endfor %}
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="addWritePane" role="tabpanel" aria-labelledby="addWriteTab">
+                                <form id="addItemForm" method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}" class="form-pro">
+                                    <div class="mb-2">
+                                        <label for="item_text_top" class="form-label fw-bold">Question <span class="text-danger">*</span></label>
+                                        <textarea id="item_text_top" name="item_text" class="form-control" rows="2" maxlength="500"
+                                                  placeholder="Enter checklist item text" required></textarea>
                                     </div>
+                                    <button type="button" class="btn btn-link btn-sm px-0 mb-2" data-bs-toggle="collapse"
+                                            data-bs-target="#addMoreOptions" aria-expanded="false" aria-controls="addMoreOptions">
+                                        <i class="bi bi-plus"></i> More options (description, AI prompt)
+                                    </button>
+                                    <div class="collapse" id="addMoreOptions">
+                                        <div class="mb-3">
+                                            <label for="description_top" class="form-label fw-bold">Description</label>
+                                            <textarea id="description_top" name="description" rows="2" class="form-control"
+                                                      placeholder="Add detailed context or guidance for this item (optional)"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="llm_prompt_top" class="form-label fw-bold">Optional LLM Prompt</label>
+                                            <textarea id="llm_prompt_top" name="llm_prompt" rows="2" class="form-control"
+                                                      placeholder="E.g., What are the key revenue drivers?"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="action-grid">
+                                        <button type="submit" class="btn btn-success" data-add-mode="close">
+                                            <i class="bi bi-plus-circle"></i> Add question
+                                        </button>
+                                        <button type="submit" class="btn btn-outline-success" data-add-mode="another">
+                                            Add &amp; write another
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            {% if total_questions > 0 %}
+                            <div class="tab-pane fade" id="addBankPane" role="tabpanel" aria-labelledby="addBankTab">
+                                <input type="search" id="bankSearch" class="form-control mb-2" placeholder="Search questions…"
+                                       aria-label="Search the Question Bank">
+                                <div class="bank-chips mb-2">
+                                    <button type="button" class="bank-chip active" data-sector="">All</button>
+                                    {% for sector in questions_by_sector %}
+                                    <button type="button" class="bank-chip" data-sector="{{ sector }}">{{ sector }}</button>
+                                    {% endfor %}
+                                </div>
+                                <div class="bank-list">
+                                    {% for sector, questions in questions_by_sector.items() %}
+                                    {% for question in questions %}
+                                    <div class="bank-question" data-text="{{ question.text }}"
+                                         data-prompt="{{ question.llm_prompt|default('', true) }}"
+                                         data-bank-id="{{ question.id }}" data-sector="{{ sector }}">
+                                        <div class="bank-question-text">
+                                            {{ question.text }}
+                                            {% if question.llm_prompt or question.ai_context %}<i class="bi bi-robot text-muted ms-1" title="Has AI context"></i>{% endif %}
+                                            <div class="bank-question-sector">{{ sector }}</div>
+                                        </div>
+                                        <button type="button" class="bank-add" aria-label="Add this question">
+                                            <i class="bi bi-plus-lg"></i><i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                    {% endfor %}
+                                    <p id="bankEmpty" class="text-muted small d-none mt-2">No questions match.</p>
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
 
-                        <form method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}" class="form-pro">
-                            <div class="mb-3">
-                                <label for="item_text_top" class="form-label fw-bold">Item Text <span class="text-danger">*</span></label>
-                                <input type="text" id="item_text_top" name="item_text" class="form-control"
-                                       placeholder="Enter checklist item text" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="description_top" class="form-label fw-bold">Description</label>
-                                <textarea id="description_top" name="description" rows="2" class="form-control"
-                                          placeholder="Add detailed context or guidance for this item (optional)"></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label for="llm_prompt_top" class="form-label fw-bold">Optional LLM Prompt</label>
-                                <textarea id="llm_prompt_top" name="llm_prompt" rows="2" class="form-control"
-                                          placeholder="E.g., What are the key revenue drivers?"></textarea>
-                                <input type="hidden" name="bank_item_id" id="bank_item_id_top" value="">
-                            </div>
-                            <div class="action-grid">
-                                <button type="submit" class="btn btn-success">
-                                    <i class="bi bi-plus-circle"></i> Add Item
-                                </button>
-                                {% if total_questions > 0 %}
-                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse"
-                                        data-bs-target="#editQuestionBankCollapse">
-                                    <i class="bi bi-bank"></i> Use Question Bank
-                                </button>
-                                {% endif %}
-                            </div>
-                        </form>
+                        <div class="d-flex align-items-center justify-content-between gap-2 mt-3">
+                            <div id="addStatus" class="small" aria-live="polite"></div>
+                            <button type="button" id="addRefresh" class="btn btn-sm btn-outline-secondary d-none"></button>
                         </div>
+                    </div>
+                    </div>
                     </div>
                 </div>
 
-            <div id="inspector-content" class="d-none">
-                <div class="checklist-edit-card">
+            {# Item panel: replaces the add panel on desktop, a bottom sheet on phones. #}
+            <div id="inspector-content" class="offcanvas-lg offcanvas-bottom checklist-sheet d-none" tabindex="-1"
+                 aria-labelledby="inspector-item-text">
+                <div class="offcanvas-body">
+                <div class="checklist-edit-card w-100">
                     <div class="checklist-edit-header">
                         <div class="d-flex align-items-center">
-                            <i class="bi bi-pencil-square text-warning me-3" style="font-size: 1.5rem;"></i>
+                            <i class="bi bi-pencil-square text-warning me-3 d-none d-lg-inline" style="font-size: 1.5rem;"></i>
                             <div>
                                 <h3 class="mb-0 font-poppins" id="inspector-item-text">Selected Item</h3>
-                                <p class="text-muted mb-0 small">Edit, move, or manage this item</p>
+                                <p class="text-muted mb-0 small d-none d-lg-block">Edit, move, or manage this item</p>
                             </div>
                         </div>
-                        <button type="button" id="inspector-close-btn" class="btn btn-outline-secondary btn-sm" title="Deselect Item">
+                        <button type="button" id="inspector-close-btn" class="btn btn-outline-secondary btn-sm" title="Deselect Item"
+                                data-bs-dismiss="offcanvas" data-bs-target="#inspector-content">
                             <i class="bi bi-x"></i> Close
                         </button>
                     </div>
@@ -252,6 +265,9 @@
                                 <a id="inspector-edit-btn" href="#" class="btn btn-warning">
                                     <i class="bi bi-pencil"></i> Edit
                                 </a>
+                                <button type="button" id="inspector-add-under" class="btn btn-outline-primary d-lg-none" data-add-under="">
+                                    <i class="bi bi-arrow-return-right"></i> Add sub-question
+                                </button>
                                 <form id="inspector-delete-form" method="POST" action="#" style="display: inline;">
                                     <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure? This will delete the item and ALL its sub-items.');">
                                         <i class="bi bi-trash"></i> Delete
@@ -260,7 +276,7 @@
                             </div>
                         </div>
 
-                        <div class="mb-4">
+                        <div class="mb-4 mb-lg-4">
                             <h5>Reorder Item</h5>
                             <div class="d-flex gap-2">
                                 <form id="inspector-move-up-form" method="POST" action="#" class="flex-fill">
@@ -276,13 +292,13 @@
                             </div>
                         </div>
 
-                        <div>
+                        <div class="d-none d-lg-block">
                             <h5>Add Sub-item</h5>
                             <form id="inspector-add-subitem-form" method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}" class="form-pro">
                                 <input type="hidden" id="inspector-parent-id" name="parent_id" value="">
                                 <div class="mb-3">
                                     <label for="inspector-subitem-text" class="form-label fw-bold">Sub-item Text <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" name="item_text" id="inspector-subitem-text"
+                                    <input type="text" class="form-control" name="item_text" id="inspector-subitem-text" maxlength="500"
                                            placeholder="Enter sub-item text" required>
                                 </div>
                                 <div class="mb-3">
@@ -303,9 +319,16 @@
                     </div>
                 </div>
                 </div>
+                </div>
             </div>
         </div>
     </div>
+
+    {# Phones only: the add panel above is a bottom sheet, opened from here. #}
+    <button type="button" class="checklist-add-fab d-lg-none" data-bs-toggle="offcanvas" data-bs-target="#inspector-overview"
+            aria-controls="inspector-overview">
+        <i class="bi bi-plus-lg"></i> Add question
+    </button>
 </div>
 {% endblock %}
 
@@ -321,43 +344,6 @@
     </script>
 
     <script>
-    // Function to add a question from Question Bank to the edit form
-    function addQuestionToEditForm(questionText, llmPrompt, el) {
-        // Fill in the form fields
-        document.getElementById('item_text_top').value = questionText;
-        document.getElementById('llm_prompt_top').value = llmPrompt || '';
-        document.getElementById('bank_item_id_top').value = (el && el.dataset.bankItemId) || '';
-
-        // Close the question bank collapse
-        const questionBankCollapse = document.getElementById('editQuestionBankCollapse');
-        if (questionBankCollapse) {
-            const bsCollapse = bootstrap.Collapse.getInstance(questionBankCollapse);
-            if (bsCollapse) {
-                bsCollapse.hide();
-            }
-        }
-
-        // Focus on the submit button to indicate the form is ready
-        const submitButton = document.querySelector('button[type="submit"]');
-        if (submitButton) {
-            submitButton.focus();
-            // Add visual feedback
-            submitButton.classList.add('btn-success');
-            submitButton.classList.remove('btn-primary');
-            submitButton.textContent = 'Add This Question';
-
-            // Reset button after a moment
-            setTimeout(() => {
-                submitButton.classList.remove('btn-success');
-                submitButton.classList.add('btn-primary');
-                submitButton.textContent = 'Add Top-Level Item';
-            }, 2000);
-        }
-
-        // Show success message
-        showTemporaryMessage('Question loaded into form!', 'success');
-    }
-
     // Helper function to show temporary messages (same as in new_checklist.html)
     function showTemporaryMessage(message, type = 'success') {
         const alertDiv = document.createElement('div');
@@ -386,6 +372,10 @@
             new Sortable(list, {
                 animation: 150,
                 handle: '.drag-handle',
+                // On touch, the grip must be held briefly so a swipe across it still scrolls.
+                delay: 200,
+                delayOnTouchOnly: true,
+                touchStartThreshold: 5,
                 ghostClass: 'sortable-ghost',
                 chosenClass: 'sortable-chosen',
                 dragClass: 'sortable-drag',
@@ -434,7 +424,7 @@
 
         // Function to update item numbering after reorder
         function updateItemNumbering(list) {
-            const items = list.querySelectorAll(':scope > .checklist-tree-item > .drag-handle > .item-link > .item-number');
+            const items = list.querySelectorAll(':scope > .checklist-tree-item > .tree-row > .item-link > .item-number');
             items.forEach((numberSpan, index) => {
                 numberSpan.textContent = (index + 1) + '.';
             });
