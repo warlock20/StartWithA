@@ -4,18 +4,23 @@
       data-checklist-id="{{ items_list[0].checklist_id if items_list else '' }}">
     {% for item in items_list %}
       <li class="checklist-tree-item" data-item-id="{{ item.id }}">
-        <div class="drag-handle">
+        {# Only the grip drags, so swiping a row on a phone scrolls instead of reordering. #}
+        <div class="tree-row">
+          <span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+            <i class="bi bi-grip-vertical text-muted"></i>
+          </span>
           <a href="#"
              id="tree-item-{{ item.id }}"
-             class="p-2 d-block text-decoration-none rounded item-link"
+             class="p-2 text-decoration-none rounded item-link"
              data-item-id="{{ item.id }}"
              data-item-text="{{ item.text }}"
              data-item-description="{{ item.description if item.description else '' }}"
              data-llm-prompt="{{ item.llm_prompt if item.llm_prompt else '' }}"
              data-is-first="{{ loop.first }}"
              data-is-last="{{ loop.last }}">
-              <i class="bi bi-grip-vertical me-2 text-muted"></i>
-              <span class="item-number">{{ loop.index }}.</span> {{ item.text }}
+              <span class="item-number">{{ loop.index }}.</span>
+              <span class="item-text">{{ item.text }}</span>
+              <i class="bi bi-chevron-right item-chevron d-lg-none"></i>
           </a>
         </div>
 
@@ -25,6 +30,16 @@
       </li>
     {% endfor %}
   </ul>
+{% endmacro %}
+
+{# <option>s for the add panel's "Add under" picker, indented by depth. #}
+{% macro parent_options(items_list, ChecklistItem_model_ref, current_level=0) %}
+  {% for item in items_list %}
+    <option value="{{ item.id }}">{{ '— ' * current_level }}{{ item.text|truncate(60) }}</option>
+    {% if item.children.all() %}
+      {{ parent_options(item.children.order_by(ChecklistItem_model_ref.order).all(), ChecklistItem_model_ref, current_level + 1) }}
+    {% endif %}
+  {% endfor %}
 {% endmacro %}
 
 {% macro display_items_for_readonly_view(items_list, ChecklistItem_model_ref, current_level=0) %}

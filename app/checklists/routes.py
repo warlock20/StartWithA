@@ -22,7 +22,7 @@ import asyncio
 from io import BytesIO
 from app import db
 from app.utils.time_utils import now_utc
-from app.utils.response_utils import json_success
+from app.utils.response_utils import json_success, json_error
 from app.utils.decorators import json_errors
 from app.utils.auth_utils import owned_or_404
 from app.models import Checklist, ChecklistItem, Company, QuestionBankItem, DocumentImport, ChecklistAnalysis, ChecklistAnswer
@@ -289,7 +289,16 @@ def view_checklist(checklist_id):
 @checklists_bp.route('/<int:checklist_id>/add_item', methods=['POST'])
 @login_required
 def add_checklist_item(checklist_id):
+    """Add an item. The edit page's add sheet posts with X-Requested-With and gets JSON back so it
+    can stay open; a plain form post flashes and redirects."""
     checklist = owned_or_404(Checklist, checklist_id)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def fail(message):
+        if is_ajax:
+            return json_error(message)
+        flash(message, 'error')
+        return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
     item_text = request.form.get('item_text')
     item_description = request.form.get('description')
@@ -302,36 +311,38 @@ def add_checklist_item(checklist_id):
         # Verify the parent item belongs to the same checklist
         parent_item_check = ChecklistItem.query.filter_by(id=parent_id, checklist_id=checklist.id).first()
         if not parent_item_check:
-            flash('Invalid parent item selected.', 'error')
-            return redirect(url_for('checklists.view_checklist', checklist_id=checklist_id))
+            return fail('Invalid parent item selected.')
 
-    if item_text and item_text.strip():
-        # Correctly find the maximum order value among the item's siblings
-        # A sub-item's siblings have the same parent_id.
-        # A top-level item's siblings have parent_id=None.
-        max_order = db.session.query(db.func.max(ChecklistItem.order)).filter_by(
-            checklist_id=checklist.id,
-            parent_id=parent_id
-        ).scalar()
+    if not item_text or not item_text.strip():
+        return fail('Item text cannot be empty.')
+    # ChecklistItem.text is String(500); bank questions are unlimited Text.
+    if len(item_text.strip()) > 500:
+        return fail('Item text is too long (max 500 characters).')
 
-        # The new order is one greater than the current max, or 0 if no siblings exist.
-        new_order = (max_order or -1) + 1
+    # A sub-item's siblings have the same parent_id; a top-level item's siblings have parent_id=None.
+    max_order = db.session.query(db.func.max(ChecklistItem.order)).filter_by(
+        checklist_id=checklist.id,
+        parent_id=parent_id
+    ).scalar()
 
-        new_item = ChecklistItem(
-            text=item_text.strip(),
-            description=item_description.strip() if item_description and item_description.strip() else None,
-            checklist_id=checklist.id,
-            parent_id=parent_id,
-            order=new_order,
-            llm_prompt=llm_prompt_text.strip() if llm_prompt_text and llm_prompt_text.strip() else None,
-            ai_context=_ai_context_for_new_item(request.form.get('bank_item_id'), llm_prompt_text),
-        )
-        db.session.add(new_item)
-        db.session.commit()
-        flash('Item added successfully!', 'success')
-    else:
-        flash('Item text cannot be empty.', 'error')
+    # The new order is one greater than the current max, or 0 if no siblings exist.
+    new_order = 0 if max_order is None else max_order + 1
 
+    new_item = ChecklistItem(
+        text=item_text.strip(),
+        description=item_description.strip() if item_description and item_description.strip() else None,
+        checklist_id=checklist.id,
+        parent_id=parent_id,
+        order=new_order,
+        llm_prompt=llm_prompt_text.strip() if llm_prompt_text and llm_prompt_text.strip() else None,
+        ai_context=_ai_context_for_new_item(request.form.get('bank_item_id'), llm_prompt_text),
+    )
+    db.session.add(new_item)
+    db.session.commit()
+
+    if is_ajax:
+        return json_success('Item added', item={'id': new_item.id, 'text': new_item.text, 'parent_id': parent_id})
+    flash('Item added successfully!', 'success')
     return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
 

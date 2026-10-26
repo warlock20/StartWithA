@@ -4,7 +4,13 @@ import { useEffect } from 'react';
  * ChecklistInspector — Behavior-only bridge for the checklist tree inspector.
  * Returns null. Attaches click handlers to .checklist-tree items to populate
  * the inspector panel with item details, edit/delete/move URLs.
+ *
+ * Desktop (lg and up) swaps the add panel for the item panel in the right-hand
+ * column. Below lg the item panel is an `offcanvas-lg` bottom sheet, so a tap
+ * opens it over the list and the add panel is left alone.
  */
+var DESKTOP_QUERY = '(min-width: 992px)';
+
 export function ChecklistInspector() {
   useEffect(function () {
     var treeContainer = document.querySelector('.checklist-tree');
@@ -23,17 +29,30 @@ export function ChecklistInspector() {
       var clickedItemLink = event.target.closest('.checklist-tree-item a');
       if (!clickedItemLink) return;
       event.preventDefault();
-      var currentActive = treeContainer.querySelector('a.active');
-      if (currentActive) currentActive.classList.remove('active');
+      clearActive();
       clickedItemLink.classList.add('active');
       populateInspector(clickedItemLink);
     }
 
-    function handleClose() {
-      contentPanel.classList.add('d-none');
-      overviewPanel.classList.remove('d-none');
+    function isDesktop() {
+      return window.matchMedia(DESKTOP_QUERY).matches;
+    }
+
+    function clearActive() {
       var currentActive = treeContainer.querySelector('a.active');
       if (currentActive) currentActive.classList.remove('active');
+    }
+
+    // On a phone the close button dismisses the sheet itself (data-bs-dismiss).
+    function handleClose() {
+      if (!isDesktop()) return;
+      contentPanel.classList.add('d-none');
+      overviewPanel.classList.remove('d-none');
+      clearActive();
+    }
+
+    function handleSheetHidden(event) {
+      if (event.target === contentPanel) clearActive();
     }
 
     function populateInspector(el) {
@@ -43,8 +62,12 @@ export function ChecklistInspector() {
       var isFirst = el.dataset.isFirst === 'True';
       var isLast = el.dataset.isLast === 'True';
 
-      overviewPanel.classList.add('d-none');
       contentPanel.classList.remove('d-none');
+      if (isDesktop()) {
+        overviewPanel.classList.add('d-none');
+      } else {
+        window.bootstrap.Offcanvas.getOrCreateInstance(contentPanel).show();
+      }
 
       contentPanel.querySelector('#inspector-item-text').textContent = itemText;
       var llmPromptDisplay = contentPanel.querySelector('#inspector-llm-prompt-display');
@@ -69,19 +92,24 @@ export function ChecklistInspector() {
         contentPanel.querySelector('#inspector-move-down-form').action = moveDownUrl;
       }
 
-      contentPanel.querySelector('#inspector-move-up-btn').style.display = isFirst ? 'none' : 'inline-block';
-      contentPanel.querySelector('#inspector-move-down-btn').style.display = isLast ? 'none' : 'inline-block';
+      // Hide the whole form (a flex-fill slot), not just the button, so the other one spans the row.
+      contentPanel.querySelector('#inspector-move-up-form').style.display = isFirst ? 'none' : '';
+      contentPanel.querySelector('#inspector-move-down-form').style.display = isLast ? 'none' : '';
       contentPanel.querySelector('#inspector-parent-id').value = itemId;
+      var addUnderBtn = contentPanel.querySelector('#inspector-add-under');
+      if (addUnderBtn) addUnderBtn.dataset.addUnder = itemId;
       contentPanel.querySelector('#inspector-subitem-text').value = '';
       contentPanel.querySelector('#inspector-subitem-llm').value = '';
     }
 
     treeContainer.addEventListener('click', handleTreeClick);
     if (closeBtn) closeBtn.addEventListener('click', handleClose);
+    contentPanel.addEventListener('hidden.bs.offcanvas', handleSheetHidden);
 
     return function () {
       treeContainer.removeEventListener('click', handleTreeClick);
       if (closeBtn) closeBtn.removeEventListener('click', handleClose);
+      contentPanel.removeEventListener('hidden.bs.offcanvas', handleSheetHidden);
     };
   }, []);
 
