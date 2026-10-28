@@ -369,7 +369,7 @@ def api_create_company():
                     'success': False,
                     'error': (
                         f'ISIN {isin} is already assigned to {clash.name}. '
-                        f'Link that company to this row instead.'
+                        f'Search for {clash.name} and select it instead.'
                     ),
                 })
 
