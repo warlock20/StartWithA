@@ -158,14 +158,10 @@
     font-weight: 600;
 }
 
-/* Source cell */
+/* Source cell: wraps with the column (dt-cell-wrap) instead of being cut */
 .idea-source-cell {
     font-size: 0.8125rem;
     color: var(--gray-500);
-    max-width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 /* ── ACTION BUTTONS ──────────────────────────────── */

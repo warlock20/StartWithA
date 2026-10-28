@@ -89,10 +89,34 @@ export function enableTableCards(table, tableElement) {
     if (sortBar) tableElement.parentNode.insertBefore(sortBar, tableElement);
   });
 
+  const stopRedraw = isPhoneViewport() ? redrawWhenShown(table, tableElement) : null;
+
   table.on('tableDestroyed', () => {
     tableElement.removeEventListener('click', onTap);
     if (sortBar) sortBar.remove();
+    if (stopRedraw) stopRedraw();
   });
+}
+
+/**
+ * Tabulator only notices a hidden table becoming visible in its virtual
+ * renderer. Phones use the basic one (see prepareCardsConfig), so a table
+ * built inside a closed tab would stay empty when the tab opens. Redraw it
+ * whenever it goes from zero width to visible. Returns a cleanup function.
+ */
+export function redrawWhenShown(table, tableElement) {
+  if (typeof ResizeObserver === 'undefined') return null;
+  let built = false;
+  let width = tableElement.clientWidth;
+  table.on('tableBuilt', () => { built = true; });
+
+  const observer = new ResizeObserver(([entry]) => {
+    const shown = width === 0 && entry.contentRect.width > 0;
+    width = entry.contentRect.width;
+    if (shown && built) table.redraw(true);
+  });
+  observer.observe(tableElement);
+  return () => observer.disconnect();
 }
 
 function buildSortBar(table, columns) {

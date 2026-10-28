@@ -20,31 +20,34 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeSourcesTable();
 });
 
+// Source types offered by the type filter
+const SOURCE_TYPES = {
+    "article": "Article",
+    "report": "Report",
+    "video": "Video",
+    "podcast": "Podcast",
+    "gemini": "AI Generated",
+    "other": "Other"
+};
+
 /**
  * Initialize the sources data table
  */
 function initializeSourcesTable() {
+    // Columns that don't fit fold into an expandable row on desktop, and rows
+    // become cards on phones: minWidth is the content plus the cell padding,
+    // `responsive` is the fold order (higher folds first, 0 never). See
+    // frontend/src/lib/tableFold.js and tableCards.js.
     const table = createDataTable('#sources-table', {
         data: window.sourcesData,
         columns: [
             {
                 title: "Type",
+                cssClass: "dt-card-key",
                 field: "source_type",
-                width: 120,
+                minWidth: 150,
+                responsive: 0,
                 sorter: "string",
-                headerFilter: "list",
-                headerFilterParams: {
-                    values: {
-                        "": "All Types",
-                        "article": "Article",
-                        "report": "Report",
-                        "video": "Video",
-                        "podcast": "Podcast",
-                        "gemini": "AI Generated",
-                        "other": "Other"
-                    },
-                    clearable: true
-                },
                 formatter: function(cell) {
                     const type = cell.getValue();
                     const iconMap = {
@@ -71,12 +74,12 @@ function initializeSourcesTable() {
             },
             {
                 title: "Title",
+                cssClass: "dt-card-title dt-cell-wrap",
                 field: "title",
                 sorter: "string",
-                headerFilter: "input",
-                headerFilterPlaceholder: "Search titles...",
                 minWidth: 200,
                 widthGrow: 2,
+                responsive: 0,
                 formatter: function(cell) {
                     const value = cell.getValue();
                     return `<strong>${value}</strong>`;
@@ -86,7 +89,9 @@ function initializeSourcesTable() {
                 title: "URL",
                 field: "url",
                 sorter: "string",
+                minWidth: 200,
                 widthGrow: 2,
+                responsive: 1,
                 formatter: function(cell) {
                     const url = cell.getValue();
                     const row = cell.getRow().getData();
@@ -114,7 +119,9 @@ function initializeSourcesTable() {
                 title: "Description",
                 field: "description",
                 sorter: "string",
+                minWidth: 200,
                 widthGrow: 3,
+                responsive: 3,
                 formatter: function(cell) {
                     const value = cell.getValue();
                     if (!value) {
@@ -130,7 +137,8 @@ function initializeSourcesTable() {
             {
                 title: "Added",
                 field: "created_at",
-                width: 110,
+                minWidth: 125,
+                responsive: 2,
                 sorter: "datetime",
                 sorterParams: {
                     format: "iso"
@@ -150,7 +158,9 @@ function initializeSourcesTable() {
             {
                 title: "Last Accessed",
                 field: "accessed_at",
-                width: 130,
+                minWidth: 140,
+                headerWordWrap: true,
+                responsive: 4,
                 sorter: "datetime",
                 sorterParams: {
                     format: "iso"
@@ -169,21 +179,26 @@ function initializeSourcesTable() {
             },
             {
                 title: "Actions",
+                cssClass: "dt-card-actions",
                 field: "id",
-                width: 80,
+                minWidth: 100,
                 hozAlign: "center",
                 headerSort: false,
+                responsive: 0,
                 formatter: function(cell) {
                     const sourceId = cell.getValue();
 
                     return `<button class="btn btn-sm btn-outline-danger"
                                     onclick="deleteSource(event, ${sourceId})"
-                                    title="Delete source">
-                        <i class="bi bi-trash"></i>
+                                    title="Delete source"
+                                    aria-label="Delete source">
+                        <i class="bi bi-trash"></i><span class="dt-action-label"> Delete</span>
                     </button>`;
                 }
             }
         ],
+        mobileCards: true,
+        foldColumns: true,
         exportButtons: true,
         exportConfig: {
             filename: 'sector-research-sources',
@@ -195,16 +210,54 @@ function initializeSourcesTable() {
             initialSort: [
                 { column: "created_at", dir: "desc" }
             ],
-            layout: "fitDataStretch", // Stretch to fill container
-            responsiveLayout: "collapse",
+            layout: "fitColumns",
             pagination: true,
             paginationSize: 25,
             paginationSizeSelector: [10, 25, 50, 100]
         }
     });
 
+    addFilterControls(table);
+
     // Store table globally for potential updates
     window.sourcesTableInstance = table;
+}
+
+/**
+ * Title search and type filter in the toolbar above the table. They used to
+ * be header filters, which phone cards hide along with the header.
+ */
+function addFilterControls(table) {
+    const controls = document.querySelector('#sources-table')
+        .closest('.data-table-wrapper')
+        .querySelector('.data-table-controls');
+    if (!controls) return;
+
+    const search = document.createElement('div');
+    search.className = 'rcl-search';
+    search.innerHTML = '<i class="bi bi-search"></i>' +
+        '<input type="text" placeholder="Search titles..." aria-label="Search sources by title">';
+    const searchInput = search.querySelector('input');
+
+    const typeSelect = document.createElement('select');
+    typeSelect.className = 'rcl-filter-select';
+    typeSelect.setAttribute('aria-label', 'Filter by type');
+    typeSelect.add(new Option('All types', ''));
+    Object.entries(SOURCE_TYPES).forEach(([value, label]) => typeSelect.add(new Option(label, value)));
+
+    function applyFilters() {
+        const text = searchInput.value.toLowerCase().trim();
+        const type = typeSelect.value;
+        table.setFilter(function(data) {
+            const typeMatch = !type || data.source_type === type;
+            const textMatch = !text || (data.title || '').toLowerCase().includes(text);
+            return typeMatch && textMatch;
+        });
+    }
+
+    searchInput.addEventListener('input', applyFilters);
+    typeSelect.addEventListener('change', applyFilters);
+    controls.prepend(search, typeSelect);
 }
 
 /**

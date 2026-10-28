@@ -297,16 +297,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ── Tabulator Table ──────────────────────────────
     if (companiesData.length > 0) {
+        // Columns that don't fit fold into an expandable row: minWidth is the
+        // content plus 40px of cell padding, `responsive` is the fold order
+        // (higher folds first, 0 never). See frontend/src/lib/tableFold.js.
         companiesTable = createDataTable('#companies-table', {
             data: companiesData,
             columns: [
                 {
                     title: "Company",
-                    cssClass: "dt-card-title",
+                    cssClass: "dt-card-title dt-cell-wrap",
                     field: "name",
                     sorter: "string",
                     minWidth: 180,
                     widthGrow: 2,
+                    responsive: 0,
                     formatter: function(cell) {
                         var row = cell.getRow().getData();
                         var ticker = row.ticker ? '<br><span class="rcl-cell-ticker">' + row.ticker + '</span>' : '';
@@ -315,9 +319,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Sector",
+                    cssClass: "dt-cell-wrap",
                     field: "sector",
                     sorter: "string",
-                    minWidth: 120,
+                    minWidth: 170,
+                    responsive: 1,
                     formatter: function(cell) {
                         var val = cell.getValue();
                         if (!val) return '<span class="table-cell-muted">&mdash;</span>';
@@ -330,7 +336,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "status",
                     sorter: "string",
                     hozAlign: "center",
-                    minWidth: 110,
+                    minWidth: 190,
+                    responsive: 0,
                     formatter: function(cell) {
                         var val = cell.getValue();
                         var map = {
@@ -355,7 +362,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "projects",
                     sorter: "number",
                     hozAlign: "center",
-                    minWidth: 80,
+                    minWidth: 145,
+                    responsive: 3,
                     formatter: function(cell) {
                         var val = cell.getValue();
                         return '<span class="rcl-cell-mono">' + val + '</span>';
@@ -366,7 +374,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "documents",
                     sorter: "number",
                     hozAlign: "center",
-                    minWidth: 70,
+                    minWidth: 110,
+                    responsive: 4,
                     formatter: function(cell) {
                         var val = cell.getValue();
                         return '<span class="rcl-cell-mono">' + val + '</span>';
@@ -377,7 +386,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "progress",
                     sorter: "number",
                     hozAlign: "center",
-                    minWidth: 130,
+                    minWidth: 150,
+                    responsive: 2,
                     formatter: function(cell) {
                         var val = cell.getValue();
                         if (!val) return '<span class="table-cell-muted">&mdash;</span>';
@@ -396,21 +406,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     cssClass: "dt-card-actions",
                     headerSort: false,
                     hozAlign: "right",
-                    minWidth: 160,
+                    minWidth: 240,
+                    responsive: 0,
                     formatter: function(cell) {
+                        // Secondary actions are icon-only on desktop; phone cards show the labels.
                         var row = cell.getRow().getData();
                         var html = '<a href="' + cell.getValue() + '" class="rcl-action rcl-action--primary"><i class="bi bi-speedometer2"></i> Dashboard</a>';
                         if (row.research_url) {
-                            html += ' <a href="' + row.research_url + '" class="rcl-action"><i class="bi bi-graph-up"></i> Research</a>';
+                            html += ' <a href="' + row.research_url + '" class="rcl-action" title="Research" aria-label="Research"><i class="bi bi-graph-up"></i><span class="dt-action-label">Research</span></a>';
                         }
                         if (row.destination_url) {
-                            html += ' <a href="' + row.destination_url + '" class="rcl-action"><i class="bi bi-bullseye"></i></a>';
+                            html += ' <a href="' + row.destination_url + '" class="rcl-action" title="Destination analysis" aria-label="Destination analysis"><i class="bi bi-bullseye"></i><span class="dt-action-label">Destination</span></a>';
                         }
                         return html;
                     }
                 }
             ],
             mobileCards: true,
+            foldColumns: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "name", dir: "asc" }],
