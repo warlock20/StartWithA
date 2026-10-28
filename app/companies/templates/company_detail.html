@@ -414,11 +414,14 @@ window.companyConfig = {
 <script defer src="{{ url_for('static', filename='js/dist/company-annotations-panel.bundle.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/dist/settings-form.bundle.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/dist/sec-filings-fetcher.bundle.js') }}"></script>
+{# Company search modal: Research > Competitors "Add competitor" opens it via openCompanyModal() #}
+<script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
 {% if company_state == 'portfolio' %}
 <script defer src="{{ url_for('static', filename='js/dist/transactions-table.bundle.js') }}"></script>
 {% endif %}
 {# ---- Hidden mount points for behaviour-only islands ---- #}
 <div id="settings-form-mount" style="display:none;"></div>
+<div id="company-search-mount"></div>
 {# ---- Dashboard orchestration (replaces company-dashboard.js) ---- #}
 <script>
 (function() {
@@ -570,6 +573,71 @@ window.companyConfig = {
                 qaInitialized = true;
             }
         });
+
+        // ---- Competitors (Research > Competitors) ----
+        // Add goes through the shared company search modal, so any company can
+        // be picked or created. Add and remove post with X-Requested-With and
+        // get the re-rendered list back, so the section updates in place.
+
+        var competitorsList = document.getElementById('competitorsList');
+        var addCompetitorBtn = document.getElementById('addCompetitorBtn');
+        var COMPETITOR_TOAST = { success: 'success', info: 'info', warning: 'info', error: 'danger' };
+
+        function postCompetitorChange(url, body) {
+            return fetch(url, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: body
+            })
+                .then(function(r) {
+                    return r.json().catch(function() {
+                        return {
+                            message: r.status === 404 ? 'That company could not be found.'
+                                                      : 'Something went wrong. Please try again.',
+                            category: 'error'
+                        };
+                    });
+                })
+                .then(function(data) {
+                    if (typeof data.html === 'string' && competitorsList) {
+                        competitorsList.innerHTML = data.html;
+                    }
+                    if (window.showToast && data.message) {
+                        window.showToast(data.message, COMPETITOR_TOAST[data.category] || 'info');
+                    }
+                })
+                .catch(function() {
+                    if (window.showToast) window.showToast('Something went wrong. Please try again.', 'danger');
+                });
+        }
+
+        if (addCompetitorBtn) {
+            addCompetitorBtn.addEventListener('click', function() {
+                if (!window.openCompanyModal) {
+                    if (window.showToast) window.showToast('Company search is still loading. Try again.', 'info');
+                    return;
+                }
+                window.openCompanyModal(function(company) {
+                    if (!company || !company.id) return;
+                    var body = new FormData();
+                    body.append('competitor_id', company.id);
+                    postCompetitorChange(addCompetitorBtn.dataset.addUrl, body);
+                });
+            });
+        }
+
+        if (competitorsList) {
+            competitorsList.addEventListener('submit', function(e) {
+                var form = e.target.closest('.competitor-remove-form');
+                if (!form) return;
+                e.preventDefault();
+                var btn = form.querySelector('button[type="submit"]');
+                if (btn) btn.disabled = true;
+                postCompetitorChange(form.action, new FormData(form)).then(function() {
+                    if (btn && btn.isConnected) btn.disabled = false;
+                });
+            });
+        }
 
         // ---- Async Price Refresh (portfolio companies) ----
 

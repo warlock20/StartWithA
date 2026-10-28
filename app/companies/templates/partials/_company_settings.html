@@ -18,13 +18,6 @@
                 <div class="settings-nav-hint">Ticker validation, price feed</div>
             </div>
         </button>
-        <button class="settings-nav-item" data-settings-section="competitors" type="button">
-            <i class="bi bi-diagram-3"></i>
-            <div>
-                <div class="settings-nav-title">Competitors</div>
-                <div class="settings-nav-hint">Linked peer companies</div>
-            </div>
-        </button>
         {% if research_project %}
         <button class="settings-nav-item" data-settings-section="research" type="button">
             <i class="bi bi-microscope"></i>
@@ -205,68 +198,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- ====== SECTION: Competitors ====== -->
-        <div class="settings-section" id="settings-competitors">
-            <div class="settings-section-heading">
-                <h3 class="font-poppins">Competitors</h3>
-                <p>Link this company to its competitors for comparative analysis.</p>
-            </div>
-
-            <!-- Current competitors list -->
-            {% if current_competitors %}
-            <div class="settings-form-card" style="padding: 0; overflow: hidden;">
-                {% for comp in current_competitors %}
-                <div class="settings-competitor-row">
-                    <div class="settings-competitor-avatar">
-                        {{ (comp.ticker_symbol or comp.name)[:2]|upper }}
-                    </div>
-                    <div class="settings-competitor-info">
-                        <a href="{{ url_for('companies.company_detail', company_id=comp.id) }}" class="settings-competitor-name">
-                            {{ comp.name }}
-                            <i class="bi bi-link-45deg" style="font-size: var(--font-size-xs);"></i>
-                        </a>
-                        <div class="settings-competitor-meta">
-                            <span style="font-family: 'JetBrains Mono', monospace;">{{ comp.ticker_symbol }}</span>
-                            {% if comp.sector %}
-                            <span>&middot;</span>
-                            <span>{{ comp.sector.name }}</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <form method="POST"
-                          action="{{ url_for('companies.remove_competitor', company_id=company.id, competitor_id=comp.id) }}"
-                          style="display: inline;">
-                        <button type="submit" class="btn btn-outline-danger btn-sm">
-                            <i class="bi bi-x me-1"></i>Remove
-                        </button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="settings-form-card" style="text-align: center; padding: var(--space-xl);">
-                <i class="bi bi-diagram-3" style="font-size: 2rem; color: var(--gray-300);"></i>
-                <p style="color: var(--text-muted); font-size: var(--font-size-sm); margin-top: var(--space-sm);">
-                    No competitors linked yet.
-                </p>
-            </div>
-            {% endif %}
-
-            <!-- Add competitor -->
-            <form method="POST" action="{{ url_for('companies.add_competitor', company_id=company.id) }}">
-                <div class="settings-form-card settings-add-row">
-                    <i class="bi bi-plus-circle" style="font-size: var(--font-size-base); color: var(--text-muted);"></i>
-                    <select name="competitor_id" class="form-select form-select-sm" required style="flex: 1;">
-                        <option value="" disabled selected>Search and add a competitor by name or ticker...</option>
-                        {% for p_comp in potential_competitors %}
-                        <option value="{{ p_comp.id }}">{{ p_comp.name }} ({{ p_comp.ticker_symbol }})</option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="btn btn-primary btn-sm">Add</button>
-                </div>
-            </form>
         </div>
 
         <!-- ====== SECTION: Research Setup ====== -->

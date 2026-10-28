@@ -33,6 +33,13 @@
                 <div class="settings-nav-hint">Red & green flags, exit rules</div>
             </div>
         </button>
+        <button class="settings-nav-item research-nav-item" data-research-section="competitors" type="button">
+            <i class="bi bi-diagram-3"></i>
+            <div>
+                <div class="settings-nav-title">Competitors</div>
+                <div class="settings-nav-hint">Linked peer companies</div>
+            </div>
+        </button>
 
         <div class="settings-sidebar-label settings-sidebar-label-group">Records</div>
         <button class="settings-nav-item research-nav-item" data-research-section="journal" type="button">
@@ -201,6 +208,24 @@
 
             {% set findings_url = url_for('companies.api_add_finding', company_id=company.id) %}
             {% include 'partials/_findings_editor.html' %}
+        </div>
+
+        <!-- ====== SECTION: Competitors ====== -->
+        <div class="research-section" id="research-competitors">
+            <div class="settings-section-heading" style="display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap;">
+                <div>
+                    <h3 class="font-poppins">Competitors</h3>
+                    <p>Peer companies for comparative analysis. A link added from either company shows on both.</p>
+                </div>
+                <button type="button" class="action-btn primary" id="addCompetitorBtn"
+                        data-add-url="{{ url_for('companies.add_competitor', company_id=company.id) }}">
+                    <i class="bi bi-plus-circle me-1"></i> Add competitor
+                </button>
+            </div>
+
+            <div id="competitorsList">
+                {% include 'partials/_company_competitors_list.html' %}
+            </div>
         </div>
 
         <!-- ====== SECTION: Journal ====== -->

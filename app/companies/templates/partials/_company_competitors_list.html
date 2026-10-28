@@ -1,0 +1,41 @@
+{# Competitor list for Research > Competitors. Also rendered on its own by
+   add_competitor / remove_competitor for AJAX callers, so it needs only
+   `company` and `current_competitors` (links in either direction). #}
+{% if current_competitors %}
+<div class="settings-form-card" style="padding: 0; overflow: hidden;">
+    {% for comp in current_competitors %}
+    <div class="settings-competitor-row">
+        <div class="settings-competitor-avatar">
+            {{ (comp.ticker_symbol or comp.name)[:2]|upper }}
+        </div>
+        <div class="settings-competitor-info">
+            <a href="{{ url_for('companies.company_detail', company_id=comp.id) }}" class="settings-competitor-name">
+                {{ comp.name }}
+                <i class="bi bi-link-45deg" style="font-size: var(--font-size-xs);"></i>
+            </a>
+            <div class="settings-competitor-meta">
+                <span style="font-family: 'JetBrains Mono', monospace;">{{ comp.ticker_symbol }}</span>
+                {% if comp.sector %}
+                <span>&middot;</span>
+                <span>{{ comp.sector.name }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <form method="POST" class="competitor-remove-form"
+              action="{{ url_for('companies.remove_competitor', company_id=company.id, competitor_id=comp.id) }}"
+              style="display: inline;">
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-x me-1"></i>Remove
+            </button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="settings-form-card" style="text-align: center; padding: var(--space-xl);">
+    <i class="bi bi-diagram-3" style="font-size: 2rem; color: var(--gray-300);"></i>
+    <p style="color: var(--text-muted); font-size: var(--font-size-sm); margin-top: var(--space-sm);">
+        No competitors linked yet.
+    </p>
+</div>
+{% endif %}
