@@ -835,15 +835,6 @@
     color: var(--text-muted);
 }
 
-/* Add row */
-.settings-add-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    background: var(--gray-50);
-    border-style: dashed;
-}
-
 /* Key-value rows (Research Setup) */
 .settings-kv-row {
     display: flex;

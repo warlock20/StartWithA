@@ -61,6 +61,7 @@ from app.models import PortfolioPosition
 from app.services.currency_service import CurrencyService
 from app.services.company_state import company_state, company_states
 from app.services.sweep_link import link_from_isin
+from app.services.competitors import link_competitors, list_competitors, unlink_competitors
 from app.services.research_reopen_service import ReopenNotAllowed, ResearchReopenService
 from app.models.research_reopening import ResearchReopening
 
@@ -661,14 +662,8 @@ def company_detail(company_id):
     if position and not position.current_price_base:
         PriceService.update_position_price(position, force=True)
 
-    # Dashboard data: competitors
-    current_competitors = company.competitors.order_by(Company.name).all()
-    current_competitor_ids = {c.id for c in current_competitors}
-    potential_competitors = Company.query.filter(
-        Company.user_id == current_user.id,
-        Company.id != company_id,
-        ~Company.id.in_(current_competitor_ids)
-    ).order_by(Company.name).all()
+    # Competitors linked in either direction (Overview card + Research > Competitors)
+    current_competitors = list_competitors(company)
 
     # Dashboard data: intrinsic value formatting
     intrinsic_display_value, intrinsic_unit = _format_intrinsic_value(company)
@@ -708,7 +703,6 @@ def company_detail(company_id):
         intrinsic_unit=intrinsic_unit,
         intrinsic_value_label=intrinsic_value_label,
         current_competitors=current_competitors,
-        potential_competitors=potential_competitors,
         user_currency=user_currency,
         currency_symbol=currency_symbol,
         resource_count=resource_count,
@@ -976,6 +970,28 @@ def financials(company_id):
         chart_data=chart_data # Pass the prepared data to the template
     )
 
+def _competitors_result(company, message, category, status=200):
+    """Answer an add/remove competitor request.
+
+    AJAX callers get JSON carrying the re-rendered competitor list, so the
+    Research > Competitors section updates in place. A plain form post gets a
+    flash and a redirect back to that same section rather than the Overview.
+    """
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        competitors = list_competitors(company)
+        return jsonify({
+            'success': category in ('success', 'info'),
+            'message': message,
+            'category': category,
+            'count': len(competitors),
+            'html': render_template('partials/_company_competitors_list.html',
+                                    company=company, current_competitors=competitors),
+        }), status
+    flash(message, category)
+    return redirect(url_for('companies.company_detail', company_id=company.id,
+                            _anchor='research/competitors'))
+
+
 @companies_bp.route('/<int:company_id>/add_competitor', methods=['POST'])
 @login_required
 def add_competitor(company_id):
@@ -983,32 +999,30 @@ def add_competitor(company_id):
 
     competitor_id = request.form.get('competitor_id', type=int)
     if not competitor_id:
-        flash('No competitor selected.', 'error')
-        return redirect(url_for('companies.company_detail', company_id=company_id))
+        return _competitors_result(company, 'No competitor selected.', 'error', 400)
+    if competitor_id == company.id:
+        return _competitors_result(company, 'A company cannot be its own competitor.', 'error', 400)
 
     competitor = owned_or_404(Company, competitor_id)
 
-    if competitor in company.competitors:
-        flash(f'"{competitor.name}" is already a competitor.', 'warning')
-    else:
-        company.competitors.append(competitor)
-        db.session.commit()
-        flash(f'"{competitor.name}" added as a competitor.', 'success')
+    # Links are stored one way but read both ways, so "already linked" checks both.
+    if not link_competitors(company, competitor):
+        return _competitors_result(company, f'"{competitor.name}" is already a competitor.', 'warning', 409)
 
-    return redirect(url_for('companies.company_detail', company_id=company_id))
+    db.session.commit()
+    return _competitors_result(company, f'"{competitor.name}" added as a competitor.', 'success')
 
 @companies_bp.route('/<int:company_id>/remove_competitor/<int:competitor_id>', methods=['POST'])
 @login_required
 def remove_competitor(company_id, competitor_id):
     company = owned_or_404(Company, company_id)
+    competitor = owned_or_404(Company, competitor_id)
 
-    competitor = Company.query.get_or_404(competitor_id)
-    if competitor in company.competitors:
-        company.competitors.remove(competitor)
+    # The link may have been recorded from either company's page.
+    if unlink_competitors(company.id, competitor.id):
         db.session.commit()
-        flash(f'"{competitor.name}" removed from competitors.', 'info')
-
-    return redirect(url_for('companies.company_detail', company_id=company_id))
+        return _competitors_result(company, f'"{competitor.name}" removed from competitors.', 'info')
+    return _competitors_result(company, f'"{competitor.name}" is not a competitor.', 'warning', 409)
 
 @companies_bp.route('/<int:company_id>/edit', methods=['POST'])
 @login_required
