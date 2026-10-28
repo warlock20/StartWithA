@@ -380,16 +380,20 @@ document.addEventListener('DOMContentLoaded', function() {
     let activeTable = null;
 
     if (activeData.length > 0) {
+        // Columns that don't fit fold into an expandable row: minWidth is the
+        // content plus 40px of cell padding, `responsive` is the fold order
+        // (higher folds first, 0 never). See frontend/src/lib/tableFold.js.
         activeTable = createDataTable('#active-research-table', {
             data: activeData,
             columns: [
                 {
                     title: "Company",
-                    cssClass: "dt-card-title",
+                    cssClass: "dt-card-title dt-cell-wrap",
                     field: "company_name",
                     sorter: "string",
                     minWidth: 180,
                     widthGrow: 2,
+                    responsive: 0,
                     formatter: function(cell) {
                         const row = cell.getRow().getData();
                         const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${row.ticker}</span>` : '';
@@ -398,9 +402,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Template",
+                    cssClass: "dt-cell-wrap",
                     field: "template_name",
                     sorter: "string",
-                    minWidth: 120,
+                    minWidth: 145,
+                    responsive: 5,
                 },
                 {
                     title: "Progress",
@@ -409,6 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     sorter: "number",
                     hozAlign: "center",
                     minWidth: 150,
+                    responsive: 0,
                     formatter: function(cell) {
                         const val = cell.getValue() || 0;
                         const color = val >= 65 ? 'var(--success-500)' : val >= 35 ? 'var(--warning-500)' : 'var(--info-500)';
@@ -422,10 +429,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Status",
+                    cssClass: "dt-cell-wrap",
                     field: "status",
                     sorter: "string",
                     hozAlign: "center",
                     minWidth: 120,
+                    responsive: 1,
                     formatter: function(cell) {
                         const row = cell.getRow().getData();
                         const val = cell.getValue();
@@ -441,7 +450,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     title: "Priority",
                     field: "priority_label",
-                    minWidth: 130,
+                    minWidth: 165,
+                    responsive: 2,
                     formatter: function(cell) {
                         var label = cell.getValue();
                         if (!label) return '';
@@ -463,7 +473,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "last_worked",
                     sorter: "date",
                     sorterParams: { format: "yyyy-MM-dd" },
-                    minWidth: 110,
+                    minWidth: 140,
+                    headerWordWrap: true,
+                    responsive: 3,
                     formatter: ColumnFormatters.date('short')
                 },
                 {
@@ -471,7 +483,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "hours_spent",
                     sorter: "number",
                     hozAlign: "right",
-                    minWidth: 70,
+                    minWidth: 115,
+                    responsive: 4,
                     formatter: function(cell) {
                         const val = cell.getValue();
                         return val ? `<span class="rcl-cell-mono">${val}</span>` : '<span class="table-cell-muted">--</span>';
@@ -484,6 +497,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     headerSort: false,
                     hozAlign: "right",
                     minWidth: 140,
+                    responsive: 0,
                     formatter: function(cell) {
                         const row = cell.getRow().getData();
                         const url = cell.getValue();
@@ -494,6 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             ],
             mobileCards: true,
+            foldColumns: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "last_worked", dir: "desc" }],
@@ -542,11 +557,12 @@ document.addEventListener('DOMContentLoaded', function() {
             columns: [
                 {
                     title: "Company",
-                    cssClass: "dt-card-title",
+                    cssClass: "dt-card-title dt-cell-wrap",
                     field: "company_name",
                     sorter: "string",
                     minWidth: 180,
                     widthGrow: 2,
+                    responsive: 0,
                     formatter: function(cell) {
                         const row = cell.getRow().getData();
                         const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${row.ticker}</span>` : '';
@@ -555,11 +571,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Status",
-                    cssClass: "dt-card-key",
+                    cssClass: "dt-card-key dt-cell-wrap",
                     field: "research_status",
                     sorter: "string",
                     hozAlign: "center",
-                    minWidth: 130,
+                    minWidth: 160,
+                    responsive: 0,
                     formatter: function(cell) {
                         const val = cell.getValue();
                         const row = cell.getRow().getData();
@@ -577,9 +594,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Watch Reason",
+                    cssClass: "dt-cell-wrap",
                     field: "watch_reason",
                     sorter: "string",
                     minWidth: 150,
+                    headerWordWrap: true,
+                    responsive: 1,
                     formatter: function(cell) {
                         const val = cell.getValue();
                         if (!val) return '<span class="table-cell-muted">--</span>';
@@ -588,16 +608,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Sector",
+                    cssClass: "dt-cell-wrap",
                     field: "sector",
                     sorter: "string",
-                    minWidth: 100,
+                    minWidth: 170,
+                    responsive: 2,
                 },
                 {
                     title: "Source",
                     field: "source",
                     sorter: "string",
                     hozAlign: "center",
-                    minWidth: 130,
+                    minWidth: 225,
+                    responsive: 3,
                     formatter: function(cell) {
                         const val = cell.getValue();
                         const modifiers = { 'Research Decision': 'research', 'Manual Add': 'manual' };
@@ -611,20 +634,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     cssClass: "dt-card-actions",
                     headerSort: false,
                     hozAlign: "right",
-                    minWidth: 180,
+                    minWidth: 185,
+                    responsive: 0,
                     formatter: function(cell) {
+                        // Secondary actions are icon-only on desktop; phone cards show the labels.
                         const row = cell.getRow().getData();
                         const companyUrl = cell.getValue();
                         let html = '';
                         if (row.project_url) {
                             html += `<a href="${row.project_url}" class="rcl-action rcl-action--primary"><i class="bi bi-arrow-right-circle"></i> Research</a> `;
                         }
-                        html += `<a href="${companyUrl}" class="rcl-action"><i class="bi bi-building"></i> Company</a>`;
+                        html += `<a href="${companyUrl}" class="rcl-action" title="Company" aria-label="Company"><i class="bi bi-building"></i><span class="dt-action-label">Company</span></a>`;
                         return html;
                     }
                 }
             ],
             mobileCards: true,
+            foldColumns: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "company_name", dir: "asc" }],
@@ -675,11 +701,12 @@ document.addEventListener('DOMContentLoaded', function() {
             columns: [
                 {
                     title: "Company",
-                    cssClass: "dt-card-title",
+                    cssClass: "dt-card-title dt-cell-wrap",
                     field: "company_name",
                     sorter: "string",
                     minWidth: 160,
                     widthGrow: 2,
+                    responsive: 0,
                     formatter: function(cell) {
                         // company_name and ticker are free-typed by the user who
                         // marked this company too-hard -- built as DOM nodes, not
@@ -705,7 +732,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "rejection_stage_label",
                     sorter: "string",
                     hozAlign: "center",
-                    minWidth: 130,
+                    minWidth: 185,
+                    responsive: 0,
                     formatter: function(cell) {
                         const val = cell.getValue();
                         const modifiers = {
@@ -719,16 +747,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Sector",
+                    cssClass: "dt-cell-wrap",
                     field: "sector",
                     sorter: "string",
-                    minWidth: 100,
+                    minWidth: 170,
+                    responsive: 3,
                 },
                 {
                     title: "Time",
                     field: "time_invested",
                     sorter: "number",
                     hozAlign: "right",
-                    minWidth: 70,
+                    minWidth: 105,
+                    responsive: 4,
                     formatter: function(cell) {
                         const val = cell.getValue();
                         return val ? `<span class="rcl-cell-mono">${val}h</span>` : '<span class="table-cell-muted">--</span>';
@@ -740,6 +771,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     sorter: "string",
                     minWidth: 180,
                     widthGrow: 2,
+                    responsive: 1,
                     formatter: function(cell) {
                         // reason is free-typed kill-reason text -- built as a DOM
                         // node, not an HTML string. setAttribute('title', ...) does
@@ -764,7 +796,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "rejection_date",
                     sorter: "date",
                     sorterParams: { format: "yyyy-MM-dd" },
-                    minWidth: 100,
+                    minWidth: 150,
+                    responsive: 2,
                     formatter: ColumnFormatters.date('short')
                 },
                 {
@@ -773,7 +806,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     cssClass: "dt-card-actions",
                     headerSort: false,
                     hozAlign: "right",
-                    minWidth: 200,
+                    minWidth: 180,
+                    responsive: 0,
                     formatter: function(cell) {
                         // Built as real DOM nodes, not an HTML string: row.company_name
                         // and row.reason are free-typed user text, and interpolating
@@ -799,14 +833,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             wrapper.appendChild(document.createTextNode(' '));
                         }
 
+                        // View is icon-only on desktop; phone cards show its label.
                         if (url) {
                             const viewLink = document.createElement('a');
                             viewLink.href = url;
                             viewLink.className = 'rcl-action';
+                            viewLink.title = 'View';
+                            viewLink.setAttribute('aria-label', 'View');
                             const viewIcon = document.createElement('i');
                             viewIcon.className = 'bi bi-grid-1x2';
                             viewLink.appendChild(viewIcon);
-                            viewLink.appendChild(document.createTextNode(' View'));
+                            const viewLabel = document.createElement('span');
+                            viewLabel.className = 'dt-action-label';
+                            viewLabel.textContent = 'View';
+                            viewLink.appendChild(viewLabel);
                             wrapper.appendChild(viewLink);
                         }
 
@@ -815,6 +855,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
             ],
             mobileCards: true,
+            foldColumns: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "rejection_date", dir: "desc" }],
@@ -864,11 +905,12 @@ document.addEventListener('DOMContentLoaded', function() {
             columns: [
                 {
                     title: "Company",
-                    cssClass: "dt-card-title",
+                    cssClass: "dt-card-title dt-cell-wrap",
                     field: "company_name",
                     sorter: "string",
                     minWidth: 180,
                     widthGrow: 2,
+                    responsive: 0,
                     formatter: function(cell) {
                         const row = cell.getRow().getData();
                         const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${row.ticker}</span>` : '';
@@ -877,9 +919,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     title: "Template",
+                    cssClass: "dt-cell-wrap",
                     field: "template_name",
                     sorter: "string",
-                    minWidth: 120,
+                    minWidth: 145,
+                    responsive: 2,
                 },
                 {
                     title: "Confidence",
@@ -887,7 +931,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "confidence",
                     sorter: "number",
                     hozAlign: "center",
-                    minWidth: 110,
+                    minWidth: 160,
+                    responsive: 0,
                     formatter: function(cell) {
                         const val = cell.getValue();
                         if (!val) return '<span class="table-cell-muted">--</span>';
@@ -900,7 +945,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "hours_spent",
                     sorter: "number",
                     hozAlign: "right",
-                    minWidth: 70,
+                    minWidth: 115,
+                    responsive: 3,
                     formatter: function(cell) {
                         const val = cell.getValue();
                         return val ? `<span class="rcl-cell-mono">${val}</span>` : '<span class="table-cell-muted">--</span>';
@@ -911,7 +957,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "completed_at",
                     sorter: "date",
                     sorterParams: { format: "yyyy-MM-dd" },
-                    minWidth: 110,
+                    minWidth: 150,
+                    responsive: 1,
                     formatter: ColumnFormatters.date('short')
                 },
                 {
@@ -920,18 +967,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     cssClass: "dt-card-actions",
                     headerSort: false,
                     hozAlign: "right",
-                    minWidth: 180,
+                    minWidth: 190,
+                    responsive: 0,
                     formatter: function(cell) {
+                        // Secondary actions are icon-only on desktop; phone cards show the labels.
                         const row = cell.getRow().getData();
                         let html = `<a href="${cell.getValue()}" class="rcl-action rcl-action--primary"><i class="bi bi-file-text"></i> Summary</a>`;
                         if (row.company_url) {
-                            html += ` <a href="${row.company_url}" class="rcl-action"><i class="bi bi-building"></i> Company</a>`;
+                            html += ` <a href="${row.company_url}" class="rcl-action" title="Company" aria-label="Company"><i class="bi bi-building"></i><span class="dt-action-label">Company</span></a>`;
                         }
                         return html;
                     }
                 }
             ],
             mobileCards: true,
+            foldColumns: true,
             customConfig: {
                 layout: "fitColumns",
                 initialSort: [{ column: "completed_at", dir: "desc" }],

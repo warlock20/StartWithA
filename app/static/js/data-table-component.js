@@ -13,6 +13,13 @@
  *   frontend/src/lib/tableCards.js and _data-table-cards.css).
  * - Without it, tables scroll sideways inside themselves on phones.
  *
+ * Desktop Folding:
+ * - With `foldColumns: true`, columns that don't fit fold into a row that
+ *   opens from a chevron. Give each column a content-based minWidth and a
+ *   `responsive` priority (higher folds first, 0 never). Needs the same
+ *   table-cards.bundle.js (see frontend/src/lib/tableFold.js and
+ *   _data-table-fold.css).
+ *
  * Usage:
  * ------
  * const table = createDataTable('#my-table', {
@@ -58,6 +65,7 @@ const DEFAULT_TABLE_CONFIG = {
  * @param {function} options.rowClick - Row click handler (optional)
  * @param {object} options.customConfig - Override any Tabulator config (optional)
  * @param {boolean} options.mobileCards - Render rows as cards on phones (optional)
+ * @param {boolean} options.foldColumns - Fold columns that don't fit on desktop (optional)
  *
  * @returns {Tabulator} - Tabulator instance
  */
@@ -112,7 +120,10 @@ function createDataTable(selector, options = {}) {
         Object.assign(config, options.customConfig);
     }
 
-    // Phone card mode, provided by table-cards.bundle.js
+    // Desktop folding and phone card mode, provided by table-cards.bundle.js
+    if (options.foldColumns && window.TableFold) {
+        window.TableFold.prepareFoldConfig(config);
+    }
     const useCards = options.mobileCards && window.TableCards;
     if (useCards) {
         window.TableCards.prepareCardsConfig(config);
@@ -122,6 +133,10 @@ function createDataTable(selector, options = {}) {
     const table = new Tabulator(selector, config);
     if (useCards) {
         window.TableCards.enableTableCards(table, document.querySelector(selector));
+    }
+    // prepareFoldConfig leaves phones alone, so only wire up a table it changed
+    if (options.foldColumns && window.TableFold && config.responsiveLayout === 'collapse') {
+        window.TableFold.enableTableFold(table, document.querySelector(selector));
     }
 
     // Add scroll indicator logic for horizontally scrollable tables

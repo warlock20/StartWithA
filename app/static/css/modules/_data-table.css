@@ -322,3 +322,9 @@
 .table-cell-muted {
     color: var(--gray-500);
 }
+
+/* Free-text cells (names, sectors, templates) wrap onto a second line
+   instead of being cut off. Opt in per column with cssClass. */
+.tabulator .tabulator-row .tabulator-cell.dt-cell-wrap {
+    white-space: normal;
+}

@@ -122,8 +122,12 @@ export function confirmationMessage(row, candidate, serverMessage) {
 // hiding them would leave a user who disagrees with the derived state no
 // recourse. The one exception is `held`: the user already owns that
 // company, so Kill is withheld.
+//
+// Link actions and decision actions sit in separate groups, stacked, so the
+// column only needs the width of the wider group rather than of every button
+// in a row (#383).
 export function actionsCell(row) {
-  var html = '<div class="sweep-actions">';
+  var html = '<div class="sweep-actions"><div class="sweep-actions__group">';
 
   if (row.suggestion && !row.link) {
     html +=
@@ -141,6 +145,8 @@ export function actionsCell(row) {
       '<button class="sweep-action-btn" onclick="MarketSweep.unlinkRow(' + row.id +
       ')" title="Linked via ' + originAttr + '">Unlink (' + origin + ')</button>';
   }
+
+  html += '</div><div class="sweep-actions__group">';
 
   if (row.decision) {
     if (row.decision === 'inbox' && row.promoted_idea_id) {
@@ -187,8 +193,167 @@ export function actionsCell(row) {
     }
   }
 
-  html += '</div>';
+  html += '</div></div>';
   return html;
+}
+
+function sectorSelect(sectors, companyId, currentSectorId) {
+  let html =
+    '<select class="sweep-sector-select" onchange="MarketSweep.updateSector(' +
+    companyId +
+    ', this.value)">';
+  html += '<option value="">\u2014 Sector \u2014</option>';
+  (sectors || []).forEach((s) => {
+    const selected = currentSectorId && s.id === currentSectorId ? ' selected' : '';
+    html += '<option value="' + s.id + '"' + selected + '>' + escapeHtml(s.name) + '</option>';
+  });
+  html += '</select>';
+  return html;
+}
+
+// The dt-card-* classes pick what a phone card shows (see lib/tableCards).
+// On desktop, columns that don't fit fold into an expandable row (see
+// lib/tableFold): minWidth is the content width plus 40px of cell padding,
+// and `responsive` sets the fold order (higher folds first, 0 never).
+export function sweepColumns({ isAdmin, sectors, onIsinEdit }) {
+  return [
+    {
+      title: '#',
+      field: 'sort_order',
+      sorter: 'number',
+      hozAlign: 'center',
+      minWidth: 50,
+      responsive: 5,
+      formatter: function (cell) {
+        return (
+          '<span style="color:var(--text-secondary);font-size:0.8rem">' +
+          cell.getValue() +
+          '</span>'
+        );
+      },
+    },
+    {
+      title: 'Company',
+      field: 'company_name',
+      cssClass: 'dt-card-title dt-cell-wrap',
+      sorter: 'string',
+      minWidth: 180,
+      widthGrow: 2,
+      responsive: 0,
+      formatter: function (cell) {
+        var row = cell.getRow().getData();
+        var ticker = row.ticker
+          ? '<br><span class="sweep-company-cell__ticker">' +
+            escapeHtml(row.ticker) +
+            '</span>'
+          : '';
+        return (
+          '<div class="sweep-company-cell"><span class="sweep-company-cell__name">' +
+          escapeHtml(cell.getValue()) +
+          '</span>' +
+          ticker +
+          '</div>'
+        );
+      },
+    },
+    {
+      // Sweep rows are global, so the value is visible to everyone and
+      // editable only by an admin. A non-admin gets the column read-only
+      // rather than not at all: the table already tells them when an ISIN
+      // is missing, so hiding the ones that exist made the gap look larger
+      // than it is.
+      title: 'ISIN',
+      field: 'isin',
+      sorter: 'string',
+      hozAlign: 'center',
+      minWidth: 150,
+      responsive: 2,
+      cssClass: isAdmin ? 'sweep-isin-col sweep-isin-col--editable' : 'sweep-isin-col',
+      editor: isAdmin ? 'input' : false,
+      cellEdited: function (cell) {
+        onIsinEdit(cell);
+      },
+      formatter: function (cell) {
+        var val = cell.getValue();
+        if (val) return '<span class="sweep-isin-cell">' + escapeHtml(val) + '</span>';
+        return isAdmin
+          ? '<span class="table-cell-muted sweep-isin-cell--add">add ISIN</span>'
+          : '<span class="table-cell-muted">&mdash;</span>';
+      },
+    },
+    {
+      title: 'Sector',
+      field: 'sector_label',
+      cssClass: 'dt-cell-wrap',
+      sorter: 'string',
+      minWidth: 160,
+      responsive: 1,
+      formatter: function (cell) {
+        var row = cell.getRow().getData();
+        if (row.decision === 'inbox') {
+          return sectorSelect(sectors, row.id, row.decision_sector_id);
+        }
+        var val = cell.getValue();
+        return val
+          ? '<span style="font-size:0.85rem">' + escapeHtml(val) + '</span>'
+          : '<span class="table-cell-muted">&mdash;</span>';
+      },
+    },
+    {
+      title: 'Market Cap',
+      field: 'market_cap',
+      sorter: 'string',
+      hozAlign: 'center',
+      minWidth: 110,
+      headerWordWrap: true,
+      responsive: 3,
+      formatter: function (cell) {
+        var val = cell.getValue();
+        return val
+          ? '<span style="font-size:0.85rem">' + escapeHtml(val) + '</span>'
+          : '<span class="table-cell-muted">&mdash;</span>';
+      },
+    },
+    {
+      title: 'Notes',
+      field: 'decision_notes',
+      sorter: 'string',
+      minWidth: 140,
+      widthGrow: 2,
+      responsive: 4,
+      formatter: function (cell) {
+        var val = cell.getValue();
+        if (!val) return '<span class="table-cell-muted">&mdash;</span>';
+        var escaped = escapeHtml(val);
+        var truncated = val.length > 50 ? escapeHtml(val.substring(0, 50)) + '&hellip;' : escaped;
+        return '<span class="sweep-notes-cell" title="' + escapeAttr(val) + '">' + truncated + '</span>';
+      },
+    },
+    {
+      title: 'Status',
+      field: 'decision',
+      cssClass: 'dt-card-key',
+      sorter: statusSorter,
+      hozAlign: 'center',
+      minWidth: 195,
+      responsive: 0,
+      formatter: function (cell) {
+        return statusBadge(cell.getRow().getData());
+      },
+    },
+    {
+      title: '',
+      field: 'decision',
+      cssClass: 'dt-card-actions',
+      headerSort: false,
+      hozAlign: 'right',
+      minWidth: 180,
+      responsive: 0,
+      formatter: function (cell) {
+        return actionsCell(cell.getRow().getData());
+      },
+    },
+  ];
 }
 
 /**
@@ -465,20 +630,6 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
   // Tabulator table
   // ------------------------------------------------------------------
 
-  function buildSectorSelect(companyId, currentSectorId) {
-    let html =
-      '<select class="sweep-sector-select" onchange="MarketSweep.updateSector(' +
-      companyId +
-      ', this.value)">';
-    html += '<option value="">\u2014 Sector \u2014</option>';
-    (sectors || []).forEach((s) => {
-      const selected = currentSectorId && s.id === currentSectorId ? ' selected' : '';
-      html += '<option value="' + s.id + '"' + selected + '>' + escapeHtml(s.name) + '</option>';
-    });
-    html += '</select>';
-    return html;
-  }
-
   function buildTable(companies) {
     if (tableRef.current) {
       tableRef.current.destroy();
@@ -487,137 +638,15 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
 
     tableRef.current = createDataTable('#sweepTable', {
       data: companies,
-      columns: [
-        {
-          title: '#',
-          field: 'sort_order',
-          sorter: 'number',
-          hozAlign: 'center',
-          minWidth: 50,
-          formatter: function (cell) {
-            return (
-              '<span style="color:var(--text-secondary);font-size:0.8rem">' +
-              cell.getValue() +
-              '</span>'
-            );
-          },
-        },
-        {
-          title: 'Company',
-          field: 'company_name',
-          sorter: 'string',
-          minWidth: 180,
-          widthGrow: 2,
-          formatter: function (cell) {
-            var row = cell.getRow().getData();
-            var ticker = row.ticker
-              ? '<br><span class="sweep-company-cell__ticker">' +
-                escapeHtml(row.ticker) +
-                '</span>'
-              : '';
-            return (
-              '<div class="sweep-company-cell"><span class="sweep-company-cell__name">' +
-              escapeHtml(cell.getValue()) +
-              '</span>' +
-              ticker +
-              '</div>'
-            );
-          },
-        },
-        {
-          // Sweep rows are global, so the value is visible to everyone and
-          // editable only by an admin. A non-admin gets the column read-only
-          // rather than not at all: the table already tells them when an ISIN
-          // is missing, so hiding the ones that exist made the gap look larger
-          // than it is.
-          title: 'ISIN',
-          field: 'isin',
-          sorter: 'string',
-          hozAlign: 'center',
-          minWidth: 130,
-          cssClass: isAdmin ? 'sweep-isin-col sweep-isin-col--editable' : 'sweep-isin-col',
-          editor: isAdmin ? 'input' : false,
-          cellEdited: function (cell) {
-            handleIsinCellEdit(cell);
-          },
-          formatter: function (cell) {
-            var val = cell.getValue();
-            if (val) return '<span class="sweep-isin-cell">' + escapeHtml(val) + '</span>';
-            return isAdmin
-              ? '<span class="table-cell-muted sweep-isin-cell--add">add ISIN</span>'
-              : '<span class="table-cell-muted">&mdash;</span>';
-          },
-        },
-        {
-          title: 'Sector',
-          field: 'sector_label',
-          sorter: 'string',
-          minWidth: 120,
-          formatter: function (cell) {
-            var row = cell.getRow().getData();
-            if (row.decision === 'inbox') {
-              return buildSectorSelect(row.id, row.decision_sector_id);
-            }
-            var val = cell.getValue();
-            return val
-              ? '<span style="font-size:0.85rem">' + escapeHtml(val) + '</span>'
-              : '<span class="table-cell-muted">&mdash;</span>';
-          },
-        },
-        {
-          title: 'Market Cap',
-          field: 'market_cap',
-          sorter: 'string',
-          hozAlign: 'center',
-          minWidth: 90,
-          formatter: function (cell) {
-            var val = cell.getValue();
-            return val
-              ? '<span style="font-size:0.85rem">' + escapeHtml(val) + '</span>'
-              : '<span class="table-cell-muted">&mdash;</span>';
-          },
-        },
-        {
-          title: 'Notes',
-          field: 'decision_notes',
-          sorter: 'string',
-          minWidth: 140,
-          widthGrow: 2,
-          formatter: function (cell) {
-            var val = cell.getValue();
-            if (!val) return '<span class="table-cell-muted">&mdash;</span>';
-            var escaped = escapeHtml(val);
-            var truncated = val.length > 50 ? escapeHtml(val.substring(0, 50)) + '&hellip;' : escaped;
-            return '<span class="sweep-notes-cell" title="' + escapeAttr(val) + '">' + truncated + '</span>';
-          },
-        },
-        {
-          title: 'Status',
-          field: 'decision',
-          sorter: statusSorter,
-          hozAlign: 'center',
-          minWidth: 90,
-          formatter: function (cell) {
-            return statusBadge(cell.getRow().getData());
-          },
-        },
-        {
-          title: '',
-          field: 'decision',
-          headerSort: false,
-          hozAlign: 'right',
-          minWidth: 180,
-          formatter: function (cell) {
-            return actionsCell(cell.getRow().getData());
-          },
-        },
-      ],
+      columns: sweepColumns({ isAdmin, sectors, onIsinEdit: handleIsinCellEdit }),
       customConfig: {
         index: 'id',
         layout: 'fitColumns',
         pagination: true,
         paginationSize: 10,
       },
+      mobileCards: true,
+      foldColumns: true,
     });
   }
 
