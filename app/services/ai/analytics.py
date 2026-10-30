@@ -39,8 +39,6 @@ TOKEN_PRICING = {
     'claude-opus-4-20250514': {'input': 15.00, 'output': 75.00},
     'claude-3-5-haiku-20241022': {'input': 0.80, 'output': 4.00},
     # Gemini
-    'gemini-2.0-flash-exp': {'input': 0.00, 'output': 0.00},  # Free tier
-    'gemini-1.5-pro': {'input': 1.25, 'output': 5.00},
     'gemini-2.5-flash': {'input': 0.30, 'output': 2.50},
     'gemini-2.5-pro': {'input': 1.25, 'output': 10.00},
     'gemini-4-argon': {'input': 4.00, 'output': 20.00},
@@ -50,8 +48,6 @@ TOKEN_PRICING = {
     'gemini-3-flash-preview': {'input': 0.50, 'output': 3.00},
     'gemini-3.1-pro-preview': {'input': 2.00, 'output': 12.00},
     # DeepSeek
-    'deepseek-chat': {'input': 0.27, 'output': 1.10},       # V3 pricing
-    'deepseek-reasoner': {'input': 0.55, 'output': 2.19},   # R1 pricing
     'deepseek-flash': {'input': 0.30, 'output': 1.20},      # V4 Flash (peak)
     'deepseek-v4-pro': {'input': 1.32, 'output': 3.96},     # V4 Pro (peak)
 }
