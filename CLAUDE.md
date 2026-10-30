@@ -78,6 +78,7 @@ Deployment is on Railway with the Dockerfile. `railway.toml` is the web service 
 - Model resolution: the prompt's default is used first, then `prompts/ai_routing.yaml` `task_overrides`, then the user's AI preferences (`settings/ai_model_routes.py`, `models/user_ai_preferences.py`). The `AI_QUALITY_MODEL` and `AI_FAST_MODEL` env vars set the aliases (see `ai/config.py`).
 - `tool_calling.py` has a provider-agnostic tool loop (`run_tool_loop`), which the companion agent uses.
 - `embedding_service.py` handles embeddings stored in pgvector (`models/knowledge_chunk.py`).
+- Adding, retiring or repricing a model touches about a dozen registries. Use the `updating-ai-models` skill (`.claude/skills/updating-ai-models/SKILL.md`).
 
 ### Argos / Companion (`app/services/argos/`)
 Argos is the agentic research companion that is mounted globally (the widget is in the base template, and the routes are in `app/companion/`). `ArgosService` in `core.py` is a blind-spot detector over the user's own data: past mistakes, journal entries and research. `CompanionAgent` in `agent.py` runs a tool-calling loop over `tools.py`'s `ToolExecutor`. The tools cover knowledge search (`knowledge_index.py`/`knowledge_search.py` over `KnowledgeChunk`), agenda, checklist and page context. Citations that don't resolve are stripped from answers.

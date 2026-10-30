@@ -25,7 +25,7 @@ from google.genai import errors as genai_errors
 from google.genai import types as genai_types
 
 from app.services.ai.prompt_service import prompt_service
-from app.services.ai.providers.gemini import _get_gemini_client
+from app.services.ai.providers.gemini import _get_gemini_client, gemini_output_tokens
 from app.services.ai_check import AICheckError
 from app.services.ai_check.adapters.base import ProviderAdapter
 from app.services.ai_check.llm import StageReply, Usage
@@ -70,8 +70,9 @@ class GeminiAdapter(ProviderAdapter):
                 genai_types.FunctionDeclaration(name=tool['name'], description=tool['description'],
                                                 parameters_json_schema=tool['input_schema'])
                 for tool in call.tools])]
-        config = {'system_instruction': call.system, 'max_output_tokens': call.max_tokens, 'tools': tools}
-        if call.model.startswith('gemini-3'):
+        config = {'system_instruction': call.system, 'tools': tools,
+                  'max_output_tokens': gemini_output_tokens(call.model, call.max_tokens)}
+        if call.model.startswith(('gemini-3', 'gemini-4')):
             config['thinking_config'] = {'thinking_level': THINKING_LEVELS.get(call.effort, 'HIGH')}
         return config
 

@@ -4,21 +4,21 @@
 name: "ai_check_presets"
 description: "Named model setups for AI check runs"
 category: "research"
-last_modified: "2026-10-12"
+last_modified: "2026-10-30"
 
 presets:
   budget:
     label: "Budget"
-    gather: "gemini-3-flash-preview"
-    extract: "gemini-3-flash-preview"
+    gather: "gemini-3.8-flash"
+    extract: "gemini-3.8-flash"
     analyze: "deepseek-v4-pro"
-    quick: "gemini-3-flash-preview"
+    quick: "gemini-3.8-flash"
   gemini:
     label: "Gemini"
-    gather: "gemini-3-flash-preview"
-    extract: "gemini-3-flash-preview"
-    analyze: "gemini-3.1-pro-preview"
-    quick: "gemini-3-flash-preview"
+    gather: "gemini-3.8-flash"
+    extract: "gemini-3.8-flash"
+    analyze: "gemini-4-argon"
+    quick: "gemini-3.8-flash"
   claude:
     label: "Claude"
     gather: "claude-sonnet-5"

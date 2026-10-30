@@ -46,6 +46,16 @@ from app.services.ai.tool_calling import Message, TurnResult, ToolCall
 
 logger = logging.getLogger(__name__)
 
+# Google: on Gemini 4 thinking counts toward max_output_tokens; never send less than 32,768.
+GEMINI_4_MIN_OUTPUT_TOKENS = 32_768
+
+
+def gemini_output_tokens(model_id: str, max_tokens: Optional[int]) -> Optional[int]:
+    """Raise a Gemini 4 output budget to the floor. None stays None (the API default applies)."""
+    if max_tokens is not None and model_id.startswith('gemini-4'):
+        return max(max_tokens, GEMINI_4_MIN_OUTPUT_TOKENS)
+    return max_tokens
+
 # ============================================================
 # Module-level Gemini Client (singleton pattern)
 # ============================================================
@@ -118,7 +128,7 @@ class GeminiProvider(AIProvider):
             if default.provider == AIProviderEnum.GEMINI:
                 self._model_enum = default
             else:
-                self._model_enum = AIModel.GEMINI_FLASH_25
+                self._model_enum = AIModel.GEMINI_38_FLASH
 
         logger.debug(f"GeminiProvider created with model: {self._model_enum.model_id}")
 
@@ -166,7 +176,7 @@ class GeminiProvider(AIProvider):
             # Build generation config dict
             config_dict = {}
             if max_tokens is not None:
-                config_dict['max_output_tokens'] = max_tokens
+                config_dict['max_output_tokens'] = gemini_output_tokens(self._model_enum.model_id, max_tokens)
             if temperature is not None:
                 config_dict['temperature'] = temperature
             if top_p is not None:
@@ -257,7 +267,8 @@ class GeminiProvider(AIProvider):
         request outright.
         """
         contents = self._messages_to_gemini(messages)
-        config_dict = {'temperature': temperature, 'max_output_tokens': max_tokens}
+        config_dict = {'temperature': temperature,
+                       'max_output_tokens': gemini_output_tokens(self._model_enum.model_id, max_tokens)}
         if system:
             config_dict['system_instruction'] = system
 
@@ -337,7 +348,7 @@ class GeminiProvider(AIProvider):
             if schema:
                 config_dict['response_schema'] = schema
             if max_tokens is not None:
-                config_dict['max_output_tokens'] = max_tokens
+                config_dict['max_output_tokens'] = gemini_output_tokens(self._model_enum.model_id, max_tokens)
             if temperature is not None:
                 config_dict['temperature'] = temperature
             if top_p is not None:

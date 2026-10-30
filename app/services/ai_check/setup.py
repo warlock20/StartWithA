@@ -34,21 +34,25 @@ PREF_PREFIX = 'ai_check:'
 LEGACY_MODELS = {'gather': 'claude-sonnet-5', 'extract': 'claude-sonnet-5', 'analyze': 'claude-opus-5',
                  'quick': 'claude-sonnet-5'}
 
-# Gather needs web search and function tools in one call: Claude, or Gemini 3 (not 2.5).
-_SEARCHERS = ('claude-sonnet-5', 'claude-opus-5', 'gemini-3-flash-preview', 'gemini-3.1-pro-preview')
-_READERS = _SEARCHERS + ('gemini-2.5-flash', 'gemini-2.5-pro', 'deepseek-flash', 'deepseek-v4-pro')
+# Gather needs web search and function tools in one call: Claude, Gemini 3 or Gemini 4 (not 2.5).
+_SEARCHERS = ('claude-sonnet-5', 'claude-opus-5', 'gemini-3-flash-preview', 'gemini-3.1-pro-preview',
+              'gemini-4-argon', 'gemini-3.8-flash')
+# gemini-3.5-flash-lite: search plus functions unconfirmed, so it reads but doesn't gather.
+_READERS = _SEARCHERS + ('gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro', 'deepseek-flash', 'deepseek-v4-pro')
 # Quick may search and read documents in the same call, so it needs what Gather needs.
 STAGE_MODELS = {'gather': _SEARCHERS, 'extract': _READERS, 'analyze': _READERS, 'quick': _SEARCHERS}
 STAGE_RULES = {
-    'gather': 'Gather searches the web, so it needs Claude or Gemini 3.',
-    'quick': 'The Quick check may search the web, so it needs Claude or Gemini 3.',
+    'gather': 'Gather searches the web, so it needs Claude, Gemini 3 or Gemini 4.',
+    'quick': 'The Quick check may search the web, so it needs Claude, Gemini 3 or Gemini 4.',
     'extract': 'Extract needs a Claude, Gemini or DeepSeek V4 model.',
     'analyze': 'Analyze needs a Claude, Gemini or DeepSeek V4 model.',
 }
 TEXT_ONLY = {'deepseek-flash', 'deepseek-v4-pro'}  # reads PDF text without layout
 MODEL_LABELS = {
     'claude-sonnet-5': 'Claude Sonnet 5', 'claude-opus-5': 'Claude Opus 5',
-    'gemini-3-flash-preview': 'Gemini 3 Flash', 'gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
+    'gemini-3-flash-preview': 'Gemini 3 Flash (Legacy)', 'gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
+    'gemini-4-argon': 'Gemini 4 Argon', 'gemini-3.8-flash': 'Gemini 3.8 Flash',
+    'gemini-3.5-flash-lite': 'Gemini 3.5 Flash Lite',
     'gemini-2.5-flash': 'Gemini 2.5 Flash', 'gemini-2.5-pro': 'Gemini 2.5 Pro',
     'deepseek-flash': 'DeepSeek V4 Flash', 'deepseek-v4-pro': 'DeepSeek V4 Pro',
 }
@@ -63,7 +67,7 @@ _ALIASES = {'deepseek-chat': 'deepseek-flash', 'deepseek-reasoner': 'deepseek-fl
 
 def canonical(name):
     """Exact model id for a saved or YAML model name. AIModel.from_string is not used here: it
-    silently returns Gemini 2.5 Flash for names it doesn't know."""
+    silently returns the default Flash for names it doesn't know."""
     key = (name or '').strip().lower()
     if key in MODEL_TIERS:
         return resolve_model_name(key).model_id
