@@ -38,9 +38,9 @@ Environment Variables:
     OPENAI_API_KEY      - OpenAI API key (optional)
     DEEPSEEK_API_KEY    - DeepSeek API key (optional)
     
-    AI_DEFAULT_MODEL    - Default model (default: gemini-2.5-flash)
-    AI_QUALITY_MODEL    - Model for quality tasks (default: gemini-2.5-pro)
-    AI_FAST_MODEL       - Model for fast tasks (default: gemini-2.5-flash)
+    AI_DEFAULT_MODEL    - Default model (default: gemini-3.8-flash)
+    AI_QUALITY_MODEL    - Model for quality tasks (default: gemini-3.8-flash)
+    AI_FAST_MODEL       - Model for fast tasks (default: gemini-3.8-flash)
     AI_PREFER_CLAUDE    - Use Claude for reasoning tasks (default: true)
 """
 
@@ -67,10 +67,18 @@ class AIModel(Enum):
     Each model is a tuple of (model_id, provider).
     Access via: model.model_id, model.provider
 
-    Updated: January 2026 - Includes Gemini 3.x and 2.5.x series
+    Updated: October 2026 - Includes Gemini 4.x, 3.x and 2.5.x series
     """
-    # Gemini 3.x models (Preview - Latest as of Jan 2026)
-    GEMINI_3_FLASH = ("gemini-3-flash-preview", AIProvider.GEMINI)      # Latest Flash with Pro-grade reasoning
+    # Gemini 4.x
+    GEMINI_4_ARGON = ("gemini-4-argon", AIProvider.GEMINI)             # Frontier model; thinking counts toward max_output_tokens
+
+    # Gemini 3.x (stable)
+    GEMINI_38_FLASH = ("gemini-3.8-flash", AIProvider.GEMINI)          # Default Flash
+    GEMINI_36_FLASH = ("gemini-3.6-flash", AIProvider.GEMINI)
+    GEMINI_35_FLASH_LITE = ("gemini-3.5-flash-lite", AIProvider.GEMINI) # Cheapest 3.x
+
+    # Gemini 3.x (Preview)
+    GEMINI_3_FLASH = ("gemini-3-flash-preview", AIProvider.GEMINI)      # Legacy per Google; kept selectable
     GEMINI_3_PRO = ("gemini-3.1-pro-preview", AIProvider.GEMINI)        # Latest Pro for agentic workflows
 
     # Gemini 2.5 models (Stable)
@@ -82,10 +90,6 @@ class AIModel(Enum):
     GEMINI_FLASH_LATEST = ("gemini-flash-latest", AIProvider.GEMINI)    # Recommended default - always latest Flash
     GEMINI_PRO_LATEST = ("gemini-pro-latest", AIProvider.GEMINI)        # Alias: latest Pro version
 
-    # Gemini legacy/deprecated (retiring March 3, 2026)
-    GEMINI_PRO = ("gemini-pro", AIProvider.GEMINI)                      # Legacy - deprecated
-    GEMINI_FLASH_20 = ("gemini-2.0-flash", AIProvider.GEMINI)           # Deprecated - use 2.5 or 3.x
-    
     # Claude models
     CLAUDE_HAIKU = ("claude-3-5-haiku-20241022", AIProvider.CLAUDE)     # Fast, cost-effective
     CLAUDE_SONNET = ("claude-sonnet-4-20250514", AIProvider.CLAUDE)     # Good balance (Sonnet 4)
@@ -119,10 +123,16 @@ class AIModel(Enum):
             model_name: Model identifier string
 
         Returns:
-            Matching AIModel or default (GEMINI_FLASH_25)
+            Matching AIModel or default (GEMINI_38_FLASH)
         """
         model_map = {
-            # Gemini 3.x (Latest Preview)
+            # Gemini 4.x / 3.x (stable)
+            'gemini-4-argon': cls.GEMINI_4_ARGON,
+            'gemini-3.8-flash': cls.GEMINI_38_FLASH,
+            'gemini-3.6-flash': cls.GEMINI_36_FLASH,
+            'gemini-3.5-flash-lite': cls.GEMINI_35_FLASH_LITE,
+
+            # Gemini 3.x (Preview)
             'gemini-3-flash-preview': cls.GEMINI_3_FLASH,
             'gemini-3-flash': cls.GEMINI_3_FLASH,  # Alias
             'gemini-3.1-pro-preview': cls.GEMINI_3_PRO,
@@ -142,11 +152,12 @@ class AIModel(Enum):
             'gemini-pro-latest': cls.GEMINI_PRO_LATEST,
 
             # Custom aliases (not official Google aliases)
-            'gemini-3-latest': cls.GEMINI_3_FLASH,  # Custom: latest Gemini 3
+            'gemini-3-latest': cls.GEMINI_38_FLASH,  # Custom: latest Gemini 3
 
-            # Gemini legacy/deprecated
-            'gemini-pro': cls.GEMINI_PRO,
-            'gemini-2.0-flash': cls.GEMINI_FLASH_20,
+            # Retired by the API (404s). Kept as aliases so any stored string
+            # or stale config resolves to a live model instead of failing.
+            'gemini-pro': cls.GEMINI_PRO_LATEST,
+            'gemini-2.0-flash': cls.GEMINI_38_FLASH,
 
             # Claude
             'claude-haiku': cls.CLAUDE_HAIKU,
@@ -180,8 +191,8 @@ class AIModel(Enum):
         
         result = model_map.get(model_name.lower())
         if result is None:
-            logger.warning(f"Unknown model '{model_name}', using default GEMINI_FLASH_25")
-            return cls.GEMINI_FLASH_25
+            logger.warning(f"Unknown model '{model_name}', using default GEMINI_38_FLASH")
+            return cls.GEMINI_38_FLASH
         return result
 
 class AITaskType(Enum):
@@ -282,9 +293,9 @@ class AIConfig:
     deepseek_api_key: Optional[str] = None
     
     # Model configuration
-    default_model: AIModel = AIModel.GEMINI_PRO_25
-    quality_model: AIModel = AIModel.GEMINI_PRO_25
-    fast_model: AIModel = AIModel.GEMINI_PRO_25
+    default_model: AIModel = AIModel.GEMINI_38_FLASH
+    quality_model: AIModel = AIModel.GEMINI_38_FLASH
+    fast_model: AIModel = AIModel.GEMINI_38_FLASH
     
     # Default generation parameters
     default_temperature: float = 0.7
@@ -325,13 +336,13 @@ class AIConfig:
         config.cohere_api_key = os.getenv('COHERE_API_KEY')
         
         # Load model preferences from environment
-        default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-3-flash-preview')
+        default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-3.8-flash')
         config.default_model = AIModel.from_string(default_model_name)
 
-        quality_model_name = os.getenv('AI_QUALITY_MODEL', 'gemini-3-flash-preview')
+        quality_model_name = os.getenv('AI_QUALITY_MODEL', 'gemini-3.8-flash')
         config.quality_model = AIModel.from_string(quality_model_name)
 
-        fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-3-flash-preview')
+        fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-3.8-flash')
         config.fast_model = AIModel.from_string(fast_model_name)
 
         # Load routing preferences

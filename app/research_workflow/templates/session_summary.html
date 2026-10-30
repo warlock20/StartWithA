@@ -19,7 +19,7 @@
                     class="action-btn">
                     <i class="bi bi-download"></i> Export
                 </a>
-                {% if research_context and research_context.get('project_id') %}
+                {% if research_context and research_context.can_complete %}
                 <a href="{{ url_for('research_workflow.complete_research_step',
                                       project_id=research_context.project_id,
                                       step_index=research_context.step_index) }}" class="action-btn">

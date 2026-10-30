@@ -80,7 +80,11 @@ def _get_available_models():
     # Gemini models
     if config.is_provider_available(AIProvider.GEMINI):
         models.extend([
-            {'id': 'gemini-3-flash-preview', 'name': 'Gemini 3 Flash (Preview)', 'provider': 'gemini'},
+            {'id': 'gemini-4-argon', 'name': 'Gemini 4 Argon', 'provider': 'gemini'},
+            {'id': 'gemini-3.8-flash', 'name': 'Gemini 3.8 Flash', 'provider': 'gemini'},
+            {'id': 'gemini-3.6-flash', 'name': 'Gemini 3.6 Flash', 'provider': 'gemini'},
+            {'id': 'gemini-3.5-flash-lite', 'name': 'Gemini 3.5 Flash Lite', 'provider': 'gemini'},
+            {'id': 'gemini-3-flash-preview', 'name': 'Gemini 3 Flash (Legacy)', 'provider': 'gemini'},
             {'id': 'gemini-3.1-pro-preview', 'name': 'Gemini 3.1 Pro (Preview)', 'provider': 'gemini'},
             {'id': 'gemini-2.5-flash', 'name': 'Gemini 2.5 Flash', 'provider': 'gemini'},
             {'id': 'gemini-2.5-pro', 'name': 'Gemini 2.5 Pro', 'provider': 'gemini'},

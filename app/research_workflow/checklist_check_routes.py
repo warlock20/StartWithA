@@ -19,11 +19,11 @@ import re
 from datetime import datetime
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
 from flask_login import current_user, login_required
-from flask import session as flask_session
 
 from app import db
 from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyResource
 from app.research_workflow import research_workflow_bp
+from app.research_workflow.helpers import project_step_for_analysis, refresh_checklist_step_notes
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_error, json_unauthorized
 from app.services.ai_check.context import has_ai_context
@@ -183,6 +183,7 @@ def research_step(analysis_id, item_id):
                 satisfaction_status=satisfaction_status_from_form
             )
             db.session.add(research_answer)
+        refresh_checklist_step_notes(session)
         db.session.commit()
         flash('Answer saved.', 'success')
 
@@ -206,8 +207,7 @@ def research_step(analysis_id, item_id):
     if current_item_index > 0 and all_items_in_order: # Check if not the first item
         previous_item_id = all_items_in_order[current_item_index - 1].id
 
-    # Check for research workflow context
-    research_context = flask_session.get('research_context')
+    research_context = project_step_for_analysis(session)
 
     # Build answers map for checklist sidebar (status dots for all items)
     all_answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
@@ -364,6 +364,8 @@ def autosave_research_answer(analysis_id, item_id):
         )
         db.session.add(research_answer)
 
+    if has_status:
+        refresh_checklist_step_notes(session)
     db.session.commit()
 
     return jsonify({
@@ -414,6 +416,7 @@ def save_and_next(analysis_id, item_id):
             satisfaction_status=satisfaction_status
         )
         db.session.add(research_answer)
+    refresh_checklist_step_notes(session)
     db.session.commit()
 
     # Determine next item
@@ -519,8 +522,8 @@ def view_checklist_session_summary(analysis_id):
         else:
             intrinsic_display_value = str(val)
     
-    # 5. Check for research workflow context
-    research_context = flask_session.get('research_context')
+    # 5. The research project step this session belongs to, if any
+    research_context = project_step_for_analysis(session)
 
     # 6. Serialize questions + answers as JSON for the React island
     questions_data = []

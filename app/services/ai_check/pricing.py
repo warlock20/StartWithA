@@ -39,6 +39,8 @@ DEFAULT_SEARCH_PRICE = 0.014
 FALLBACK_PRICES = {
     'claude-opus-5': {'in': 5.00, 'out': 25.00, 'cached_in': 0.50},
     'claude-sonnet-5': {'in': 2.00, 'out': 10.00, 'cached_in': 0.20},
+    # genai-prices 0.1.11 lacks it; Dec 1 2026 list price (intro $2/$10 ends Nov 30)
+    'gemini-4-argon': {'in': 4.00, 'out': 20.00, 'cached_in': 0.20},
     'gemini-3-flash-preview': {'in': 0.50, 'out': 3.00, 'cached_in': 0.05},
     'gemini-3.1-pro-preview': {'in': 2.00, 'out': 12.00, 'cached_in': 0.20,
                                'long_in': 4.00, 'long_out': 18.00, 'long_cached_in': 0.40},

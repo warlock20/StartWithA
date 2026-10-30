@@ -71,8 +71,9 @@ Configuration:
     GEMINI_API_KEY      - Google Gemini API key
     ANTHROPIC_API_KEY   - Anthropic Claude API key (optional, for quality tasks)
     
-    AI_DEFAULT_MODEL    - Default model (default: gemini-2.5-flash)
-    AI_QUALITY_MODEL    - Model for quality tasks (default: gemini-2.5-pro)
+    AI_DEFAULT_MODEL    - Default model (default: gemini-3.8-flash)
+    AI_QUALITY_MODEL    - Model for quality tasks (default: gemini-3.8-flash)
+    AI_FAST_MODEL       - Model for fast tasks (default: gemini-3.8-flash)
     AI_PREFER_CLAUDE    - Use Claude for reasoning tasks (default: true)
 
 Module Structure:

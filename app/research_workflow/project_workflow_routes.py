@@ -806,6 +806,13 @@ def complete_research_step(project_id, step_index):
     """Complete a checklist step when returning from research session"""
     project = owned_or_404(ResearchProject, project_id)
 
+    # A stale link must not move a finished project's current step backwards
+    if step_index in (project.completed_steps or []):
+        flash('This step is already complete.', 'info')
+        if project.status == 'completed':
+            return redirect(url_for('research_workflow.project_summary', project_id=project_id))
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
     try:
         # Mark step as complete
         if not project.completed_steps:

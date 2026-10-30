@@ -31,7 +31,7 @@ from app.utils.audit_logger import log_ai_call
 logger = logging.getLogger(__name__)
 
 
-# Token pricing (as of 2025, in dollars per 1M tokens)
+# Token pricing (as of Oct 2026, in dollars per 1M tokens)
 # Update these as providers change pricing
 TOKEN_PRICING = {
     # Claude
@@ -41,10 +41,14 @@ TOKEN_PRICING = {
     # Gemini
     'gemini-2.0-flash-exp': {'input': 0.00, 'output': 0.00},  # Free tier
     'gemini-1.5-pro': {'input': 1.25, 'output': 5.00},
-    'gemini-2.5-flash': {'input': 0.15, 'output': 0.60},
+    'gemini-2.5-flash': {'input': 0.30, 'output': 2.50},
     'gemini-2.5-pro': {'input': 1.25, 'output': 10.00},
-    'gemini-3-flash-preview': {'input': 0.15, 'output': 0.60},
-    'gemini-3.1-pro-preview': {'input': 1.25, 'output': 10.00},
+    'gemini-4-argon': {'input': 4.00, 'output': 20.00},
+    'gemini-3.8-flash': {'input': 0.75, 'output': 3.75},
+    'gemini-3.6-flash': {'input': 0.75, 'output': 3.75},
+    'gemini-3.5-flash-lite': {'input': 0.30, 'output': 2.50},
+    'gemini-3-flash-preview': {'input': 0.50, 'output': 3.00},
+    'gemini-3.1-pro-preview': {'input': 2.00, 'output': 12.00},
     # DeepSeek
     'deepseek-chat': {'input': 0.27, 'output': 1.10},       # V3 pricing
     'deepseek-reasoner': {'input': 0.55, 'output': 2.19},   # R1 pricing
