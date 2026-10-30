@@ -19,6 +19,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.models import ChecklistAnalysis, ChecklistAnswer, ResearchProject
 from app.services.export_service import resolve_checklist_id
+from app.utils.checklist_utils import get_all_ordered_items_for_checklist
 
 
 def _project_step(analysis):
@@ -97,10 +98,15 @@ def collect_research_session_summary(project, step_index):
 
 
 def checklist_session_summary(session, company):
-    """Markdown summary of a checklist session's verdicts, as saved into a project step's notes."""
-    research_answers = ChecklistAnswer.query.filter_by(
-        checklist_analysis_id=session.id
-    ).all()
+    """Markdown summary of a checklist session's verdicts, as saved into a project step's notes.
+
+    Answers are listed in checklist order, so the same verdicts always give the same text.
+    """
+    position = {item.id: i for i, item in enumerate(get_all_ordered_items_for_checklist(session.checklist_id))}
+    research_answers = sorted(
+        ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all(),
+        key=lambda answer: (position.get(answer.checklist_item_id, len(position)), answer.id)
+    )
 
     if not research_answers:
         return f"Completed research evaluation using {session.checklist.name} (no answers recorded)"
