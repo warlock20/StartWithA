@@ -28,6 +28,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, c
 from flask_login import current_user, login_required
 from app import db
 from app.models import ResearchProject, ChecklistAnalysis, Company, JournalEntry
+from app.models.research import RESEARCH_DECISIONS
 from app.models.checklist import DestinationCheckpoint
 from app.models.research import FreeResearchQuestion
 from app.research_workflow import research_workflow_bp
@@ -140,22 +141,24 @@ def save_project_decision(project_id):
         # Get form data (works for both form and AJAX)
         project.last_worked_at = now_utc()
         decision = request.form.get('decision')  # invest, pass, watchlist
-        decision_summary = request.form.get('decision_summary', '').strip()
         confidence = request.form.get('confidence') or request.form.get('decision_confidence')
         decision_confidence = int(confidence) if confidence else None
 
         # Validate decision
-        if decision not in ['invest', 'pass', 'watchlist']:
+        if decision not in RESEARCH_DECISIONS:
             if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
                 return json_error('Invalid decision type')
             flash('Invalid decision type', 'error')
             return redirect(url_for('research_workflow.project_summary', project_id=project_id))
 
         # Update project
-        previous = (project.decision, project.decision_confidence)
+        previous = (project.decision, project.decision_confidence, project.decision_notes)
         project.decision = decision
-        project.decision_summary = decision_summary
         project.decision_confidence = decision_confidence
+        # Only a form that carries the notes field may change the notes, so a
+        # caller posting just a decision doesn't wipe them.
+        if 'decision_notes' in request.form:
+            project.decision_notes = request.form['decision_notes'].strip() or None
         project.decision_date = now_utc()
 
         # Clear mid-research watchlist fields when making a final decision
@@ -166,10 +169,11 @@ def save_project_decision(project_id):
         # Mark as completed if not already
         _apply_completion_status(project)
 
-        # Auto-log decision to company journal. Only a change of decision or
-        # confidence is logged: re-saving the same conclusion would just repeat
-        # the entry.
-        if project.company_id and (decision, decision_confidence) != previous:
+        # Auto-log decision to company journal. Only a change of decision,
+        # confidence or notes is logged: re-saving the same conclusion would just
+        # repeat the entry.
+        current = (decision, decision_confidence, project.decision_notes)
+        if project.company_id and current != previous:
             decision_config = {
                 'invest': ('Decision: Invest', 'bullish', ['invest-decision', 'investment-action']),
                 'pass': ('Decision: Pass', 'bearish', ['pass-decision', 'investment-action']),
@@ -178,8 +182,8 @@ def save_project_decision(project_id):
             title, sentiment, tags = decision_config[decision]
             company_name = project.company.name if project.company else project.project_name
             content_parts = [f'{decision.title()} decision for {company_name}.']
-            if decision_summary:
-                content_parts.append(f'\n\n{decision_summary}')
+            if project.decision_notes:
+                content_parts.append(f'\n\n{project.decision_notes}')
             if decision_confidence:
                 content_parts.append(f'\n\nConfidence: {decision_confidence}/10')
             db.session.add(JournalEntry(

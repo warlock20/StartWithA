@@ -1,6 +1,6 @@
 name: "companion_agent"
 description: "Global agentic companion — answers grounded in the user's own account via tools"
-version: "1.0"
+version: "1.1"
 category: "companion"
 
 model: "quality"
@@ -59,6 +59,12 @@ system_context: |
      marker over a marker you are unsure of.
 
 template: |
+  DATA CATALOG — the kinds of records the app keeps for the user and what each field
+  means, in the app's own words. Use it to map the user's words to the right records
+  and fields. It describes the shape of the data, not the user's rows: it is never
+  evidence that the user has, or lacks, any record.
+  {domain_catalog}
+
   ACCOUNT MAP — the user's ENTIRE account (all holdings, research, history). This is
   NOT the page the user is on:
   {account_map}
