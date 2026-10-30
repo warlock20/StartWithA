@@ -73,3 +73,15 @@ if __name__ == '__main__':
     test_all_companion_prompts_valid()
     test_live_companion_has_opinion_warning()
     print("\nAll companion prompt tests passed!")
+
+
+def test_companion_agent_rule_6_trusts_db_ids():
+    """Rule 6 still bans URL ids, but ids from the account map and from tools are
+    real, and find_company is how to get one for a company not in the map (#390)."""
+    with open(PROMPTS_DIR / "companion_agent.yaml", 'r') as f:
+        system = yaml.safe_load(f)['system_context']
+
+    rule_6 = system.split('\n6. ', 1)[1].split('\n7. ', 1)[0]
+    assert 'NEVER take an id from the URL' in rule_6
+    assert 'ACCOUNT MAP' in rule_6
+    assert 'find_company' in rule_6

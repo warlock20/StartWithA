@@ -97,6 +97,7 @@ def build_account_map(user_id, focus=None):
         researched_companies.append({
             'company_id': proj.company_id,
             'name': company.name if company else 'Unknown',
+            'ticker': company.ticker_symbol if company else None,
             'project_state': state,
             'notes': notes_by_company.get(proj.company_id, 0),
             'mistakes': mistakes_by_company.get(proj.company_id, 0),
@@ -157,12 +158,16 @@ def render_account_map(account_map):
             parts.append(f"{item['mistakes']} mistake(s)")
         return f" · {', '.join(parts)}" if parts else ''
 
+    # Ids come from the database, so the agent may pass them to tools (rule 6).
+    def _label(item):
+        ticker = f"{item['ticker']}, " if item.get('ticker') else ''
+        return f"{item['name']} ({ticker}id={item['company_id']})"
+
     holdings = account_map.get('holdings', [])
     lines.append(f"PORTFOLIO — {len(holdings)} holding(s):")
     if holdings:
         for h in holdings:
-            ticker = f" ({h['ticker']})" if h.get('ticker') else ''
-            lines.append(f"  - {h['name']}{ticker}: {h['weight_pct']}%{_tags(h)}")
+            lines.append(f"  - {_label(h)}: {h['weight_pct']}%{_tags(h)}")
     else:
         lines.append("  - none")
 
@@ -170,7 +175,7 @@ def render_account_map(account_map):
     if researched:
         lines.append(f"RESEARCHED COMPANIES — {len(researched)}:")
         for r in researched:
-            lines.append(f"  - {r['name']}: {r['project_state']}{_tags(r)}")
+            lines.append(f"  - {_label(r)}: {r['project_state']}{_tags(r)}")
 
     # The UI calls these the user's Watchlist; name it the same way so their
     # wording resolves to something instead of being guessed at.
@@ -180,8 +185,7 @@ def render_account_map(account_map):
         "(favourited, not held):")
     if watchlist:
         for w in watchlist:
-            ticker = f" ({w['ticker']})" if w.get('ticker') else ''
-            lines.append(f"  - {w['name']}{ticker}{_tags(w)}")
+            lines.append(f"  - {_label(w)}{_tags(w)}")
     else:
         lines.append("  - none")
 
