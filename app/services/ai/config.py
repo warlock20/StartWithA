@@ -91,11 +91,8 @@ class AIModel(Enum):
     GEMINI_PRO_LATEST = ("gemini-pro-latest", AIProvider.GEMINI)        # Alias: latest Pro version
 
     # Claude models
-    CLAUDE_HAIKU = ("claude-3-5-haiku-20241022", AIProvider.CLAUDE)     # Fast, cost-effective
-    CLAUDE_SONNET = ("claude-sonnet-4-20250514", AIProvider.CLAUDE)     # Good balance (Sonnet 4)
-    CLAUDE_OPUS = ("claude-opus-4-20250514", AIProvider.CLAUDE)         # Best quality (Opus 4)
-    CLAUDE_SONNET_5 = ("claude-sonnet-5", AIProvider.CLAUDE)          # AI check: Gather/Extract
-    CLAUDE_OPUS_5 = ("claude-opus-5", AIProvider.CLAUDE)              # AI check: Analyze
+    CLAUDE_SONNET_5 = ("claude-sonnet-5", AIProvider.CLAUDE)          # Default Claude; AI check: Gather/Extract
+    CLAUDE_OPUS_5 = ("claude-opus-5", AIProvider.CLAUDE)              # Best quality; AI check: Analyze
 
     # OpenAI models (for future use)
     GPT4 = ("gpt-4", AIProvider.OPENAI)
@@ -160,17 +157,19 @@ class AIModel(Enum):
             'gemini-2.0-flash': cls.GEMINI_38_FLASH,
 
             # Claude
-            'claude-haiku': cls.CLAUDE_HAIKU,
-            'claude-3-5-haiku': cls.CLAUDE_HAIKU,
-            'claude-3-5-haiku-20241022': cls.CLAUDE_HAIKU,
-            'claude-sonnet': cls.CLAUDE_SONNET,
-            'claude-sonnet-4': cls.CLAUDE_SONNET,
-            'claude-sonnet-4-20250514': cls.CLAUDE_SONNET,
-            'claude-opus': cls.CLAUDE_OPUS,
-            'claude-opus-4': cls.CLAUDE_OPUS,
-            'claude-opus-4-20250514': cls.CLAUDE_OPUS,
             'claude-sonnet-5': cls.CLAUDE_SONNET_5,
             'claude-opus-5': cls.CLAUDE_OPUS_5,
+            'claude-sonnet': cls.CLAUDE_SONNET_5,  # Alias
+            'claude-opus': cls.CLAUDE_OPUS_5,  # Alias
+            # Retired by the API (Haiku 3.5 Feb 2026, Sonnet 4 / Opus 4 June 2026).
+            # Kept as aliases so stored strings resolve to a served model.
+            'claude-haiku': cls.CLAUDE_SONNET_5,
+            'claude-3-5-haiku': cls.CLAUDE_SONNET_5,
+            'claude-3-5-haiku-20241022': cls.CLAUDE_SONNET_5,
+            'claude-sonnet-4': cls.CLAUDE_SONNET_5,
+            'claude-sonnet-4-20250514': cls.CLAUDE_SONNET_5,
+            'claude-opus-4': cls.CLAUDE_OPUS_5,
+            'claude-opus-4-20250514': cls.CLAUDE_OPUS_5,
 
             # OpenAI
             'gpt-4': cls.GPT4,
@@ -427,7 +426,7 @@ class AIConfig:
         # Quality tasks - prefer Claude for reasoning
         if task in QUALITY_TASKS:
             if self.prefer_claude_for_reasoning and self.claude_api_key:
-                return AIModel.CLAUDE_SONNET
+                return AIModel.CLAUDE_SONNET_5
             return self.quality_model
         
         # Fast tasks - use fast model

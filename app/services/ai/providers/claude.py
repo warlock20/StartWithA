@@ -28,7 +28,7 @@ Usage:
     provider = ClaudeProvider()
     
     # Specific model
-    provider = ClaudeProvider(model=AIModel.CLAUDE_OPUS)
+    provider = ClaudeProvider(model=AIModel.CLAUDE_OPUS_5)
     
     # Generate text
     response = provider.generate_text("Analyze this investment thesis...")
@@ -124,7 +124,7 @@ class ClaudeProvider(AIProvider):
         Initialize Claude provider.
 
         Args:
-            model: AIModel to use (defaults to CLAUDE_SONNET)
+            model: AIModel to use (defaults to CLAUDE_SONNET_5)
         """
         self._config = get_ai_config()
         
@@ -137,7 +137,7 @@ class ClaudeProvider(AIProvider):
                 raise ValueError(f"Model {model.model_id} is not a Claude model")
             self._model_enum = model
         else:
-            self._model_enum = AIModel.CLAUDE_SONNET
+            self._model_enum = AIModel.CLAUDE_SONNET_5
         
         # Create client
         self._client = None
@@ -177,9 +177,9 @@ class ClaudeProvider(AIProvider):
         Args:
             prompt: The input prompt
             max_tokens: Maximum tokens to generate
-            temperature: Sampling temperature (0.0-2.0)
-            top_p: Nucleus sampling threshold (0.0-1.0)
-            top_k: Limits token selection pool
+            temperature: Ignored (Claude 4.7+ rejects sampling parameters)
+            top_p: Ignored
+            top_k: Ignored
             stop_sequences: List of strings to stop generation
             system: System prompt for context (Claude-specific)
             system_prompt: Deprecated alias for 'system'
@@ -223,16 +223,9 @@ class ClaudeProvider(AIProvider):
             else:
                 logger.debug(f"Claude: Using default system prompt")
 
-            # Add optional parameters
-            if temperature is not None:
-                create_params["temperature"] = temperature
-            else:
-                create_params["temperature"] = self._config.default_temperature
-
-            if top_p is not None:
-                create_params["top_p"] = top_p
-            if top_k is not None:
-                create_params["top_k"] = top_k
+            # temperature/top_p/top_k are accepted for interface parity but never sent:
+            # Claude 4.7 and later reject them with a 400, and every Claude model we
+            # register is newer than that.
             if stop_sequences is not None:
                 create_params["stop_sequences"] = stop_sequences
 
@@ -243,10 +236,11 @@ class ClaudeProvider(AIProvider):
                 input_tokens = getattr(message.usage, 'input_tokens', None)
                 output_tokens = getattr(message.usage, 'output_tokens', None)
 
-            # Extract text from response
-            if message.content and len(message.content) > 0:
-                result_text = message.content[0].text
-            else:
+            # Extract text from response. Thinking models put a thinking block first,
+            # so join the text blocks rather than reading content[0].
+            result_text = ''.join(block.text for block in message.content or []
+                                  if block.type == 'text')
+            if not result_text:
                 raise ValueError("Empty response from Claude")
 
             return result_text
@@ -306,12 +300,13 @@ class ClaudeProvider(AIProvider):
         return out
 
     def generate_turn(self, messages, tools, system=None, max_tokens=1024, temperature=0.3):
-        """One turn of a tool-calling conversation. Returns a TurnResult."""
-        
+        """One turn of a tool-calling conversation. Returns a TurnResult.
+
+        `temperature` is ignored (see generate_text)."""
+
         create_params = {
             'model': self._model_enum.model_id,
             'max_tokens': max_tokens,
-            'temperature': temperature,
             'messages': self._messages_to_claude(messages),
         }
         if system:
@@ -363,9 +358,9 @@ class ClaudeProvider(AIProvider):
         Args:
             prompt: The input prompt
             max_tokens: Maximum tokens to generate
-            temperature: Sampling temperature (0.0-2.0)
-            top_p: Nucleus sampling threshold (0.0-1.0)
-            top_k: Limits token selection pool
+            temperature: Ignored (Claude 4.7+ rejects sampling parameters)
+            top_p: Ignored
+            top_k: Ignored
             prompt_name: Name of the prompt for analytics (optional)
             prompt_version: Version of the prompt (default: "1.0")
             **kwargs: Additional parameters (system, etc.)

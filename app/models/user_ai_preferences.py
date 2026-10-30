@@ -51,7 +51,7 @@ class UserAIPreference(db.Model):
     prompt_category = db.Column(db.String(50), nullable=False)
 
     # Model override — string matching AIModel.from_string() keys
-    # e.g. 'gemini-2.5-flash', 'claude-sonnet-4', 'deepseek-v3'
+    # e.g. 'gemini-3.8-flash', 'claude-sonnet-5', 'deepseek-flash'
     model_override = db.Column(db.String(100), nullable=True)
 
     # Provider override — string matching AIProvider enum values
