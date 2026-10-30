@@ -20,6 +20,12 @@ from app import db
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.utils.blocknote_utils import blocknote_to_text
 
+# Values the app writes to ResearchProject. 'paused' was migrated to 'active'
+# (add_circle_of_competence_and_too_hard_fields) and is no longer written.
+RESEARCH_PROJECT_STATUSES = ('active', 'completed', 'killed')
+RESEARCH_DECISIONS = ('invest', 'pass', 'watchlist')
+WATCH_REASONS = ('valuation_too_high', 'waiting_for_catalyst', 'lower_priority', 'other')
+
 
 class ChecklistAnalysis(db.Model):
     """
@@ -191,7 +197,7 @@ class ResearchProject(db.Model):
     workflow_snapshot = db.Column(db.JSON, nullable=True)  # Snapshot of template workflow_steps at project creation
 
     # Status tracking
-    status = db.Column(db.String(50), default='active')  # 'active', 'completed', 'killed'
+    status = db.Column(db.String(50), default='active')  # RESEARCH_PROJECT_STATUSES
     kill_reason = db.Column(db.Text)  # Reason for killing the investment during screening
 
     # Time tracking - crucial for understanding where effort goes
@@ -200,13 +206,13 @@ class ResearchProject(db.Model):
     last_worked_at = db.Column(db.DateTime)
 
     # Decision tracking
-    decision = db.Column(db.String(50))  # 'invest', 'pass', 'watchlist', 'needs_more_work'
+    decision = db.Column(db.String(50))  # RESEARCH_DECISIONS
     decision_date = db.Column(db.DateTime)
     decision_confidence = db.Column(db.Integer)  # 1-10 scale
     decision_notes = db.Column(db.Text)
 
     # Watchlist tracking (can be set on active or completed projects)
-    watch_reason = db.Column(db.String(50))  # 'valuation_too_high', 'waiting_for_catalyst', 'lower_priority', 'other'
+    watch_reason = db.Column(db.String(50))  # WATCH_REASONS
     watch_notes = db.Column(db.Text)
 
     # Circle of Competence tracking (for Too Hard Basket analytics)

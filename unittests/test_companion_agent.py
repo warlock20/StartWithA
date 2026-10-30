@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from app.services.argos import agent as agent_mod
 from app.services.argos.agent import CompanionAgent
+from app.services.argos.domain_catalog import render_catalog
 from app.services.argos.tools import COMPANION_TOOLS
 from app.services.ai.tool_calling import ToolLoopResult
 
@@ -51,6 +52,27 @@ def test_agent_ask_assembles_system_tools_and_messages(monkeypatch, app_context,
     assert captured['tools'] == COMPANION_TOOLS
     # The user's question is the final message.
     assert captured['messages'][-1] == {'role': 'user', 'content': 'what did I miss?'}
+
+
+def test_agent_prompt_carries_the_domain_catalog_ahead_of_the_account_map(
+        monkeypatch, app_context, seed_portfolio):
+    """The catalog is static, so it sits before the per-user account map: the
+    unchanging prefix of the system prompt stays cacheable."""
+    captured = {}
+
+    def fake_generate_with_tools(messages, tools, executor, system=None, **kwargs):
+        captured['system'] = system
+        return ToolLoopResult(text='x', hops=1, calls=[])
+
+    monkeypatch.setattr(agent_mod.ai_service, 'generate_with_tools', fake_generate_with_tools)
+
+    CompanionAgent(seed_portfolio).ask('how long does my research take?', [], {})
+
+    system = captured['system']
+    catalog = render_catalog()
+    assert catalog in system
+    assert 'evidence that the user has, or lacks, any record' in system
+    assert system.index(catalog) < system.index('ACCOUNT MAP —')
 
 
 def test_agent_prompt_gives_page_context_and_separates_it_from_account_map(

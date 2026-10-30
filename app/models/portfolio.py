@@ -21,6 +21,13 @@ from app import db
 from app.utils.time_utils import now_utc
 from app.models.company import Company
 
+# SPLIT comes only from the bulk importer. SPINOFF is handled in places but no
+# flow writes it, so it is not listed.
+TRANSACTION_TYPES = ('BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'DEPOSIT', 'WITHDRAWAL')
+# The options of the add-transaction form's "Why are you adding?" select.
+ADD_POSITION_REASONS = ('price_drop', 'extra_cash', 'increased_confidence',
+                        'averaging_down', 'rebalancing', 'other')
+
 
 class ExchangeRate(db.Model):
     """
@@ -60,8 +67,7 @@ class Transaction(db.Model):
     decision_journal_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'), nullable=True)
 
     # Transaction details
-    type = db.Column(db.String(20), nullable=False, index=True)
-    # Valid types: 'BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'SPINOFF', 'DEPOSIT', 'WITHDRAWAL'
+    type = db.Column(db.String(20), nullable=False, index=True)  # TRANSACTION_TYPES
 
     date = db.Column(db.Date, nullable=False, index=True)
     quantity = db.Column(db.Integer, nullable=True)  # Whole shares only; NULL for DEPOSIT/WITHDRAWAL
@@ -92,8 +98,7 @@ class Transaction(db.Model):
 
     # Adding to existing position tracking
     is_add_to_position = db.Column(db.Boolean, default=False, index=True)
-    add_position_reason = db.Column(db.String(50), nullable=True)
-    # Valid reasons: 'price_drop', 'extra_cash', 'increased_confidence', 'averaging_down', 'other'
+    add_position_reason = db.Column(db.String(50), nullable=True)  # ADD_POSITION_REASONS
     add_position_notes = db.Column(db.Text, nullable=True)
     thesis_updated = db.Column(db.Boolean, default=False)
 
@@ -165,11 +170,14 @@ class PortfolioPosition(db.Model):
     # MULTI-CURRENCY SUPPORT
     currency = db.Column(db.String(3), nullable=False, default='USD', index=True)  # Position's native currency
 
-    # Legacy fields (in original currency for backward compatibility)
-    average_cost_basis = db.Column(db.Numeric(10, 2), nullable=True)  # Per share in original currency
-    total_cost = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)  # Total invested in original currency
-    current_price = db.Column(db.Numeric(10, 2), nullable=True)  # Current price in original currency
-    current_value = db.Column(db.Numeric(12, 2), nullable=True)  # Current value in original currency
+    # Older fields. FIFO (calculate_fifo_cost_basis) works in the user's base
+    # currency, so average_cost_basis, total_cost and current_value hold the same
+    # base-currency amounts as their _base twins. Only current_price is in the
+    # stock's trading currency.
+    average_cost_basis = db.Column(db.Numeric(10, 2), nullable=True)  # Per share, base currency
+    total_cost = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)  # Cost of the shares held, base currency
+    current_price = db.Column(db.Numeric(10, 2), nullable=True)  # Per share, trading currency (see `currency`)
+    current_value = db.Column(db.Numeric(12, 2), nullable=True)  # Base currency
 
     # Base currency values (converted to user's base currency)
     average_cost_basis_base = db.Column(db.Numeric(10, 2), nullable=True)
