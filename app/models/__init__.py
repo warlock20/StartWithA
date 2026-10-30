@@ -93,6 +93,7 @@ from .portfolio import (
     update_portfolio_position,
 )
 from .background_task import BackgroundTask
+from .scheduled_job_run import ScheduledJobRun
 from .ai_intelligence import (
     ResearchOutcome,
     AIInsight,
@@ -210,6 +211,8 @@ __all__ = [
     'update_portfolio_position',
     # Background task
     'BackgroundTask',
+    # Scheduled (beat) job run history
+    'ScheduledJobRun',
     # AI Intelligence models
     'ResearchOutcome',
     'AIInsight',

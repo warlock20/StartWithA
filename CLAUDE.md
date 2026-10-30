@@ -60,7 +60,7 @@ Tests need Postgres. `unittests/conftest.py` derives a scratch database `<dev_db
 
 There is no lint or format tooling configured.
 
-Deployment is on Railway with the Dockerfile. `railway.toml` is the web service (gunicorn `run:app`, `/health` healthcheck) and `railway.worker.toml` is the Celery worker. `docker-entrypoint.sh` runs `flask db upgrade` for the web service only.
+Deployment is on Railway with the Dockerfile. `railway.toml` is the web service (gunicorn `run:app`, `/health` healthcheck), `railway.worker.toml` is the Celery worker, and `railway.beat.toml` is Celery beat (exactly one replica, or every scheduled job runs twice). `docker-entrypoint.sh` runs `flask db upgrade` for the web service only.
 
 ## Architecture
 

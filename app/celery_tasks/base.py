@@ -27,16 +27,27 @@ The decorator builds the app context, marks the row running, stores the
 return value as JSON and marks it completed. TaskFailed fails the row with its
 message; any other exception is rolled back, logged with its traceback and
 fails the row with a generic message, so internals never reach the UI.
+
+Scheduled (beat) jobs have no BackgroundTask row. record_job_run gives them
+the same app-context scaffolding and writes a ScheduledJobRun row per run:
+
+    @celery.task(bind=True)
+    @record_job_run('gdpr-anonymize-ai-interactions')
+    def anonymize_ai_interactions(self):
+        ...
 """
 
 import json
 import logging
+from contextlib import nullcontext
 from functools import wraps
 
 from celery.exceptions import SoftTimeLimitExceeded
+from flask import has_app_context
 
 from app import create_app, db
 from app.models import BackgroundTask
+from app.services.scheduled_jobs import finish_run, start_run
 from app.utils.time_utils import now_utc
 from celery_app import celery
 
@@ -107,3 +118,41 @@ def _fail(task_id, message):
         task.error_message = message
         db.session.commit()
     return {'status': 'failed', 'message': message}
+
+
+def record_job_run(job_name):
+    """Record each run of a scheduled task as a ScheduledJobRun under `job_name`, its beat_schedule key.
+
+    Goes under @celery.task and leaves the task's signature alone: beat calls it
+    with no arguments, and a manual run passes triggered_by='manual' and
+    triggered_by_user_id as kwargs, which are taken off here before the task
+    sees them. (Celery checks call arguments against the wrapper's own
+    (*args, **kwargs), not the wrapped function.)
+
+    Provides the app context, so the task body needn't build one. A raised
+    exception fails the run and is re-raised; so does a returned
+    {'status': 'failed', 'error': ...}, the convention of tasks that catch
+    their own errors.
+    """
+    def decorator(fn):
+        @wraps(fn)
+        def run(*args, triggered_by='schedule', triggered_by_user_id=None, **kwargs):
+            with nullcontext() if has_app_context() else create_app().app_context():
+                run_id = start_run(job_name, triggered_by, triggered_by_user_id)
+                try:
+                    result = fn(*args, **kwargs)
+                except Exception as e:
+                    db.session.rollback()
+                    finish_run(run_id, 'failed', str(e) or type(e).__name__)
+                    raise
+
+                if isinstance(result, dict) and result.get('status') == 'failed':
+                    finish_run(run_id, 'failed', result.get('error'))
+                else:
+                    finish_run(run_id, 'success')
+                return result
+
+        run.scheduled_job_name = job_name
+        return run
+
+    return decorator

@@ -45,6 +45,12 @@ class Config:
         'pool_timeout': 20,
         'pool_pre_ping': True,
     }
+    if SQLALCHEMY_DATABASE_URI.startswith('postgresql'):
+        # now_utc() writes aware UTC datetimes into naive `timestamp` columns and
+        # app/utils/time_utils.py reads them back as UTC. Postgres converts an aware
+        # value using the session TimeZone, so pin it to UTC: a server defaulting to
+        # e.g. Europe/Berlin would otherwise store local wall-clock time.
+        SQLALCHEMY_ENGINE_OPTIONS['connect_args'] = {'options': '-c timezone=UTC'}
 
 
     # 3. COOKIES & GDPR: Security settings for German/EU residency

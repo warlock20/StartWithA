@@ -3,7 +3,7 @@ set -e
 
 # Run one-time DB setup only in the web/app container, not in the Celery worker,
 # so two containers don't migrate the same database concurrently. The worker
-# starts with `celery ...`, the web container with `gunicorn ...`.
+# and beat start with `celery ...`, the web container with `gunicorn ...`.
 if [ "$1" != "celery" ]; then
     echo "Running database setup..."
 
@@ -34,7 +34,8 @@ fi
 
 # Run whatever command the service declared:
 #   web    -> gunicorn (Dockerfile CMD)
-#   worker -> celery ... (docker-compose command)
+#   worker -> celery ... worker (railway.worker.toml / docker-compose command)
+#   beat   -> celery ... beat (railway.beat.toml)
 #
 # Fall back to the web command if invoked with no arguments. This happens when a
 # platform (e.g. a Railway dashboard "Custom Start Command") overrides Docker's

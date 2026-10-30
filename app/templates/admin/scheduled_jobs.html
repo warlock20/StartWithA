@@ -1,0 +1,79 @@
+{% extends 'admin/master.html' %}
+
+{% macro when(dt) %}{{ dt.strftime('%Y-%m-%d %H:%M') if dt else '' }}{% endmacro %}
+
+{% block body %}
+<h2 class="mb-3">Scheduled jobs</h2>
+
+{% if heartbeat_stale %}
+<div class="alert alert-danger">
+    <strong>Scheduler not running:</strong> no scheduled <code>{{ heartbeat_job }}</code> run
+    in the last {{ heartbeat_minutes }} minutes. Check that the Railway <code>beat</code>
+    service is up with exactly one replica, and that the worker is consuming.
+</div>
+{% endif %}
+
+<p class="text-muted">
+    Jobs from <code>beat_schedule</code> in <code>celery_app.py</code>. Times are UTC.
+    Run now queues the job on the worker immediately.
+</p>
+
+<div class="table-responsive">
+<table class="table table-sm table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Job</th>
+            <th>Schedule</th>
+            <th>Next run</th>
+            <th>Last run</th>
+            <th>Status</th>
+            <th>Duration</th>
+            <th>Last error</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for job in jobs %}
+        {% set run = job.last_run %}
+        <tr>
+            <td><code>{{ job.name }}</code></td>
+            <td><code>{{ job.schedule }}</code></td>
+            <td>{{ when(job.next_run) }}</td>
+            <td>
+                {% if run %}
+                    {{ when(run.started_at) }}
+                    <div class="small text-muted">
+                        {{ run.triggered_by }}{% if run.triggered_by_user_id %} by user {{ run.triggered_by_user_id }}{% endif %}
+                    </div>
+                {% else %}
+                    <span class="text-muted">never</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if job.last_status %}
+                    {% set badge = {'success': 'success', 'failed': 'danger', 'interrupted': 'warning'}.get(job.last_status, 'secondary') %}
+                    <span class="badge badge-{{ badge }}"
+                          {% if job.last_status == 'interrupted' %}title="Still marked running after {{ interrupted_hours }} hours: the worker most likely stopped mid-run."{% endif %}>{{ job.last_status }}</span>
+                {% endif %}
+            </td>
+            <td>{% if run and run.duration is not none %}{{ '%.1f' % run.duration.total_seconds() }}s{% endif %}</td>
+            <td>
+                {% if job.last_failure %}
+                    <details>
+                        <summary>{{ when(job.last_failure.started_at) }}</summary>
+                        <pre class="small mb-0" style="white-space: pre-wrap; max-width: 32rem;">{{ job.last_failure.error or 'No message' }}</pre>
+                    </details>
+                {% endif %}
+            </td>
+            <td>
+                <form method="POST" action="{{ url_for('.run_now', job_name=job.name) }}" class="mb-0">
+                    <input type="hidden" name="csrf_token" value="{{ form.csrf_token.current_token }}">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Run now</button>
+                </form>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

@@ -22,14 +22,16 @@ Flask-Admin based admin interface for managing:
 - Investor profiles
 - Prompt versions
 - Analytics
+- Scheduled (Celery beat) jobs
 """
 
 import os
 
-from flask_admin import Admin, AdminIndexView, expose
+from flask_admin import Admin, AdminIndexView, BaseView, expose
 from flask_admin.contrib.sqla import ModelView
+from flask_admin.form import SecureForm
 from flask_login import current_user
-from flask import current_app, flash, redirect, url_for, request, Response
+from flask import abort, current_app, flash, redirect, url_for, request, Response
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
@@ -44,6 +46,9 @@ from app.models import (
     MarketSweepCompany,
 )
 from app.services.market_sweep_service import build_sweep_export, link_imported_isins, parse_companies_file, upsert_sweep_companies
+from app.services.scheduled_jobs import (
+    HEARTBEAT_JOB, HEARTBEAT_MAX_AGE, INTERRUPTED_AFTER, enqueue_job, job_statuses, scheduler_heartbeat_stale,
+)
 
 
 class SecureAdminIndexView(AdminIndexView):
@@ -57,10 +62,8 @@ class SecureAdminIndexView(AdminIndexView):
         return super().index()
 
 
-class SecureModelView(ModelView):
-    """
-    Base ModelView that requires admin authentication.
-    """
+class AdminOnlyMixin:
+    """Admin views mix this in to require is_admin."""
     def is_accessible(self):
         return current_user.is_authenticated and current_user.is_admin
 
@@ -68,6 +71,12 @@ class SecureModelView(ModelView):
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login', next=request.url))
         return redirect(url_for('portfolio.dashboard'))
+
+
+class SecureModelView(AdminOnlyMixin, ModelView):
+    """
+    Base ModelView that requires admin authentication.
+    """
 
 
 class SystemConfigView(SecureModelView):
@@ -291,6 +300,40 @@ class MarketSweepAdminView(SecureModelView):
         return redirect(self.get_url('.edit_view', id=sweep_id))
 
 
+class ScheduledJobsView(AdminOnlyMixin, BaseView):
+    """The Celery beat jobs: schedule, last run, Run now, and a banner when beat is down."""
+
+    @expose('/')
+    def index(self):
+        return self.render(
+            'admin/scheduled_jobs.html',
+            jobs=job_statuses(),
+            heartbeat_stale=scheduler_heartbeat_stale(),
+            heartbeat_job=HEARTBEAT_JOB,
+            heartbeat_minutes=int(HEARTBEAT_MAX_AGE.total_seconds() // 60),
+            interrupted_hours=int(INTERRUPTED_AFTER.total_seconds() // 3600),
+            form=SecureForm(),
+        )
+
+    @expose('/run/<job_name>', methods=['POST'])
+    def run_now(self, job_name):
+        if not SecureForm(request.form).validate():
+            flash('The form expired. Please try again.', 'error')
+            return redirect(url_for('.index'))
+
+        try:
+            enqueue_job(job_name, current_user.id)
+        except KeyError:
+            abort(404)
+        except Exception:
+            current_app.logger.exception('Could not queue scheduled job %s', job_name)
+            flash(f'Could not queue {job_name}: the task queue is unreachable.', 'error')
+            return redirect(url_for('.index'))
+
+        flash(f'{job_name} queued. Its run shows here once the worker picks it up.', 'success')
+        return redirect(url_for('.index'))
+
+
 def _sync_admin_emails(app):
     """Promote/demote users based on ADMIN_EMAILS env var (comma-separated)."""
     raw = os.environ.get('ADMIN_EMAILS', '')
@@ -339,5 +382,9 @@ def init_admin(app):
 
     # Market Sweep
     admin.add_view(MarketSweepAdminView(MarketSweep, db.session, name='Market Sweeps', category='Market Sweep'))
+
+    # System
+    admin.add_view(ScheduledJobsView(name='Scheduled jobs', category='System',
+                                     endpoint='scheduled_jobs', url='scheduled-jobs'))
 
     return admin
