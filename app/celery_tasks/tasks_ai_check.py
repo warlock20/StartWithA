@@ -23,6 +23,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from flask import current_app
 
 from app import create_app, db
+from app.celery_tasks.base import record_job_run
 from app.models import AICheckRun, AICheckSource
 from app.services.ai_check.adapters import get_adapter
 from app.services.ai_check import AICheckError
@@ -181,13 +182,12 @@ def ai_check_quick_task(self, run_id):
 
 
 @celery.task
+@record_job_run('ai-check-reap-stale-runs')
 def ai_check_reap_task():
-    app = create_app()
-    with app.app_context():
-        count = reap_stale_runs()
-        if count:
-            logger.info('AI check reaper failed %d stale run(s)', count)
-        swept = sweep_stale_run_files()
-        if swept:
-            logger.info('AI check reaper deleted downloads of %d run(s)', swept)
-        return count
+    count = reap_stale_runs()
+    if count:
+        logger.info('AI check reaper failed %d stale run(s)', count)
+    swept = sweep_stale_run_files()
+    if swept:
+        logger.info('AI check reaper deleted downloads of %d run(s)', swept)
+    return count

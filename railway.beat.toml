@@ -1,0 +1,27 @@
+# Railway Build Configuration — Celery beat (scheduler) service
+# https://docs.railway.com/reference/config-as-code
+#
+# Beat is the clock that enqueues the jobs in celery_app.py `beat_schedule`
+# (GDPR anonymisation, checkpoint analysis, the AI-check reaper, ...). It only
+# publishes messages; the worker service executes them. Without this service
+# no scheduled job ever runs.
+#
+# Railway setup: create a service from this repo, point it here via
+# Settings -> Config as code -> railway.beat.toml, give it the same env vars as
+# the worker (DATABASE_URL, REDIS_URL, ...), and run EXACTLY ONE replica. Each
+# beat replica keeps its own clock, so two replicas enqueue every job twice.
+#
+# Beat runs as its own service rather than as `worker -B`: an embedded beat
+# runs once per worker replica, so scaling the worker would duplicate jobs.
+
+[build]
+builder = "dockerfile"
+
+[deploy]
+# docker-entrypoint.sh skips `flask db upgrade` when $1 is "celery", so the web
+# service stays the only one migrating the database.
+startCommand = "./docker-entrypoint.sh celery -A celery_app beat --loglevel=info"
+
+# No healthcheckPath — this service serves no HTTP.
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

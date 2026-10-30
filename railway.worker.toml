@@ -7,6 +7,10 @@
 # port, so that healthcheck can never pass and the deploy would be failed after
 # healthcheckTimeout. Point this service at this file via
 # Settings -> Config as code -> railway.worker.toml.
+#
+# The worker only executes tasks. Scheduled jobs are enqueued by the separate
+# beat service (railway.beat.toml); don't add -B here, it would run one beat
+# per worker replica.
 
 [build]
 builder = "dockerfile"

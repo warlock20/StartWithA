@@ -24,11 +24,13 @@ Targets raw Q&A data only — derived intelligence (ARGOS, insights) is kept.
 import logging
 from datetime import timedelta
 
-from app import db, create_app
+from app import db
+from app.celery_tasks.base import record_job_run
 from celery_app import celery
 from app.models import AIResearchFeedback
 from app.models.prompt_management import PromptUsageLog
 from app.constants import ANONYMIZED_PLACEHOLDER
+from app.services.scheduled_jobs import prune_job_runs
 from app.utils.time_utils import now_utc
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,7 @@ ANONYMIZATION_DAYS = 90
 
 
 @celery.task(bind=True)
+@record_job_run('gdpr-anonymize-ai-interactions')
 def anonymize_ai_interactions(self):
     """
     Anonymize AI interaction records older than 90 days.
@@ -48,44 +51,51 @@ def anonymize_ai_interactions(self):
     Preserves: mode, feedback, tokens_used, provider, model, timestamps
     (aggregated metrics remain useful for analytics without PII).
     """
-    app = create_app()
-    with app.app_context():
-        try:
-            cutoff = now_utc() - timedelta(days=ANONYMIZATION_DAYS)
+    try:
+        cutoff = now_utc() - timedelta(days=ANONYMIZATION_DAYS)
 
-            # --- AIResearchFeedback: anonymize raw Q&A text ---
-            feedback_count = AIResearchFeedback.query.filter(
-                AIResearchFeedback.created_at < cutoff,
-                AIResearchFeedback.question_text != ANONYMIZED_PLACEHOLDER,
-            ).update({
-                AIResearchFeedback.question_text: ANONYMIZED_PLACEHOLDER,
-                AIResearchFeedback.user_answer: ANONYMIZED_PLACEHOLDER,
-                AIResearchFeedback.ai_response: ANONYMIZED_PLACEHOLDER,
-                AIResearchFeedback.revised_answer: None,
-                AIResearchFeedback.company_name: None,
-            }, synchronize_session=False)
+        # --- AIResearchFeedback: anonymize raw Q&A text ---
+        feedback_count = AIResearchFeedback.query.filter(
+            AIResearchFeedback.created_at < cutoff,
+            AIResearchFeedback.question_text != ANONYMIZED_PLACEHOLDER,
+        ).update({
+            AIResearchFeedback.question_text: ANONYMIZED_PLACEHOLDER,
+            AIResearchFeedback.user_answer: ANONYMIZED_PLACEHOLDER,
+            AIResearchFeedback.ai_response: ANONYMIZED_PLACEHOLDER,
+            AIResearchFeedback.revised_answer: None,
+            AIResearchFeedback.company_name: None,
+        }, synchronize_session=False)
 
-            # --- PromptUsageLog: strip context_data (may contain user input) ---
-            prompt_count = PromptUsageLog.query.filter(
-                PromptUsageLog.created_at < cutoff,
-                PromptUsageLog.context_data.isnot(None),
-            ).update({
-                PromptUsageLog.context_data: None,
-            }, synchronize_session=False)
+        # --- PromptUsageLog: strip context_data (may contain user input) ---
+        prompt_count = PromptUsageLog.query.filter(
+            PromptUsageLog.created_at < cutoff,
+            PromptUsageLog.context_data.isnot(None),
+        ).update({
+            PromptUsageLog.context_data: None,
+        }, synchronize_session=False)
 
-            db.session.commit()
+        db.session.commit()
 
-            logger.info(
-                f"GDPR retention: anonymized {feedback_count} AI feedback records, "
-                f"cleared {prompt_count} prompt context records (cutoff: {cutoff.date()})"
-            )
-            return {
-                'status': 'success',
-                'feedback_anonymized': feedback_count,
-                'prompt_contexts_cleared': prompt_count,
-            }
+        logger.info(
+            f"GDPR retention: anonymized {feedback_count} AI feedback records, "
+            f"cleared {prompt_count} prompt context records (cutoff: {cutoff.date()})"
+        )
+        return {
+            'status': 'success',
+            'feedback_anonymized': feedback_count,
+            'prompt_contexts_cleared': prompt_count,
+        }
 
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"GDPR retention job failed: {e}", exc_info=True)
-            return {'status': 'failed', 'error': str(e)}
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"GDPR retention job failed: {e}", exc_info=True)
+        return {'status': 'failed', 'error': str(e)}
+
+
+@celery.task
+@record_job_run('prune-scheduled-job-runs')
+def prune_scheduled_job_runs():
+    """Delete scheduled-job run history older than 90 days (the reaper alone adds ~144 rows a day)."""
+    deleted = prune_job_runs()
+    logger.info(f"Scheduled job history: pruned {deleted} run(s)")
+    return deleted

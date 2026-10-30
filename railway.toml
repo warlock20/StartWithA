@@ -3,10 +3,10 @@
 
 # Using Dockerfile for build (no nixpacks config needed)
 #
-# This file configures the WEB service only. The Celery worker runs the same
-# image with a different command and can't share this config (a worker serves
-# no HTTP, so healthcheckPath below would fail its deploy) — see
-# railway.worker.toml.
+# This file configures the WEB service only. The Celery worker and Celery beat
+# run the same image with a different command and can't share this config
+# (neither serves HTTP, so healthcheckPath below would fail their deploys) — see
+# railway.worker.toml and railway.beat.toml.
 [build]
 builder = "dockerfile"
 
