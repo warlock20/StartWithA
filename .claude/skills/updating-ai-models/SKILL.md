@@ -35,6 +35,8 @@ venv/bin/python -I -c "from genai_prices import calc_price, Usage; print(calc_pr
 
 Use `provider_id` `google`, `anthropic` or `deepseek`. A `LookupError` means the model needs a `FALLBACK_PRICES` entry.
 
+On any cleanup, check every id already in the registry against the provider's deprecations page, not just the ids you were asked about. Retired ids can linger in defaults and prompt YAMLs, where they fail at request time with a 404.
+
 ## 2. Registry
 
 | # | Where | On add | On shutdown |
@@ -62,6 +64,7 @@ Claude and DeepSeek: read the provider's migration notes for request-shape chang
 ## 4. Before finishing
 
 - Run `grep -rn "OLD_OR_NEW_ID" app` to catch stragglers.
+- If a registry already disagrees with the others (for example, it's missing a model that is still served, or it lists a dead id), list that drift for the user. Don't silently fix half of it.
 - The tests live in `unittests/`, which is git-ignored:
   - `test_gemini_models.py`
   - `test_gemini_provider.py`

@@ -93,9 +93,8 @@ def _get_available_models():
     # Claude models
     if config.is_provider_available(AIProvider.CLAUDE):
         models.extend([
-            {'id': 'claude-sonnet-4-20250514', 'name': 'Claude Sonnet 4', 'provider': 'claude'},
-            {'id': 'claude-opus-4-20250514', 'name': 'Claude Opus 4', 'provider': 'claude'},
-            {'id': 'claude-3-5-haiku-20241022', 'name': 'Claude 3.5 Haiku', 'provider': 'claude'},
+            {'id': 'claude-sonnet-5', 'name': 'Claude Sonnet 5', 'provider': 'claude'},
+            {'id': 'claude-opus-5', 'name': 'Claude Opus 5', 'provider': 'claude'},
         ])
 
     # DeepSeek models

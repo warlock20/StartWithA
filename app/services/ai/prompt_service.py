@@ -411,9 +411,6 @@ _MODEL_DISPLAY_NAMES = {
     'gemini-2.5-flash-lite': 'Gemini 2.5 Flash Lite',
     'gemini-flash-latest': 'Gemini Flash (Latest)',
     'gemini-pro-latest': 'Gemini Pro (Latest)',
-    'claude-sonnet-4-20250514': 'Claude Sonnet 4',
-    'claude-opus-4-20250514': 'Claude Opus 4',
-    'claude-3-5-haiku-20241022': 'Claude 3.5 Haiku',
     'deepseek-flash': 'DeepSeek V4 Flash',
     'deepseek-v4-pro': 'DeepSeek V4 Pro',
     'claude-sonnet-5': 'Claude Sonnet 5',
@@ -429,7 +426,7 @@ def get_effective_model_display(
     Return a display-friendly name for the model that will be used for
     a given prompt category and user, following the priority chain.
 
-    Useful for showing "AI Model: Claude Sonnet 4" in templates without
+    Useful for showing "AI Model: Claude Sonnet 5" in templates without
     hardcoding model names.
 
     Priority:

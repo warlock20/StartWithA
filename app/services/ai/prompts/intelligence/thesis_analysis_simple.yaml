@@ -7,11 +7,11 @@ version: "1.0"
 category: "intelligence"
 
 # AI Provider Configuration
-model: "claude-sonnet-4-20250514"
+model: "claude-sonnet-5"
 max_tokens: 2000
 temperature: 0.3
 
-last_modified: "2026-01-01"
+last_modified: "2026-10-30"
 
 system_context: |
   You are an expert investment analyst who reviews investment theses.

@@ -35,9 +35,8 @@ logger = logging.getLogger(__name__)
 # Update these as providers change pricing
 TOKEN_PRICING = {
     # Claude
-    'claude-sonnet-4-20250514': {'input': 3.00, 'output': 15.00},
-    'claude-opus-4-20250514': {'input': 15.00, 'output': 75.00},
-    'claude-3-5-haiku-20241022': {'input': 0.80, 'output': 4.00},
+    'claude-sonnet-5': {'input': 2.00, 'output': 10.00},
+    'claude-opus-5': {'input': 5.00, 'output': 25.00},
     # Gemini
     'gemini-2.5-flash': {'input': 0.30, 'output': 2.50},
     'gemini-2.5-pro': {'input': 1.25, 'output': 10.00},
@@ -73,7 +72,7 @@ def log_prompt_usage(
         prompt_name: Name of the prompt (e.g., 'thesis_analysis_simple')
         prompt_version: Version of the prompt (e.g., '1.0')
         provider: AI provider (e.g., 'claude', 'gemini')
-        model: Specific model used (e.g., 'claude-sonnet-4-20250514')
+        model: Specific model used (e.g., 'claude-sonnet-5')
         input_tokens: Number of input tokens
         output_tokens: Number of output tokens
         latency_ms: Response time in milliseconds
@@ -172,7 +171,7 @@ def _estimate_cost(model: str, input_tokens: Optional[int], output_tokens: Optio
     if not pricing:
         logger.warning(f"No pricing data for model {model}, using default")
         # Default to Sonnet pricing
-        pricing = TOKEN_PRICING['claude-sonnet-4-20250514']
+        pricing = TOKEN_PRICING['claude-sonnet-5']
 
     # Calculate cost per million tokens, convert to cents
     input_cost = (input_tokens or 0) * pricing['input'] / 1_000_000

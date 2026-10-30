@@ -84,8 +84,8 @@ class DeepseekProvider(AIProvider):
     DeepSeek AI provider using the OpenAI-compatible API.
 
     DeepSeek models:
-    - deepseek-chat (V3): General-purpose, cost-effective
-    - deepseek-reasoner (R1): Advanced reasoning, chain-of-thought
+    - deepseek-flash (V4 Flash): General-purpose, cost-effective
+    - deepseek-v4-pro (V4 Pro): Thinking mode by default, stronger reasoning
 
     Features:
     - OpenAI SDK compatible (drop-in)

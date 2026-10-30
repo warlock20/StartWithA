@@ -156,7 +156,7 @@ class AIProvider(ABC):
         Get the current model name/identifier.
 
         Returns:
-            Model name string (e.g., 'gemini-2.5-flash', 'claude-sonnet-4-20250514')
+            Model name string (e.g., 'gemini-3.8-flash', 'claude-sonnet-5')
         """
         pass
 
