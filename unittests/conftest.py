@@ -17,8 +17,9 @@
 """
 Shared pytest fixtures for DB-backed companion tests.
 
-Uses a DEDICATED scratch Postgres database (``<dev_db>_companion_test``) so tests
-never touch the dev database. The scratch DB is created on first use, the pgvector
+Uses a DEDICATED scratch Postgres database (``<dev_db>_companion_test``, or
+``<dev_db><TEST_DB_SUFFIX>`` when that env var is set) so tests never touch the
+dev database. The scratch DB is created on first use, the pgvector
 extension is enabled, and the full schema is built with ``create_all``. Each test
 runs against it and all rows are deleted afterwards, so tests are isolated without
 paying to rebuild the schema every time.
@@ -55,7 +56,10 @@ from app.services.findings import add_finding
 from app.services.ai_check import setup as ai_check_setup
 
 _BASE_URL = make_url(Config.SQLALCHEMY_DATABASE_URI)
-_SCRATCH_URL = _BASE_URL.set(database=_BASE_URL.database + '_companion_test')
+# TEST_DB_SUFFIX gives each parallel run (e.g. one per worktree) its own scratch DB;
+# runs sharing one DB delete each other's rows.
+_SCRATCH_URL = _BASE_URL.set(
+    database=_BASE_URL.database + os.environ.get('TEST_DB_SUFFIX', '_companion_test'))
 
 
 class TestConfig(Config):

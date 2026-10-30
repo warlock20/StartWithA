@@ -56,7 +56,7 @@ npm test               # vitest (jsdom), tests in frontend/src/**/*.test.{js,jsx
 npx vitest run frontend/src/__tests__/market-sweep-focus.test.jsx
 ```
 
-Tests need Postgres. `unittests/conftest.py` derives a scratch database `<dev_db>_companion_test` from `DATABASE_URL`, creates it on first use, enables pgvector, builds the schema with `create_all`, and deletes all rows after each test. SQLite cannot render the schema because of the pgvector columns. Embeddings are stubbed in tests.
+Tests need Postgres. `unittests/conftest.py` derives a scratch database `<dev_db>_companion_test` from `DATABASE_URL`, creates it on first use, enables pgvector, builds the schema with `create_all`, and deletes all rows after each test. Runs that share the scratch DB interfere, so give each parallel run (for example one per worktree) its own with `TEST_DB_SUFFIX=_t389`, which gives `<dev_db>_t389`. SQLite cannot render the schema because of the pgvector columns. Embeddings are stubbed in tests.
 
 There is no lint or format tooling configured.
 
