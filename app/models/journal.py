@@ -29,6 +29,10 @@ DEFAULT_FINDING_SIGNAL = 'Default'
 # not the Knowledge Hub.
 LOG_ENTRY_TYPES = ('investment_action', 'red_flag', 'green_flag', 'must_exit')
 
+# Decision journals are written by the transaction flows (transaction_service,
+# portfolio_importer, portfolio_journal), one per buy or sell.
+DECISION_TYPES = ('BUY', 'SELL')
+
 
 class DecisionJournal(db.Model):
     """
@@ -43,7 +47,7 @@ class DecisionJournal(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), index=True)
 
     # Decision details
-    decision_type = db.Column(db.String(20), nullable=False)  # 'invest', 'pass', 'exit'
+    decision_type = db.Column(db.String(20), nullable=False)  # DECISION_TYPES
     decision_date = db.Column(db.Date, nullable=False)
     confidence_score = db.Column(db.Integer)  # 1-10
 

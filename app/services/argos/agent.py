@@ -17,7 +17,8 @@
 """
 CompanionAgent — the global agentic companion.
 
-Assembles the account map (cheap DB skeleton) + focus into the system prompt,
+Assembles the domain catalog (what the records mean, static), the account map
+(cheap DB skeleton) and focus into the system prompt,
 offers the tool menu, and runs the tool-calling loop via ai_service. The model
 decides which tools to call and chains them; every answer is grounded in the
 user's own data. Facts-only compliance rules live in companion_agent.yaml.
@@ -30,6 +31,7 @@ from app.services.ai import ai_service
 from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 from app.services.ai.analytics import log_prompt_usage
 from app.services.argos.account_map import build_account_map, render_account_map
+from app.services.argos.domain_catalog import render_catalog
 from app.services.argos.tools import COMPANION_TOOLS, ToolExecutor
 from app.utils.time_utils import now_utc
 
@@ -95,6 +97,7 @@ class CompanionAgent:
 
         prompt_data = prompt_service.get_prompt_with_metadata(
             'companion', 'companion_agent',
+            domain_catalog=render_catalog(),
             account_map=render_account_map(account_map),
             focus=_render_focus(focus),
         )

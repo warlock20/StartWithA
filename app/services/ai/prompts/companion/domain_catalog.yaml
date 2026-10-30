@@ -1,0 +1,161 @@
+name: "domain_catalog"
+description: "Hand-written description of the user-facing data, in the words the UI uses. Rendered into the companion prompt and used by query_my_data as its allowlist."
+version: "1.0"
+category: "companion"
+
+# Loaded by app/services/argos/domain_catalog.py, which documents the format.
+# In short, per entity:
+#   model        SQLAlchemy class name, as exported by app.models
+#   owner        how a row reaches user_id: {column: user_id} on the row itself,
+#                or {through: [relationship, ...], column: user_id} on a parent
+#   fields       column name -> {type, meaning, values, values_from}
+#                or a derived field -> {type, derived: <op>, <operands>, meaning}
+#   relations    relationship attribute on the model -> catalogued entity key
+#
+# Every `values` list names the constant it must match in `values_from`. The
+# drift test (unittests/test_domain_catalog.py) checks columns, types, values,
+# owner paths and relations against the code.
+#
+# Covers only what the example questions in #388 need. Extend when a question
+# needs more.
+
+entities:
+  company:
+    ui_name: "Company"
+    model: Company
+    description: "A company the user has added, whether researched, held, watched or just saved. One per ticker."
+    owner: {column: user_id}
+    fields:
+      name: {type: str}
+      ticker_symbol: {type: str}
+
+  research_project:
+    ui_name: "Research project"
+    model: ResearchProject
+    description: "One research effort on one company (at most one per company). Ends in a decision."
+    owner: {column: user_id}
+    fields:
+      status:
+        type: str
+        values: [active, completed, killed]
+        values_from: app.models.research.RESEARCH_PROJECT_STATUSES
+        meaning: "active = still being researched; completed = every step done or a decision saved; killed = failed the research screening step"
+      decision:
+        type: str
+        values: [invest, pass, watchlist]
+        values_from: app.models.research.RESEARCH_DECISIONS
+        meaning: "Empty until the user decides. watchlist can be set while status is still active"
+      decision_date: {type: datetime, meaning: "When the latest decision was saved"}
+      decision_confidence: {type: int, meaning: "1-10 conviction at decision time"}
+      watch_reason:
+        type: str
+        values: [valuation_too_high, waiting_for_catalyst, lower_priority, other]
+        values_from: app.models.research.WATCH_REASONS
+        meaning: "Why it went to the watchlist. valuation_too_high means the price was the obstacle"
+      total_hours_spent: {type: float, meaning: "Hours logged in finished work sessions"}
+      created_at: {type: datetime, meaning: "When research started"}
+      completed_at: {type: datetime, meaning: "When the project became completed or killed"}
+      research_days:
+        type: int
+        derived: date_diff_days
+        from: created_at
+        to: decision_date
+        meaning: "Calendar days from starting research to the decision. Empty while undecided"
+    relations:
+      company: company
+
+  checklist_run:
+    ui_name: "Checklist run"
+    model: ChecklistAnalysis
+    description: "One pass of one checklist over one company, usually a step of a research project."
+    owner: {column: user_id}
+    fields:
+      start_date: {type: datetime, meaning: "When the run started"}
+    relations:
+      company: company
+
+  checklist_criterion:
+    ui_name: "Checklist criterion"
+    model: ChecklistItem
+    description: "One question on one of the user's checklists. The same criterion is answered once per run."
+    owner: {through: [checklist], column: user_id}
+    fields:
+      text: {type: str, meaning: "The criterion as written"}
+
+  checklist_answer:
+    ui_name: "Checklist answer"
+    model: ChecklistAnswer
+    description: "The answer to one criterion in one checklist run, with its verdict."
+    owner: {through: [analysis], column: user_id}
+    fields:
+      satisfaction_status:
+        type: str
+        values: [satisfied, not_satisfied, needs_attention]
+        values_from: app.services.ai_check.stages.VERDICTS
+        meaning: "The verdict. satisfied = criterion met; not_satisfied = not met; needs_attention = unclear. Empty = no verdict given"
+      answered_at: {type: datetime}
+    relations:
+      analysis: checklist_run
+      item: checklist_criterion
+
+  decision:
+    ui_name: "Decision journal entry"
+    model: DecisionJournal
+    description: "Written by the portfolio when the user buys or sells: one for the first buy of a company (later adds reuse it) and one per sell."
+    owner: {column: user_id}
+    fields:
+      decision_type:
+        type: str
+        values: [BUY, SELL]
+        values_from: app.models.journal.DECISION_TYPES
+      decision_date: {type: date, meaning: "Trade date of the transaction that wrote it"}
+      confidence_score: {type: int, meaning: "1-10 conviction entered on the buy form. Empty on sells"}
+    relations:
+      company: company
+
+  transaction:
+    ui_name: "Transaction"
+    model: Transaction
+    description: "One portfolio transaction. Buys and sells drive positions."
+    owner: {column: user_id}
+    fields:
+      type:
+        type: str
+        values: [BUY, SELL, DIVIDEND, SPLIT, DEPOSIT, WITHDRAWAL]
+        values_from: app.models.portfolio.TRANSACTION_TYPES
+      date: {type: date, meaning: "Trade date"}
+      quantity: {type: int, meaning: "Shares. Empty for deposits and withdrawals"}
+      price_per_share_base: {type: decimal, meaning: "Price per share in the user's base currency"}
+      bought_without_research:
+        type: bool
+        meaning: "True on a first buy when the company had no research project at all. It does not say whether research was finished; compare date with the company's research project for that"
+      is_add_to_position: {type: bool, meaning: "A buy into a company already held"}
+      add_position_reason:
+        type: str
+        values: [price_drop, extra_cash, increased_confidence, averaging_down, rebalancing, other]
+        values_from: app.models.portfolio.ADD_POSITION_REASONS
+        meaning: "Why the user added to a holding (adds only). price_drop = bought because the price fell"
+      amount_base:
+        type: decimal
+        derived: product
+        of: [quantity, price_per_share_base]
+        meaning: "Shares x price in base currency, fees excluded. Meaningful for BUY and SELL"
+    relations:
+      company: company
+      decision_journal: decision
+
+  position:
+    ui_name: "Position"
+    model: PortfolioPosition
+    description: "The user's holding in one company, recalculated from its transactions. Kept after a full exit."
+    owner: {column: user_id}
+    fields:
+      is_active: {type: bool, meaning: "Currently held. False after a full exit"}
+      total_shares: {type: int}
+      total_cost_base: {type: decimal, meaning: "Cost of the shares still held, base currency"}
+      current_value_base: {type: decimal, meaning: "Market value at the last price update, base currency"}
+      unrealized_gain_loss_pct: {type: decimal}
+      realized_gain_loss: {type: decimal, meaning: "Cumulative gain or loss from sells, base currency"}
+      first_purchase_date: {type: date}
+    relations:
+      company: company

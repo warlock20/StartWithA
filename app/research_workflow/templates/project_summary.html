@@ -219,6 +219,13 @@
 
 <!-- Expanded Panel (Green/Red Flags) -->
 <div class="summary-expanded-panel" id="summaryExpandedPanel">
+    <div class="summary-decision-notes">
+        <label for="decisionNotes" class="summary-decision-notes-label">
+            <i class="bi bi-journal-text"></i> Decision notes
+        </label>
+        <textarea id="decisionNotes" class="form-control" rows="3"
+                  placeholder="Why this decision? What would change your mind?">{{ project.decision_notes or '' }}</textarea>
+    </div>
     {% if project.company_id %}
     {% set findings_url = url_for('companies.api_add_finding', company_id=project.company_id) %}
     {% include 'partials/_findings_editor.html' %}
@@ -453,7 +460,8 @@ const SummaryPage = {
                 },
                 body: new URLSearchParams({
                     decision: this.currentDecision,
-                    confidence: confidence
+                    confidence: confidence,
+                    decision_notes: document.getElementById('decisionNotes').value
                 })
             });
 

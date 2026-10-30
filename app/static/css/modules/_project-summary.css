@@ -653,6 +653,20 @@
     box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15);
 }
 
+.summary-decision-notes {
+    margin-bottom: var(--space-md);
+}
+
+.summary-decision-notes-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
 .summary-expanded-panel.show {
     display: block;
     animation: panelSlideUp 0.25s ease-out;

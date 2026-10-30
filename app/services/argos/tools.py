@@ -31,18 +31,27 @@ import json
 import logging
 import dataclasses
 
+from sqlalchemy import case, func, or_
+
+from app import db
 from app.services.ai.tool_calling import ToolSpec, ToolResult
 from app.services.argos.agenda import build_agenda
 from app.services.argos.core import ArgosService
 from app.services.argos.knowledge_search import search_my_knowledge, get_resource
 from app.services.portfolio_intelligence import PortfolioIntelligenceService
 from app.models.company import Company
+from app.models.portfolio import PortfolioPosition
+from app.models.user import User
 from app.models.research import ChecklistAnalysis, ChecklistAnswer, ResearchProject
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
 from app.models.journal import PatternRecognition
 from app.models.idea_pipeline import MistakeLog
 
 logger = logging.getLogger(__name__)
+
+# find_company returns at most this many matches; a short query like "a" would
+# otherwise list most of the account.
+FIND_COMPANY_LIMIT = 10
 
 
 COMPANION_TOOLS = [
@@ -114,6 +123,17 @@ COMPANION_TOOLS = [
         "the current decision.",
         {'type': 'object',
          'properties': {'topic': {'type': 'string'}}},
+    ),
+    ToolSpec(
+        'find_company',
+        "Look up any company the user has by name or ticker, including ones that "
+        "are not in the ACCOUNT MAP. Returns each match's company_id and how the "
+        "user relates to it: 'held', 'researched' (with research_status and "
+        "decision, e.g. passed or killed), 'watchlist', or 'other'. Use it to get "
+        "the company_id for get_company_context or search_my_knowledge.",
+        {'type': 'object',
+         'properties': {'query': {'type': 'string'}},
+         'required': ['query']},
     ),
 ]
 
@@ -298,3 +318,59 @@ class ToolExecutor:
                 for p in patterns
             ],
         }
+
+    def _find_company(self, args):
+        query = (args.get('query') or '').strip()
+        if not query:
+            return {'error': 'query is required'}
+
+        # autoescape: a query of "%" or "_" is a literal, not a wildcard.
+        matches = (
+            Company.query
+            .filter(Company.user_id == self.user_id,
+                    or_(Company.name.icontains(query, autoescape=True),
+                        Company.ticker_symbol.icontains(query, autoescape=True)))
+            .order_by(case((func.lower(Company.ticker_symbol) == query.lower(), 0),
+                           else_=1),
+                      Company.name, Company.id)
+            .limit(FIND_COMPANY_LIMIT + 1)
+            .all()
+        )
+        truncated = len(matches) > FIND_COMPANY_LIMIT
+        matches = matches[:FIND_COMPANY_LIMIT]
+        ids = [c.id for c in matches]
+        if not ids:
+            return {'companies': [], 'truncated': False}
+
+        # "held" and "watchlist" mean what they mean in the account map.
+        held = {company_id for (company_id,) in (
+            db.session.query(PortfolioPosition.company_id)
+            .filter(PortfolioPosition.user_id == self.user_id,
+                    PortfolioPosition.is_active.is_(True),
+                    PortfolioPosition.company_id.in_(ids)))}
+        projects = {p.company_id: p for p in ResearchProject.query.filter(
+            ResearchProject.user_id == self.user_id,
+            ResearchProject.company_id.in_(ids))}
+        user = db.session.get(User, self.user_id)
+        watched = set()
+        if user is not None:
+            watched = {c.id for c in user.favorites.filter(Company.id.in_(ids))}
+
+        companies = []
+        for company in matches:
+            project = projects.get(company.id)
+            if company.id in held:
+                relation = 'held'
+            elif project is not None:
+                relation = 'researched'
+            elif company.id in watched:
+                relation = 'watchlist'
+            else:
+                relation = 'other'
+            entry = {'company_id': company.id, 'name': company.name,
+                     'ticker': company.ticker_symbol, 'relation': relation}
+            if project is not None:
+                entry['research_status'] = project.status
+                entry['decision'] = project.decision
+            companies.append(entry)
+        return {'companies': companies, 'truncated': truncated}

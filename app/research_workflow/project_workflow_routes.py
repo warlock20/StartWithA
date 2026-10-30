@@ -34,6 +34,7 @@ from app import db
 from app.models import (ResearchTemplate, ResearchProject, ResearchSettings, WorkSession,
                        Company, Checklist, KillChecklist, IdeaPipeline,
                        ChecklistAnalysis, ChecklistAnswer, ThesisEvolution, JournalEntry)
+from app.models.research import WATCH_REASONS
 from app.models.research_reopening import ResearchReopening
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
@@ -1030,8 +1031,7 @@ def move_to_watchlist(project_id):
             flash('Please select a watch reason', 'error')
             return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
 
-        valid_reasons = ('valuation_too_high', 'waiting_for_catalyst', 'lower_priority', 'other')
-        if watch_reason not in valid_reasons:
+        if watch_reason not in WATCH_REASONS:
             if request.headers.get('Content-Type') == 'application/json':
                 return json_error('Invalid watch reason')
             flash('Invalid watch reason', 'error')
