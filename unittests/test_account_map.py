@@ -25,6 +25,7 @@ from app import db
 from app.models.company import Company
 from app.models.user import User
 from app.services.argos.account_map import build_account_map, render_account_map
+from conftest import _make_company, _make_project
 
 
 def test_account_map_shape_and_holdings(app_context, seed_portfolio):
@@ -87,7 +88,7 @@ def test_watchlist_companies_are_visible(app_context, seed_portfolio):
 
 def test_a_held_company_is_not_also_listed_as_watchlist(app_context, seed_portfolio):
     """Portfolio wins, matching how the company page derives its badge."""
-    user = User.query.get(seed_portfolio)
+    user = db.session.get(User, seed_portfolio)
     held = Company.query.filter_by(user_id=user.id).first()
     user.favorites.append(held)
     db.session.commit()
@@ -106,3 +107,52 @@ def test_watchlist_is_scoped_to_the_user(app_context, seed_portfolio, other_user
 
     amap = build_account_map(seed_portfolio)
     assert 'Their Pick' not in [w['name'] for w in amap['watchlist']]
+
+
+def _line_with(text, name):
+    return next(line for line in text.splitlines() if name in line)
+
+
+def _section_of(text, name):
+    """The heading a company's line sits under."""
+    heading = None
+    for line in text.splitlines():
+        if not line.startswith('  '):
+            heading = line
+        elif name in line:
+            return heading
+    return None
+
+
+def test_rendered_lines_carry_company_ids(app_context, seed_portfolio):
+    """Every listed company carries its database id, so the agent can call
+    get_company_context for a company it does not hold (#390)."""
+    user = db.session.get(User, seed_portfolio)
+    held = Company.query.filter_by(user_id=user.id, ticker_symbol='ASML').one()
+    watched = _make_company(user.id, name='Copart', ticker='CPRT')
+    user.favorites.append(watched)
+    passed = _make_company(user.id, name='Rejected Co', ticker='REJ')
+    project = _make_project(user.id, passed.id)
+    project.status = 'killed'
+    project.decision = 'pass'
+    db.session.commit()
+
+    text = render_account_map(build_account_map(seed_portfolio))
+
+    assert f'id={held.id}' in _line_with(text, 'ASML Holding')
+    assert _section_of(text, 'ASML Holding').startswith('PORTFOLIO')
+    assert f'id={passed.id}' in _line_with(text, 'Rejected Co')
+    assert _section_of(text, 'Rejected Co').startswith('RESEARCHED COMPANIES')
+    assert f'id={watched.id}' in _line_with(text, 'Copart')
+    assert _section_of(text, 'Copart').startswith('WATCHLIST')
+
+
+def test_researched_entries_carry_ticker(app_context, seed_portfolio):
+    company = _make_company(seed_portfolio, name='Rejected Co', ticker='REJ')
+    _make_project(seed_portfolio, company.id)
+    db.session.commit()
+
+    amap = build_account_map(seed_portfolio)
+    entry = next(r for r in amap['researched_companies'] if r['company_id'] == company.id)
+    assert entry['ticker'] == 'REJ'
+    assert '(REJ, id=' in _line_with(render_account_map(amap), 'Rejected Co')
