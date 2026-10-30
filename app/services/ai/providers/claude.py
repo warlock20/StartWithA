@@ -236,10 +236,11 @@ class ClaudeProvider(AIProvider):
                 input_tokens = getattr(message.usage, 'input_tokens', None)
                 output_tokens = getattr(message.usage, 'output_tokens', None)
 
-            # Extract text from response
-            if message.content and len(message.content) > 0:
-                result_text = message.content[0].text
-            else:
+            # Extract text from response. Thinking models put a thinking block first,
+            # so join the text blocks rather than reading content[0].
+            result_text = ''.join(block.text for block in message.content or []
+                                  if block.type == 'text')
+            if not result_text:
                 raise ValueError("Empty response from Claude")
 
             return result_text
