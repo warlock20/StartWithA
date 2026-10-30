@@ -54,17 +54,20 @@ def refresh_checklist_step_notes(analysis):
     The summary is written to `project.step_notes` when the step is completed and is what the
     companion, AI context, exports and project pages read, so a later verdict change must reach
     it. Steps not yet completed, and steps the user skipped, are left alone. The caller commits.
+    Returns True when the saved summary was rewritten.
     """
     project, step_index = _project_step(analysis)
     if not project or step_index not in (project.completed_steps or []):
-        return
+        return False
     notes = project.step_notes or {}
     if notes.get(str(step_index)) == '[SKIPPED]':
-        return
+        return False
     summary = checklist_session_summary(analysis, project.company)
-    if notes.get(str(step_index)) != summary:
-        project.step_notes = {**notes, str(step_index): summary}
-        flag_modified(project, 'step_notes')
+    if notes.get(str(step_index)) == summary:
+        return False
+    project.step_notes = {**notes, str(step_index): summary}
+    flag_modified(project, 'step_notes')
+    return True
 
 
 def collect_research_session_summary(project, step_index):
