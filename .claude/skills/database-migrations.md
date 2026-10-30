@@ -44,14 +44,16 @@ don't copy them. New migrations use hash ids.
 
 ## Tests
 
-The pytest suite (`unittests/`) builds its own scratch database (`<dev_db>_companion_test`)
-with `db.create_all()`, which creates missing **tables** but never adds new **columns** to
+The pytest suite (`unittests/`) builds its own scratch database (`<dev_db>_companion_test`,
+or `<dev_db><TEST_DB_SUFFIX>` when that env var is set) with `db.create_all()`, which creates missing **tables** but never adds new **columns** to
 existing ones. After adding a column, tests fail with `UndefinedColumn` until the scratch
 DB is dropped. It rebuilds itself on the next run:
 
 ```bash
 psql "<dev database url>" -c 'DROP DATABASE "<dev_db>_companion_test";'
 ```
+
+With `TEST_DB_SUFFIX` set, drop `<dev_db><TEST_DB_SUFFIX>` instead.
 
 Never drop or edit the dev database itself.
 
