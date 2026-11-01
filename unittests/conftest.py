@@ -148,6 +148,9 @@ def app_context(_app):
 def stub_embedding(monkeypatch):
     """Replace the embedding service with a deterministic 768-dim vector."""
     class _FakeEmbeddingService:
+        model_id = 'stub-embedding'
+        dimension = 768
+
         def embed(self, text, use_cache=True):
             # Deterministic pseudo-vector seeded by the text, so different texts
             # get different vectors (needed by retrieval-ranking tests).
@@ -169,8 +172,8 @@ def stub_embedding(monkeypatch):
 # Seed helpers
 # =========================================================================
 
-def _make_user(email='tester@example.com'):
-    user = User(email=email)
+def _make_user(email='tester@example.com', ai_consent=True):
+    user = User(email=email, ai_consent_given=ai_consent)
     db.session.add(user)
     db.session.flush()
     return user
@@ -200,7 +203,7 @@ def _make_chunk(user_id, company_id, source_type, source_id, summary):
     chunk = KnowledgeChunk(
         user_id=user_id, company_id=company_id,
         source_type=source_type, source_id=source_id,
-        title=source_type, summary=summary,
+        title=source_type, summary=summary, context=f'{source_type} context:',
         embedding=np.random.default_rng(source_id + abs(hash(source_type)) % 1000)
         .random(768).tolist(),
         token_estimate=max(1, len(summary) // 4),
@@ -224,10 +227,10 @@ def seed_company_with_findings(app_context):
 
 @pytest.fixture
 def seed_many_chunks(app_context):
-    """One user with 10 chunks in each of finding/journal/resource (30 total)."""
+    """One user with 10 chunks in each of decision/journal/resource (30 total)."""
     user = _make_user()
     company = _make_company(user.id)
-    for source_type in ('finding', 'journal', 'resource'):
+    for source_type in ('decision', 'journal', 'resource'):
         for i in range(10):
             _make_chunk(user.id, company.id, source_type, i,
                         f'{source_type} {i}: notes on the competitive moat and advantage')

@@ -36,6 +36,8 @@ from app.celery_tasks import portfolio_import_task
 from app.celery_tasks import ai_research_assist_task
 from app.celery_tasks import screening_analysis_task
 from app.celery_tasks import companion_ask_task
+from app.celery_tasks import reindex_knowledge_task
+from app.services.argos.knowledge_index import TASK_TYPE as KNOWLEDGE_INDEX_TASK_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -295,3 +297,9 @@ class BackgroundTaskService:
         """Screening analysis. One task per user at a time."""
         return BackgroundTaskService._enqueue(
             user_id, 'screening_analysis', screening_analysis_task, user_id)
+
+    @staticmethod
+    def start_knowledge_reindex(user_id):
+        """Companion knowledge Re-index now. Reuses the user's in-flight run, scheduled or manual."""
+        return BackgroundTaskService._enqueue(
+            user_id, KNOWLEDGE_INDEX_TASK_TYPE, reindex_knowledge_task, user_id)

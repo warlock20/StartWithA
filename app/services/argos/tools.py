@@ -41,7 +41,7 @@ from app.services.argos.agenda import build_agenda
 from app.services.argos.core import ArgosService
 from app.services.argos.data_query import (
     AGGREGATE_OPS, FILTER_OPS, MAX_LIMIT, QueryError, describe_query, run_query)
-from app.services.argos.knowledge_search import search_my_knowledge, get_resource
+from app.services.argos.knowledge_search import search_my_knowledge, search_unavailable_reason, get_resource
 from app.services.portfolio_intelligence import PortfolioIntelligenceService
 from app.models.company import Company
 from app.models.portfolio import PortfolioPosition
@@ -335,6 +335,10 @@ class ToolExecutor:
         }
 
     def _search_my_knowledge(self, args):
+        # An explicit reason, so the agent doesn't tell the user they have no notes.
+        reason = search_unavailable_reason(self.user_id)
+        if reason:
+            return {'results': [], 'unavailable': reason}
         results = search_my_knowledge(
             self.user_id, args['query'], args.get('company_id'))
         for result in results:

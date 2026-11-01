@@ -36,6 +36,7 @@ celery = Celery('app.celery_tasks',
                     'app.celery_tasks.tasks_screening',             # Screening analysis tasks
                     'app.celery_tasks.tasks_companion',             # Companion agentic chat tasks
                     'app.celery_tasks.tasks_ai_check',              # AI check pipeline
+                    'app.celery_tasks.tasks_knowledge',             # Companion knowledge index
                 ]
                 )
 
@@ -60,6 +61,10 @@ celery.conf.update(
         'ai-check-reap-stale-runs': {
             'task': 'app.celery_tasks.tasks_ai_check.ai_check_reap_task',
             'schedule': crontab(minute='*/10'),
+        },
+        'knowledge-index-nightly': {
+            'task': 'app.celery_tasks.tasks_knowledge.index_all_knowledge',
+            'schedule': crontab(hour=2, minute=0),  # Daily at 02:00 UTC
         },
         'prune-scheduled-job-runs': {
             'task': 'app.celery_tasks.tasks_data_retention.prune_scheduled_job_runs',

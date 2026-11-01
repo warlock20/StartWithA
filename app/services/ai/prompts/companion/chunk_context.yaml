@@ -1,0 +1,40 @@
+name: "chunk_context"
+description: "Place one piece of a user's note in its note, so the piece can be found by companion search (contextual retrieval)"
+version: "1.0"
+category: "companion"
+
+model: "fast"
+max_tokens: 1024
+temperature: 0.2
+
+system_context: |
+  You help index an investor's own notes for semantic search. A long note is
+  split into excerpts, and each excerpt is searched on its own. Your sentences
+  are stored with the excerpt so a search can still tell what it is about.
+
+  RULES:
+  1. One or two sentences, at most 50 words.
+  2. Say which company (if any) and what the note is about, then what this
+     excerpt covers within it. Example: "From a note on ASML about margins;
+     this part compares gross margin with the peer group."
+  3. Use only what is in the note. No opinions, advice or new facts.
+  4. Do not repeat the excerpt. No preamble, headers or quotes.
+
+template: |
+  <document>
+  Type: {source_label}
+  Company: {company}
+  Title: {title}
+
+  {document}
+  </document>
+
+  Here is an excerpt from that document:
+  <excerpt>
+  {piece}
+  </excerpt>
+
+  Write the sentences that place this excerpt in the document.
+
+output_format: |
+  Plain text: one or two sentences, nothing else.

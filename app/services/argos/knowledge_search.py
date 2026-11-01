@@ -23,20 +23,28 @@ unbounded sources (notes, links) can never crowd out research findings. Chunks
 from currently-held companies get a small ranking bonus (the portfolio reflects
 where the user's real knowledge concentrates).
 
-Only summaries are returned here. Raw note/resource text is fetched separately via
-`get_resource`, and only for the owning user.
+Each result is one piece of an item plus its context (where the piece sits in its
+item). Raw note/resource text is fetched separately via `get_resource`, and only
+for the owning user.
+
+Search embeds the query with the AI provider and the index holds the user's notes,
+so it is off without the user's general AI consent.
 """
 
 import numpy as np
 
+from app import db
+from app.models import User
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.portfolio import PortfolioPosition
 from app.models.journal import JournalEntry
 from app.models.company import CompanyResource
 from app.services.ai.embedding_service import get_embedding_service
 
-_DEFAULT_CAPS = {'finding': 3, 'journal': 3, 'resource': 2, 'decision': 3, 'mistake': 2}
+_DEFAULT_CAPS = {'journal': 3, 'resource': 2, 'decision': 3, 'mistake': 2}
 _HELD_BONUS = 0.05
+
+CONSENT_OFF_REASON = 'knowledge search is off: AI consent not given'
 
 
 def _held_company_ids(user_id):
@@ -46,13 +54,25 @@ def _held_company_ids(user_id):
     }
 
 
+def search_unavailable_reason(user_id):
+    """Why knowledge search is off for this user, or None when it's on."""
+    user = db.session.get(User, user_id)
+    if user is None or not user.ai_consent_given:
+        return CONSENT_OFF_REASON
+    return None
+
+
 def search_my_knowledge(user_id, query, company_id=None, total_cap=8, per_source_caps=None):
     """
     Retrieve the user's knowledge for a query, under a total + per-source budget.
 
-    Returns a list of dicts: {source_type, source_id, title, summary, score},
+    Returns a list of dicts: {source_type, source_id, title, summary, context, score},
     at most `total_cap` items, with each source capped by `per_source_caps`.
+    `summary` is the piece's text. Empty, with no embedding call, when
+    search_unavailable_reason gives a reason.
     """
+    if search_unavailable_reason(user_id):
+        return []
     caps = per_source_caps or dict(_DEFAULT_CAPS)
 
     query_vec = get_embedding_service().embed(query)
@@ -93,6 +113,7 @@ def search_my_knowledge(user_id, query, company_id=None, total_cap=8, per_source
             'source_id': row.source_id,
             'title': row.title,
             'summary': row.summary,
+            'context': row.context,
             'score': round(score, 4),
         })
     return results

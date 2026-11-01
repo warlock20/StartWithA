@@ -21,12 +21,14 @@ import json
 import re
 
 
-def blocknote_to_text(content):
+def blocknote_to_text(content, block_separator=' '):
     """
     Convert BlockNote JSON format to plain text for previews
 
     Args:
         content (str): BlockNote JSON content
+        block_separator (str): Joins blocks. Pass '\n' to keep one block per
+            line; plain text then keeps its lines and old HTML its paragraphs.
 
     Returns:
         str: Plain text extracted from BlockNote blocks
@@ -63,20 +65,30 @@ def blocknote_to_text(content):
                 elif isinstance(item.get('content'), str) and item.get('content'):
                     text_parts.append(item['content'])
 
+        block_texts = []
+
         def _walk(block_list):
             for block in block_list:
                 if not isinstance(block, dict):
                     continue
+                start = len(text_parts)
                 _collect(block.get('content', []))
+                if len(text_parts) > start:
+                    block_texts.append(' '.join(text_parts[start:]))
                 # Nested blocks (list items, toggles) hold their own content.
                 children = block.get('children')
                 if isinstance(children, list):
                     _walk(children)
 
         _walk(blocks)
-        return ' '.join(text_parts)
+        return block_separator.join(block_texts)
 
     except (json.JSONDecodeError, TypeError, ValueError):
+        if block_separator != ' ':
+            text = re.sub(r'<br\s*/?>|</(?:p|div|li|h[1-6])>', '\n', content, flags=re.IGNORECASE)
+            text = re.sub(r'<[^>]+>', '', text)
+            lines = (re.sub(r'\s+', ' ', line).strip() for line in text.splitlines())
+            return block_separator.join(line for line in lines if line)
         # Not JSON - might be HTML from old Quill editor
         # Strip HTML tags
         text = re.sub(r'<[^>]+>', '', content)

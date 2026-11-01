@@ -26,19 +26,27 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 from flask_login import login_required, current_user
 import logging
 
-from app import db
+from app import db, limiter
+from app.celery_tasks.tasks_knowledge import SOFT_TIME_LIMIT as KNOWLEDGE_RUN_TIME_LIMIT
 from app.models import ResearchSettings
 from app.models.user_ai_preferences import UserAIPreference
 from app.services.ai.config import AIModel, AIProvider, get_ai_config
 from app.services.ai.prompt_service import prompt_service
 from app.services.ai_check import AICheckError
 from app.services.ai_check.pricing import provider_of
+from app.services.argos.knowledge_index import index_status
+from app.services.background_tasks import BackgroundTaskService
 from app.services.ai_check.setup import (
     MAX_SEARCH_BUDGET, MIN_SEARCH_BUDGET, PREF_PREFIX, STAGES, STAGE_TITLES, check_stage_model, model_label,
     my_setup_choice, stage_default, stage_options, user_search_budget,
 )
 
 logger = logging.getLogger(__name__)
+
+# Re-index now: once per user per 10 minutes. A run still pending or running past
+# twice the task's time limit is dead and shown as failed.
+REINDEX_RATE_LIMIT = '1 per 10 minutes'
+KNOWLEDGE_RUN_STALL_SECONDS = KNOWLEDGE_RUN_TIME_LIMIT * 2
 
 ai_model_bp = Blueprint(
     'ai_models', __name__,
@@ -179,6 +187,7 @@ def ai_model_settings():
         ai_check_rows=_ai_check_rows(current_user.id),
         ai_check_search_budget=user_search_budget(current_user.id),
         search_budget_range=(MIN_SEARCH_BUDGET, MAX_SEARCH_BUDGET),
+        knowledge=index_status(current_user),
     )
 
 
@@ -254,6 +263,45 @@ def set_ai_check_search_budget():
     db.session.commit()
     flash(f'AI check web searches per run set to {budget}', 'success')
     return redirect(url_for('ai_models.ai_model_settings'))
+
+
+@ai_model_bp.route('/knowledge-context', methods=['POST'])
+@login_required
+def set_knowledge_context():
+    """Opt in or out of AI-written context for the companion knowledge index. Applied on the next run."""
+    current_user.knowledge_context_enabled = request.form.get('enabled') == 'on'
+    db.session.commit()
+    if current_user.knowledge_context_enabled:
+        flash('AI will add context to your notes from the next index run', 'success')
+    else:
+        flash('Your notes will be indexed with a plain label from the next run, without AI context', 'success')
+    return redirect(url_for('ai_models.ai_model_settings', _anchor='companion-knowledge'))
+
+
+def _current_user_key():
+    return f'user:{current_user.id}'
+
+
+@ai_model_bp.route('/knowledge/reindex', methods=['POST'])
+@login_required
+@limiter.limit(REINDEX_RATE_LIMIT, key_func=_current_user_key)
+def reindex_knowledge():
+    """Re-index now: queue the current user's knowledge index run (or return the one in flight)."""
+    if not current_user.ai_consent_given:
+        return jsonify({'error': 'Companion search needs AI features. Turn them on first.'}), 403
+    return jsonify({'task_id': BackgroundTaskService.start_knowledge_reindex(current_user.id)})
+
+
+@ai_model_bp.route('/knowledge/status')
+@login_required
+def knowledge_status():
+    """The current user's knowledge index status, polled while a run is in progress."""
+    status = index_status(current_user)
+    last_run = status['last_run']
+    if last_run and last_run['status'] in ('pending', 'running'):
+        BackgroundTaskService.fail_if_stalled(last_run['id'], current_user.id, KNOWLEDGE_RUN_STALL_SECONDS)
+        status = index_status(current_user)
+    return jsonify(status)
 
 
 @ai_model_bp.route('/reset-all', methods=['POST'])

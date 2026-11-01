@@ -23,6 +23,7 @@ All Celery tasks organized by domain:
 - tasks_financial: Financial data, SEC filings
 - tasks_data_retention: GDPR data retention / anonymization
 - tasks_checkpoint_analysis: Daily checkpoint AI analysis
+- tasks_knowledge: Companion knowledge index (nightly + Re-index now)
 
 Tasks are automatically discovered by Celery when this module is imported.
 """
@@ -74,6 +75,12 @@ from app.celery_tasks.tasks_ai_check import (
     ai_check_reap_task,
 )
 
+from app.celery_tasks.tasks_knowledge import (
+    index_all_knowledge,
+    index_user_knowledge_task,
+    reindex_knowledge_task,
+)
+
 __all__ = [
     # Portfolio tasks
     'portfolio_ai_analysis_task',
@@ -106,4 +113,9 @@ __all__ = [
     'ai_check_extract_task',
     'ai_check_analyze_task',
     'ai_check_reap_task',
+
+    # Knowledge index tasks
+    'index_all_knowledge',
+    'index_user_knowledge_task',
+    'reindex_knowledge_task',
 ]

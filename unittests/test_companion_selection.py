@@ -32,7 +32,7 @@ from companion_js import companion_js
 from app import db
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.services.argos import selection_assist
-from app.services.argos.knowledge_index import _summarise
+from app.services.argos.knowledge_index import _text
 from app.services.argos.selection_assist import (
     MIN_RELEVANCE, MIN_SELECTION_CHARS, find_evidence_for_selection)
 from app.utils.blocknote_utils import blocknote_to_text
@@ -163,13 +163,13 @@ def test_blocknote_journal_content_is_flattened_before_indexing():
     """
     raw = ('[{"id":"efa72e0e","type":"paragraph","props":{"textColor":"default"},'
            '"content":[{"type":"text","text":"Aumann raised its dividend"}]}]')
-    out = _summarise(1, 'journal', raw)
+    out = _text(raw)
     assert out == 'Aumann raised its dividend'
     assert 'textColor' not in out and '"type"' not in out
 
 
 def test_plain_text_passes_through_the_flattener():
-    assert _summarise(1, 'journal', 'a plain note') == 'a plain note'
+    assert _text('a plain note') == 'a plain note'
 
 
 def test_flattener_keeps_link_text_and_nested_blocks():
