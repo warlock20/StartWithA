@@ -34,12 +34,18 @@ from celery_app import celery
 
 logger = logging.getLogger(__name__)
 
+# One analysis: the prompt plus checkpoint_analysis.yaml's 1500 max_tokens.
+ESTIMATED_TOKENS = 3000
+
 
 @celery.task(bind=True)
 @record_job_run('checkpoint-daily-analysis')
 def analyze_all_checkpoints(self):
     """
     Daily batch analysis of active checkpoints across all users.
+
+    Users without AI consent are skipped, and a user's remaining checkpoints
+    are skipped once their token budget runs out.
 
     For each active checkpoint within the analysis window:
     1. Skips if already analyzed in the last 24h (dedup)
@@ -58,6 +64,8 @@ def analyze_all_checkpoints(self):
         analyzed = 0
         skipped = 0
         failed = 0
+        no_consent = 0
+        over_budget = 0
 
         logger.info(
             f"Checkpoint analysis starting: {total_checkpoints} checkpoints "
@@ -68,8 +76,14 @@ def analyze_all_checkpoints(self):
             user = User.query.get(user_id)
             if not user:
                 continue
+            if not user.ai_consent_given:
+                no_consent += len(checkpoints)
+                continue
 
-            for checkpoint in checkpoints:
+            for position, checkpoint in enumerate(checkpoints):
+                if not user.can_use_ai_tokens(ESTIMATED_TOKENS):
+                    over_budget += len(checkpoints) - position
+                    break
                 try:
                     # Dedup: skip if analyzed recently
                     if CheckpointAnalysisService.has_recent_analysis(checkpoint.id):
@@ -114,7 +128,8 @@ def analyze_all_checkpoints(self):
 
         logger.info(
             f"Checkpoint analysis complete: {analyzed} analyzed, "
-            f"{skipped} skipped (dedup), {failed} failed"
+            f"{skipped} skipped (dedup), {failed} failed, "
+            f"{no_consent} skipped (no AI consent), {over_budget} skipped (over token budget)"
         )
 
         return {
@@ -123,6 +138,8 @@ def analyze_all_checkpoints(self):
             'analyzed': analyzed,
             'skipped': skipped,
             'failed': failed,
+            'no_consent': no_consent,
+            'over_budget': over_budget,
         }
 
     except Exception as e:
