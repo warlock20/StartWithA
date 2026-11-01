@@ -67,14 +67,14 @@ MAX_EVIDENCE = 3
 
 # One slot per source so a company with many notes can't fill the popover with
 # three variations of the same note.
-_PER_SOURCE_CAPS = {'finding': 1, 'journal': 1, 'resource': 1, 'decision': 1, 'mistake': 1}
+_PER_SOURCE_CAPS = {'journal': 1, 'resource': 1, 'decision': 1, 'mistake': 1}
 
 
 def find_evidence_for_selection(user_id, text, company_id=None):
     """Evidence for a highlighted phrase. Returns [] when there's nothing worth saying.
 
     Same dict shape as ``search_my_knowledge``:
-    ``{source_type, source_id, title, summary, score}``.
+    ``{source_type, source_id, title, summary, context, score}``.
 
     ``company_id`` is a preference, not a filter. Scoping hard to the page's
     company sounds right and is wrong in practice: knowledge is indexed per

@@ -123,6 +123,11 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     ai_consent_given = db.Column(db.Boolean, default=False)
     ai_consent_date = db.Column(db.DateTime, nullable=True)
 
+    # Companion knowledge index: AI-written context (True) or the free prefix,
+    # and the start time of the last indexing run that finished.
+    knowledge_context_enabled = db.Column(db.Boolean, default=True, nullable=False, server_default='true')
+    knowledge_indexed_at = db.Column(db.DateTime, nullable=True)
+
     # Onboarding and tour tracking
     onboarding_completed = db.Column(db.Boolean, default=False)
     onboarding_path_chosen = db.Column(db.String(20))  # 'company' or 'sector'

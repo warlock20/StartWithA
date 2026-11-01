@@ -14,7 +14,7 @@
         <div class="settings-row-label">
             <strong>Data sharing with AI providers</strong>
             {% if user.ai_consent_given %}
-            <span>You agreed on {{ user.ai_consent_date.strftime('%d %b %Y') if user.ai_consent_date else 'an unknown date' }} to send the relevant research data to Gemini, Claude or DeepSeek to generate answers. It is not used to train their models.</span>
+            <span>You agreed on {{ user.ai_consent_date.strftime('%d %b %Y') if user.ai_consent_date else 'an unknown date' }} to send the relevant research data to Gemini, Claude or DeepSeek to generate answers, and your notes to build your companion search index. It is not used to train their models.</span>
             {% else %}
             <span>Off. The first time you use an AI feature you'll be asked whether you agree to send it the relevant data.</span>
             {% endif %}
@@ -39,6 +39,77 @@
             <a href="{{ url_for('settings.account') }}" class="action-btn">View plan</a>
         </div>
     </div>
+</section>
+
+{% set run = knowledge.last_run %}
+{% set run_labels = {'pending': 'Queued', 'running': 'Indexing', 'completed': 'OK', 'failed': 'Failed'} %}
+<section class="settings-panel" id="companion-knowledge"
+         data-status-url="{{ url_for('ai_models.knowledge_status') }}"
+         data-reindex-url="{{ url_for('ai_models.reindex_knowledge') }}"
+         data-run-status="{{ run.status if run else '' }}">
+    <div class="settings-panel-head">
+        <h3><i class="bi bi-search me-1" aria-hidden="true"></i>My companion knowledge</h3>
+        {% if not knowledge.consent %}
+        <span class="settings-chip settings-chip--muted">Off</span>
+        {% elif run %}
+        <span class="settings-chip{% if run.status == 'failed' %} settings-chip--warn{% endif %}" data-knowledge-chip>{{ run_labels.get(run.status, run.status) }}</span>
+        {% endif %}
+    </div>
+    <p class="settings-hint mb-3">
+        Your notes, findings, decisions, saved-resource descriptions and logged mistakes, indexed so the
+        companion can search them. The index is updated every night.
+    </p>
+    {% if not knowledge.consent %}
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>Companion search is off</strong>
+            <span>It needs AI features, so nothing of yours is indexed. Turn on AI features to use it.</span>
+        </div>
+    </div>
+    {% else %}
+    <form method="POST" action="{{ url_for('ai_models.set_knowledge_context') }}">
+        <div class="settings-row">
+            <label class="settings-row-label" for="knowledge-context">
+                <strong>Use AI to add context to my notes for better companion search</strong>
+                <span>A fast model writes a sentence placing each piece of a note in context. Off: each piece gets a plain "company — title" label instead. Applies from the next run.</span>
+            </label>
+            <div class="settings-row-control">
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="knowledge-context"
+                           name="enabled" {% if knowledge.context_enabled %}checked{% endif %}>
+                </div>
+            </div>
+        </div>
+        <div class="settings-panel-foot">
+            <span></span>
+            <button type="submit" class="action-btn">Save</button>
+        </div>
+    </form>
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>Last checked</strong>
+            <span>
+                {{ user.knowledge_indexed_at.strftime('%d %b %Y, %H:%M UTC') if user.knowledge_indexed_at else 'Not yet' }}
+                {% if run %} · last run {{ run_labels.get(run.status, run.status)|lower }}{% endif %}
+            </span>
+            {% if run and run.status == 'failed' and run.error %}
+            <span class="text-danger">{{ run.error }}</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>Indexed pieces</strong>
+            <span>{{ "{:,}".format(knowledge.pieces) }} · {{ "{:,}".format(knowledge.llm_pieces) }} with AI context · {{ "{:,}".format(knowledge.prefix_pieces) }} with a plain label</span>
+            <span data-knowledge-message aria-live="polite"></span>
+        </div>
+        <div class="settings-row-control">
+            <button type="button" class="action-btn primary" data-knowledge-reindex>
+                <i class="bi bi-arrow-repeat" aria-hidden="true"></i>Re-index now
+            </button>
+        </div>
+    </div>
+    {% endif %}
 </section>
 
 <section class="settings-panel">
@@ -148,4 +219,9 @@
         </p>
     </details>
 </section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/settings_knowledge.js') }}"></script>
 {% endblock %}

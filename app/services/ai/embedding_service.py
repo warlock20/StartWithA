@@ -173,6 +173,12 @@ class EmbeddingService:
             return self._providers[self._active_provider].dimension
         return 0
     
+    @property
+    def model_id(self) -> Optional[str]:
+        """'<provider>/<model>' of the active provider, e.g. 'gemini/models/gemini-embedding-001'"""
+        provider = self._get_provider()
+        return f"{self._active_provider.value}/{provider.model}" if provider else None
+
     def _get_provider(self) -> Optional[BaseEmbeddingProvider]:
         """Get the active provider instance"""
         if self._active_provider:
