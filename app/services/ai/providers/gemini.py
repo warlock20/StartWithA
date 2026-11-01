@@ -226,9 +226,10 @@ class GeminiProvider(AIProvider):
         for raw in messages:
             msg = Message.coerce(raw)
             if msg.role == 'tool':
-                # A tool result is returned to the model as a function_response part.
+                # A tool result is returned to the model as a function_response part
+                # in a 'user' turn: gemini-3.8-flash rejects role 'tool' with a 400.
                 contents.append(genai_types.Content(
-                    role='tool',
+                    role='user',
                     parts=[genai_types.Part.from_function_response(
                         name=msg.tool_call_id or 'tool',
                         response={'result': msg.content})]))
