@@ -76,6 +76,10 @@ class Company(db.Model):
     financial_data = db.relationship(
         "FinancialData", backref="company", lazy="dynamic", cascade="all, delete-orphan"
     )
+    # A company has at most one research project (uq_research_project_user_company),
+    # so this is the single-row view of ResearchProject's `research_projects` backref.
+    # Read-only; the domain catalog joins over it.
+    research_project = db.relationship("ResearchProject", uselist=False, viewonly=True)
 
     competitors = db.relationship(
         "Company",  # The relationship is with the Company model itself

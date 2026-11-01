@@ -32,6 +32,10 @@ LOG_ENTRY_TYPES = ('investment_action', 'red_flag', 'green_flag', 'must_exit')
 # Decision journals are written by the transaction flows (transaction_service,
 # portfolio_importer, portfolio_journal), one per buy or sell.
 DECISION_TYPES = ('BUY', 'SELL')
+# The options of the add-transaction form's "Where did this idea come from?"
+# select, asked on a buy without research. The portfolio importer writes 'other'.
+NON_RESEARCH_SOURCES = ('external_research', 'professional_tip', 'friend_family',
+                        'social_media', 'news_article', 'gut_feeling', 'other')
 
 
 class DecisionJournal(db.Model):
@@ -82,7 +86,7 @@ class DecisionJournal(db.Model):
     # Thesis quality tracking (for non-research purchases)
     thesis_depth = db.Column(db.String(50))  # 'comprehensive', 'brief', 'minimal'
     thesis_word_count = db.Column(db.Integer, default=0)  # Track thesis length
-    non_research_source = db.Column(db.String(100))  # 'external_research', 'tip', 'gut_feeling', 'other'
+    non_research_source = db.Column(db.String(100))  # NON_RESEARCH_SOURCES
 
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)

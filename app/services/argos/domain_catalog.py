@@ -45,7 +45,8 @@ import decimal
 import importlib
 from dataclasses import dataclass
 
-from sqlalchemy import Date, cast, inspect as sa_inspect
+from sqlalchemy import Date, UniqueConstraint, cast, inspect as sa_inspect
+from sqlalchemy.orm import MANYTOONE
 
 from app import db
 from app import models
@@ -202,10 +203,15 @@ def load_catalog(data=None):
     return catalog
 
 
-def derived_expression(entity, field_name):
-    """SQL expression for a derived field of ``entity``."""
+def derived_expression(entity, field_name, model=None):
+    """SQL expression for a derived field of ``entity``.
+
+    ``model`` is what the operand columns are read from: the entity's model by
+    default, or an ``aliased()`` copy of it when the query joins it.
+    """
     field = entity.fields[field_name]
-    return DERIVED_OPS[field.derived['op']][2](entity.model, field.derived)
+    return DERIVED_OPS[field.derived['op']][2](
+        model if model is not None else entity.model, field.derived)
 
 
 def _describe_derived(field):
@@ -301,18 +307,45 @@ def _find_owner_drift(entity):
     return []
 
 
+def _is_unique_per_owner(relationship, target):
+    """Whether a one-to-one relationship really yields at most one row.
+
+    Joined with the target's ownership in the ON clause, it does when a unique
+    constraint covers only the join columns and the target's owner column.
+    """
+    allowed = {column.name for column in relationship.remote_side}
+    if not target.owner_through:
+        allowed.add(target.owner_column)
+    table = target.model.__table__
+    unique_sets = [{c.name for c in constraint.columns} for constraint in table.constraints
+                   if isinstance(constraint, UniqueConstraint)]
+    unique_sets += [{c.name for c in index.columns} for index in table.indexes if index.unique]
+    unique_sets += [{c.name} for c in table.columns if c.unique]
+    return any(columns <= allowed for columns in unique_sets)
+
+
 def _find_relation_drift(entity, catalog):
+    # query_my_data joins along relations, so each must lead to at most one row:
+    # a to-many join would repeat the row once per match and inflate every
+    # count and sum over it.
     problems = []
     relationships = sa_inspect(entity.model).relationships
     for name, target in entity.relations.items():
+        where = f"{entity.key} relation {name!r}"
         relationship = relationships.get(name)
         if relationship is None:
-            problems.append(f"{entity.key} relation {name!r}: "
-                            f"{entity.model.__name__} has no relationship {name!r}")
+            problems.append(f"{where}: {entity.model.__name__} has no relationship {name!r}")
         elif relationship.mapper.class_ is not catalog[target].model:
             problems.append(
-                f"{entity.key} relation {name!r}: leads to {relationship.mapper.class_.__name__}, "
+                f"{where}: leads to {relationship.mapper.class_.__name__}, "
                 f"not {target} ({catalog[target].model.__name__})")
+        elif relationship.uselist:
+            problems.append(f"{where}: {entity.model.__name__}.{name} leads to many rows")
+        elif (relationship.direction is not MANYTOONE
+              and not _is_unique_per_owner(relationship, catalog[target])):
+            problems.append(
+                f"{where}: {entity.model.__name__}.{name} is declared one-to-one, but no unique "
+                f"constraint stops it leading to many rows")
     return problems
 
 
