@@ -28,6 +28,8 @@ as compact JSON (dates/Decimals stringified) for the model to read.
 """
 
 import json
+import decimal
+import hashlib
 import logging
 import dataclasses
 
@@ -37,6 +39,8 @@ from app import db
 from app.services.ai.tool_calling import ToolSpec, ToolResult
 from app.services.argos.agenda import build_agenda
 from app.services.argos.core import ArgosService
+from app.services.argos.data_query import (
+    AGGREGATE_OPS, FILTER_OPS, MAX_LIMIT, QueryError, describe_query, run_query)
 from app.services.argos.knowledge_search import search_my_knowledge, get_resource
 from app.services.portfolio_intelligence import PortfolioIntelligenceService
 from app.models.company import Company
@@ -52,6 +56,9 @@ logger = logging.getLogger(__name__)
 # find_company returns at most this many matches; a short query like "a" would
 # otherwise list most of the account.
 FIND_COMPANY_LIMIT = 10
+
+_STRING = {'type': 'string'}
+_STRINGS = {'type': 'array', 'items': _STRING}
 
 
 COMPANION_TOOLS = [
@@ -134,6 +141,52 @@ COMPANION_TOOLS = [
         {'type': 'object',
          'properties': {'query': {'type': 'string'}},
          'required': ['query']},
+    ),
+    ToolSpec(
+        'query_my_data',
+        "Count, group, sum or average the user's own records described in the DATA "
+        "CATALOG. Use it for how many / how often / how long / on average / which "
+        "most often questions. `entity` is a catalog entity. A field path is a "
+        "catalog field, `id`, or a field reached through the entity's links, e.g. "
+        "`item.text` or `company.research_project.decision_confidence` (at most 3 "
+        "links). With `group_by` and/or `aggregates` it returns one row per group "
+        "(`group_by` alone counts); otherwise it returns records with `fields` "
+        "(default: all of them). Aggregates: count (field optional), sum, avg, "
+        "median, min, max. Filters are AND-ed: eq, ne, lt, lte, gt, gte take `value` "
+        "or `other_field` (compare two fields, e.g. a buy's date with "
+        "company.research_project.completed_at); in takes `values`; is_null and "
+        "not_null take nothing; contains matches free text. Values are strings: "
+        "'true', '8', '2026-01-31'; a field with listed values only takes those. "
+        "An empty field never matches eq/ne/lt/...; use is_null. `order_by` names a "
+        "result column, e.g. 'count' or 'avg(research_days)'. Derived fields are "
+        f"computed for you. At most {MAX_LIMIT} rows; `truncated` says more exist. "
+        "An error says what is allowed: fix the query and call again.",
+        {'type': 'object',
+         'properties': {
+             'entity': _STRING,
+             'fields': _STRINGS,
+             'group_by': _STRINGS,
+             'aggregates': {'type': 'array', 'items': {
+                 'type': 'object',
+                 'properties': {'op': {'type': 'string', 'enum': list(AGGREGATE_OPS)},
+                                'field': _STRING},
+                 'required': ['op']}},
+             'filters': {'type': 'array', 'items': {
+                 'type': 'object',
+                 'properties': {'field': _STRING,
+                                'op': {'type': 'string', 'enum': list(FILTER_OPS)},
+                                'value': _STRING,
+                                'values': _STRINGS,
+                                'other_field': _STRING},
+                 'required': ['field', 'op']}},
+             'order_by': {'type': 'array', 'items': {
+                 'type': 'object',
+                 'properties': {'by': _STRING,
+                                'dir': {'type': 'string', 'enum': ['asc', 'desc']}},
+                 'required': ['by']}},
+             'limit': {'type': 'integer'},
+         },
+         'required': ['entity']},
     ),
 ]
 
@@ -374,3 +427,18 @@ class ToolExecutor:
                 entry['decision'] = project.decision
             companies.append(entry)
         return {'companies': companies, 'truncated': truncated}
+
+    def _query_my_data(self, args):
+        try:
+            data = run_query(self.user_id, args)
+        except QueryError as e:
+            # Worded for the model, which is meant to correct the query and retry.
+            return {'error': str(e)}
+        # Sums and averages come back as Decimals; give the model numbers, not
+        # the quoted strings json's default=str would make of them.
+        data['rows'] = [{column: float(value) if isinstance(value, decimal.Decimal) else value
+                         for column, value in row.items()} for row in data['rows']]
+        # The same query, however its keys are ordered, is one source.
+        key = hashlib.sha1(json.dumps(args, sort_keys=True, default=str).encode()).hexdigest()[:12]
+        data['citation'] = self._cite('query', key, describe_query(args))
+        return data
