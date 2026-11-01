@@ -59,7 +59,7 @@ celery.conf.update(
         },
         'ai-check-reap-stale-runs': {
             'task': 'app.celery_tasks.tasks_ai_check.ai_check_reap_task',
-            'schedule': crontab(minute='*/30'),
+            'schedule': crontab(minute='*/10'),
         },
         'prune-scheduled-job-runs': {
             'task': 'app.celery_tasks.tasks_data_retention.prune_scheduled_job_runs',
