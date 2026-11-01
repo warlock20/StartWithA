@@ -10,7 +10,9 @@ category: "companion"
 #                or {through: [relationship, ...], column: user_id} on a parent
 #   fields       column name -> {type, meaning, values, values_from}
 #                or a derived field -> {type, derived: <op>, <operands>, meaning}
-#   relations    relationship attribute on the model -> catalogued entity key
+#   relations    relationship attribute on the model -> catalogued entity key.
+#                To-one only: query_my_data joins along them, and a to-many
+#                join would inflate counts and sums.
 #
 # Every `values` list names the constant it must match in `values_from`. The
 # drift test (unittests/test_domain_catalog.py) checks columns, types, values,
@@ -28,6 +30,8 @@ entities:
     fields:
       name: {type: str}
       ticker_symbol: {type: str}
+    relations:
+      research_project: research_project
 
   research_project:
     ui_name: "Research project"
@@ -110,6 +114,11 @@ entities:
         values_from: app.models.journal.DECISION_TYPES
       decision_date: {type: date, meaning: "Trade date of the transaction that wrote it"}
       confidence_score: {type: int, meaning: "1-10 conviction entered on the buy form. Empty on sells"}
+      non_research_source:
+        type: str
+        values: [external_research, professional_tip, friend_family, social_media, news_article, gut_feeling, other]
+        values_from: app.models.journal.NON_RESEARCH_SOURCES
+        meaning: "Where the idea came from, asked only on a first buy without research. Empty otherwise"
     relations:
       company: company
 
