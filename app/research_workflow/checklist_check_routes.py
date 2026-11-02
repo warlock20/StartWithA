@@ -71,7 +71,33 @@ def unanswered_items(items_in_order, answers_map):
     without a satisfaction_status as soon as the user types."""
     return [item for item in items_in_order
             if not (answers_map.get(item.id) and answers_map[item.id].satisfaction_status)]
-                                                                             
+
+
+def save_answer(session, item, answer_text, satisfaction_status, set_status=True):
+    """Create or update the item's answer. Doesn't commit.
+
+    Locks the session row until the caller commits, so saves for one session run one at a
+    time. Without it the notes autosave and the verdict save can both find no answer on a
+    fresh item and both insert one; the page then reads one row while saves update the other.
+    """
+    ChecklistAnalysis.query.filter_by(id=session.id).with_for_update().one()
+    answer = ChecklistAnswer.latest(session.id, item.id)
+    if answer:
+        answer.answer_text = answer_text
+        answer.answered_at = now_utc()
+        if set_status:
+            answer.satisfaction_status = satisfaction_status
+    else:
+        answer = ChecklistAnswer(
+            answer_text=answer_text,
+            checklist_analysis_id=session.id,
+            checklist_item_id=item.id,
+            satisfaction_status=satisfaction_status if set_status else None
+        )
+        db.session.add(answer)
+    return answer
+
+
 @research_workflow_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
 @login_required
 def select_checklist_for_company(company_id):
@@ -162,27 +188,9 @@ def research_step(analysis_id, item_id):
         company_id=session.company_id, resource_type='file'
     ).order_by(CompanyResource.category, CompanyResource.resource_date.desc()).all()
         
-    # Fetch existing answer for this item in this session
-    research_answer = ChecklistAnswer.query.filter_by(
-        checklist_analysis_id=session.id,
-        checklist_item_id=current_item.id
-    ).first()
-
     if request.method == 'POST':
-        answer_text = request.form.get('answer_text')
-        satisfaction_status_from_form = request.form.get('satisfaction_status') or None
-        if research_answer:
-            research_answer.answer_text = answer_text
-            research_answer.answered_at = now_utc()
-            research_answer.satisfaction_status = satisfaction_status_from_form
-        else:
-            research_answer = ChecklistAnswer(
-                answer_text=answer_text,
-                checklist_analysis_id=session.id,
-                checklist_item_id=current_item.id,
-                satisfaction_status=satisfaction_status_from_form
-            )
-            db.session.add(research_answer)
+        save_answer(session, current_item, request.form.get('answer_text'),
+                    request.form.get('satisfaction_status') or None)
         refresh_checklist_step_notes(session)
         db.session.commit()
         flash('Answer saved.', 'success')
@@ -210,8 +218,8 @@ def research_step(analysis_id, item_id):
     research_context = project_step_for_analysis(session)
 
     # Build answers map for checklist sidebar (status dots for all items)
-    all_answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
-    answers_map = {ans.checklist_item_id: ans for ans in all_answers}
+    answers_map = ChecklistAnswer.by_item(session.id)
+    research_answer = answers_map.get(current_item.id)
 
     return render_template(
         'research_step.html',
@@ -258,11 +266,7 @@ def research_step_json(analysis_id, item_id):
     if current_item_index == -1:
         return jsonify({'error': 'Item not found in order'}), 400
 
-    # Fetch answer
-    research_answer = ChecklistAnswer.query.filter_by(
-        checklist_analysis_id=session.id,
-        checklist_item_id=current_item.id
-    ).first()
+    research_answer = ChecklistAnswer.latest(session.id, current_item.id)
 
     # Previous item
     previous_item_id = None
@@ -278,10 +282,8 @@ def research_step_json(analysis_id, item_id):
         is_last_item = True
 
     # All answers for sidebar status update
-    all_answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
-    answers_map = {}
-    for ans in all_answers:
-        answers_map[ans.checklist_item_id] = ans.satisfaction_status or 'pending'
+    answers_map = {item_id: ans.satisfaction_status or 'pending'
+                   for item_id, ans in ChecklistAnswer.by_item(session.id).items()}
 
     # Status counts
     status_counts = {'satisfied': 0, 'not_satisfied': 0, 'needs_attention': 0, 'neutral': 0, 'pending': 0}
@@ -344,25 +346,7 @@ def autosave_research_answer(analysis_id, item_id):
         has_status = 'satisfaction_status' in request.form
         satisfaction_status = request.form.get('satisfaction_status') or None
 
-    # Find or create research answer
-    research_answer = ChecklistAnswer.query.filter_by(
-        checklist_analysis_id=session.id,
-        checklist_item_id=current_item.id
-    ).first()
-
-    if research_answer:
-        research_answer.answer_text = answer_text
-        research_answer.answered_at = now_utc()
-        if has_status:
-            research_answer.satisfaction_status = satisfaction_status
-    else:
-        research_answer = ChecklistAnswer(
-            answer_text=answer_text,
-            checklist_analysis_id=session.id,
-            checklist_item_id=current_item.id,
-            satisfaction_status=satisfaction_status if has_status else None
-        )
-        db.session.add(research_answer)
+    research_answer = save_answer(session, current_item, answer_text, satisfaction_status, set_status=has_status)
 
     if has_status:
         refresh_checklist_step_notes(session)
@@ -398,24 +382,7 @@ def save_and_next(analysis_id, item_id):
         answer_text = request.form.get('answer_text', '')
         satisfaction_status = request.form.get('satisfaction_status') or None
 
-    # Save answer
-    research_answer = ChecklistAnswer.query.filter_by(
-        checklist_analysis_id=session.id,
-        checklist_item_id=current_item.id
-    ).first()
-
-    if research_answer:
-        research_answer.answer_text = answer_text
-        research_answer.answered_at = now_utc()
-        research_answer.satisfaction_status = satisfaction_status
-    else:
-        research_answer = ChecklistAnswer(
-            answer_text=answer_text,
-            checklist_analysis_id=session.id,
-            checklist_item_id=current_item.id,
-            satisfaction_status=satisfaction_status
-        )
-        db.session.add(research_answer)
+    save_answer(session, current_item, answer_text, satisfaction_status)
     refresh_checklist_step_notes(session)
     db.session.commit()
 
@@ -454,8 +421,7 @@ def complete_checklist_session(analysis_id):
         return json_unauthorized('Unauthorized')
 
     all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
-    answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
-    remaining = unanswered_items(all_items_in_order, {ans.checklist_item_id: ans for ans in answers})
+    remaining = unanswered_items(all_items_in_order, ChecklistAnswer.by_item(session.id))
     if remaining:
         return json_error(f'{len(remaining)} question(s) still need a verdict.',
                           remaining_item_ids=[item.id for item in remaining])
@@ -499,11 +465,8 @@ def view_checklist_session_summary(analysis_id):
     # 1. Get all checklist items in their correct hierarchical order
     all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
     
-    # 2. Fetch all answers for this session just once
-    answers_for_session = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
-    
-    # 3. Create a dictionary that maps an item's ID to its full answer object for easy lookup in the template
-    answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
+    # 2-3. Map each item's ID to its answer object for easy lookup in the template
+    answers_map = ChecklistAnswer.by_item(session.id)
     
     # 4. Pre-calculate the display values for the intrinsic value form
     intrinsic_display_value = ''
@@ -562,8 +525,7 @@ def export_session_to_txt(analysis_id):
 
     # 2. Gather all necessary data
     all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
-    answers_for_session = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
-    answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
+    answers_map = ChecklistAnswer.by_item(session.id)
 
     # 3. Construct the text content as a list of strings
     export_content = []

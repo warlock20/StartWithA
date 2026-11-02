@@ -220,9 +220,7 @@ class ResearchQualityCalculator:
                 metrics['company_id'] = analysis.company_id
 
                 # Get answers
-                answers = ChecklistAnswer.query.filter_by(
-                    checklist_analysis_id=session_id
-                ).all()
+                answers = list(ChecklistAnswer.by_item(session_id).values())
 
                 # Count questions from checklist
                 if analysis.checklist:
@@ -274,11 +272,7 @@ class ResearchQualityCalculator:
                             total_questions += analysis.checklist.items.count()
                         
                         # Get answers
-                        answers = ChecklistAnswer.query.filter_by(
-                            checklist_analysis_id=analysis.id
-                        ).all()
-                        
-                        for answer in answers:
+                        for answer in ChecklistAnswer.by_item(analysis.id).values():
                             if answer.answer_text:
                                 total_answered += 1
                                 metrics['answer_lengths'].append(len(answer.answer_text))

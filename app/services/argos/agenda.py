@@ -156,8 +156,8 @@ def _open_checklist_runs(user_id):
             .all())
     for run in runs:
         questions = get_all_ordered_items_for_checklist(run.checklist_id)
-        answered = {a.checklist_item_id for a in ChecklistAnswer.query.filter_by(
-            checklist_analysis_id=run.id).all() if (a.answer_text or '').strip()}
+        answered = {item_id for item_id, a in ChecklistAnswer.by_item(run.id).items()
+                    if (a.answer_text or '').strip()}
         unanswered = sum(1 for q in questions if q.id not in answered)
         if not unanswered:
             continue

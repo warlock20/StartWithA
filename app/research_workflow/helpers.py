@@ -104,7 +104,7 @@ def checklist_session_summary(session, company):
     """
     position = {item.id: i for i, item in enumerate(get_all_ordered_items_for_checklist(session.checklist_id))}
     research_answers = sorted(
-        ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all(),
+        ChecklistAnswer.by_item(session.id).values(),
         key=lambda answer: (position.get(answer.checklist_item_id, len(position)), answer.id)
     )
 
