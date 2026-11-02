@@ -224,11 +224,7 @@ class ResearchDataService:
             checklist_name = analysis.checklist.name if analysis.checklist else "Unknown Checklist"
 
             # Get all answers for this analysis
-            answers = ChecklistAnswer.query.filter_by(
-                checklist_analysis_id=analysis.id
-            ).all()
-
-            for answer in answers:
+            for answer in ChecklistAnswer.by_item(analysis.id).values():
                 question_text = ""
                 if answer.item:
                     question_text = answer.item.text or ""

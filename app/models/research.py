@@ -78,6 +78,26 @@ class ChecklistAnswer(db.Model):
     # Relationship to the specific checklist item
     item = db.relationship("ChecklistItem")
 
+    # Older sessions can hold two rows for one item: saves used to race and both insert.
+    # Every save stamps answered_at, so reading the newest row reads what was saved last.
+    @classmethod
+    def _newest_first(cls, query):
+        return query.order_by(cls.answered_at.desc().nullslast(), cls.id.desc())
+
+    @classmethod
+    def latest(cls, analysis_id, item_id):
+        """The item's answer in this session, or None."""
+        return cls._newest_first(cls.query.filter_by(
+            checklist_analysis_id=analysis_id, checklist_item_id=item_id)).first()
+
+    @classmethod
+    def by_item(cls, analysis_id):
+        """{checklist_item_id: answer} for the session, one answer per item."""
+        answers = {}
+        for answer in cls._newest_first(cls.query.filter_by(checklist_analysis_id=analysis_id)):
+            answers.setdefault(answer.checklist_item_id, answer)
+        return answers
+
     def __repr__(self):
         return f"<ChecklistAnswer {self.id} for Item {self.checklist_item_id} in Analysis {self.checklist_analysis_id}>"
 

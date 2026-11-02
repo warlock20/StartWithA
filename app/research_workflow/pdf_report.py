@@ -292,10 +292,7 @@ def _build_step_html(project, step_index, step):
             ).order_by(ChecklistAnalysis.start_date.desc()).first()
 
             if analysis:
-                answers = ChecklistAnswer.query.filter_by(
-                    checklist_analysis_id=analysis.id
-                ).all()
-                answers_map = {a.checklist_item_id: a for a in answers}
+                answers_map = ChecklistAnswer.by_item(analysis.id)
                 all_items = get_all_ordered_items_for_checklist(int(checklist_id))
 
                 if all_items:

@@ -271,8 +271,7 @@ class ToolExecutor:
         # Same ordering the page numbers items by, so "question 9" means the same
         # thing to the model as it does on screen.
         items = get_all_ordered_items_for_checklist(analysis.checklist_id)
-        answers = {a.checklist_item_id: a for a in ChecklistAnswer.query.filter_by(
-            checklist_analysis_id=analysis.id).all()}
+        answers = ChecklistAnswer.by_item(analysis.id)
         numbers = {item.id: n for n, item in enumerate(items, start=1)}
 
         def answered(item):

@@ -136,10 +136,7 @@ def build_checklist_analysis_section(analysis, heading_level=2):
         lines.append(f"- **Started:** {format_dt(analysis.start_date)}")
 
     # Pull answers + items for stats
-    answers = ChecklistAnswer.query.filter_by(
-        checklist_analysis_id=analysis.id
-    ).all()
-    answers_map = {a.checklist_item_id: a for a in answers}
+    answers_map = ChecklistAnswer.by_item(analysis.id)
     all_items = get_all_ordered_items_for_checklist(analysis.checklist_id) or []
 
     total = len(all_items)

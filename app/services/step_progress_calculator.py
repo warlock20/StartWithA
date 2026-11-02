@@ -113,12 +113,8 @@ def calculate_checklist_progress(project, step, step_index):
         if analysis.status == 'completed':
             return 100.0
 
-        answered_count = ChecklistAnswer.query.filter_by(
-            checklist_analysis_id=analysis.id
-        ).filter(
-            ChecklistAnswer.answer_text.isnot(None),
-            ChecklistAnswer.answer_text != ''
-        ).count()
+        answered_count = sum(1 for answer in ChecklistAnswer.by_item(analysis.id).values()
+                             if answer.answer_text)
 
         total_items = len(get_all_ordered_items_for_checklist(checklist_id))
         if total_items == 0:
