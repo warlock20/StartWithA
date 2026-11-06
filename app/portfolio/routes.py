@@ -18,7 +18,7 @@
 
 import logging
 from decimal import Decimal
-from flask import render_template, request, redirect, url_for, flash, jsonify, session, current_app
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from app import db
@@ -57,8 +57,7 @@ from app.services.portfolio_intelligence import (
     get_learning_insights, get_correlation_data
     )
 from app.services.intelligence_engine import get_portfolio_warnings
-from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
-from app.services.ai.prompt_service import get_effective_model_display
+from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.cash_service import CashService
 from app.services.portfolio_performance import PortfolioPerformanceService
 
@@ -393,18 +392,11 @@ ALLOWED_ANALYSIS_TEMPLATES = {
 @login_required
 def analytics():
     """
-    AI-Powered Portfolio Analytics (Async with Celery)
-
-    Flow:
-    1. Check cache - if exists, show results
-    2. Check running task - if exists, show loading page
-    3. If refresh=true, start new task and show loading page
-    4. Otherwise, show placeholder with "Run Analysis" button
+    Portfolio analytics: deterministic metrics computed from the user's own
+    transactions (win rate, XIRR, hold times, sector allocation), plus the
+    performance chart and the on-demand AI modules (sector momentum, tax).
+    Nothing here calls an LLM; the modules run through /analytics/run.
     """
-    force_refresh = request.args.get('refresh', 'false').lower() == 'true'
-    template_name = 'portfolio_raw_trade_analysis'  # Using deep behavioral analysis
-
-    # Chart data — served from cache, computed in background
     time_period = request.args.get('period', '12')
     try:
         time_periods = int(time_period)
@@ -419,114 +411,13 @@ def analytics():
     sector_momentum = _get_cached_module_analysis(current_user.id, 'sector_momentum_analysis')
     tax_optimization = _get_cached_module_analysis(current_user.id, 'tax_optimization_analysis')
 
-    # 1. HIGHEST PRIORITY: Check if there's a running task
-    # Always show loading page if task is running, even if old cache exists
-    running_task = BackgroundTask.query.filter_by(
-        user_id=current_user.id,
-        task_type=f'portfolio_analysis:{template_name}',
-        status='running'
-    ).first()
-
-    if running_task:
-        # Task is running, show loading page
-        ai_model_name = get_effective_model_display('portfolio', user_id=current_user.id)
-        return render_template('portfolio_analytics_loading.html',
-                              task_id=running_task.id,
-                              chart_data=chart_data,
-                              chart_task_id=chart_task_id,
-                              selected_period=time_periods,
-                              ai_model_name=ai_model_name)
-
-    # 2. Check for latest completed task in database (cache)
-    if not force_refresh:
-        latest_task = BackgroundTask.query.filter_by(
-            user_id=current_user.id,
-            task_type=f'portfolio_analysis:{template_name}',
-            status='completed'
-        ).order_by(BackgroundTask.completed_at.desc()).first()
-
-        if latest_task and latest_task.result:
-            # We have a completed analysis, show it
-            result = json.loads(latest_task.result)
-            logger.info(result)
-            insights = result.get('analysis')
-            if insights:
-                has_error = insights.get('metadata', {}).get('error') is not None
-                return render_template('portfolio_basic_analytics.html',
-                                      insights=insights,
-                                      has_error=has_error,
-                                      chart_data=chart_data,
-                                      chart_task_id=chart_task_id,
-                                      selected_period=time_periods,
-                                      sector_momentum=sector_momentum,
-                                      tax_optimization=tax_optimization)
-
-    # 3. If force_refresh=true, check tokens then start background task
-    if force_refresh:
-        # Check tokens BEFORE starting expensive AI task (estimate: 10,000 tokens for portfolio analysis)
-        if not current_user.can_use_ai_tokens(10000):
-            # User has hit token limit - show cached analysis with error message
-            logger.warning(f"User {current_user.id} attempted portfolio analysis but hit token limit ({current_user.ai_tokens_used}/{current_user.ai_tokens_limit})")
-
-            # Try to show cached analysis if available
-            latest_task = BackgroundTask.query.filter_by(
-                user_id=current_user.id,
-                task_type=f'portfolio_analysis:{template_name}',
-                status='completed'
-            ).order_by(BackgroundTask.completed_at.desc()).first()
-
-            if latest_task and latest_task.result:
-                # Show cached analysis with token limit error
-                result = json.loads(latest_task.result)
-                insights = result.get('analysis')
-                flash(f"AI Token Limit Reached: You've used {current_user.ai_tokens_used:,} of {current_user.ai_tokens_limit:,} tokens. Showing previous analysis. Your limit resets on {current_user.ai_tokens_reset_date.strftime('%b %d, %Y') if current_user.ai_tokens_reset_date else 'unknown date'}.", 'warning')
-                return render_template('portfolio_basic_analytics.html',
-                                      insights=insights,
-                                      has_error=False,
-                                      chart_data=chart_data,
-                                      chart_task_id=chart_task_id,
-                                      selected_period=time_periods,
-                                      sector_momentum=sector_momentum,
-                                      tax_optimization=tax_optimization,
-                                      show_run_button=False)  # Don't show run button - they're at limit
-            else:
-                # No cache and no tokens - show placeholder with error
-                analytics_service = PortfolioAIAnalytics(user_id=current_user.id)
-                placeholder_insights = analytics_service._get_placeholder_response(template_name)
-                flash(f"AI Token Limit Reached: You've used {current_user.ai_tokens_used:,} of {current_user.ai_tokens_limit:,} tokens. Cannot generate new analysis. Your limit resets on {current_user.ai_tokens_reset_date.strftime('%b %d, %Y') if current_user.ai_tokens_reset_date else 'unknown date'}.", 'error')
-                return render_template('portfolio_basic_analytics.html',
-                                      insights=placeholder_insights,
-                                      has_error=True,
-                                      chart_data=chart_data,
-                                      chart_task_id=chart_task_id,
-                                      selected_period=time_periods,
-                                      sector_momentum=sector_momentum,
-                                      tax_optimization=tax_optimization,
-                                      show_run_button=False)
-
-        # User has enough tokens - start task
-        task_id = BackgroundTaskService.start_portfolio_analysis(current_user.id, template_name)
-        session[f'portfolio_analysis_task_{current_user.id}'] = task_id
-        ai_model_name = get_effective_model_display('portfolio', user_id=current_user.id)
-        return render_template('portfolio_analytics_loading.html',
-                              task_id=task_id,
-                              chart_data=chart_data,
-                              chart_task_id=chart_task_id,
-                              selected_period=time_periods,
-                              ai_model_name=ai_model_name)
-
-    # 4. No completed analysis, no running task, no refresh requested - show placeholder
-    analytics_service = PortfolioAIAnalytics(user_id=current_user.id)
-    placeholder_insights = analytics_service._get_placeholder_response(template_name)
     return render_template('portfolio_basic_analytics.html',
-                          insights=placeholder_insights,
-                          has_error=False,
+                          metrics=build_portfolio_analytics(current_user.id),
                           chart_data=chart_data,
                           chart_task_id=chart_task_id,
                           selected_period=time_periods,
                           sector_momentum=sector_momentum,
-                          tax_optimization=tax_optimization,
-                          show_run_button=True)
+                          tax_optimization=tax_optimization)
 
 
 @portfolio_bp.route('/analytics/status/<task_id>')

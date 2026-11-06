@@ -1,6 +1,6 @@
 {% extends "main/_base_portfolio.html" %}
 
-{% block title %}AI Portfolio Analytics{% endblock %}
+{% block title %}Portfolio Analytics{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ai-portfolio-analytics.css') }}">
@@ -12,10 +12,9 @@
     <div class="dashboard-header-card">
         <header class="dashboard-header">
             <div>
-                <h1 class="dashboard-title font-poppins">AI Portfolio Intelligence</h1>
+                <h1 class="dashboard-title font-poppins">Portfolio Analytics</h1>
                 <p class="dashboard-subtitle">
-                    AI-driven analysis of {{ insights.metadata.transactions_count }} transactions across {{
-                    insights.metadata.positions_count }} positions
+                    {{ metrics.transactions_count }} transactions across {{ metrics.positions_count }} open positions
                 </p>
             </div>
             <div class="dashboard-header-actions">
@@ -25,94 +24,74 @@
                 </a>
             </div>
         </header>
-    </div>
 
-    {% if has_error %}
-    <!-- Error State -->
-    <div class="alert alert-warning" role="alert">
-        <i class="bi bi-exclamation-triangle"></i>
-        <strong>Unable to generate AI insights:</strong> {{ insights.metadata.error }}
-    </div>
-    {% endif %}
-
-    <!-- KPI Grid -->
-    <div class="ai-kpi-grid">
-        <!-- Win Rate -->
-        <div class="ai-kpi-card">
-            <div class="ai-kpi-header">
-                <span class="ai-kpi-label">Win Rate</span>
-                <span class="ai-kpi-badge badge-success">
-                    <i class="bi bi-graph-up"></i> Above Avg
-                </span>
+        {% if metrics.has_data %}
+        {% set k = metrics.kpis %}
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green">
+                    <i class="bi bi-bullseye"></i>
+                </div>
+                <div class="portfolio-metric-label">Win Rate</div>
+                <div class="portfolio-metric-value">{{ k.win_rate }}%</div>
+                <div class="portfolio-metric-subtext">{{ k.wins }} of {{ k.wins + k.losses }} closed &middot; trading result, dividends excluded</div>
             </div>
-            <div class="ai-kpi-value">{{ insights.kpis.win_rate }}%</div>
-            <div class="ai-kpi-progress">
-                <div class="ai-kpi-progress-bar" style="width: {{ insights.kpis.win_rate }}%; background: #10b981;">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div class="portfolio-metric-label">Annualized Return</div>
+                <div class="portfolio-metric-value">{% if k.xirr is not none %}{{ k.xirr }}%{% else %}&mdash;{% endif %}</div>
+                <div class="portfolio-metric-subtext">
+                    {% if k.xirr is not none %}Money-weighted (XIRR) &middot; lump-sum CAGR {{ k.cagr }}%{% else %}Under 30 days of history{% endif %}
                 </div>
             </div>
-            <div class="ai-kpi-subtitle">vs. {{ insights.kpis.market_avg_win_rate }}% Retail Avg</div>
-        </div>
-
-        <!-- CAGR -->
-        <div class="ai-kpi-card">
-            <div class="ai-kpi-header">
-                <span class="ai-kpi-label">Portfolio CAGR</span>
-                <span
-                    class="ai-kpi-badge {% if insights.kpis.cagr|default(0) > 15 %}badge-success{% elif insights.kpis.cagr|default(0) > 0 %}badge-info{% else %}badge-danger{% endif %}">
-                    <i
-                        class="bi bi-{% if insights.kpis.cagr|default(0) > 0 %}graph-up-arrow{% else %}graph-down-arrow{% endif %}"></i>
-                </span>
-            </div>
-            <div class="ai-kpi-value"
-                style="color: {% if insights.kpis.cagr|default(0) > 0 %}#10b981{% else %}#ef4444{% endif %};">
-                {{ insights.kpis.cagr|default(0) }}%
-            </div>
-            <div class="ai-kpi-progress">
-                <div class="ai-kpi-progress-bar"
-                    style="width: {% if insights.kpis.cagr|default(0) > 0 %}{{ insights.kpis.cagr }}{% else %}0{% endif %}%; background: {% if insights.kpis.cagr|default(0) > 0 %}#10b981{% else %}#ef4444{% endif %};">
-                </div>
-            </div>
-            <div class="ai-kpi-subtitle">Annualized Return</div>
-        </div>
-
-        <!-- Avg Hold Time -->
-        <div class="ai-kpi-card">
-            <div class="ai-kpi-header">
-                <span class="ai-kpi-label">Avg Hold Time</span>
-                <span class="ai-kpi-badge badge-info">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon purple">
                     <i class="bi bi-hourglass"></i>
-                </span>
+                </div>
+                <div class="portfolio-metric-label">Avg Hold</div>
+                <div class="portfolio-metric-value">{{ k.avg_hold_days }}d</div>
+                <div class="portfolio-metric-subtext">{{ k.strategy_label }}</div>
             </div>
-            <div class="ai-kpi-value">{{ insights.kpis.avg_hold_days }}d</div>
-            <div class="ai-kpi-progress">
-                <div class="ai-kpi-progress-bar" style="width: 75%; background: #3b82f6;"></div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray">
+                    <i class="bi bi-pie-chart-fill"></i>
+                </div>
+                <div class="portfolio-metric-label">Open Positions</div>
+                <div class="portfolio-metric-value">{{ k.positions_count }}</div>
             </div>
-            <div class="ai-kpi-subtitle">{{ insights.kpis.strategy_label }}</div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue">
+                    <i class="bi bi-diagram-3"></i>
+                </div>
+                <div class="portfolio-metric-label">Largest Sector</div>
+                <div class="portfolio-metric-value">{% if k.largest_sector_pct is not none %}{{ k.largest_sector_pct }}%{% else %}&mdash;{% endif %}</div>
+                <div class="portfolio-metric-subtext">{% if k.largest_sector %}{{ k.largest_sector }}{% else %}No classified sectors{% endif %}</div>
+            </div>
         </div>
 
-        <!-- Positions -->
-        <div class="ai-kpi-card">
-            <div class="ai-kpi-header">
-                <span class="ai-kpi-label">Active Positions</span>
-            </div>
-            <div class="ai-kpi-value">{{ insights.kpis.positions_count }}</div>
-            <div class="ai-kpi-subtitle" style="margin-top: 1.5rem;">
-                <i class="bi bi-circle-fill" style="color: #ef4444; font-size: 0.5rem;"></i>
-                {{ insights.kpis.sector_concentration }}% Tech Concentration
+        {% if metrics.unclassified_pct > 0 %}
+        <div class="dashboard-alerts-strip">
+            <div class="dashboard-alert-card dashboard-alert-card--warning">
+                <i class="bi bi-exclamation-triangle"></i>
+                <div class="dashboard-alert-card__text">
+                    {{ metrics.unclassified_pct }}% of invested cost has no sector. Sector figures cover the classified part only.
+                </div>
             </div>
         </div>
-
-        <!-- Risk Level -->
-        <div class="ai-kpi-card" style="border-left: 4px solid #ef4444;">
-            <div class="ai-kpi-header">
-                <span class="ai-kpi-label">Risk Level</span>
-                <i class="bi bi-exclamation-octagon-fill" style="color: #ef4444; font-size: 1.25rem;"></i>
-            </div>
-            <div class="ai-kpi-value" style="color: #ef4444;">{{ insights.kpis.risk_level }}</div>
-            <div class="ai-kpi-subtitle" style="margin-top: 0.75rem;">
-                {{ insights.kpis.risk_description }}
-            </div>
+        {% endif %}
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+            <h3 class="h5 mt-2">No transactions yet</h3>
+            <p class="mb-3">Import or add your transactions to see win rate, annualized return and sector allocation.</p>
+            <a href="{{ url_for('portfolio.transactions') }}" class="action-btn primary">
+                <i class="bi bi-upload"></i>
+                Import transactions
+            </a>
         </div>
+        {% endif %}
     </div>
 
     <!-- Main Layout with Sidebar -->
@@ -123,10 +102,6 @@
                 <button class="ai-nav-btn active" data-panel="overview">
                     <i class="bi bi-grid-3x3"></i>
                     <span>Overview</span>
-                </button>
-                <button class="ai-nav-btn" data-panel="patterns">
-                    <i class="bi bi-diagram-3"></i>
-                    <span>Behavioral Patterns</span>
                 </button>
                 <hr class="ai-nav-divider">
                 <button class="ai-nav-btn" data-panel="sector-momentum">
@@ -141,17 +116,13 @@
 
             <!-- AI Context Box -->
             <div class="ai-context-box">
-                <div class="ai-context-status">
-                    <span class="ai-status-dot"></span>
-                    AI Analyst Active
-                </div>
                 <div class="ai-context-text">
-                    {{ insights.ai_summary.quick_insight }}
+                    Sector Momentum and Tax Optimization are AI analyses. Open one and run it.
                 </div>
-                <button class="ai-refresh-btn" id="context-run-btn"
+                <button class="ai-refresh-btn" id="context-run-btn" style="display: none;"
                     onclick="runActiveAnalysis()">
-                    <i class="bi bi-arrow-clockwise"></i>
-                    Re-run Analysis
+                    <i class="bi bi-play-fill"></i>
+                    Run Analysis
                 </button>
             </div>
         </div>
@@ -159,7 +130,6 @@
         <!-- Mobile Navigation (Horizontal) -->
         <div class="ai-mobile-nav">
             <button class="ai-mobile-nav-btn active" data-panel="overview">Overview</button>
-            <button class="ai-mobile-nav-btn" data-panel="patterns">Patterns</button>
 <button class="ai-mobile-nav-btn" data-panel="sector-momentum">Sector</button>
             <button class="ai-mobile-nav-btn" data-panel="tax-optimization">Tax</button>
         </div>
@@ -178,17 +148,17 @@
                         <div class="d-flex flex-wrap align-items-center gap-3">
                             <!-- Time Period Selector -->
                             <div class="btn-group btn-group-sm" role="group">
-                                <a href="{{ url_for('portfolio.analytics', period=1, refresh=request.args.get('refresh', 'false')) }}"
+                                <a href="{{ url_for('portfolio.analytics', period=1) }}"
                                     class="btn btn-sm {% if selected_period == 1 %}btn-primary{% else %}btn-outline-secondary{% endif %}">1M</a>
-                                <a href="{{ url_for('portfolio.analytics', period=3, refresh=request.args.get('refresh', 'false')) }}"
+                                <a href="{{ url_for('portfolio.analytics', period=3) }}"
                                     class="btn btn-sm {% if selected_period == 3 %}btn-primary{% else %}btn-outline-secondary{% endif %}">3M</a>
-                                <a href="{{ url_for('portfolio.analytics', period=6, refresh=request.args.get('refresh', 'false')) }}"
+                                <a href="{{ url_for('portfolio.analytics', period=6) }}"
                                     class="btn btn-sm {% if selected_period == 6 %}btn-primary{% else %}btn-outline-secondary{% endif %}">6M</a>
-                                <a href="{{ url_for('portfolio.analytics', period=12, refresh=request.args.get('refresh', 'false')) }}"
+                                <a href="{{ url_for('portfolio.analytics', period=12) }}"
                                     class="btn btn-sm {% if selected_period == 12 %}btn-primary{% else %}btn-outline-secondary{% endif %}">1Y</a>
-                                <a href="{{ url_for('portfolio.analytics', period=24, refresh=request.args.get('refresh', 'false')) }}"
+                                <a href="{{ url_for('portfolio.analytics', period=24) }}"
                                     class="btn btn-sm {% if selected_period == 24 %}btn-primary{% else %}btn-outline-secondary{% endif %}">2Y</a>
-                                <a href="{{ url_for('portfolio.analytics', period=36, refresh=request.args.get('refresh', 'false')) }}"
+                                <a href="{{ url_for('portfolio.analytics', period=36) }}"
                                     class="btn btn-sm {% if selected_period == 36 %}btn-primary{% else %}btn-outline-secondary{% endif %}">3Y</a>
                             </div>
                             <!-- Legend -->
@@ -219,53 +189,34 @@
                     </div>
                 </div>
 
-                <!-- Primary Assessment -->
-                <div class="narrative-block">
-                    <div class="narrative-header">
-                        <div class="narrative-icon blue">
-                            <i class="bi bi-stars"></i>
-                        </div>
-                        <div style="flex: 1;">
-                            <h3 class="narrative-title">Portfolio Health Assessment</h3>
-                        </div>
+                <!-- Sector Allocation -->
+                <div class="bg-white rounded-3 border shadow-sm p-4 mb-4">
+                    <h3 class="fw-bold mb-3" style="font-size: 1.1rem;">Sector Allocation</h3>
+                    {% if metrics.sectors %}
+                    <div class="table-responsive">
+                        <table class="evidence-table">
+                            <thead>
+                                <tr>
+                                    <th>Sector</th>
+                                    <th>Positions</th>
+                                    <th>% of cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in metrics.sectors %}
+                                <tr>
+                                    <td><strong>{{ row.sector }}</strong></td>
+                                    <td>{{ row.position_count }}</td>
+                                    <td>{{ row.percentage }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="narrative-text">
-                        {{ insights.analysis.overall_assessment|safe }}
-                    </div>
+                    {% else %}
+                    <p class="text-muted small mb-0">No open positions.</p>
+                    {% endif %}
                 </div>
-
-                <!-- Key Strengths -->
-                {% if insights.analysis.key_strengths %}
-                <div class="narrative-block success">
-                    <div class="narrative-header">
-                        <div class="narrative-icon green">
-                            <i class="bi bi-trophy-fill"></i>
-                        </div>
-                        <div style="flex: 1;">
-                            <h3 class="narrative-title">What's Working</h3>
-                        </div>
-                    </div>
-
-                    <div class="narrative-text">
-                        <div style="display: flex; flex-direction: column; gap: 1rem;">
-                            {% for strength in insights.analysis.key_strengths %}
-                            <div class="strength-item" style="border-left: 2px solid #dcfce7; padding-left: 1rem;">
-
-                                <div style="margin-bottom: 0.35rem;">
-                                    <span class="strength-badge">
-                                        {{ strength.finding_type }}
-                                    </span>
-                                </div>
-
-                                <div style="color: #374151; font-size: 0.95rem; line-height: 1.5;">
-                                    {{ strength.description }}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
 
                 <!-- Comparison Grid -->
                 <div class="comparison-grid">
@@ -280,17 +231,17 @@
                         </div>
                         <div class="comparison-metrics">
                             <div class="comparison-metric">
+                                <span class="coc-analytics-metric-label">Positions</span>
+                                <span class="coc-analytics-metric-value">{{ metrics.comparison.winners.count }}</span>
+                            </div>
+                            <div class="comparison-metric">
                                 <span class="coc-analytics-metric-label">Avg Return</span>
-                                <span class="coc-analytics-metric-value positive">+{{ insights.comparison.winners.avg_return
+                                <span class="coc-analytics-metric-value positive">+{{ metrics.comparison.winners.avg_return
                                     }}%</span>
                             </div>
                             <div class="comparison-metric">
                                 <span class="coc-analytics-metric-label">Hold Time</span>
-                                <span class="coc-analytics-metric-value">{{ insights.comparison.winners.hold_time }} days</span>
-                            </div>
-                            <div class="comparison-metric">
-                                <span class="coc-analytics-metric-label">Success Rate</span>
-                                <span class="coc-analytics-metric-value">{{ insights.comparison.winners.success_rate }}%</span>
+                                <span class="coc-analytics-metric-value">{{ metrics.comparison.winners.hold_time }} days</span>
                             </div>
                         </div>
                     </div>
@@ -306,195 +257,32 @@
                         </div>
                         <div class="comparison-metrics">
                             <div class="comparison-metric">
+                                <span class="coc-analytics-metric-label">Positions</span>
+                                <span class="coc-analytics-metric-value">{{ metrics.comparison.losers.count }}</span>
+                            </div>
+                            <div class="comparison-metric">
                                 <span class="coc-analytics-metric-label">Avg Loss</span>
-                                <span class="coc-analytics-metric-value negative">{{ insights.comparison.losers.avg_loss }}%</span>
+                                <span class="coc-analytics-metric-value negative">{{ metrics.comparison.losers.avg_loss }}%</span>
                             </div>
                             <div class="comparison-metric">
                                 <span class="coc-analytics-metric-label">Hold Time</span>
-                                <span class="coc-analytics-metric-value">{{ insights.comparison.losers.hold_time }} days</span>
-                            </div>
-                            <div class="comparison-metric">
-                                <span class="coc-analytics-metric-label">Pattern</span>
-                                <span class="coc-analytics-metric-value">{{ insights.comparison.losers.pattern }}</span>
+                                <span class="coc-analytics-metric-value">{{ metrics.comparison.losers.hold_time }} days</span>
                             </div>
                         </div>
-                        {% if insights.comparison.losers.insight %}
+                        {% if metrics.comparison.losers.insight %}
                         <div class="action-box" style="margin-top: 1rem;">
                             <div class="action-box-header">
                                 <i class="bi bi-info-circle-fill"></i>
                                 Insight
                             </div>
                             <div class="action-box-content">
-                                {{ insights.comparison.losers.insight }}
+                                {{ metrics.comparison.losers.insight }}
                             </div>
                         </div>
                         {% endif %}
                     </div>
                 </div>
 
-                <!-- Evolution Timeline (Horizontal) -->
-                {% if insights.analysis.investor_evolution %}
-                <div class="narrative-block">
-                    <div class="narrative-header">
-                        <div class="narrative-icon purple">
-                            <i class="bi bi-graph-up-arrow"></i>
-                        </div>
-                        <div style="flex: 1;">
-                            <h3 class="narrative-title">Investor Evolution</h3>
-                        </div>
-                    </div>
-                    <div class="timeline-horizontal">
-                        {% for phase in insights.analysis.investor_evolution %}
-                        <div class="timeline-phase">
-                            <div class="timeline-marker"></div>
-                            <div class="timeline-period">{{ phase.period }}</div>
-                            <div class="timeline-phase-name">{{ phase.phase_name }}</div>
-                            <div class="timeline-analysis">{{ phase.analysis }}</div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Patterns Panel -->
-            <div class="ai-content-panel" id="panel-patterns">
-                {% if insights.analysis.behavioral_patterns %}
-                {% for pattern in insights.analysis.behavioral_patterns %}
-                <div class="narrative-block {% if pattern.severity == 'high' %}warning{% endif %}">
-                    <div class="narrative-header">
-                        <div class="narrative-icon {% if pattern.severity == 'high' %}orange{% else %}blue{% endif %}">
-                            <i class="bi bi-{{ pattern.icon }}"></i>
-                        </div>
-                        <div style="flex: 1;">
-                            <h3 class="narrative-title">{{ pattern.title }}</h3>
-                        </div>
-                        {% if pattern.severity %}
-                        <span
-                            class="ai-kpi-badge badge-{% if pattern.severity == 'high' %}danger{% else %}warning{% endif %}">
-                            {{ pattern.severity|upper }} IMPACT
-                        </span>
-                        {% endif %}
-                    </div>
-                    <div class="narrative-text">
-                        {{ pattern.description|safe }}
-                    </div>
-
-                    <!-- Evidence Section (Collapsible) -->
-                    {% if pattern.examples %}
-                    <details class="evidence-section">
-                        <summary class="evidence-summary">
-                            <i class="bi bi-graph-up"></i>
-                            <span>Evidence ({{ pattern.examples|length }} example{% if pattern.examples|length > 1 %}s{%
-                                endif %})</span>
-                            <i class="bi bi-chevron-down evidence-chevron"></i>
-                        </summary>
-                        <div class="evidence-content">
-                            <ul class="evidence-list">
-                                {% for example in pattern.examples %}
-                                <li class="evidence-item">{{ example }}</li>
-                                {% endfor %}
-                            </ul>
-
-                            {% if pattern.counter_examples %}
-                            <div class="counter-evidence">
-                                <div class="counter-evidence-header">
-                                    <i class="bi bi-shield-check"></i>
-                                    <strong>Counter-examples</strong>
-                                </div>
-                                <ul class="counter-evidence-list">
-                                    {% for counter in pattern.counter_examples %}
-                                    <li class="counter-evidence-item">{{ counter }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </details>
-                    {% endif %}
-
-                    {% if pattern.recommendation %}
-                    <div class="action-box">
-                        <div class="action-box-header">
-                            <i class="bi bi-lightbulb-fill"></i>
-                            Recommendation
-                        </div>
-                        <div class="action-box-content">
-                            {{ pattern.recommendation }}
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-                {% else %}
-                <div class="narrative-block">
-                    <div class="narrative-text">
-                        No significant behavioral patterns detected yet. More data needed.
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- FOMO Trades Table -->
-                {% if insights.analysis.fomo_trades %}
-                <div class="narrative-block">
-                    <div class="narrative-header">
-                        <div class="narrative-icon orange">
-                            <i class="bi bi-lightning-fill"></i>
-                        </div>
-                        <div style="flex: 1;">
-                            <h3 class="narrative-title">FOMO-Driven Trades</h3>
-                        </div>
-                        <span class="ai-kpi-badge badge-warning">
-                            {{ insights.analysis.fomo_trades|length }} Trades
-                        </span>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="evidence-table">
-                            <thead>
-                                <tr>
-                                    <th>Ticker</th>
-                                    <th>Date</th>
-                                    <th>Action</th>
-                                    <th>Trigger</th>
-                                    <th>Outcome</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for trade in insights.analysis.fomo_trades %}
-                                <tr>
-                                    <td><strong>{{ trade.ticker }}</strong></td>
-                                    <td>{{ trade.date }}</td>
-                                    <td>{{ trade.action }}</td>
-                                    <td><span class="trade-trigger">{{ trade.trigger }}</span></td>
-                                    <td>{{ trade.outcome }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- Repeating Mistakes -->
-                {% if insights.analysis.repeating_mistakes %}
-                <div class="narrative-block warning">
-                    <div class="narrative-header">
-                        <div class="narrative-icon red">
-                            <i class="bi bi-arrow-repeat"></i>
-                        </div>
-                        <div style="flex: 1;">
-                            <h3 class="narrative-title">Repeating Mistakes</h3>
-                        </div>
-                    </div>
-                    <div class="narrative-text">
-                        <ul class="mistakes-list">
-                            {% for mistake in insights.analysis.repeating_mistakes %}
-                            <li class="mistake-item">{{ mistake }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                </div>
-                {% endif %}
             </div>
 
             <!-- Sector Momentum Panel -->
@@ -913,13 +701,9 @@
                 this.classList.add('active');
                 document.getElementById('panel-' + targetPanel).classList.add('active');
 
-                // Update sidebar button label based on active tab
+                // The run button only applies to the AI module tabs
                 if (contextRunBtn) {
-                    if (moduleAnalysisMap[targetPanel]) {
-                        contextRunBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Analysis';
-                    } else {
-                        contextRunBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Re-run Analysis';
-                    }
+                    contextRunBtn.style.display = moduleAnalysisMap[targetPanel] ? '' : 'none';
                 }
             });
         });
@@ -928,11 +712,7 @@
         window.runActiveAnalysis = function() {
             const templateName = moduleAnalysisMap[activePanel];
             if (templateName) {
-                // Module tab — trigger AJAX analysis
                 runModuleAnalysis(templateName, activePanel);
-            } else {
-                // Core tab (overview/patterns/risks/actions) — re-run behavioral
-                window.location.href = '{{ url_for("portfolio.analytics") }}?refresh=true';
             }
         };
 

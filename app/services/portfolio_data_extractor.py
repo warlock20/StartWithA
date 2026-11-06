@@ -884,10 +884,15 @@ class PortfolioDataExtractor:
 
         perf = PortfolioPerformanceService.get_performance(self.user_id)
 
+        # Loaded here, not taken from ``transactions``: the trade loader joins
+        # on Company and so drops company-less cash rows.
+        cash_rows = Transaction.query.filter(
+            Transaction.user_id == self.user_id,
+            Transaction.type.in_(('DEPOSIT', 'WITHDRAWAL')),
+        ).all()
+
         cash_flows = []
-        for t in transactions:
-            if t.type not in ('DEPOSIT', 'WITHDRAWAL'):
-                continue
+        for t in cash_rows:
             amount = t.cash_amount_base if t.cash_amount_base is not None else t.cash_amount
             amount = float(amount or 0)
             cash_flows.append((t.date, -amount if t.type == 'DEPOSIT' else amount))
