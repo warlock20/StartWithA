@@ -206,6 +206,7 @@ def _make_chunk(user_id, company_id, source_type, source_id, summary):
         title=source_type, summary=summary, context=f'{source_type} context:',
         embedding=np.random.default_rng(source_id + abs(hash(source_type)) % 1000)
         .random(768).tolist(),
+        embedding_model='stub-embedding',  # stub_embedding's model_id; search filters on it
         token_estimate=max(1, len(summary) // 4),
     )
     db.session.add(chunk)
