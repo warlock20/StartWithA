@@ -84,7 +84,6 @@ def build_portfolio_analytics(user_id: int, as_of: Optional[date] = None) -> Dic
             'wins': summary.get('wins', 0),
             'losses': summary.get('losses', 0),
             'xirr': summary.get('xirr'),
-            'cagr': summary.get('cagr', 0),
             'avg_hold_days': avg_hold_days,
             'strategy_label': strategy_label(avg_hold_days),
             'positions_count': summary.get('total_positions', 0),

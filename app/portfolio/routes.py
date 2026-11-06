@@ -59,6 +59,7 @@ from app.services.portfolio_intelligence import (
 from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.cash_service import CashService
+from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
 
 import json
@@ -150,7 +151,10 @@ def cash_setup():
     """One-time initial capital confirmation for cash tracking."""
     amount = Decimal(request.form.get('initial_capital', '0'))
     if amount > 0:
-        CashService.create_initial_deposit(current_user.id, amount, current_user.base_currency)
+        mode = request.form.get('capital_timing', GRADUAL)
+        if mode not in (GRADUAL, LUMP_SUM):
+            mode = GRADUAL
+        record_imported_capital(current_user.id, amount, mode, current_user.base_currency)
     current_user.cash_setup_complete = True
     db.session.commit()
     flash('Initial capital recorded. Cash tracking is now active!', 'success')

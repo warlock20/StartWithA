@@ -44,6 +44,7 @@ from app.models.portfolio import Transaction, PortfolioPosition
 from app.models.company import Company
 from app.utils.financial_utils import calculate_cagr, calculate_xirr
 from app.utils.portfolio_utils import trading_gain_loss
+from app.services.capital_timing import gradual_funding_flows
 from app.services.portfolio_performance import PortfolioPerformanceService
 
 logger = logging.getLogger(__name__)
@@ -873,7 +874,7 @@ class PortfolioDataExtractor:
         Deposits are money in (negative), withdrawals money out (positive),
         and the portfolio's current value is the terminal flow at ``as_of``.
         Before cash setup there are no deposit rows, so the inferred capital is
-        one flow at the first transaction date.
+        dated gradually, on the purchases that needed it.
 
         Returns:
             XIRR as a percentage, or None with under 30 days of history or
@@ -898,7 +899,10 @@ class PortfolioDataExtractor:
             cash_flows.append((t.date, -amount if t.type == 'DEPOSIT' else amount))
 
         if not cash_flows:
-            cash_flows = [(min(t.date for t in transactions), -float(perf['capital_invested']))]
+            cash_flows = [
+                (d, -float(a))
+                for d, a in gradual_funding_flows(self.user_id, perf['capital_invested'])
+            ]
 
         if (as_of - min(d for d, _ in cash_flows)).days < 30:
             return None

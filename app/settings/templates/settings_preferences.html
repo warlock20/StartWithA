@@ -66,4 +66,36 @@
         </div>
     </form>
 </section>
+
+{% if capital_mode %}
+<section class="settings-panel">
+    <div class="settings-panel-head">
+        <h3>Imported capital</h3>
+    </div>
+    <form method="POST" action="{{ url_for('settings.update_capital_timing') }}">
+        <div class="settings-row">
+            <div class="settings-row-label">
+                <strong>How did this money come in?</strong>
+                <span>Sets the dates of the capital we calculated when you imported your trades. It changes your annualized return, not your capital.</span>
+            </div>
+            <div class="settings-row-control">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="capital_timing" id="capital_gradual"
+                           value="gradual" {% if capital_mode == 'gradual' %}checked{% endif %}>
+                    <label class="form-check-label" for="capital_gradual">Gradually, as I bought</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="capital_timing" id="capital_lump_sum"
+                           value="lump_sum" {% if capital_mode == 'lump_sum' %}checked{% endif %}>
+                    <label class="form-check-label" for="capital_lump_sum">All at once, before my first purchase</label>
+                </div>
+            </div>
+        </div>
+        <div class="settings-panel-foot">
+            <span></span>
+            <button type="submit" class="action-btn primary">Save imported capital</button>
+        </div>
+    </form>
+</section>
+{% endif %}
 {% endblock %}

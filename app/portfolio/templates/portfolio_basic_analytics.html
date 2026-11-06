@@ -43,7 +43,7 @@
                 <div class="portfolio-metric-label">Annualized Return</div>
                 <div class="portfolio-metric-value">{% if k.xirr is not none %}{{ k.xirr }}%{% else %}&mdash;{% endif %}</div>
                 <div class="portfolio-metric-subtext">
-                    {% if k.xirr is not none %}Money-weighted (XIRR) &middot; lump-sum CAGR {{ k.cagr }}%{% else %}Under 30 days of history{% endif %}
+                    {% if k.xirr is not none %}Money-weighted (XIRR){% else %}Under 30 days of history{% endif %}
                 </div>
             </div>
             <div class="portfolio-metric">
