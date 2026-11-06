@@ -19,7 +19,20 @@ Portfolio Utilities
 Reusable calculation functions for portfolio analytics and metrics.
 """
 
+from decimal import Decimal
 from typing import List, Dict
+
+
+def trading_gain_loss(position) -> Decimal:
+    """
+    Trading result of a position: realized gain/loss with dividends taken out.
+
+    ``realized_gain_loss`` on a position includes dividends received, so a
+    sale below cost can look like a profit. Win/loss is judged on this value.
+    """
+    realized = position.realized_gain_loss or Decimal('0')
+    dividends = position.total_dividends or Decimal('0')
+    return realized - dividends
 
 
 def calculate_win_rate(positions: List) -> float:

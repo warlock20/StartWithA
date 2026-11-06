@@ -42,7 +42,8 @@ from app.utils.time_utils import now_utc
 
 from app.models.portfolio import Transaction, PortfolioPosition
 from app.models.company import Company
-from app.utils.financial_utils import calculate_cagr
+from app.utils.financial_utils import calculate_cagr, calculate_xirr
+from app.utils.portfolio_utils import trading_gain_loss
 from app.services.portfolio_performance import PortfolioPerformanceService
 
 logger = logging.getLogger(__name__)
@@ -195,9 +196,12 @@ class PortfolioDataExtractor:
     # STRUCTURED METRICS EXTRACTION (Pre-calculated)
     # ================================================================
 
-    def extract_all(self) -> Dict[str, Any]:
+    def extract_all(self, as_of: Optional[date] = None) -> Dict[str, Any]:
         """
         Extract complete portfolio data with pre-calculated metrics.
+
+        Args:
+            as_of: End of the measurement span for CAGR and XIRR (default: today)
 
         Returns:
             Dict with:
@@ -214,7 +218,7 @@ class PortfolioDataExtractor:
         transactions = self._load_transactions()
 
         return {
-            'portfolio_summary': self.extract_portfolio_summary(positions, transactions),
+            'portfolio_summary': self.extract_portfolio_summary(positions, transactions, as_of),
             'positions': self.extract_active_positions(positions),
             'closed_positions': self.extract_closed_positions(positions),
             'trading_patterns': self.extract_trading_patterns(transactions),
@@ -231,14 +235,18 @@ class PortfolioDataExtractor:
     def extract_portfolio_summary(
         self,
         positions: List[PortfolioPosition],
-        transactions: List[Transaction]
+        transactions: List[Transaction],
+        as_of: Optional[date] = None
     ) -> Dict[str, Any]:
         """
         Calculate high-level portfolio metrics.
 
+        Wins and losses are judged on the trading result (dividends excluded).
+
         Returns:
-            Dict with win rate, total invested, realized gains/losses, CAGR
+            Dict with win rate, total invested, realized gains/losses, CAGR, XIRR
         """
+        as_of = as_of or date.today()
         active_positions = [p for p in positions if p.is_active]
         closed_positions = [p for p in positions if not p.is_active]
 
@@ -255,12 +263,13 @@ class PortfolioDataExtractor:
         )
 
         # Win/loss counts
-        wins = len([p for p in closed_positions if p.realized_gain_loss and p.realized_gain_loss > 0])
-        losses = len([p for p in closed_positions if p.realized_gain_loss and p.realized_gain_loss <= 0])
+        wins = len([p for p in closed_positions if trading_gain_loss(p) > 0])
+        losses = len(closed_positions) - wins
         total_closed = wins + losses
 
         # Calculate CAGR
-        cagr = self._calculate_portfolio_cagr(transactions)
+        cagr = self._calculate_portfolio_cagr(transactions, as_of)
+        xirr = self._calculate_portfolio_xirr(transactions, as_of)
 
         return {
             'total_positions': len(active_positions),
@@ -271,7 +280,8 @@ class PortfolioDataExtractor:
             'wins': wins,
             'losses': losses,
             'total_transactions': len(transactions),
-            'cagr': cagr
+            'cagr': cagr,
+            'xirr': xirr
         }
 
     def extract_active_positions(self, positions: List[PortfolioPosition]) -> List[Dict[str, Any]]:
@@ -347,7 +357,7 @@ class PortfolioDataExtractor:
                 'realized_gain_loss': float(position.realized_gain_loss),
                 'return_pct': return_pct,
                 'hold_days': hold_days,
-                'was_winner': position.realized_gain_loss > 0
+                'was_winner': trading_gain_loss(position) > 0
             })
 
         # Sort by realized gain/loss descending
@@ -768,10 +778,7 @@ class PortfolioDataExtractor:
         losers = []
 
         for position in closed_positions:
-            if not position.realized_gain_loss:
-                continue
-
-            gl = float(position.realized_gain_loss)
+            gl = float(trading_gain_loss(position))
 
             # Calculate hold time
             hold_days = 0
@@ -831,7 +838,7 @@ class PortfolioDataExtractor:
             'avg_loser_hold_days': avg_loser_hold_days
         }
 
-    def _calculate_portfolio_cagr(self, transactions: List[Transaction]) -> float:
+    def _calculate_portfolio_cagr(self, transactions: List[Transaction], as_of: date) -> float:
         """
         Calculate portfolio-level CAGR from the portfolio performance service.
 
@@ -841,16 +848,55 @@ class PortfolioDataExtractor:
         collapsed once a winner was sold and could report a loss on a
         profitable portfolio.
 
+        The span runs from the first transaction to ``as_of`` so a dormant
+        stretch dilutes the annual rate instead of being ignored (issue #347).
+
         Returns:
             CAGR as a percentage (e.g., 15.5 for 15.5%)
         """
         if not transactions:
             return 0.0
 
-        dates = [t.date for t in transactions]
-        days_held = (max(dates) - min(dates)).days
+        days_held = (as_of - min(t.date for t in transactions)).days
 
         perf = PortfolioPerformanceService.get_performance(self.user_id)
         cagr = calculate_cagr(float(perf['total_return_pct']), days_held)
 
         return round(cagr, 1)
+
+    def _calculate_portfolio_xirr(
+        self, transactions: List[Transaction], as_of: date
+    ) -> Optional[float]:
+        """
+        Money-weighted annualized return, dated by the actual cash flows.
+
+        Deposits are money in (negative), withdrawals money out (positive),
+        and the portfolio's current value is the terminal flow at ``as_of``.
+        Before cash setup there are no deposit rows, so the inferred capital is
+        one flow at the first transaction date.
+
+        Returns:
+            XIRR as a percentage, or None with under 30 days of history or
+            when the rate is undefined
+        """
+        if not transactions:
+            return None
+
+        perf = PortfolioPerformanceService.get_performance(self.user_id)
+
+        cash_flows = []
+        for t in transactions:
+            if t.type not in ('DEPOSIT', 'WITHDRAWAL'):
+                continue
+            amount = t.cash_amount_base if t.cash_amount_base is not None else t.cash_amount
+            amount = float(amount or 0)
+            cash_flows.append((t.date, -amount if t.type == 'DEPOSIT' else amount))
+
+        if not cash_flows:
+            cash_flows = [(min(t.date for t in transactions), -float(perf['capital_invested']))]
+
+        if (as_of - min(d for d, _ in cash_flows)).days < 30:
+            return None
+
+        cash_flows.append((as_of, float(perf['total_value'])))
+        return calculate_xirr(cash_flows)
