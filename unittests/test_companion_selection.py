@@ -95,6 +95,7 @@ def test_endpoint_returns_evidence(client_logged_in, stub_embedding):
         summary='CATIA is embedded in aerospace pipelines, so customers rarely leave.',
         embedding=stub_embedding.embed(
             'CATIA is embedded in aerospace pipelines, so customers rarely leave.'),
+        embedding_model=stub_embedding.model_id,
         token_estimate=20))
     db.session.commit()
 

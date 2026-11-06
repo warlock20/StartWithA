@@ -27,7 +27,10 @@ One row per piece, keyed by (source_type, source_id, chunk_index).
 The default embedding provider is `gemini-embedding-001` truncated to 768
 dims, the same `Vector(768)` pgvector column type `EmbeddingStore` uses.
 `embedding_model` records which model made each vector, because vectors from
-different models can't be compared.
+different models can't be compared; search only ranks rows made by the current
+model. Search ranks in Postgres with `<=>` (cosine distance) as an exact scan
+of one user's rows; there is deliberately no HNSW index on `embedding` (see
+`services/argos/knowledge_search.py`).
 """
 
 from pgvector.sqlalchemy import Vector
