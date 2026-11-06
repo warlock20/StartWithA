@@ -136,18 +136,15 @@ class OutcomeTracker:
         
         if decision_journal:
             initial_thesis = decision_journal.investment_thesis_text
-            confidence_at_entry = decision_journal.confidence_level
-            # Try to get expected return/hold from decision journal if available
-            if hasattr(decision_journal, 'expected_return'):
-                expected_return_pct = decision_journal.expected_return
-            if hasattr(decision_journal, 'expected_hold_period'):
-                expected_hold_months = decision_journal.expected_hold_period
+            confidence_at_entry = decision_journal.confidence_score
+            expected_return_pct = decision_journal.expected_return
+            expected_hold_months = decision_journal.expected_timeframe  # months
         
         # Create the outcome record
         outcome = ResearchOutcome(
             user_id=user_id,
             company_id=company_id,
-            research_session_id=research_session_id,
+            checklist_analysis_id=research_session_id,
             project_id=research_project_id,
             decision_journal_id=decision_journal.id if decision_journal else None,
             
@@ -169,7 +166,7 @@ class OutcomeTracker:
             had_valuation_model=quality_score.had_valuation_model if quality_score else False,
             
             # Decision metrics
-            decision_date=transaction.transaction_date,
+            decision_date=transaction.date,
             entry_price=transaction.price_per_share,
             position_size=transaction.total_value,
             initial_thesis=initial_thesis,
@@ -243,11 +240,11 @@ class OutcomeTracker:
         # Calculate hold period
         actual_hold_days = None
         if outcome.decision_date:
-            hold_delta = sell_transaction.transaction_date - outcome.decision_date
+            hold_delta = sell_transaction.date - outcome.decision_date
             actual_hold_days = hold_delta.days
         
         # Update the record
-        outcome.exit_date = sell_transaction.transaction_date
+        outcome.exit_date = sell_transaction.date
         outcome.exit_price = sell_transaction.price_per_share
         outcome.realized_return_pct = realized_return_pct
         outcome.actual_hold_days = actual_hold_days
