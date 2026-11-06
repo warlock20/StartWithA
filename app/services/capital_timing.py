@@ -12,6 +12,7 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
 Imported capital timing (issue #347).
@@ -64,9 +65,12 @@ def gradual_funding_flows(user_id: int, total: Decimal) -> List[Tuple[date, Deci
     ``total`` on that date. Whatever is left over goes on the first BUY date.
     """
     total = Decimal(str(total))
-    transactions = Transaction.query.filter_by(user_id=user_id).order_by(
-        Transaction.date.asc(), Transaction.id.asc()
-    ).all()
+    # Same day: cash that comes in (sells, dividends, deposits) is applied
+    # before the purchases, so it funds them rather than imported capital.
+    transactions = sorted(
+        Transaction.query.filter_by(user_id=user_id).all(),
+        key=lambda t: (t.date, t.type == 'BUY', t.id),
+    )
 
     balance = Decimal('0')
     budget = total
@@ -135,9 +139,10 @@ def imported_capital_total(user_id: int) -> Decimal:
     return sum((_deposit_amount(row) for row in _auto_deposits(user_id)), Decimal('0'))
 
 
-def switch_imported_capital(user_id: int, mode: str) -> None:
-    """Re-date the auto-calculated capital, keeping its total."""
+def switch_imported_capital(user_id: int, mode: str) -> bool:
+    """Re-date the auto-calculated capital, keeping its total. False if there is none."""
     rows = _auto_deposits(user_id)
     if not rows:
-        return
+        return False
     record_imported_capital(user_id, imported_capital_total(user_id), mode, rows[0].currency)
+    return True

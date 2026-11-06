@@ -904,7 +904,7 @@ class PortfolioDataExtractor:
                 for d, a in gradual_funding_flows(self.user_id, perf['capital_invested'])
             ]
 
-        if (as_of - min(d for d, _ in cash_flows)).days < 30:
+        if not cash_flows or (as_of - min(d for d, _ in cash_flows)).days < 30:
             return None
 
         cash_flows.append((as_of, float(perf['total_value'])))
