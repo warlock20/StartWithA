@@ -50,7 +50,7 @@ class PortfolioAIAnalytics:
 
     Usage:
         analytics = PortfolioAIAnalytics(user_id=1)
-        insights = analytics.get_insights()
+        insights, tokens = analytics.get_sector_momentum_analysis(force_refresh=True)
     """
 
     def __init__(self, user_id: int):
@@ -61,78 +61,8 @@ class PortfolioAIAnalytics:
         self.prompt_service = PromptService()
 
     # ================================================================
-    # Public API - Main Orchestrator
+    # Public API
     # ================================================================
-
-    def get_insights(self, force_refresh: bool = False) -> tuple[Dict[str, Any], int]:
-        """
-        Get comprehensive AI-powered portfolio insights.
-
-        This method orchestrates all sub-analyses and combines results.
-        For now, only deep behavioral analysis is implemented.
-
-        Future structure:
-        {
-            'quick_insights': {...},      # Fast overview (future)
-            'behavioral': {...},           # Deep behavioral analysis (current)
-            'risk_analysis': {...},        # Risk deep dive (future)
-            'sector_analysis': {...}       # Sector concentration (future)
-        }
-
-        Args:
-            force_refresh: Skip cache and regenerate all analyses
-
-        Returns:
-            Tuple of (combined_analysis_dict, tokens_used)
-        """
-        logger.info(f"Running portfolio insights for user {self.user_id}")
-
-        # FOR NOW: Using quick insights (portfolio_complete_analysis)
-        # because the template expects that structure
-        # TODO: Once we update the template, switch to combined results
-        return self.get_deep_behavioral_insights(force_refresh)
-
-        # FUTURE: Return combined results from multiple analyses
-        # combined_results = {}
-        # combined_results['quick'] = self.get_quick_insights(force_refresh)
-        # combined_results['behavioral'] = self.get_deep_behavioral_insights(force_refresh)
-        # return combined_results
-
-    # ================================================================
-    # Sub-Analysis Methods (Modular)
-    # ================================================================
-
-    def get_quick_insights(self, force_refresh: bool = False) -> tuple[Dict[str, Any], int]:
-        """
-        Quick portfolio overview using pre-calculated metrics.
-        Template: portfolio_complete_analysis.yaml
-
-        Fast, high-level summary suitable for dashboard display.
-
-        Returns:
-            Tuple of (insights_dict, tokens_used)
-        """
-        template_name = "portfolio_complete_analysis"
-        return self._run_analysis(template_name, force_refresh)
-
-    def get_deep_behavioral_insights(
-        self, force_refresh: bool = False
-    ) -> tuple[Dict[str, Any], int]:
-        """
-        Deep behavioral analysis from raw transaction history.
-        Template: portfolio_raw_trade_analysis.yaml
-
-        Analyzes:
-        - FOMO patterns and triggers
-        - Tax optimization opportunities
-        - Investor evolution over time
-        - Behavioral biases (disposition effect, recency bias)
-
-        Returns:
-            Tuple of (insights_dict, tokens_used)
-        """
-        template_name = "portfolio_raw_trade_analysis"
-        return self._run_analysis(template_name, force_refresh)
 
     def get_sector_momentum_analysis(
         self, force_refresh: bool = False
@@ -187,7 +117,7 @@ class PortfolioAIAnalytics:
         # Check cache first
         cached = self._get_cached_insights(template_name)
 
-        # If force_refresh is False and no cache exists, return placeholder
+        # If force_refresh is False and no cache exists, return an error-only payload
         # TODO: After testing, uncomment the auto-generation logic below
         if not force_refresh:
             if cached:
@@ -195,11 +125,11 @@ class PortfolioAIAnalytics:
                 # Cached results don't have token count, return 0
                 return (cached, 0)
             else:
-                # No cache and not forcing refresh - return placeholder
+                # No cache and not forcing refresh - return an error-only payload
                 logger.info(
                     f"No cache for {template_name}, user must click 'Re-run Analysis'"
                 )
-                return (self._get_placeholder_response(template_name), 0)
+                return (self._error_response("no_analysis_run"), 0)
 
         # Force refresh requested - generate fresh insights
         logger.info(
@@ -224,7 +154,7 @@ class PortfolioAIAnalytics:
 
         # Check sufficient data
         if not portfolio_data["metadata"]["has_data"]:
-            return (self._get_insufficient_data_response(portfolio_data), 0)
+            return (self._error_response("insufficient_data"), 0)
 
         # 2. Prepare variables based on template type
         variables = self._prepare_template_variables(template_name, portfolio_data)
@@ -242,7 +172,7 @@ class PortfolioAIAnalytics:
 
             if not metadata:
                 logger.error(f"Template metadata for '{template_name}' returned None")
-                return (self._get_fallback_insights(portfolio_data), 0)
+                return (self._error_response("ai_generation_failed"), 0)
 
             # Log the prompt for debugging
             logger.info(f"=" * 80)
@@ -317,10 +247,10 @@ class PortfolioAIAnalytics:
         except RuntimeError as e:
             # No AI provider available
             logger.warning(f"No AI provider available: {e}")
-            return (self._get_fallback_insights(portfolio_data), 0)
+            return (self._error_response("ai_generation_failed"), 0)
         except Exception as e:
             logger.error(f"Failed to generate portfolio insights: {e}", exc_info=True)
-            return (self._get_fallback_insights(portfolio_data), 0)
+            return (self._error_response("ai_generation_failed"), 0)
 
     def _prepare_template_variables(
         self, template_name: str, portfolio_data: Dict[str, Any]
@@ -328,9 +258,8 @@ class PortfolioAIAnalytics:
         """
         Prepare variables for template based on template type.
 
-        Different templates need different data formats:
-        - portfolio_complete_analysis: Pre-calculated metrics (summary stats)
-        - portfolio_raw_trade_analysis: Raw transactions (chronological trades)
+        Both module templates (sector momentum, tax optimization) take the raw
+        transactions; each adds its own extras.
 
         Args:
             template_name: Name of template
@@ -339,40 +268,8 @@ class PortfolioAIAnalytics:
         Returns:
             Variables dict for template
         """
-        if template_name == "portfolio_complete_analysis":
-            # Pre-calculated metrics for quick overview
-            # Format as natural text instead of JSON to avoid recitation filter
-            summary = portfolio_data["portfolio_summary"]
-            patterns = portfolio_data["trading_patterns"]
-
-            return {
-                "portfolio_summary": f"""
-                - Total positions: {summary.get('total_positions', 0)}
-                - Closed positions: {summary.get('closed_positions', 0)}
-                - Total invested: ${summary.get('total_invested', 0):,.2f}
-                - Win rate: {summary.get('win_rate', 0):.1f}%
-                """,
-                "trading_patterns": f"""
-                - Average holding period: {patterns.get('avg_hold_days', 0):.0f} days
-                - Winner avg return: {patterns.get('avg_winner_return', 0):.1f}%
-                - Loser avg return: {patterns.get('avg_loser_return', 0):.1f}%
-                """,
-                "sector_breakdown": self._format_sectors_text(
-                    portfolio_data["sector_breakdown"][:5]
-                ),
-                "positions": self._format_positions_text(
-                    portfolio_data["positions"][:5]
-                ),
-                "closed_positions": self._format_positions_text(
-                    portfolio_data["closed_positions"][:5]
-                ),
-                "recent_activity": self._format_activity_text(
-                    portfolio_data["recent_activity"][:10]
-                ),
-            }
-
-        elif template_name in ("portfolio_raw_trade_analysis", "sector_momentum_analysis", "tax_optimization_analysis"):
-            # Raw transactions for behavioral / sector momentum / tax optimization analysis
+        if template_name in ("sector_momentum_analysis", "tax_optimization_analysis"):
+            # Raw transactions for sector momentum / tax optimization analysis
             transactions = self.extractor.extract_transactions()
 
             # Get user profile data (tax residence)
@@ -429,32 +326,6 @@ class PortfolioAIAnalytics:
             lines.append(
                 f"- {sector['sector']}: {sector['percentage']:.1f}% (${sector['total_cost']:,.2f})"
             )
-        return "\n".join(lines)
-
-    def _format_positions_text(self, positions: list) -> str:
-        """Format positions as natural text"""
-        if not positions:
-            return "No positions"
-
-        lines = []
-        for pos in positions[:5]:  # Top 5 only
-            ticker = pos.get("ticker", "Unknown")
-            sector = pos.get("sector", "Unknown")
-            invested = pos.get("total_invested", 0)
-            lines.append(f"- {ticker} ({sector}): ${invested:,.2f}")
-        return "\n".join(lines)
-
-    def _format_activity_text(self, activities: list) -> str:
-        """Format recent activity as natural text"""
-        if not activities:
-            return "No recent activity"
-
-        lines = []
-        for act in activities[:10]:
-            date = act.get("date", "Unknown")
-            action = act.get("type", "Unknown")
-            ticker = act.get("ticker", "Unknown")
-            lines.append(f"- {date}: {action} {ticker}")
         return "\n".join(lines)
 
     def _format_transactions_text(self, transactions: list) -> str:
@@ -624,22 +495,6 @@ class PortfolioAIAnalytics:
               "recommendations": analysis.get("recommendations", []),
           }
 
-      # Behavioral analysis — original schema
-      if "investor_behavior_analysis" in ai_insights:
-          logger.info("Detected schema-based response structure")
-          analysis = ai_insights["investor_behavior_analysis"]
-
-          return {
-              "overall_assessment": analysis.get("summary", ""),
-              "behavioral_patterns": self._extract_behavioral_patterns(analysis.get("behavioral_patterns", [])),
-              "fomo_analysis": self._extract_fomo_analysis(analysis.get("fomo_analysis", {})),
-              "investor_evolution": self._extract_evolution(analysis.get("evolution_timeline", [])),
-              "repeating_mistakes": self._extract_repeating_mistakes(analysis.get("evolution_metadata", {})),
-              "recommendations": [],
-              "key_strengths": analysis.get("key_findings", []),
-              "key_risks": []
-          }
-
       # Fallback: Assume free-form response with expected keys
       logger.info("Assuming free-form response structure")
       return ai_insights    
@@ -672,232 +527,7 @@ class PortfolioAIAnalytics:
                 "tax_optimization": ai_insights,
             }
 
-        summary = portfolio_data["portfolio_summary"]
-        patterns = portfolio_data["trading_patterns"]
-
-        # Determine risk level
-        tech_concentration = 0
-        if portfolio_data["sector_breakdown"]:
-            tech_sector = next(
-                (
-                    s
-                    for s in portfolio_data["sector_breakdown"]
-                    if s.get("sector") == "Technology"
-                ),
-                None,
-            )
-            if tech_sector:
-                tech_concentration = tech_sector.get("percentage", 0)
-
-        risk_level = (
-            "High"
-            if tech_concentration > 50
-            else "Medium" if tech_concentration > 30 else "Low"
-        )
-        risk_description = (
-            f"Sector concentration at {tech_concentration}%"
-            if tech_concentration > 30
-            else "Well diversified"
-        )
-
-        # Build formatted structure
-        return {
-            "metadata": {
-                "generated_at": now_utc().isoformat(),
-                "last_transaction_date": self._get_last_transaction_date(),
-                "transactions_count": summary.get("total_transactions", 0),
-                "positions_count": summary.get("total_positions", 0),
-                "error": None,
-            },
-            "kpis": {
-                "win_rate": summary.get("win_rate", 0),  # From portfolio_summary
-                "market_avg_win_rate": 52,  # Market average
-                "cagr": summary.get("cagr", 0),  # From portfolio_summary
-                "avg_hold_days": patterns.get("avg_hold_days", 0),
-                "strategy_label": self._get_strategy_label(
-                    patterns.get("avg_hold_days", 0)
-                ),
-                "positions_count": summary.get("total_positions", 0),
-                "sector_concentration": round(tech_concentration, 1),
-                "risk_level": risk_level,
-                "risk_description": risk_description,
-            },
-            "ai_summary": {
-                "quick_insight": ai_insights.get(
-                    "overall_assessment", "Analysis in progress..."
-                )[:200]
-            },
-            "analysis": {
-                "overall_assessment": ai_insights.get(
-                    "overall_assessment", "No assessment available."
-                ),
-                "key_strengths": ai_insights.get("key_strengths", []),
-                "key_risks": self._format_risks(ai_insights.get("key_risks", [])),
-                "behavioral_patterns": self._format_patterns(
-                    ai_insights.get("behavioral_patterns", [])
-                ),
-                "recommendations": self._format_recommendations(
-                    ai_insights.get("recommendations", [])
-                ),
-                "investor_evolution": ai_insights.get("investor_evolution", []),
-                "fomo_trades": ai_insights.get("fomo_analysis", {}).get("fomo_trades", []),
-                "repeating_mistakes": ai_insights.get("repeating_mistakes", []),
-            },
-            "comparison": {
-                "winners": {
-                    "avg_return": round(patterns.get("avg_winner_return", 0), 1),
-                    "hold_time": round(patterns.get("avg_winner_hold_days", 0)),
-                    "success_rate": summary.get("win_rate", 0),  # From portfolio_summary
-                },
-                "losers": {
-                    "avg_loss": round(patterns.get("avg_loser_return", 0), 1),
-                    "hold_time": round(patterns.get("avg_loser_hold_days", 0)),
-                    "pattern": "Hold longer",
-                    "insight": self._get_disposition_effect_insight(patterns),
-                },
-            },
-        }
-
-    def _get_strategy_label(self, avg_hold_days: float) -> str:
-        """Get strategy label based on holding period"""
-        if avg_hold_days < 30:
-            return "Short-term Trading"
-        elif avg_hold_days < 90:
-            return "Medium-term Strategy"
-        else:
-            return "Long-term Strategy"
-
-    def _get_disposition_effect_insight(self, patterns: Dict[str, Any]) -> str:
-        """Generate disposition effect insight"""
-        winner_days = patterns.get("avg_winner_hold_days", 0)
-        loser_days = patterns.get("avg_loser_hold_days", 0)
-
-        if loser_days > winner_days * 1.2:
-            pct_longer = round(((loser_days - winner_days) / winner_days) * 100)
-            return f"You hold losers {pct_longer}% longer than winners."
-        return None
-
-    def _format_risks(self, risks: list) -> list:
-        """Format risks for template"""
-        formatted = []
-        for risk in risks:
-            if isinstance(risk, str):
-                formatted.append(
-                    {
-                        "title": risk,
-                        "description": risk,
-                        "level": "medium",
-                        "mitigation": None,
-                    }
-                )
-            elif isinstance(risk, dict):
-                formatted.append(
-                    {
-                        "title": risk.get("title", risk.get("name", "Risk")),
-                        "description": risk.get("description", risk.get("detail", "")),
-                        "level": risk.get("level", risk.get("severity", "medium")),
-                        "mitigation": risk.get(
-                            "mitigation", risk.get("solution", None)
-                        ),
-                    }
-                )
-        return formatted
-
-    def _format_patterns(self, patterns: list) -> list:
-        """Format behavioral patterns for template"""
-        formatted = []
-        for pattern in patterns:
-            if isinstance(pattern, str):
-                formatted.append(
-                    {
-                        "title": pattern,
-                        "description": pattern,
-                        "severity": None,
-                        "icon": "brain",
-                        "recommendation": None,
-                    }
-                )
-            elif isinstance(pattern, dict):
-                formatted.append(
-                    {
-                        "title": pattern.get("title", pattern.get("name", "Pattern")),
-                        "description": pattern.get(
-                            "description", pattern.get("detail", "")
-                        ),
-                        "examples": pattern.get("examples", []),
-                        "counter_examples": pattern.get("counter_examples", []),
-                        "severity": pattern.get(
-                            "severity", pattern.get("impact", None)
-                        ),
-                        "icon": pattern.get("icon", "brain"),
-                        "recommendation": pattern.get(
-                            "recommendation", pattern.get("solution", None)
-                        ),
-                    }
-                )
-        return formatted
-
-    def _format_recommendations(self, recommendations: list) -> list:
-        """Format recommendations for template"""
-        formatted = []
-        for rec in recommendations:
-            if isinstance(rec, str):
-                formatted.append(
-                    {"title": rec, "description": rec, "priority": "normal"}
-                )
-            elif isinstance(rec, dict):
-                formatted.append(
-                    {
-                        "title": rec.get("title", rec.get("action", "Action")),
-                        "description": rec.get("description", rec.get("detail", "")),
-                        "priority": rec.get("priority", "normal"),
-                    }
-                )
-        return formatted
-
-    def _extract_behavioral_patterns(self, patterns: list) -> list:
-        """Convert schema-based patterns to template format with examples and severity"""
-        return [{
-            "title": p.get("pattern_name", ""),
-            "description": p.get("description", ""),
-            "examples": p.get("examples", []),
-            "counter_examples": p.get("counter_examples", []),
-            "severity": p.get("severity", "medium"),  # AI provides severity directly
-            "icon": "brain",
-            "recommendation": None
-        } for p in patterns]
-
-    def _extract_fomo_analysis(self, fomo: dict) -> dict:
-        """Convert FOMO dict to structured format for UI"""
-        fomo_trades = fomo.get("fomo_trades", [])
-
-        # Format trades for table display
-        formatted_trades = []
-        for trade in fomo_trades:
-            formatted_trades.append({
-                "ticker": trade.get("ticker", ""),
-                "action": trade.get("action", ""),
-                "date": trade.get("date", ""),
-                "outcome": trade.get("outcome", ""),
-                "trigger": trade.get("trigger", "")
-            })
-
-        return {
-            "fomo_trades": formatted_trades,
-            "count": len(formatted_trades)
-        }
-
-    def _extract_evolution(self, timeline: list) -> list:
-        """Convert evolution timeline to array of phase objects for horizontal timeline"""
-        return [{
-            "period": phase.get("period", ""),
-            "phase_name": phase.get("phase_name", ""),
-            "analysis": phase.get("analysis", "")
-        } for phase in timeline]
-
-    def _extract_repeating_mistakes(self, evolution_metadata: dict) -> list:
-        """Extract repeating mistakes from evolution metadata"""
-        return evolution_metadata.get("repeating_mistakes", [])
+        raise ValueError(f"Unknown template type: {template_name}")
 
     # ================================================================
     # Caching
@@ -974,171 +604,15 @@ class PortfolioAIAnalytics:
         return last_txn.date.isoformat() if last_txn else None
 
     # ================================================================
-    # Fallbacks & Placeholders
+    # Error payloads
     # ================================================================
 
-    def _get_placeholder_response(self, template_name: str) -> Dict[str, Any]:
-        """
-        Return placeholder when no cache exists and analysis not requested.
-        User must click 'Re-run Analysis' to generate insights.
-        """
+    def _error_response(self, error: str) -> Dict[str, Any]:
+        """Error-only payload: metadata with an error code, no analysis content."""
         return {
             "metadata": {
                 "generated_at": now_utc().isoformat(),
                 "last_transaction_date": self._get_last_transaction_date(),
-                "transactions_count": 0,
-                "positions_count": 0,
-                "error": "no_analysis_run",
-            },
-            "kpis": {
-                "win_rate": 0,
-                "market_avg_win_rate": 52,
-                "avg_hold_days": 0,
-                "strategy_label": "No analysis yet",
-                "positions_count": 0,
-                "sector_concentration": 0,
-                "risk_level": "N/A",
-                "risk_description": 'Click "Re-run Analysis" to generate AI insights',
-            },
-            "ai_summary": {
-                "quick_insight": 'No analysis has been run yet. Click the "Re-run Analysis" button to generate AI-powered insights.'
-            },
-            "analysis": {
-                "overall_assessment": 'AI analysis has not been run yet. Click the "Re-run Analysis" button above to generate comprehensive portfolio insights.',
-                "key_strengths": [],
-                "key_risks": [],
-                "behavioral_patterns": [],
-                "recommendations": [],
-            },
-            "comparison": {
-                "winners": {"avg_return": 0, "hold_time": 0, "success_rate": 0},
-                "losers": {
-                    "avg_loss": 0,
-                    "hold_time": 0,
-                    "pattern": "N/A",
-                    "insight": None,
-                },
+                "error": error,
             },
         }
-
-    def _get_insufficient_data_response(
-        self, portfolio_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Response when no transaction data"""
-        return {
-            "metadata": {
-                "generated_at": now_utc().isoformat(),
-                "last_transaction_date": None,
-                "transactions_count": 0,
-                "positions_count": 0,
-                "error": "insufficient_data",
-            },
-            "kpis": {
-                "win_rate": 0,
-                "market_avg_win_rate": 52,
-                "avg_hold_days": 0,
-                "strategy_label": "No data",
-                "positions_count": 0,
-                "sector_concentration": 0,
-                "risk_level": "N/A",
-                "risk_description": "No data available",
-            },
-            "ai_summary": {
-                "quick_insight": "No transaction data available. Import transactions to begin analysis."
-            },
-            "analysis": {
-                "overall_assessment": "No transaction data available. Import transactions to begin analysis.",
-                "key_strengths": [],
-                "key_risks": [],
-                "behavioral_patterns": [],
-                "recommendations": [],
-            },
-            "comparison": {
-                "winners": {"avg_return": 0, "hold_time": 0, "success_rate": 0},
-                "losers": {
-                    "avg_loss": 0,
-                    "hold_time": 0,
-                    "pattern": "N/A",
-                    "insight": None,
-                },
-            },
-        }
-
-    def _get_fallback_insights(self, portfolio_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Fallback if AI call fails - still show basic metrics"""
-        summary = portfolio_data.get("portfolio_summary", {})
-        patterns = portfolio_data.get("trading_patterns", {})
-
-        # Calculate basic metrics even if AI fails
-        tech_concentration = 0
-        if portfolio_data.get("sector_breakdown"):
-            tech_sector = next(
-                (
-                    s
-                    for s in portfolio_data["sector_breakdown"]
-                    if s.get("sector") == "Technology"
-                ),
-                None,
-            )
-            if tech_sector:
-                tech_concentration = tech_sector.get("percentage", 0)
-
-        risk_level = (
-            "High"
-            if tech_concentration > 50
-            else "Medium" if tech_concentration > 30 else "Low"
-        )
-
-        return {
-            "metadata": {
-                "generated_at": now_utc().isoformat(),
-                "last_transaction_date": self._get_last_transaction_date(),
-                "transactions_count": summary.get("total_transactions", 0),
-                "positions_count": summary.get("total_positions", 0),
-                "error": "ai_generation_failed",
-            },
-            "kpis": {
-                "win_rate": round(patterns.get("win_rate", 0), 1),
-                "market_avg_win_rate": 52,
-                "avg_hold_days": round(patterns.get("avg_hold_days", 0)),
-                "strategy_label": self._get_strategy_label(
-                    patterns.get("avg_hold_days", 0)
-                ),
-                "positions_count": summary.get("total_positions", 0),
-                "sector_concentration": round(tech_concentration, 1),
-                "risk_level": risk_level,
-                "risk_description": (
-                    f"Sector concentration at {tech_concentration}%"
-                    if tech_concentration > 30
-                    else "Well diversified"
-                ),
-            },
-            "ai_summary": {
-                "quick_insight": "Unable to generate AI insights. Check API configuration. Showing basic metrics only."
-            },
-            "analysis": {
-                "overall_assessment": "Unable to generate AI insights at this time. Please check your API configuration and try again. Basic portfolio metrics are displayed above.",
-                "key_strengths": [],
-                "key_risks": [],
-                "behavioral_patterns": [],
-                "recommendations": [],
-            },
-            "comparison": {
-                "winners": {
-                    "avg_return": round(patterns.get("avg_winner_return", 0), 1),
-                    "hold_time": round(patterns.get("avg_winner_hold_days", 0)),
-                    "success_rate": round(patterns.get("win_rate", 0), 1),
-                },
-                "losers": {
-                    "avg_loss": round(patterns.get("avg_loser_return", 0), 1),
-                    "hold_time": round(patterns.get("avg_loser_hold_days", 0)),
-                    "pattern": "N/A",
-                    "insight": None,
-                },
-            },
-        }
-
-
-# ================================================================
-# Public API
-# ================================================================

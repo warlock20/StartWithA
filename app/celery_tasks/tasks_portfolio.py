@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 @background_task()
-def portfolio_ai_analysis_task(self, task, user_id, template_name='portfolio_raw_trade_analysis'):
+def portfolio_ai_analysis_task(self, task, user_id, template_name):
     """
     Celery task for AI-powered portfolio analysis.
     Runs in background to avoid blocking the UI during long AI calls.
@@ -39,10 +39,16 @@ def portfolio_ai_analysis_task(self, task, user_id, template_name='portfolio_raw
     Args:
         task: BackgroundTask row for status tracking (passed by @background_task)
         user_id: User ID whose portfolio to analyze
-        template_name: Which analysis template to use
-            - 'portfolio_raw_trade_analysis': Deep behavioral analysis (default)
-            - 'portfolio_complete_analysis': Quick overview
+        template_name: Which opt-in analysis module to run
+            - 'sector_momentum_analysis'
+            - 'tax_optimization_analysis'
+
+    Raises:
+        ValueError: for any other template name
     """
+    if template_name not in ('sector_momentum_analysis', 'tax_optimization_analysis'):
+        raise ValueError(f"Unknown portfolio analysis template: {template_name}")
+
     logger.info(f"TASK {self.request.id}: Starting portfolio AI analysis for user {user_id}")
 
     analytics = PortfolioAIAnalytics(user_id=user_id)
@@ -50,14 +56,10 @@ def portfolio_ai_analysis_task(self, task, user_id, template_name='portfolio_raw
     # Run the analysis (force_refresh=True to actually generate)
     logger.info(f"TASK {self.request.id}: Calling AI service with template '{template_name}'...")
 
-    if template_name == 'portfolio_raw_trade_analysis':
-        result, tokens_used = analytics.get_deep_behavioral_insights(force_refresh=True)
-    elif template_name == 'sector_momentum_analysis':
+    if template_name == 'sector_momentum_analysis':
         result, tokens_used = analytics.get_sector_momentum_analysis(force_refresh=True)
-    elif template_name == 'tax_optimization_analysis':
-        result, tokens_used = analytics.get_tax_optimization_analysis(force_refresh=True)
     else:
-        result, tokens_used = analytics.get_quick_insights(force_refresh=True)
+        result, tokens_used = analytics.get_tax_optimization_analysis(force_refresh=True)
 
     # Track token usage
     user = User.query.get(user_id)

@@ -66,7 +66,7 @@ def parse_task_type(task_type: str) -> tuple:
     Parse composite task_type into (category, template).
 
     Args:
-        task_type: Task type string (e.g., 'portfolio_analysis:portfolio_raw_trade_analysis')
+        task_type: Task type string (e.g., 'portfolio_analysis:sector_momentum_analysis')
 
     Returns:
         Tuple of (category, template). If no separator found, returns (task_type, None).

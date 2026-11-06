@@ -368,6 +368,8 @@ def _get_cached_module_analysis(user_id, template_name):
     """Load cached results for a modular analysis (sector momentum, tax optimization, etc.).
 
     Returns the analysis dict if a completed task exists, otherwise None.
+    A stored error payload (failed or insufficient-data run) counts as no result,
+    so the panel shows its empty state with the Run button.
     """
     task = BackgroundTask.query.filter_by(
         user_id=user_id,
@@ -377,7 +379,10 @@ def _get_cached_module_analysis(user_id, template_name):
 
     if task and task.result:
         result = json.loads(task.result)
-        return result.get('analysis')
+        analysis = result.get('analysis')
+        if analysis and analysis.get('metadata', {}).get('error'):
+            return None
+        return analysis
     return None
 
 
