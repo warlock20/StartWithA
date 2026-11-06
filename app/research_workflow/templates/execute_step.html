@@ -90,6 +90,10 @@
                             <li>Evaluate competitive moat</li>
                         </ul>
                     </div>
+                    {% if project.company_id %}
+                    <a href="{{ url_for('companies.company_detail', company_id=project.company_id, _anchor='research/competitors') }}"
+                        class="btn btn-primary" target="_blank">Open Competitors</a>
+                    {% endif %}
 
                     {% elif step.type == 'thesis_writing' %}
                     <div class="alert alert-info">

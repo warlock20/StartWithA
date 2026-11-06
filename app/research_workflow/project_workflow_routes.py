@@ -460,9 +460,8 @@ def execute_step(project_id, step_index):
                                   company_id=project.company_id,
                                   project_id=project_id,
                                   step_index=step_index))
-    elif step['type'] == 'competitor_analysis':
-        return redirect(url_for('research_workflow.competitor_analysis_step',
-                              project_id=project_id, step_index=step_index))
+    # competitor_analysis falls through to the generic interface below; its
+    # template block links to the company's Research > Competitors section.
 
     elif step['type'] == 'free_research':
         # Free research step - user-defined questions with AI assistance
