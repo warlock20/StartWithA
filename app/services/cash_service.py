@@ -21,7 +21,6 @@ Cash balance is materialized on User for fast reads, recomputed from transaction
 """
 
 import logging
-from datetime import timedelta
 from decimal import Decimal
 
 from app import db
@@ -168,37 +167,3 @@ class CashService:
 
         # The absolute value of the most negative point is the minimum deposit needed
         return abs(min_balance)
-
-    @staticmethod
-    def create_initial_deposit(user_id, amount, base_currency):
-        """
-        Create the auto-inferred initial DEPOSIT transaction.
-        Dated one day before the user's first BUY transaction.
-
-        Args:
-            user_id: User ID
-            amount: Deposit amount in base currency
-            base_currency: User's base currency code
-        """
-        first_buy = Transaction.query.filter_by(
-            user_id=user_id, type='BUY'
-        ).order_by(Transaction.date.asc()).first()
-
-        deposit_date = first_buy.date - timedelta(days=1) if first_buy else now_utc().date()
-
-        deposit = Transaction(
-            user_id=user_id,
-            type='DEPOSIT',
-            date=deposit_date,
-            cash_amount=Decimal(str(amount)),
-            cash_amount_base=Decimal(str(amount)),
-            currency=base_currency,
-            notes='Auto-calculated initial capital'
-        )
-        db.session.add(deposit)
-        db.session.commit()
-
-        # Recalculate from scratch to ensure consistency
-        CashService.recalculate_cash_balance(user_id)
-
-        logger.info(f"Created initial deposit of {amount} {base_currency} for user {user_id}")

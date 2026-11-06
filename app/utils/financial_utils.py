@@ -20,7 +20,7 @@ Common functions for portfolio analytics and performance tracking
 """
 
 from decimal import Decimal
-from typing import Union, Optional, Dict
+from typing import Union, Optional, Dict, List, Tuple
 from datetime import date
 
 
@@ -79,6 +79,54 @@ def calculate_cagr(
         # If calculation fails (e.g., extreme negative returns with fractional exponent),
         # return total return as fallback
         return float(total_return_pct)
+
+
+def calculate_xirr(cash_flows: List[Tuple[date, float]]) -> Optional[float]:
+    """
+    Calculate the money-weighted annualized return (XIRR) of dated cash flows.
+
+    Sign convention is the investor's view: money in is negative and the
+    terminal value is positive. Uses bisection on the NPV with an ACT/365
+    year fraction measured from the earliest flow.
+
+    Args:
+        cash_flows: List of (date, amount) tuples
+
+    Returns:
+        Annualized rate as a percentage rounded to 2 dp (e.g. 6.7), or None
+        when there are fewer than 2 flows, no sign change, or no root in
+        the bracket (-99.99% to 10,000%).
+    """
+    if len(cash_flows) < 2:
+        return None
+
+    flows = sorted(cash_flows, key=lambda flow: flow[0])
+    amounts = [float(amount) for _, amount in flows]
+    if not (any(a < 0 for a in amounts) and any(a > 0 for a in amounts)):
+        return None
+
+    start = flows[0][0]
+    years = [(flow_date - start).days / 365.0 for flow_date, _ in flows]
+
+    def npv(rate: float) -> float:
+        return sum(a / (1 + rate) ** t for a, t in zip(amounts, years))
+
+    lo, hi = -0.9999, 100.0
+    npv_lo, npv_hi = npv(lo), npv(hi)
+    if npv_lo * npv_hi > 0:
+        return None
+
+    for _ in range(200):
+        if abs(hi - lo) < 1e-9:
+            break
+        mid = (lo + hi) / 2
+        npv_mid = npv(mid)
+        if npv_lo * npv_mid <= 0:
+            hi = mid
+        else:
+            lo, npv_lo = mid, npv_mid
+
+    return round(((lo + hi) / 2) * 100, 2)
 
 
 def calculate_total_return(

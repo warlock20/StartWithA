@@ -120,6 +120,17 @@
                     We calculated your total invested capital as {{ currency_symbol }}{{ "{:,.0f}".format(inferred_deposit) }}. Adjust if needed, then confirm.
                 </div>
                 <div class="dashboard-alert-card__actions">
+                    <fieldset class="d-flex flex-column small me-2">
+                        <legend class="small fw-semibold mb-0 fs-6">How did this money come in?</legend>
+                        <label class="form-check mb-0">
+                            <input class="form-check-input" type="radio" name="capital_timing" value="gradual" checked>
+                            <span class="form-check-label">Gradually, as I bought</span>
+                        </label>
+                        <label class="form-check mb-0">
+                            <input class="form-check-input" type="radio" name="capital_timing" value="lump_sum">
+                            <span class="form-check-label">All at once, before my first purchase</span>
+                        </label>
+                    </fieldset>
                     <input type="number" name="initial_capital" value="{{ "{:.2f}".format(inferred_deposit) }}" step="0.01" min="0" class="cash-setup-input">
                     <button type="submit" class="action-btn">Confirm</button>
                 </div>
