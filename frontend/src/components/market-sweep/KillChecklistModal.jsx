@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useBootstrapModal } from './useBootstrapModal.js';
 
 /**
  * KillChecklistModal — Bootstrap modal for the kill-checklist workflow.
@@ -10,26 +11,8 @@ import { createPortal } from 'react-dom';
 export function KillChecklistModal({ target, criteria, onConfirmKill, onConfirmInbox, onClose }) {
   const [answers, setAnswers] = useState({});
   const [description, setDescription] = useState('');
-  const modalRef = useRef(null);
-  const bsModalRef = useRef(null);
-
-  // Open Bootstrap modal on mount
-  useEffect(() => {
-    if (!modalRef.current || !window.bootstrap) return;
-    const modal = new window.bootstrap.Modal(modalRef.current);
-    bsModalRef.current = modal;
-    modal.show();
-
-    const el = modalRef.current;
-    function handleHidden() {
-      onClose();
-    }
-    el.addEventListener('hidden.bs.modal', handleHidden);
-    return () => {
-      el.removeEventListener('hidden.bs.modal', handleHidden);
-      modal.hide();
-    };
-  }, [onClose]);
+  const [thesis, setThesis] = useState('');
+  const { modalRef, hide } = useBootstrapModal(onClose);
 
   function handleRadio(criterionId, value) {
     setAnswers((prev) => ({ ...prev, [criterionId]: value }));
@@ -61,17 +44,19 @@ export function KillChecklistModal({ target, criteria, onConfirmKill, onConfirmI
         notes: failCount + ' of ' + criteria.length + ' criteria failed',
       });
     }
-    bsModalRef.current?.hide();
+    hide();
   }
 
   function handleConfirmInbox() {
     const killReasons = buildKillReasons();
-    onConfirmInbox({
+    const extras = {
       kill_reasons: killReasons,
       notes: 'All ' + criteria.length + ' kill criteria passed',
       idea_status: 'survived',
-    });
-    bsModalRef.current?.hide();
+    };
+    if (thesis.trim()) extras.thesis = thesis.trim();
+    onConfirmInbox(extras);
+    hide();
   }
 
   function buildKillReasons() {
@@ -167,6 +152,21 @@ export function KillChecklistModal({ target, criteria, onConfirmKill, onConfirmI
               <div className="alert alert-success mb-0" style={{ fontSize: '0.875rem' }}>
                 <i className="bi bi-check-circle" /> All criteria passed &mdash; this company looks
                 interesting!
+              </div>
+              <div className="mt-3">
+                <label className="form-label fw-semibold" htmlFor="killChecklistThesis">
+                  <i className="bi bi-lightbulb text-success" /> One-sentence thesis{' '}
+                  <span className="text-muted fw-normal">(optional)</span>
+                </label>
+                <input
+                  id="killChecklistThesis"
+                  type="text"
+                  className="form-control"
+                  maxLength={500}
+                  placeholder="Why might this be interesting?"
+                  value={thesis}
+                  onChange={(e) => setThesis(e.target.value)}
+                />
               </div>
             </div>
           )}

@@ -90,6 +90,22 @@
                         </div>
                     </div>
 
+                    {% if show_isin %}
+                    <!-- ISIN (stored on the linked company) -->
+                    <div class="mb-4">
+                        <label for="isin" class="form-label">ISIN</label>
+                        <input type="text"
+                               class="form-control"
+                               id="isin"
+                               name="isin"
+                               maxlength="12"
+                               value="{{ company_isin }}"
+                               style="text-transform:uppercase"
+                               placeholder="e.g. JP3371200001">
+                        <small class="form-text text-muted"><i class="bi bi-info-circle"></i> 12 characters. Saved on the company this idea is linked to.</small>
+                    </div>
+                    {% endif %}
+
                     <!-- Source -->
                     <div class="mb-4">
                         <label for="source" class="form-label">Source</label>
