@@ -487,6 +487,12 @@
                     const fallbackUrl = `${CHECKLIST_BASE_URL}/item/${nextItemId}`;
                     await navigateToItem(nextItemId, fallbackUrl, { skipAutosave: true });
 
+                    // Saved the last item with questions still open: we jumped back to one
+                    if (data.remaining_count) {
+                        const n = data.remaining_count;
+                        window.showToast(`${n} question${n === 1 ? '' : 's'} still need${n === 1 ? 's' : ''} a verdict`, 'warning');
+                    }
+
                 } catch (error) {
                     console.error('AJAX Save & Next failed, falling back:', error);
                     submitBtn.disabled = false;
