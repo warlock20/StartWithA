@@ -73,6 +73,16 @@ def unanswered_items(items_in_order, answers_map):
             if not (answers_map.get(item.id) and answers_map[item.id].satisfaction_status)]
 
 
+def save_and_next_target(session, items_in_order, current_index):
+    """Where Save & Next goes after saving the item at `current_index`: the next item, or on
+    the last item the first one still without a verdict. Returns (item, remaining_count);
+    item is None once every item has a verdict, so the checklist is done."""
+    if current_index + 1 < len(items_in_order):
+        return items_in_order[current_index + 1], None
+    remaining = unanswered_items(items_in_order, ChecklistAnswer.by_item(session.id))
+    return (remaining[0] if remaining else None), len(remaining)
+
+
 def save_answer(session, item, answer_text, satisfaction_status, set_status=True):
     """Create or update the item's answer. Doesn't commit.
 
@@ -195,17 +205,15 @@ def research_step(analysis_id, item_id):
         db.session.commit()
         flash('Answer saved.', 'success')
 
-        # Determine next item
-        if current_item_index + 1 < len(all_items_in_order):
-            next_item = all_items_in_order[current_item_index + 1]
+        next_item, remaining_count = save_and_next_target(session, all_items_in_order, current_item_index)
+        if next_item:
+            if remaining_count:
+                flash(f'{remaining_count} question(s) still need a verdict.', 'warning')
             return redirect(url_for('research_workflow.research_step', analysis_id=session.id, item_id=next_item.id))
-        else:
-            # This is the last item
-            session.status = 'completed' # Mark session as completed
-            db.session.commit()
-            flash('Checklist completed! Research session finished.', 'success')
-            # Redirect to a summary page or back to the checklist view for now
-            return redirect(url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)) # We'll create this route next
+        session.status = 'completed'
+        db.session.commit()
+        flash('Checklist completed! Research session finished.', 'success')
+        return redirect(url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id))
 
     # For GET request or if POST needs to re-render
     # progress_percent = ( (current_item_index +1) / len(all_items_in_order) ) * 100 if all_items_in_order else 0
@@ -392,22 +400,22 @@ def save_and_next(analysis_id, item_id):
         (i for i, item in enumerate(all_items_in_order) if item.id == current_item.id), -1
     )
 
-    if current_item_index + 1 < len(all_items_in_order):
-        next_item = all_items_in_order[current_item_index + 1]
+    next_item, remaining_count = save_and_next_target(session, all_items_in_order, current_item_index)
+    if next_item:
         return jsonify({
             'success': True,
             'is_last_item': False,
-            'next_item_id': next_item.id
+            'next_item_id': next_item.id,
+            'remaining_count': remaining_count,
         })
-    else:
-        # Last item — mark session complete
-        session.status = 'completed'
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'is_last_item': True,
-            'summary_url': url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)
-        })
+
+    session.status = 'completed'
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'is_last_item': True,
+        'summary_url': url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)
+    })
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/complete', methods=['POST'])
 @login_required
