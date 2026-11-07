@@ -232,6 +232,18 @@ def sweep_companies(sweep_id):
     # Resolve what the user actually thinks now, in batch (#330 step 4b).
     display = sweep_row_display(current_user.id, sweep_id)
 
+    # The thesis lives on the promoted idea; load them in one query.
+    idea_ids = [d.promoted_idea_id for _, d in rows
+                if d and d.decision == 'inbox' and d.promoted_idea_id]
+    theses = {}
+    if idea_ids:
+        theses = dict(
+            db.session.query(IdeaPipeline.id, IdeaPipeline.thesis_summary)
+            .filter(IdeaPipeline.id.in_(idea_ids),
+                    IdeaPipeline.user_id == current_user.id)
+            .all()
+        )
+
     companies = []
     for company, decision in rows:
         row_display = display.get(company.id, EMPTY_ROW)
@@ -248,6 +260,8 @@ def sweep_companies(sweep_id):
             'decision_sector_id': decision.sector_id if decision else None,
             'decision_notes': decision.notes if decision else None,
             'promoted_idea_id': decision.promoted_idea_id if decision else None,
+            'thesis': (theses.get(decision.promoted_idea_id)
+                       if decision and decision.decision == 'inbox' else None),
             'decided_at': decision.decided_at.isoformat() if decision and decision.decided_at else None,
             'state': row_display['state'],
             'link': row_display['link'],
@@ -441,15 +455,22 @@ def sweep_decide():
     decision_type = data.get('decision')
     notes = data.get('notes')
     kill_reasons = data.get('kill_reasons')
-    sector_id = data.get('sector_id')
     idea_status = data.get('idea_status', 'inbox')  # 'survived' when kill checklist passed
     kill_mode = data.get('kill_mode', 'checklist')  # 'checklist' or 'easy'
     kill_reason_text = (data.get('kill_reason_text') or '').strip()
     confirm_company_id = data.get('confirm_company_id')
     create_new = bool(data.get('create_new'))
+    raw_thesis = data.get('thesis')
+    if raw_thesis is not None and not isinstance(raw_thesis, str):
+        return json_error('Invalid thesis')
+    thesis = (raw_thesis or '').strip() or None  # inbox only
 
     if not sweep_company_id or decision_type not in ('inbox', 'killed'):
         return json_error('Invalid parameters')
+
+    sector_id, sector_ok = _owned_sector_id(data.get('sector_id'))
+    if not sector_ok:
+        return json_error('Unknown sector')
 
     if decision_type == 'killed' and kill_mode == 'easy' and not kill_reason_text:
         return json_error('Easy kill requires a reason')
@@ -532,6 +553,9 @@ def sweep_decide():
             reusable_idea.name = sweep_company.company_name
             reusable_idea.kill_reason = None
             reusable_idea.killed_at = None
+            # An empty box on a re-promote must not erase an earlier thesis.
+            if thesis is not None:
+                reusable_idea.thesis_summary = thesis
             idea = reusable_idea
         else:
             idea = IdeaPipeline(
@@ -543,6 +567,7 @@ def sweep_decide():
                 sector_id=sector_id,
                 source='market_sweep',
                 status=pipeline_status,
+                thesis_summary=thesis,
                 created_at=now_utc(),
             )
             db.session.add(idea)
@@ -695,6 +720,58 @@ def sweep_undo():
     db.session.commit()
 
     return jsonify({'success': True})
+
+
+def _owned_sector_id(raw):
+    """Validate a posted sector id; returns (sector_id, ok).
+
+    Missing/None/'' means "no sector" (None, ok). Anything else must be an id
+    of a sector the current user owns, otherwise (None, False).
+    """
+    if raw is None or raw == '':
+        return None, True
+    sector_id = _row_id(raw)
+    if sector_id is None:
+        return None, False
+    owned = db.session.query(Sector.id).filter_by(
+        id=sector_id, user_id=current_user.id).first()
+    if not owned:
+        return None, False
+    return sector_id, True
+
+
+@research_workflow_bp.route('/api/sweep/sector', methods=['POST'])
+@login_required
+def sweep_update_sector():
+    """Change the sector of an already-promoted row.
+
+    Touches only the sector on the decision and its idea. Re-running
+    /decide for this would reset the idea's status and drop its thesis.
+    """
+    data = request.get_json(silent=True) or {}
+    sweep_company_id = _row_id(data.get('sweep_company_id'))
+    if sweep_company_id is None:
+        return json_error('Invalid parameters')
+    sector_id, sector_ok = _owned_sector_id(data.get('sector_id'))
+    if not sector_ok:
+        return json_error('Unknown sector')
+
+    decision = MarketSweepDecision.query.filter_by(
+        user_id=current_user.id,
+        sweep_company_id=sweep_company_id,
+    ).first()
+    if not decision or decision.decision != 'inbox':
+        return json_error('Set this row\u2019s decision to Inbox first')
+
+    decision.sector_id = sector_id
+    if decision.promoted_idea_id:
+        idea = IdeaPipeline.query.filter_by(
+            id=decision.promoted_idea_id, user_id=current_user.id).first()
+        if idea:
+            idea.sector_id = sector_id
+    db.session.commit()
+
+    return jsonify({'success': True, 'sector_id': sector_id})
 
 
 def _row_id(raw):

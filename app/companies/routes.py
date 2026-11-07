@@ -23,7 +23,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from app.utils.time_utils import now_utc
 from app.utils.auth_utils import owned_or_404
-from app.utils.isin import is_valid_isin, normalize_isin
 from flask import render_template, request, redirect, url_for, flash, current_app, jsonify, Response, Response
 from flask_login import current_user, login_required
 from app import db, cache
@@ -60,7 +59,7 @@ from app.services.background_tasks import BackgroundTaskService
 from app.models import PortfolioPosition
 from app.services.currency_service import CurrencyService
 from app.services.company_state import company_state, company_states
-from app.services.sweep_link import link_from_isin
+from app.services.company_isin import check_company_isin, set_company_isin
 from app.services.competitors import link_competitors, list_competitors, unlink_competitors
 from app.services.research_reopen_service import ReopenNotAllowed, ResearchReopenService
 from app.models.research_reopening import ResearchReopening
@@ -1054,23 +1053,10 @@ def edit_company(company_id):
     # is True, isin normalizes to None) -- but a form that omits the field
     # entirely must leave whatever is already stored alone, not wipe it.
     isin_provided = 'isin' in request.form
-    isin = normalize_isin(request.form.get('isin')) if isin_provided else None
-    if isin_provided and isin is not None and not is_valid_isin(isin):
-        message = (f'"{isin}" is not a valid ISIN. It must be 12 characters '
-                   f'with a correct check digit.')
-        if is_ajax:
-            return jsonify({'success': False, 'error': message}), 400
-        flash(message, 'error')
-        return redirect(url_for('companies.company_detail', company_id=company_id))
-
-    if isin_provided and isin is not None:
-        clash = Company.query.filter(
-            Company.user_id == current_user.id,
-            Company.isin == isin,
-            Company.id != company.id,
-        ).first()
-        if clash:
-            message = f'ISIN {isin} is already assigned to {clash.name}.'
+    isin = None
+    if isin_provided:
+        isin, message = check_company_isin(current_user.id, company.id, request.form.get('isin'))
+        if message:
             if is_ajax:
                 return jsonify({'success': False, 'error': message}), 400
             flash(message, 'error')
@@ -1125,21 +1111,7 @@ def edit_company(company_id):
     company.summary = summary if summary else None
     company.industry = industry if industry else None
     if isin_provided:
-        company.isin = isin
-        if isin is not None:
-            # A newly-entered ISIN may match sweep rows the user has already
-            # seen. Those links are secondary to saving the company, and this
-            # sits outside the try/except below that answers XHR callers in
-            # JSON -- so a savepoint contains any failure here rather than
-            # letting it surface as an HTML 500 to a caller expecting JSON.
-            # begin_nested() flushes first, so the ISIN itself is already
-            # written and survives a rollback of the savepoint.
-            try:
-                with db.session.begin_nested():
-                    link_from_isin(current_user.id, isin)
-            except Exception as e:
-                logger.warning(f'Sweep link from ISIN failed for company '
-                               f'{company_id}: {e}')
+        set_company_isin(current_user.id, company, isin)
 
     # Update reporting currency when ticker changes
     if ticker_changed and new_currency:

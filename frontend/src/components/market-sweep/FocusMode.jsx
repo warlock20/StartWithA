@@ -15,13 +15,13 @@ import { displayState, isHeld } from './rowState';
  *
  * Props:
  *   companies: Array<{ id, company_name, ticker, isin, sector_label, market_cap, exchange, decision, state }>
- *   onDecide: (companyId, decision) => void
+ *   onOpenInbox: (companyId, companyName) => void — opens the thesis dialog; the I key and Inbox button use it
  *   onOpenKill: (companyId, companyName) => void
  *   disabled: boolean — when true, keyboard shortcuts are suppressed (e.g. modal open)
  *   isAdmin: boolean — whether the current user may enter an ISIN
  *   onSaveIsin: (companyId, rawIsin) => void
  */
-export function FocusMode({ companies, onDecide, onOpenKill, disabled, isAdmin, onSaveIsin }) {
+export function FocusMode({ companies, onOpenInbox, onOpenKill, disabled, isAdmin, onSaveIsin }) {
   var [skippedIds, setSkippedIds] = useState([]);
   var stateRef = useRef({});
 
@@ -54,7 +54,7 @@ export function FocusMode({ companies, onDecide, onOpenKill, disabled, isAdmin, 
   stateRef.current = {
     current: current,
     canKill: canKill,
-    onDecide: onDecide,
+    onOpenInbox: onOpenInbox,
     onOpenKill: onOpenKill,
     disabled: disabled,
   };
@@ -75,7 +75,7 @@ export function FocusMode({ companies, onDecide, onOpenKill, disabled, isAdmin, 
       var key = e.key.toLowerCase();
       if (key === 'i') {
         e.preventDefault();
-        s.onDecide(s.current.id, 'inbox');
+        s.onOpenInbox(s.current.id, s.current.company_name);
       } else if (key === 'k') {
         // Not preventDefault'd when the row is held: there is no Kill button
         // on screen either, so the key must simply do nothing.
@@ -198,7 +198,7 @@ export function FocusMode({ companies, onDecide, onOpenKill, disabled, isAdmin, 
             <button
               className="sweep-focus__action-btn sweep-focus__action-btn--inbox"
               onClick={function () {
-                onDecide(current.id, 'inbox');
+                onOpenInbox(current.id, current.company_name);
               }}
             >
               <i className="bi bi-inbox" /> Inbox

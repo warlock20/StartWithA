@@ -20,6 +20,7 @@ import copy
 from flask import render_template, request, redirect, url_for, flash, jsonify, make_response, current_app
 from flask_login import current_user, login_required
 from app import db
+from app.services.company_isin import check_company_isin, set_company_isin
 from app.models import (
     IdeaPipeline,
     KillChecklist,
@@ -842,7 +843,18 @@ def edit_idea(idea_id):
     # Get return URL from query parameter, default to inbox
     return_to = request.args.get('return_to', 'inbox')
 
+    company = idea.company if idea.company and idea.company.user_id == current_user.id else None
+
     if request.method == 'POST':
+        # Validate the ISIN before touching anything so an error saves nothing.
+        isin_provided = company is not None and 'isin' in request.form
+        isin = None
+        if isin_provided:
+            isin, isin_error = check_company_isin(current_user.id, company.id, request.form.get('isin'))
+            if isin_error:
+                flash(isin_error, 'error')
+                return redirect(url_for('ideas.edit_idea', idea_id=idea.id, return_to=return_to))
+
         idea.name = request.form.get('name', idea.name)
         idea.idea_type = request.form.get('idea_type', idea.idea_type)
         idea.idea_purpose = request.form.get('idea_purpose', idea.idea_purpose)
@@ -875,6 +887,8 @@ def edit_idea(idea_id):
         idea.source = request.form.get('source')
         idea.thesis_summary = request.form.get('thesis_summary')
         idea.initial_notes = request.form.get('initial_notes')
+        if isin_provided and isin != company.isin:
+            set_company_isin(current_user.id, company, isin)
 
         try:
             db.session.commit()
@@ -900,7 +914,8 @@ def edit_idea(idea_id):
 
     return render_template('edit_idea.html', title="Edit Idea", idea=idea,
                            exchanges=EXCHANGES, base_ticker=base_ticker, exchange_suffix=exchange_suffix,
-                           return_to=return_to)
+                           return_to=return_to, show_isin=company is not None,
+                           company_isin=(company.isin or '') if company else '')
 
 @ideas_bp.route('/<int:idea_id>/delete', methods=['POST'])
 @login_required

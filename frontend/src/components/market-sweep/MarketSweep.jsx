@@ -3,6 +3,7 @@ import { apiGet, apiPost } from '../../lib/api';
 import { createDataTable } from '../../lib/dataTable';
 import { SweepPicker } from './SweepPicker';
 import { KillChecklistModal } from './KillChecklistModal';
+import { InboxThesisModal } from './InboxThesisModal';
 import { AlphabetProgress } from './AlphabetProgress';
 import { SessionTracker } from './SessionTracker';
 import { FocusMode } from './FocusMode';
@@ -184,8 +185,8 @@ export function actionsCell(row) {
       .replace(/"/g, '&quot;')
       .replace(/'/g, "\\'");
     html +=
-      '<button class="sweep-action-btn sweep-action-btn--inbox" onclick="MarketSweep.decide(' +
-      row.id + ',\'inbox\')">Inbox</button>';
+      '<button class="sweep-action-btn sweep-action-btn--inbox" onclick="MarketSweep.openInbox(' +
+      row.id + ',\'' + safeName + '\')">Inbox</button>';
     if (!isHeld(row)) {
       html +=
         '<button class="sweep-action-btn sweep-action-btn--kill" onclick="MarketSweep.openKill(' +
@@ -322,7 +323,8 @@ export function sweepColumns({ isAdmin, sectors, onIsinEdit }) {
       widthGrow: 2,
       responsive: 4,
       formatter: function (cell) {
-        var val = cell.getValue();
+        var rowData = cell.getRow().getData();
+        var val = rowData.thesis || cell.getValue();
         if (!val) return '<span class="table-cell-muted">&mdash;</span>';
         var escaped = escapeHtml(val);
         var truncated = val.length > 50 ? escapeHtml(val.substring(0, 50)) + '&hellip;' : escaped;
@@ -376,6 +378,7 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
   const [decisionFilter, setDecisionFilter] = useState('all');
   const [killTarget, setKillTarget] = useState(null);
   const [killCriteria, setKillCriteria] = useState([]);
+  const [inboxTarget, setInboxTarget] = useState(null);
   const [stats, setStats] = useState({ total: 0, reviewed: 0, inbox: 0, killed: 0 });
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
@@ -399,6 +402,7 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
     undoDecision: handleUndoDecision,
     updateSector: handleUpdateSector,
     openKill: handleOpenKill,
+    openInbox: handleOpenInbox,
     showPicker: handleShowPicker,
     confirmLink: handleConfirmLink,
     unlinkRow: handleUnlinkRow,
@@ -414,6 +418,7 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
       undoDecision: (...args) => handlersRef.current.undoDecision(...args),
       updateSector: (...args) => handlersRef.current.updateSector(...args),
       openKill: (...args) => handlersRef.current.openKill(...args),
+      openInbox: (...args) => handlersRef.current.openInbox(...args),
       showPicker: () => handlersRef.current.showPicker(),
       confirmLink: (...args) => handlersRef.current.confirmLink(...args),
       unlinkRow: (...args) => handlersRef.current.unlinkRow(...args),
@@ -451,7 +456,8 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
         data.company_name.toLowerCase().includes(s) ||
         (data.ticker && data.ticker.toLowerCase().includes(s)) ||
         (data.sector_label && data.sector_label.toLowerCase().includes(s)) ||
-        (data.decision_notes && data.decision_notes.toLowerCase().includes(s));
+        (data.decision_notes && data.decision_notes.toLowerCase().includes(s)) ||
+        (data.thesis && data.thesis.toLowerCase().includes(s));
       return decisionMatch && searchMatch;
     });
   }, [search, decisionFilter]);
@@ -663,6 +669,7 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
       if (extras.idea_status) payload.idea_status = extras.idea_status;
       if (extras.kill_mode) payload.kill_mode = extras.kill_mode;
       if (extras.kill_reason_text) payload.kill_reason_text = extras.kill_reason_text;
+      if (extras.thesis) payload.thesis = extras.thesis;
     }
 
     if (window.showToast) window.showToast('Processing\u2026', 'loading');
@@ -688,11 +695,13 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
         return;
       }
       var updatedNotes = extras ? extras.notes || null : null;
+      var updatedThesis = (extras && extras.thesis) || null;
       for (var i = 0; i < companiesRef.current.length; i++) {
         if (companiesRef.current[i].id === companyId) {
           companiesRef.current[i].decision = decision;
           companiesRef.current[i].promoted_idea_id = data.promoted_idea_id || null;
           companiesRef.current[i].decision_notes = updatedNotes;
+          companiesRef.current[i].thesis = updatedThesis;
           if (extras && extras.sector_id)
             companiesRef.current[i].decision_sector_id = parseInt(extras.sector_id);
           break;
@@ -712,6 +721,7 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
             decision_sector_id: extras ? extras.sector_id || null : null,
             promoted_idea_id: data.promoted_idea_id || null,
             decision_notes: updatedNotes,
+            thesis: updatedThesis,
           },
         ]);
         tableRef.current.redraw(true);
@@ -748,12 +758,13 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
           companiesRef.current[i].decision_sector_id = null;
           companiesRef.current[i].promoted_idea_id = null;
           companiesRef.current[i].decision_notes = null;
+          companiesRef.current[i].thesis = null;
           break;
         }
       }
       if (tableRef.current) {
         await tableRef.current.updateData([
-          { id: companyId, decision: null, decision_sector_id: null, promoted_idea_id: null, decision_notes: null },
+          { id: companyId, decision: null, decision_sector_id: null, promoted_idea_id: null, decision_notes: null, thesis: null },
         ]);
         tableRef.current.redraw(true);
       }
@@ -827,9 +838,8 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
 
   async function handleUpdateSector(companyId, sectorId) {
     try {
-      var data = await apiPost('/research/workflow/api/sweep/decide', {
+      var data = await apiPost('/research/workflow/api/sweep/sector', {
         sweep_company_id: companyId,
-        decision: 'inbox',
         sector_id: sectorId ? parseInt(sectorId) : null,
       });
       if (data.success) {
@@ -840,12 +850,6 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
           }
         }
         if (window.showToast) window.showToast('Sector updated', 'success');
-      } else if (data.needs_confirmation) {
-        if (window.showToast)
-          window.showToast(
-            'Set this row\u2019s decision first \u2014 the company needs to be confirmed before the sector can be applied.',
-            'warning'
-          );
       } else {
         if (window.showToast) window.showToast('Error: ' + (data.error || 'Unknown error'), 'danger');
       }
@@ -856,6 +860,10 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
 
   function handleOpenKill(companyId, companyName) {
     setKillTarget({ id: companyId, name: companyName });
+  }
+
+  function handleOpenInbox(companyId, companyName) {
+    setInboxTarget({ id: companyId, name: companyName });
   }
 
   // Returns the stored ISIN on success, or null if the server refused it, so a
@@ -922,6 +930,11 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
     setKillTarget(null);
   }
 
+  function handleConfirmInboxThesis(thesis) {
+    if (inboxTarget) handleDecide(inboxTarget.id, 'inbox', thesis ? { thesis: thesis } : undefined);
+    setInboxTarget(null);
+  }
+
   // ------------------------------------------------------------------
   // Render
   // ------------------------------------------------------------------
@@ -938,6 +951,13 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
             onConfirmKill={handleConfirmKill}
             onConfirmInbox={handleConfirmInbox}
             onClose={() => setKillTarget(null)}
+          />
+        )}
+        {inboxTarget && (
+          <InboxThesisModal
+            target={inboxTarget}
+            onConfirm={handleConfirmInboxThesis}
+            onClose={() => setInboxTarget(null)}
           />
         )}
       </>
@@ -999,9 +1019,9 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
           {viewMode === 'focus' && (
             <FocusMode
               companies={companiesRef.current}
-              onDecide={handleDecide}
+              onOpenInbox={handleOpenInbox}
               onOpenKill={handleOpenKill}
-              disabled={!!killTarget}
+              disabled={!!killTarget || !!inboxTarget}
               isAdmin={isAdmin}
               onSaveIsin={handleSaveIsin}
             />
@@ -1044,6 +1064,13 @@ export function MarketSweep({ sectors, sweepId, isAdmin }) {
           onConfirmKill={handleConfirmKill}
           onConfirmInbox={handleConfirmInbox}
           onClose={() => setKillTarget(null)}
+        />
+      )}
+      {inboxTarget && (
+        <InboxThesisModal
+          target={inboxTarget}
+          onConfirm={handleConfirmInboxThesis}
+          onClose={() => setInboxTarget(null)}
         />
       )}
     </>
