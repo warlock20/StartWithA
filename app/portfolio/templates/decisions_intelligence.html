@@ -21,7 +21,6 @@
     </div>
 
     <!-- KPI Summary Strip -->
-    {% set research_edge = research_avg_return - non_research_avg_return %}
     {% set process_win_rate = (good_process_good_outcome / (good_process_good_outcome + good_process_bad_outcome) * 100) if (good_process_good_outcome + good_process_bad_outcome) > 0 else 0 %}
     {% set confidence_calibrated = confidence_stats.high.avg_return > confidence_stats.medium.avg_return %}
     <div class="di-kpi-strip">
@@ -31,10 +30,15 @@
             </div>
             <div>
                 <div class="di-kpi-label">Research Edge</div>
+                {% if research_edge is none %}
+                <div class="di-kpi-value">&mdash;</div>
+                <div class="di-kpi-desc">No baseline to compare</div>
+                {% else %}
                 <div class="di-kpi-value" style="color: {% if research_edge >= 0 %}#10b981{% else %}#ef4444{% endif %};">
                     {% if research_edge >= 0 %}+{% endif %}{{ "%.1f"|format(research_edge) }}pp
                 </div>
                 <div class="di-kpi-desc">vs non-research</div>
+                {% endif %}
             </div>
         </div>
         <div class="di-kpi-card">
@@ -148,8 +152,8 @@
                             Key Insight
                         </div>
                         <div>
-                            Research-backed positions {% if research_edge > 0 %}outperform{% else %}underperform{% endif %} impulse buys by
-                            <span class="di-highlight">+{{ "%.1f"|format(research_edge|abs) }} percentage points</span>
+                            Research-backed positions {% if research_edge >= 0 %}outperform{% else %}underperform{% endif %} impulse buys by
+                            <span class="di-highlight">{{ "%.1f"|format(research_edge|abs) }} percentage points</span>
                             {% if research_win_rate > non_research_win_rate and non_research_win_rate > 0 %}
                             with a {{ "%.1f"|format(research_win_rate / non_research_win_rate) }}&times; better win rate.
                             {% endif %}
