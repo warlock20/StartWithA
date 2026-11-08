@@ -51,13 +51,14 @@ from app.constants import (
     DEFAULT_CHECKPOINT_LOOKBACK_DAYS,
     MAX_DYNAMIC_FORM_FIELDS,
 )
-from app.utils.grading import score_to_grade
 from app.services.portfolio_intelligence import (
     get_thesis_reality_check, PortfolioIntelligenceService,
     get_learning_insights, get_correlation_data
     )
 from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
+from app.services.portfolio_data_extractor import PortfolioDataExtractor
+from app.services.decision_quality import compare_research, position_gain, position_return_pct
 from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
@@ -506,51 +507,16 @@ def analytics_decisions():
         is_portfolio_decision=True
     ).all()
 
-    # Calculate research-backed vs non-research statistics
-    # Build a set of company_ids that have a research-backed BUY journal
-    research_company_ids = {j.company_id for j in all_journals
-                           if j.linked_research_id is not None and j.decision_type == 'BUY'}
-
-    # Calculate average returns for each category
-    # Use unrealized for active positions, realized for closed positions
-    def get_position_return(position):
-        """Get the return % for a position: unrealized if active, realized if closed."""
-        if position.is_active and position.unrealized_gain_loss_pct is not None:
-            return float(position.unrealized_gain_loss_pct)
-        elif not position.is_active and position.realized_gain_loss_pct is not None:
-            return float(position.realized_gain_loss_pct)
-        return None
-
-    def get_position_gain(position):
-        """Get the gain/loss amount: unrealized if active, realized if closed."""
-        if position.is_active and position.unrealized_gain_loss is not None:
-            return float(position.unrealized_gain_loss)
-        elif not position.is_active and position.realized_gain_loss is not None:
-            return float(position.realized_gain_loss)
-        return None
-
-    # Categorize positions: research-backed vs non-research
-    # A position is research-backed if it has a BUY journal with linked_research_id
-    # Everything else (no journal, or journal without research) is non-research
-    research_positions = []
-    non_research_positions = []
-
-    for position in all_positions:
-        if get_position_return(position) is None:
-            continue
-        if position.company_id in research_company_ids:
-            research_positions.append(position)
-        else:
-            non_research_positions.append(position)
-
-    # Calculate stats
-    research_avg_return = sum(get_position_return(p) for p in research_positions) / len(research_positions) if research_positions else 0
-    research_win_rate = sum(1 for p in research_positions if (get_position_gain(p) or 0) > 0) / len(research_positions) * 100 if research_positions else 0
-    research_avg_hold = sum(p.days_held for p in research_positions) / len(research_positions) if research_positions else 0
-
-    non_research_avg_return = sum(get_position_return(p) for p in non_research_positions) / len(non_research_positions) if non_research_positions else 0
-    non_research_win_rate = sum(1 for p in non_research_positions if (get_position_gain(p) or 0) > 0) / len(non_research_positions) * 100 if non_research_positions else 0
-    non_research_avg_hold = sum(p.days_held for p in non_research_positions) / len(non_research_positions) if non_research_positions else 0
+    # Research-backed vs non-research split (shared definition)
+    comparison = compare_research(all_positions, all_journals)
+    research_positions = comparison.research.positions
+    non_research_positions = comparison.no_research.positions
+    research_avg_return = comparison.research.avg_return
+    research_win_rate = comparison.research.win_rate
+    research_avg_hold = comparison.research.avg_hold_days
+    non_research_avg_return = comparison.no_research.avg_return
+    non_research_win_rate = comparison.no_research.win_rate
+    non_research_avg_hold = comparison.no_research.avg_hold_days
 
     # Get active positions for current analysis
     active_positions = [p for p in all_positions if p.is_active]
@@ -560,10 +526,10 @@ def analytics_decisions():
 
     # Decision Quality Matrix
     # Good Process = Research-backed, Bad Process = No research
-    good_process_good_outcome = sum(1 for p in research_positions if (get_position_gain(p) or 0) > 0)
-    good_process_bad_outcome = sum(1 for p in research_positions if (get_position_gain(p) or 0) <= 0)
-    bad_process_good_outcome = sum(1 for p in non_research_positions if (get_position_gain(p) or 0) > 0)
-    bad_process_bad_outcome = sum(1 for p in non_research_positions if (get_position_gain(p) or 0) <= 0)
+    good_process_good_outcome = sum(1 for p in research_positions if (position_gain(p) or 0) > 0)
+    good_process_bad_outcome = sum(1 for p in research_positions if (position_gain(p) or 0) <= 0)
+    bad_process_good_outcome = sum(1 for p in non_research_positions if (position_gain(p) or 0) > 0)
+    bad_process_bad_outcome = sum(1 for p in non_research_positions if (position_gain(p) or 0) <= 0)
 
     # Recent decisions
     recent_decisions = Transaction.query.filter_by(
@@ -578,10 +544,10 @@ def analytics_decisions():
     for journal in all_journals:
         if journal.confidence_score and journal.decision_type == 'BUY':
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
-            if position and get_position_return(position) is not None:
+            if position and position_return_pct(position) is not None:
                 journals_with_confidence.append({
                     'confidence': journal.confidence_score,
-                    'return': get_position_return(position)
+                    'return': position_return_pct(position)
                 })
 
     # Calculate confidence calibration stats using utility
@@ -593,7 +559,7 @@ def analytics_decisions():
     for journal in all_journals:
         if journal.expected_return and journal.decision_type == 'BUY':
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
-            pos_return = get_position_return(position) if position else None
+            pos_return = position_return_pct(position) if position else None
             if position and pos_return is not None:
                 expected = journal.expected_return
                 actual = pos_return
@@ -786,14 +752,15 @@ def intelligence_hub():
         PortfolioPerformanceService.get_performance(current_user.id)['total_return_pct']
     )
     
-    # Win rate from outcomes
+    # Win rate and XIRR from the portfolio itself (closed positions / cash flows)
+    summary = PortfolioDataExtractor(current_user.id).summary()
+    closed_count = summary['wins'] + summary['losses']
+
+    # Research outcomes still feed the learning-insights gate
     outcomes = ResearchOutcome.query.filter(
         ResearchOutcome.user_id == current_user.id,
         ResearchOutcome.realized_return_pct.isnot(None)
     ).all()
-    
-    wins = [o for o in outcomes if float(o.realized_return_pct) > 0]
-    win_rate = (len(wins) / len(outcomes) * 100) if outcomes else 0
     
     # Checkpoints — fetch once, derive summary from the same data
     checkpoints_data = intel_service.get_upcoming_checkpoints(days_ahead=DEFAULT_CHECKPOINT_LOOKBACK_DAYS)
@@ -812,19 +779,14 @@ def intelligence_hub():
     thesis_positions = intel_service.get_thesis_reality_check()
     needs_attention = len([p for p in thesis_positions if p.status == 'needs_attention'])
     
-    # Average quality grade
-    if outcomes:
-        avg_score = sum(o.research_quality_score or 0 for o in outcomes) / len(outcomes)
-        avg_grade = score_to_grade(avg_score)
-    else:
-        avg_grade = '—'
-    
     health = {
         'total_return': total_return,
-        'win_rate': win_rate,
+        'xirr': summary['xirr'],
+        'win_rate': summary['win_rate'] if closed_count else None,
+        'wins': summary['wins'],
+        'closed_count': closed_count,
         'overdue_checkpoints': checkpoint_summary.get('overdue_count', 0),
-        'needs_attention': needs_attention,
-        'avg_quality_grade': avg_grade
+        'below_thesis': needs_attention
     }
     
     # ========================================
@@ -868,7 +830,7 @@ def intelligence_hub():
     high_importance = [i for i in insights if i.importance == 'high']
     if high_importance:
         alerts.append({
-            'type': 'success',
+            'type': 'info',
             'icon': 'lightbulb-fill',
             'message': f'New insight: "{high_importance[0].title}"',
             'action': 'View',
@@ -913,39 +875,23 @@ def intelligence_hub():
     }
     
     # Decisions Card
-    research_journals = DecisionJournal.query.filter(
-        DecisionJournal.user_id == current_user.id,
-        DecisionJournal.is_portfolio_decision == True,
-        DecisionJournal.decision_type == 'BUY',
-        DecisionJournal.linked_research_id.isnot(None)
+    all_positions = PortfolioPosition.query.filter_by(user_id=current_user.id).all()
+    buy_journals = DecisionJournal.query.filter_by(
+        user_id=current_user.id,
+        is_portfolio_decision=True,
+        decision_type='BUY'
     ).all()
-    
-    no_research_journals = DecisionJournal.query.filter(
-        DecisionJournal.user_id == current_user.id,
-        DecisionJournal.is_portfolio_decision == True,
-        DecisionJournal.decision_type == 'BUY',
-        DecisionJournal.non_research_source.isnot(None)
-    ).all()
-    
-    # Calculate returns for each category
-    def get_avg_return(journals):
-        returns = []
-        for j in journals:
-            pos = next((p for p in positions if p.company_id == j.company_id), None)
-            if pos and pos.unrealized_gain_loss_pct is not None:
-                returns.append(float(pos.unrealized_gain_loss_pct))
-        return sum(returns) / len(returns) if returns else 0
-    
-    research_return = get_avg_return(research_journals)
-    no_research_return = get_avg_return(no_research_journals)
-    
+    comparison = compare_research(all_positions, buy_journals)
+
     decisions = {
-        'has_data': len(research_journals) > 0 or len(no_research_journals) > 0,
-        'research_return': research_return,
-        'no_research_return': no_research_return,
-        'research_advantage': research_return - no_research_return
+        'has_data': comparison.research.count > 0 or comparison.no_research.count > 0,
+        'research_count': comparison.research.count,
+        'research_return': comparison.research.avg_return,
+        'no_research_count': comparison.no_research.count,
+        'no_research_return': comparison.no_research.avg_return,
+        'edge': comparison.edge
     }
-    
+
     # Correlation Card
     correlation_data = get_correlation_data(current_user.id)
     

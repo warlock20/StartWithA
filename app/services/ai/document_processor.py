@@ -24,7 +24,10 @@ Classes:
     - LLMChecklistProcessor: Convert documents to checklists using AI
 """
 
+import json
 import logging
+from app.services.ai.config import AIProvider
+from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 from app.services.ai_check.context import ai_context_from_data
 from app.utils.time_utils import now_utc
 from typing import Dict, List, Optional
@@ -32,6 +35,12 @@ from dataclasses import dataclass
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+# Longest document text sent to the model; the rest is dropped.
+MAX_DOCUMENT_CHARS = 60000
+
+# ChecklistItem.text is String(500).
+MAX_ITEM_TEXT_CHARS = 500
 
 # ============================================================
 # Document Parsing
@@ -135,15 +144,18 @@ class ProcessingResult:
     suggested_description: str
     error_message: Optional[str] = None
     processing_time: float = 0.0
+    tokens_used: int = 0
 
 
 class LLMChecklistProcessor:
     """Convert documents to structured checklists using AI"""
 
-    def __init__(self):
+    def __init__(self, provider: Optional[AIProvider] = None, user_id: Optional[int] = None):
         # Lazy import to avoid circular dependency
         from app.services.ai.ai_service import get_ai_service
         self.ai = get_ai_service()
+        self.provider = provider
+        self.user_id = user_id
 
     def process_document(
         self,
@@ -160,77 +172,98 @@ class LLMChecklistProcessor:
                 suggested_name="",
                 suggested_description="",
                 error_message="AI service not available",
-                processing_time=now_utc() - start_time
+                processing_time=(now_utc() - start_time).total_seconds()
             )
 
         try:
-            prompt = self._create_prompt(document_text, approach)
-            response = self.ai.generate_json(prompt)
+            prompt_data = prompt_service.get_prompt_with_metadata(
+                'document_processing',
+                f'document_to_checklist_{approach.value}',
+                document_text=document_text[:MAX_DOCUMENT_CHARS],
+            )
+            metadata = prompt_data.get('metadata', {})
+            model, provider = resolve_model_provider(
+                metadata, user_id=self.user_id, prompt_category='document_processing',
+            )
+            # ai_service raises when model and provider disagree, so a provider the user
+            # chose that differs from the prompt's model gets its own default model.
+            if self.provider and self.provider != provider:
+                provider, model = self.provider, None
+
+            response = self.ai.generate_json(
+                prompt_data['prompt'],
+                provider=provider, model=model,
+                max_tokens=metadata.get('max_tokens'),
+                temperature=metadata.get('temperature'),
+            )
             items = self._parse_response(response)
+            tokens_used = len(prompt_data['prompt']) // 4 + len(json.dumps(response, default=str)) // 4
+            if not isinstance(response, dict):
+                response = {}
 
             return ProcessingResult(
                 success=True,
                 items=items,
-                suggested_name=response.get('suggested_name', 'Imported Checklist'),
-                suggested_description=response.get('suggested_description', ''),
-                processing_time=now_utc() - start_time
+                suggested_name=response.get('suggested_name') or 'Imported Checklist',
+                suggested_description=response.get('suggested_description') or '',
+                processing_time=(now_utc() - start_time).total_seconds(),
+                tokens_used=tokens_used,
             )
 
-        except Exception as e:
-            logger.error(f"Document processing error: {e}")
+        except Exception:
+            logger.exception("Document processing error")
             return ProcessingResult(
                 success=False,
                 items=[],
                 suggested_name="",
                 suggested_description="",
-                error_message=str(e),
-                processing_time=now_utc() - start_time
+                error_message="The AI could not process this document. Please try again.",
+                processing_time=(now_utc() - start_time).total_seconds()
             )
 
-    def _create_prompt(self, document_text: str, approach: ProcessingApproach) -> str:
-        """Create prompt for document conversion"""
-        try:
-            from app.services.ai.prompt_service import get_document_processing_prompt
-            prompt_name = f'document_to_checklist_{approach.value}'
-            return get_document_processing_prompt(prompt_name, document_text=document_text)
-        except Exception:
-            # Fallback prompt if YAML not found
-            return f"""Convert this document into an investment research checklist.
-
-DOCUMENT:
-{document_text[:8000]}
-
-Return JSON with:
-- suggested_name: Checklist name
-- suggested_description: Brief description  
-- items: Array of objects with: text, llm_prompt (optional), category, confidence (0-1), sub_items (optional array)"""
+    @staticmethod
+    def _build_item(data: Dict, **extra) -> Optional[ChecklistItem]:
+        """ChecklistItem from one response entry, None when it has no text."""
+        text = data.get('text')
+        text = text.strip()[:MAX_ITEM_TEXT_CHARS] if isinstance(text, str) else ''
+        if not text:
+            return None
+        ai_context = ai_context_from_data(data)
+        llm_prompt = data.get('llm_prompt')
+        if not llm_prompt and ai_context:
+            # The interactive review form edits llm_prompt, so show the method there.
+            llm_prompt = ai_context.get('method')
+        confidence = data.get('confidence', 1.0)
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+            confidence = 1.0
+        return ChecklistItem(text=text, llm_prompt=llm_prompt or None, ai_context=ai_context,
+                             confidence=min(1.0, max(0.0, float(confidence))), **extra)
 
     def _parse_response(self, response: Dict) -> List[ChecklistItem]:
         """Parse AI response into ChecklistItem list"""
         items = []
+        if not isinstance(response, dict) or not isinstance(response.get('items'), list):
+            return items
         order = 0
 
-        for item_data in response.get('items', []):
-            items.append(ChecklistItem(
-                text=item_data.get('text', ''),
-                llm_prompt=item_data.get('llm_prompt'),
-                ai_context=ai_context_from_data(item_data),
-                confidence=item_data.get('confidence', 1.0),
-                category=item_data.get('category'),
-                order=order
-            ))
+        for item_data in response['items']:
+            if not isinstance(item_data, dict):
+                continue
+            item = self._build_item(item_data, category=item_data.get('category'), order=order)
+            if item is None:
+                continue
+            items.append(item)
             parent_idx = order
             order += 1
 
-            for sub in item_data.get('sub_items', []):
-                items.append(ChecklistItem(
-                    text=sub.get('text', ''),
-                    llm_prompt=sub.get('llm_prompt'),
-                    ai_context=ai_context_from_data(sub),
-                    confidence=sub.get('confidence', 1.0),
-                    parent_id=parent_idx,
-                    order=order
-                ))
+            subs = item_data.get('sub_items')
+            for sub in subs if isinstance(subs, list) else []:
+                if not isinstance(sub, dict):
+                    continue
+                sub_item = self._build_item(sub, parent_id=parent_idx, order=order)
+                if sub_item is None:
+                    continue
+                items.append(sub_item)
                 order += 1
 
         return items

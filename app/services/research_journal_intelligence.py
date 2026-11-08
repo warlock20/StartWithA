@@ -27,7 +27,7 @@ This service provides AI-powered features for the research journal:
 
 import json
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, List, Optional, Any
 
 from app.models import JournalEntry, ThesisEvolution, Company
 
@@ -119,7 +119,7 @@ class ResearchJournalIntelligence:
 
             if not thesis_entries:
                 return {
-                    'has_contradictions': False,
+                    'contradiction_detected': False,
                     'message': 'No existing thesis found for comparison',
                     'contradictions': []
                 }
@@ -128,10 +128,11 @@ class ResearchJournalIntelligence:
             thesis_context = []
             for te in thesis_entries:
                 thesis_context.append({
-                    'date': te.created_at.isoformat() if te.created_at else 'Unknown',
-                    'thesis': te.current_thesis or '',
-                    'key_assumptions': te.key_assumptions or '',
-                    'confidence': te.confidence_level
+                    'date': te.created_at.date().isoformat() if te.created_at else 'Unknown',
+                    'thesis': te.thesis or '',
+                    'conviction': te.conviction_level,
+                    'bull_case': te.bull_case or [],
+                    'bear_case': te.bear_case or [],
                 })
 
             # Get the prompt with metadata for model routing
@@ -151,7 +152,14 @@ class ResearchJournalIntelligence:
             result = self.ai.generate_json(
                 prompt, task=AITaskType.THESIS_ANALYSIS,
                 model=model_enum, provider=provider_enum,
+                max_tokens=metadata.get('max_tokens'), temperature=metadata.get('temperature'),
             )
+
+            if isinstance(result, dict):
+                flag = result.get('contradiction_detected')
+                if isinstance(flag, str):
+                    flag = flag.strip().lower() in ('true', 'yes', '1')
+                result['contradiction_detected'] = bool(flag)
 
             logger.info(f"Contradiction check completed for entry {entry.id}")
             return result
@@ -216,7 +224,10 @@ class ResearchJournalIntelligence:
             result = self.ai.generate_json(
                 prompt, task=AITaskType.JOURNAL_ANALYSIS,
                 model=model_enum, provider=provider_enum,
+                max_tokens=metadata.get('max_tokens'), temperature=metadata.get('temperature'),
             )
+            result['related_entries'] = self._resolve_related(
+                result.get('related_entries'), recent_entries, limit)
 
             logger.info(f"Found related entries for entry {entry.id}")
             return result
@@ -224,6 +235,48 @@ class ResearchJournalIntelligence:
         except Exception as e:
             logger.error(f"Error finding related entries for {entry.id}: {e}")
             return self._fallback_find_related(entry, limit)
+
+    @staticmethod
+    def _score(value) -> float:
+        """A model-supplied relevance as a float clamped to 0..1, 0 when unusable."""
+        try:
+            score = float(value)
+        except (TypeError, ValueError):
+            return 0
+        return min(1, max(0, score)) if score == score else 0
+
+    @staticmethod
+    def _resolve_related(picks, candidates, limit: int) -> List[Dict[str, Any]]:
+        """Keep the model's picks that name a real candidate, once each, up to limit.
+
+        Title, date and company come from the database rather than the model, so the
+        page never shows an invented entry or a mangled title.
+        """
+        by_id = {c.id: c for c in candidates}
+        resolved = []
+        for pick in picks if isinstance(picks, list) else []:
+            if not isinstance(pick, dict):
+                continue
+            try:
+                entry_id = int(pick.get('entry_id'))
+            except (TypeError, ValueError):
+                continue
+            candidate = by_id.pop(entry_id, None)
+            if candidate is None:
+                continue
+            resolved.append({
+                'entry_id': candidate.id,
+                'entry_title': candidate.title or 'Untitled',
+                'entry_type': candidate.entry_type,
+                'created_at': candidate.created_at.strftime('%Y-%m-%d') if candidate.created_at else '',
+                'company_name': candidate.company.name if candidate.company else None,
+                'relationship_type': pick.get('relationship_type') or 'context',
+                'relevance_score': ResearchJournalIntelligence._score(pick.get('relevance_score')),
+                'connection_explanation': pick.get('connection_explanation') or '',
+            })
+            if len(resolved) >= limit:
+                break
+        return resolved
 
     def _build_user_context(self, user_id: int, limit: int = 10) -> Dict[str, Any]:
         """Build context from user's recent journal activity"""
@@ -297,7 +350,7 @@ class ResearchJournalIntelligence:
     def _fallback_contradiction_check(self, entry: JournalEntry, company_id: int) -> Dict[str, Any]:
         """Simple contradiction check when AI is not available"""
         return {
-            'has_contradictions': False,
+            'contradiction_detected': False,
             'contradictions': [],
             'analysis_method': 'fallback',
             'message': 'AI analysis not available - manual review recommended',

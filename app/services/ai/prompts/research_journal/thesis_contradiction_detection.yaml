@@ -1,0 +1,70 @@
+# Research Journal - Thesis Contradiction Detection
+# Checks whether a new journal entry contradicts the investor's recorded thesis for a company.
+# Called from journal_enhanced analyze_entry / get_contradictions; rendered in entry_detail.html.
+
+name: "thesis_contradiction_detection"
+description: "Check whether a journal entry contradicts the investor's thesis history for a company"
+version: "1.0"
+category: "research_journal"
+
+model: "quality"
+max_tokens: 1500
+temperature: 0.2
+
+last_modified: "2026-11-08"
+
+system_context: |
+  You are a skeptical investment research reviewer. Your job is to protect the investor
+  from confirmation bias: when new information undercuts their thesis, say so plainly.
+  Only flag a contradiction when the entry contains evidence that actually conflicts with a
+  specific thesis point, bull case point, or the conviction level. Different topics, extra
+  detail, or neutral news are not contradictions. Never invent facts that are not in the
+  entry or the thesis history.
+
+template: |
+  ## Company
+  {company_name}
+
+  ## Thesis history (newest first)
+  Each item has the thesis text, conviction (1-10), bull case and bear case at that time.
+  {thesis_history}
+
+  ## New journal entry ({entry_date})
+  {entry_content}
+
+  ## Task
+  Compare the new entry against the most recent thesis first, then earlier versions.
+  1. Decide whether the entry contains evidence that conflicts with the thesis.
+     An entry that confirms a point already listed in the bear case is a contradiction of
+     the bull thesis only if it shows that risk is now materialising.
+  2. For each conflict, quote or closely paraphrase the thesis point and the conflicting
+     evidence from the entry, and say what it means for the investment.
+  3. Rate overall severity:
+     - "low": a minor point weakens, the core thesis stands
+     - "medium": an important supporting point is in doubt
+     - "high": a core pillar of the thesis is directly undercut
+  4. Suggest at most 3 next steps, each a short imperative phrase of 2-6 words
+     (e.g. "Revisit margin assumptions", "Check next quarter's guidance").
+
+  If nothing conflicts, return contradiction_detected false, severity "none" and empty lists.
+  Respond with JSON only.
+
+output_format: |
+  {
+    "contradiction_detected": true,
+    "contradiction_severity": "none|low|medium|high",
+    "summary": "one or two sentences on how the entry relates to the thesis",
+    "specific_conflicts": [
+      {
+        "thesis_point": "the thesis claim being challenged",
+        "contradicting_evidence": "what the entry says that conflicts with it",
+        "impact_assessment": "what this means for the investment case"
+      }
+    ],
+    "recommended_actions": ["Short imperative phrase"]
+  }
+
+tuning_notes: |
+  - Low temperature: this is a judgement call, not creative writing.
+  - recommended_actions are title-cased by entry_detail.html, so keep them short.
+  - If it over-flags, tighten the "different topics are not contradictions" rule.

@@ -1,0 +1,67 @@
+# Research Journal - Related Entries Finder
+# Picks the investor's earlier journal entries that connect to the current one.
+# Called from journal_enhanced analyze_entry / api_get_related_entries; rendered in entry_detail.html.
+# The service drops any entry_id that is not in the candidate list.
+
+name: "related_entries_finder"
+description: "Find earlier journal entries that are meaningfully related to the current entry"
+version: "1.0"
+category: "research_journal"
+
+model: "fast"
+max_tokens: 1200
+temperature: 0.3
+
+last_modified: "2026-11-08"
+
+system_context: |
+  You help an investor connect their own research notes. You only choose from the candidate
+  entries you are given, and you identify each one by its exact "id". A connection must be
+  substantive: a shared idea, a development of an earlier view, a conflict, or context that
+  helps interpret the current entry. Sharing a company name alone is a weak link.
+
+template: |
+  ## Current entry
+  Title: {current_entry_title}
+  Type: {current_entry_type}
+  Content:
+  {current_entry_content}
+
+  ## Candidate entries (JSON list, newest first; content is a preview)
+  {candidate_entries}
+
+  ## Task
+  Pick up to {max_results} candidates that are genuinely related to the current entry, most
+  relevant first. Leave out weak or superficial matches; returning fewer, or none, is fine.
+
+  For each pick give:
+  - entry_id: the candidate's "id", copied exactly
+  - relationship_type, one of:
+    - "similar_theme": the same idea or concern, possibly about another company
+    - "evolution": an earlier view that this entry develops, updates or reverses
+    - "contradiction": the two entries disagree
+    - "context": background that helps interpret the current entry
+    - "complement": a different angle on the same question
+  - relevance_score: 0.0 to 1.0 (0.8+ strong, 0.6-0.8 useful, below 0.6 do not include)
+  - connection_explanation: one sentence on how they connect
+
+  Also note a recurring pattern across the picks if there is one, and up to 2 knowledge gaps
+  (questions none of the entries answer). Respond with JSON only.
+
+output_format: |
+  {
+    "related_entries": [
+      {
+        "entry_id": 123,
+        "relationship_type": "similar_theme|evolution|contradiction|context|complement",
+        "relevance_score": 0.85,
+        "connection_explanation": "one sentence"
+      }
+    ],
+    "pattern_detected": "recurring pattern across the related entries, or empty string",
+    "knowledge_gaps": ["open question"]
+  }
+
+tuning_notes: |
+  - Fast model: it is a ranking task over at most 20 short previews.
+  - analyze_entry stores only relations scored above 0.6, so the 0.6 floor matches.

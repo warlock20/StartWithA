@@ -18,26 +18,23 @@ from flask import render_template, request, redirect, url_for, flash, current_ap
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 import os
-import asyncio
+import re
+from datetime import timedelta
 from io import BytesIO
 from app import db
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import ensure_timezone_aware, now_utc
 from app.utils.response_utils import json_success, json_error
 from app.utils.decorators import json_errors
 from app.utils.auth_utils import owned_or_404
 from app.models import Checklist, ChecklistItem, Company, QuestionBankItem, DocumentImport, ChecklistAnalysis, ChecklistAnswer
 from app.checklists import checklists_bp 
-from app.services.ai.document_processor import (
-    LLMChecklistProcessor,
-    DocumentParser,
-    ProcessingApproach,
-    get_supported_file_types
-)
-from app.services.ai.config import AIProvider
+from app.celery_tasks.tasks_documents import estimate_tokens, process_document_import
+from app.services.ai.document_processor import DocumentParser, MAX_ITEM_TEXT_CHARS, get_supported_file_types
 from app.services.template_loader import get_template_loader, TemplateValidationError
 from app.services.ai import get_available_providers
 from app.services.ai_check.context import (
     ai_context_from_data, ai_context_from_form, ai_context_from_llm_prompt, ai_context_status,
+    sanitize_ai_context,
 )
 
 
@@ -512,7 +509,8 @@ def import_document():
         return redirect(request.url)
 
     # Get form data
-    llm_provider = request.form.get('llm_provider', 'openai')
+    available = get_available_providers()
+    llm_provider = request.form.get('llm_provider', available[0].value if available else '')
     processing_approach = request.form.get('processing_approach', 'interactive')
 
     # Validate inputs
@@ -557,6 +555,10 @@ def import_document():
     return redirect(url_for('checklists.process_document', import_id=document_import.id))
 
 
+# A row still `processing` after this long lost its worker task.
+PROCESSING_TIMEOUT = timedelta(minutes=10)
+
+
 @checklists_bp.route('/process-document/<int:import_id>')
 @login_required
 def process_document(import_id):
@@ -564,81 +566,88 @@ def process_document(import_id):
 
     document_import = owned_or_404(DocumentImport, import_id)
 
-    # If already processed, show results
-    if document_import.status in ['completed', 'failed']:
-        return render_template('document_processing_result.html',
-                             title="Document Processing Result",
-                             import_record=document_import)
-
-    # Start processing
-    try:
-        document_import.status = 'processing'
-        document_import.processed_at = now_utc()
-        db.session.commit()
-
-        # Extract text from document
-        text_content = DocumentParser.extract_text(
-            document_import.file_path,
-            document_import.file_type
-        )
-
-        document_import.raw_text = text_content
-        db.session.commit()
-
-        # Process with LLM
-        provider = AIProvider(document_import.llm_provider)
-        approach = ProcessingApproach(document_import.processing_approach)
-
-        processor = LLMChecklistProcessor(provider)
-
-        # Run async processing
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(
-                processor.process_document(text_content, approach)
-            )
-        finally:
-            loop.close()
-
-        # Update document import with results
-        document_import.processing_time = result.processing_time
-
-        if result.success:
-            document_import.status = 'completed'
-            document_import.processed_items = [
-                {
-                    'text': item.text,
-                    'llm_prompt': item.llm_prompt,
-                    'ai_context': item.ai_context,
-                    'category': item.category,
-                    'confidence': item.confidence,
-                    'parent_id': item.parent_id,
-                    'order': item.order
-                }
-                for item in result.items
-            ]
-            document_import.suggested_name = result.suggested_name
-            document_import.suggested_description = result.suggested_description
-        else:
-            document_import.status = 'failed'
-            document_import.error_message = result.error_message
-
-        document_import.completed_at = now_utc()
-        db.session.commit()
-
-    except Exception:
-        current_app.logger.exception('Processing failed')
-        document_import.status = 'failed'
-        document_import.error_message = 'Processing failed.'
-        document_import.completed_at = now_utc()
-        db.session.commit()
-
-        flash('Processing failed. Please try again.', 'error')
+    # Only an `uploaded` row is claimed; processing/completed/failed just render.
+    if document_import.status == 'uploaded':
+        _start_document_processing(document_import)
+    elif document_import.status == 'processing':
+        started = ensure_timezone_aware(document_import.processed_at)
+        if started and now_utc() - started > PROCESSING_TIMEOUT:
+            _fail_import(document_import, 'Processing took too long. Please try the import again.')
 
     return render_template('document_processing_result.html',
                          title="Document Processing Result",
                          import_record=document_import)
+
+
+def _fail_import(document_import, message):
+    document_import.status = 'failed'
+    document_import.error_message = message
+    document_import.completed_at = now_utc()
+    db.session.commit()
+
+
+def _start_document_processing(document_import):
+    """Extract the text here (the worker has no access to the upload), then hand the LLM work to Celery."""
+    try:
+        text_content = DocumentParser.extract_text(document_import.file_path, document_import.file_type)
+    except Exception:
+        current_app.logger.exception('Text extraction failed for import %s', document_import.id)
+        _fail_import(document_import, 'The text of this document could not be read.')
+        return
+
+    text_content = text_content.replace('\x00', '')
+    if not text_content.strip():
+        _fail_import(document_import, 'No readable text was found in this document. '
+                                      'Scanned PDFs are not supported.')
+        return
+
+    document_import.raw_text = text_content
+    needed = estimate_tokens(text_content)
+    if not current_user.can_use_ai_tokens(needed):
+        _fail_import(document_import, f'This document needs about {needed:,} AI tokens; '
+                                      f'you have {current_user.get_tokens_remaining():,} left this month.')
+        return
+    db.session.commit()
+
+    # Atomic claim: a reload while the first request is still here changes no row and enqueues nothing.
+    claimed = DocumentImport.query.filter_by(
+        id=document_import.id, user_id=current_user.id, status='uploaded'
+    ).update({'status': 'processing', 'processed_at': now_utc()})
+    db.session.commit()
+    db.session.refresh(document_import)
+    if claimed == 1:
+        try:
+            process_document_import.delay(document_import.id)
+        except Exception:
+            current_app.logger.exception('Could not enqueue document import %s', document_import.id)
+            _fail_import(document_import, 'Could not start processing. Please try again.')
+
+
+def _interactive_items(document_import):
+    """(text, llm_prompt, ai_context) of the items the user kept in the review form, in their order."""
+    imported = document_import.processed_items or []
+    # dict order is first appearance in the posted form, i.e. the order shown on the page.
+    indexes = list(dict.fromkeys(int(m.group(1)) for key in request.form
+                                 if (m := re.match(r'items\[(\d+)\]\[', key))))
+    kept = []
+    for position, index in enumerate(indexes):
+        field = lambda name: request.form.get(f'items[{index}][{name}]', '')
+        text = field('text').strip()[:MAX_ITEM_TEXT_CHARS]
+        if field('enabled') != '1' or not text:
+            continue
+        llm_prompt = field('llm_prompt').strip()
+        if index < len(imported):
+            ai_context = sanitize_ai_context(imported[index].get('ai_context'))
+            if ai_context is not None and llm_prompt:
+                ai_context['method'] = llm_prompt
+            elif ai_context is None:
+                ai_context = ai_context_from_llm_prompt(llm_prompt)
+        else:
+            ai_context = ai_context_from_llm_prompt(llm_prompt)
+        order = field('order')
+        kept.append((position, int(order) if order.isdigit() else index, text, llm_prompt or None, ai_context))
+    kept.sort(key=lambda row: row[:2])
+    return [row[2:] for row in kept]
 
 
 @checklists_bp.route('/create-from-import/<int:import_id>', methods=['GET', 'POST'])
@@ -652,6 +661,12 @@ def create_from_import(import_id):
         flash('Document processing not completed.', 'error')
         return redirect(url_for('checklists.process_document', import_id=import_id))
 
+    if request.method == 'POST' or document_import.processing_approach != 'interactive':
+        existing = (db.session.get(Checklist, document_import.created_checklist_id)
+                    if document_import.created_checklist_id else None)
+        if existing:
+            return redirect(url_for('checklists.view_checklist', checklist_id=existing.id))
+
     if request.method == 'GET':
         # Show interactive editing interface for Approach C
         if document_import.processing_approach == 'interactive':
@@ -662,22 +677,21 @@ def create_from_import(import_id):
 
     # POST request - create the checklist
     if document_import.processing_approach == 'interactive':
-        # Get edited items from form
-        name = request.form.get('name', document_import.suggested_name)
-        description = request.form.get('description', document_import.suggested_description)
-
-        # Parse selected items (implementation depends on UI design)
-        selected_items = request.form.getlist('selected_items[]')
-        item_texts = request.form.getlist('item_texts[]')
-        item_prompts = request.form.getlist('item_prompts[]')
-
-        # Create checklist with selected/edited items
-        # (Implementation details here)
-
+        name = request.form.get('checklist_name', '').strip() or document_import.suggested_name
+        description = (request.form.get('checklist_description', '').strip()
+                       or document_import.suggested_description)
+        items = _interactive_items(document_import)
+        if not items:
+            flash('Select at least one item with text to create the checklist.', 'error')
+            return redirect(url_for('checklists.create_from_import', import_id=import_id))
     else:
-        # Immediate approach - use all suggested items
+        # Immediate approach - every suggested item, sub-items as top-level items in listed order
         name = document_import.suggested_name
         description = document_import.suggested_description
+        items = [
+            (item['text'][:MAX_ITEM_TEXT_CHARS], item.get('llm_prompt'), ai_context_from_data(item))
+            for item in document_import.processed_items or []
+        ]
 
     # Ensure fields don't exceed database limits
     if name and len(name) > 117:
@@ -695,17 +709,14 @@ def create_from_import(import_id):
     db.session.add(new_checklist)
     db.session.flush()  # Get the ID
 
-    # Create checklist items
-    for item_data in document_import.processed_items:
-        if item_data.get('parent_id') is None:  # Top-level items only for now
-            checklist_item = ChecklistItem(
-                text=item_data['text'],
-                checklist_id=new_checklist.id,
-                order=item_data.get('order', 0),
-                llm_prompt=item_data.get('llm_prompt'),
-                ai_context=ai_context_from_data(item_data),
-            )
-            db.session.add(checklist_item)
+    for order, (text, llm_prompt, ai_context) in enumerate(items):
+        db.session.add(ChecklistItem(
+            text=text,
+            checklist_id=new_checklist.id,
+            order=order,
+            llm_prompt=llm_prompt,
+            ai_context=ai_context,
+        ))
 
     # Link the import to the created checklist
     document_import.created_checklist_id = new_checklist.id

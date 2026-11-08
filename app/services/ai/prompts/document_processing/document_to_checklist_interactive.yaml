@@ -1,0 +1,75 @@
+# Document Import - Document to Checklist (interactive)
+# Converts an uploaded research document into checklist questions.
+# Called from LLMChecklistProcessor.process_document in app/services/ai/document_processor.py.
+
+name: "document_to_checklist_interactive"
+description: "Convert a document into a fuller candidate list the user reviews and prunes"
+version: "1.0"
+category: "document_processing"
+
+model: "quality"
+max_tokens: 8000
+temperature: 0.2
+
+last_modified: "2026-11-08"
+
+system_context: |
+  You are an investment research analyst who turns written investing material into
+  checklist questions. Stay faithful to the document: keep its own ideas and wording where
+  you can, and never invent criteria it does not contain. Every item must be a question an
+  investor can answer about one specific company (for example "Does the company earn a
+  return on capital above its cost of capital?"), not a general statement or a quote.
+
+template: |
+  ## Document
+  {document_text}
+
+  ## Task
+  Turn the document above (a checklist, a framework, or an investor's notes or letter)
+  into checklist questions an investor answers about a company.
+  - Phrase each item as a question that can be answered for a specific company.
+  - Keep the document's own ideas. Do not add criteria it does not contain.
+  - Set "category" to group related items (for example Moat, Management, Valuation).
+  - Use "sub_items" only for genuine sub-questions of an item, not to split one idea in two.
+  - ai_context.method: always fill it. Say how to check the question (what to look at,
+    what to compare).
+  - where_to_look, worked_example and verdict_rubric (satisfied, not_satisfied,
+    needs_attention): fill them only when the document supports them, else omit the key.
+  - source_links: only http or https URLs that appear in the document.
+  - The user will review and prune the list, so return a fuller candidate list that
+    also includes weaker items the document only hints at.
+  - Give each item an honest confidence from 0.0 to 1.0: high when the document states
+    it directly, low when you are inferring it. Do not inflate low-confidence items.
+
+  Respond with JSON only.
+
+output_format: |
+  {
+    "suggested_name": "short checklist name",
+    "suggested_description": "one sentence on what the checklist covers",
+    "items": [
+      {
+        "text": "Question answerable for a specific company?",
+        "category": "Group name such as Moat, Management, Valuation, Risks",
+        "confidence": 0.85,
+        "ai_context": {
+          "method": "How to check this question (always fill)",
+          "where_to_look": "Filing, section or data source (only if the document supports it)",
+          "worked_example": "Short example of applying the check (only if supported)",
+          "verdict_rubric": {
+            "satisfied": "What a satisfied answer looks like",
+            "not_satisfied": "What a failing answer looks like",
+            "needs_attention": "What an ambiguous answer looks like"
+          },
+          "source_links": ["https://example.com/only-http-or-https-urls"]
+        },
+        "sub_items": [
+          {"text": "Genuine sub-question?", "confidence": 0.8, "ai_context": {"method": "..."}}
+        ]
+      }
+    ]
+  }
+
+tuning_notes: |
+  - Fuller list than the immediate variant; the review form shows confidence so weak items can be dropped.
+  - If every item comes back near 1.0, tighten the "honest confidence" instruction.
