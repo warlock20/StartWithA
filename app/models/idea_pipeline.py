@@ -101,7 +101,7 @@ class KillCriterion(db.Model):
     effectiveness_score = db.Column(db.Float, default=0.0)
     last_calculated = db.Column(db.DateTime)
     auto_suggested = db.Column(db.Boolean, default=False)
-    source_mistake_id = db.Column(db.Integer, db.ForeignKey('mistake_log.id'))
+    source_mistake_id = db.Column(db.Integer, db.ForeignKey('mistake_log.id', ondelete='SET NULL'))
     created_at = db.Column(db.DateTime, default=now_utc)
     last_used = db.Column(db.DateTime)
 

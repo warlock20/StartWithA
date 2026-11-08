@@ -348,7 +348,7 @@ def _run_journey(client, user_id):
         'lesson_learned': 'Finish the filings before sizing.',
         'mistake_type': 'position_sizing', 'severity': '4',
         'company_id': company_id})
-    _lands_on(resp, '/journal/knowledge-hub')
+    _lands_on(resp, '/learning/mistakes')  # redirect carries ?suggest_for=<id> (kill criterion banner)
     assert MistakeLog.query.filter_by(user_id=user_id).count() == 1
     assert LearningNote.query.filter_by(user_id=user_id).count() >= 1
 

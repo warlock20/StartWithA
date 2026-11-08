@@ -173,6 +173,7 @@ def suggest_kill_criteria(mistake: MistakeLog, checklist: KillChecklist) -> dict
             overlap = {
                 'criterion_id': criterion.id,
                 'order': criterion.order,
+                'position': idx + 1,
                 'question': criterion.question,
                 'explanation': str(raw_overlap.get('explanation') or '').strip(),
             }

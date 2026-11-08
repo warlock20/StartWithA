@@ -112,6 +112,10 @@
                                     </div>
                                     <div class="criterion-header-content">
                                         <label class="criterion-label">Criterion {{ loop.index }}</label>
+                                        {% if criterion.source_mistake_id %}
+                                        <a href="{{ url_for('learning.mistake_log') }}" class="kill-criteria-source-chip"
+                                           title="Added from a logged mistake"><i class="bi bi-journal-x"></i> From mistake</a>
+                                        {% endif %}
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-danger remove-criterion-btn" aria-label="Remove">
                                         <i class="bi bi-trash"></i>

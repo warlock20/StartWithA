@@ -161,6 +161,10 @@
                     <li class="kill-criteria-item">
                         <span class="kill-criteria-number">{{ loop.index }}</span>
                         <span class="kill-criteria-text">{{ criterion.question }}</span>
+                        {% if criterion.source_mistake_id %}
+                        <a href="{{ url_for('learning.mistake_log') }}" class="kill-criteria-source-chip"
+                           title="Added from a logged mistake"><i class="bi bi-journal-x"></i> From mistake</a>
+                        {% endif %}
                     </li>
                     {% endfor %}
                     {% if checklist.criteria_count > 4 %}

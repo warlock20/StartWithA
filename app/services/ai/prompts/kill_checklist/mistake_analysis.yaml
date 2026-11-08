@@ -57,6 +57,7 @@ template: |
      above, with a one-sentence explanation. Use null if nothing is close.
   4. Set "already_covered" to true ONLY when an existing criterion would already have
      caught this mistake. Otherwise false.
+     If already_covered is true, overlap must name the criterion that already covers it.
 
   Reply with JSON only, no markdown fences.
 

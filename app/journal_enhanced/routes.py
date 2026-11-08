@@ -111,15 +111,15 @@ def _build_wisdom_entry():
 def _build_mistake_entry():
     """Build a MistakeLog (plus its companion LearningNote) from the form.
 
-    Adds both records to the session and returns None, or returns an error
-    string if validation fails.
+    Adds both records to the session and returns (error, mistake): error is a
+    string if validation fails (mistake is then None), else None.
     """
     title = request.form.get('title')
     description = request.form.get('description')
     lesson_learned = request.form.get('lesson_learned')
 
     if not title or not description or not lesson_learned:
-        return 'Title, description, and lesson are required for a Mistake entry'
+        return 'Title, description, and lesson are required for a Mistake entry', None
 
     contributing_factors = request.form.get('contributing_factors', '').split('\n')
     contributing_factors = [f.strip() for f in contributing_factors if f.strip()]
@@ -159,7 +159,7 @@ def _build_mistake_entry():
         source_type='experience',
         importance=severity,
     ))
-    return None
+    return None, mistake
 
 
 @journal_enhanced_bp.route('/entry/new', methods=['GET', 'POST'])
@@ -176,16 +176,22 @@ def new_entry():
         entry_category = request.form.get('entry_category', 'research')
 
         if entry_category in ('wisdom', 'mistake'):
-            error = _build_wisdom_entry() if entry_category == 'wisdom' else _build_mistake_entry()
+            mistake = None
+            if entry_category == 'wisdom':
+                error = _build_wisdom_entry()
+            else:
+                error, mistake = _build_mistake_entry()
             if error:
                 flash(error, 'error')
                 return redirect(url_for('journal_enhanced.new_entry'))
             try:
                 db.session.commit()
                 flash('Entry created successfully!', 'success')
-                return_url = request.form.get('return_url') or url_for(
-                    'journal_enhanced.knowledge_hub', type=entry_category)
-                return redirect(return_url)
+                return_url = request.form.get('return_url')
+                if not return_url and mistake is not None:
+                    return_url = url_for('learning.mistake_log', suggest_for=mistake.id)
+                return redirect(return_url or url_for(
+                    'journal_enhanced.knowledge_hub', type=entry_category))
             except Exception:
                 current_app.logger.exception('Error creating entry')
                 db.session.rollback()

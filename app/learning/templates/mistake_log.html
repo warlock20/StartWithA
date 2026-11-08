@@ -1,7 +1,12 @@
 {% extends "main/_base_learning.html" %}
 
 {% block content %}
-<div class="knowledge-hub-dashboard-container">
+<div class="knowledge-hub-dashboard-container" id="mistake-log-root"
+     data-kill-checklists="{{ kill_checklists|tojson|forceescape }}"
+     data-default-checklist-id="{{ default_checklist_id|tojson|forceescape }}"
+     data-manage-url="{{ url_for('ideas.manage_kill_checklists') }}"
+     data-usage-url="{{ url_for('settings.account') }}"
+     data-suggest-for="{{ suggest_for|tojson|forceescape }}">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -39,6 +44,22 @@
         </div>
     </div>
 
+    {% if suggest_mistake %}
+    <div class="mistake-banner" id="mistake-suggest-banner" role="status">
+        <div>
+            <p class="mistake-banner-title">Mistake logged: “{{ suggest_mistake.title }}”</p>
+            <p class="mistake-banner-text">Turn the lesson into a check that stops the next one?</p>
+        </div>
+        <div class="mistake-banner-actions">
+            <button type="button" class="action-btn" id="mistake-banner-dismiss">Not now</button>
+            <button type="button" class="action-btn primary" id="mistake-banner-suggest"
+                    data-mistake-id="{{ suggest_mistake.id }}">
+                <i class="bi bi-lightbulb"></i> Suggest kill criterion
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Mistakes by Category -->
     <div class="mistakes-content-card">
         <div class="mistakes-tabs-header">
@@ -60,7 +81,7 @@
                 <!-- All Mistakes Tab -->
                 <div class="tab-pane fade show active" id="all">
                     {% if mistakes %}
-                    <div class="mistakes-accordion">
+                    <div class="mistakes-accordion" id="mistakes-accordion">
                         {% for mistake in mistakes %}
                         <div class="mistake-accordion-item">
                             <h2 class="mistake-accordion-header">
@@ -76,6 +97,11 @@
                                                 {% if mistake.cost_estimate %}
                                                 <span class="mistake-cost-badge">
                                                     {{ current_user.base_currency|currency_symbol }}{{ "{:,.0f}".format(mistake.cost_estimate) }}
+                                                </span>
+                                                {% endif %}
+                                                {% if mistake.id in mistakes_with_criteria %}
+                                                <span class="mistake-criterion-chip" id="added-chip-{{ mistake.id }}">
+                                                    <i class="bi bi-check-circle-fill"></i> Kill criterion added
                                                 </span>
                                                 {% endif %}
                                             </div>
@@ -149,8 +175,14 @@
                                                 onclick="reviewMistake({{ mistake.id }}, true)">
                                                 <i class="bi bi-shield-check"></i> Prevented Similar
                                             </button>
+                                            <button type="button" class="action-btn js-suggest-criterion"
+                                                data-mistake-id="{{ mistake.id }}">
+                                                <i class="bi bi-lightbulb"></i> Suggest kill criterion
+                                            </button>
                                         </div>
                                     </div>
+                                    <p class="mistake-ai-note">Uses AI (about 3k tokens). Nothing changes on your checklist until you confirm.</p>
+                                    <div id="criterion-panel-{{ mistake.id }}" class="criterion-panel-slot" aria-live="polite"></div>
                                 </div>
                             </div>
                         </div>
@@ -217,6 +249,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/mistake-criterion.js') }}" defer></script>
 <script>
     function reviewMistake(mistakeId, preventedSimilar) {
         fetch(`/learning/mistakes/${mistakeId}/review`, {

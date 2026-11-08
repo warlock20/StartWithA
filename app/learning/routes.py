@@ -26,7 +26,8 @@ from app.utils.auth_utils import owned_or_404
 from app.services.background_tasks import BackgroundTaskService
 from app.services.kill_criterion_suggester import (
     KILL_CRITERION_TOKEN_ESTIMATE, CriterionInUse, DuplicateCriterion,
-    add_suggested_criterion, default_kill_checklist, undo_suggested_criterion,
+    add_suggested_criterion, default_kill_checklist, mistake_ids_with_criteria,
+    undo_suggested_criterion,
 )
 
 SUGGESTION_STALL_SECONDS = 300
@@ -57,8 +58,26 @@ def mistake_log():
         most_common_type = None
         most_common_count = 0
     
+    checklists = KillChecklist.query.filter_by(user_id=current_user.id).order_by(
+        KillChecklist.is_default.desc(), KillChecklist.name, KillChecklist.id
+    ).all()
+    default_checklist = default_kill_checklist(current_user.id)
+    kill_checklists = [
+        {'id': c.id, 'name': c.name, 'criteria_count': c.criteria.count(), 'is_default': bool(c.is_default)}
+        for c in checklists
+    ]
+
+    # Banner after logging a mistake: only for a mistake the user owns
+    suggest_for = request.args.get('suggest_for', type=int)
+    suggest_mistake = next((m for m in mistakes if m.id == suggest_for), None)
+
     return render_template('mistake_log.html',
                             title="Mistake Log",
+                            kill_checklists=kill_checklists,
+                            default_checklist_id=default_checklist.id if default_checklist else None,
+                            mistakes_with_criteria=mistake_ids_with_criteria(current_user.id),
+                            suggest_for=suggest_mistake.id if suggest_mistake else None,
+                            suggest_mistake=suggest_mistake,
                             mistakes=mistakes,
                             by_type=by_type,
                             total_cost=total_cost,
@@ -146,12 +165,14 @@ def add_mistake_criterion(mistake_id):
         )
     except DuplicateCriterion:
         return jsonify({'error': 'That question is already on this checklist.'}), 409
+    ordered_ids = [c.id for c in checklist.criteria.all()]
     return jsonify({
         'criterion_id': criterion.id,
         'order': criterion.order,
+        'position': ordered_ids.index(criterion.id) + 1,
         'checklist_id': checklist.id,
         'checklist_name': checklist.name,
-        'checklist_url': url_for('ideas.manage_kill_checklists'),
+        'checklist_url': url_for('ideas.edit_kill_checklist', checklist_id=checklist.id),
     }), 201
 
 
