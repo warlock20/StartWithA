@@ -1200,11 +1200,3 @@ def trigger_milestone_analysis(user_id, checklist_id, evaluation_count):
     except Exception as e:
         print(f"Error in milestone analysis: {e}")
 
-
-# Webhook for mistake-based suggestions (called when mistake is logged)
-def trigger_mistake_analysis(mistake_id):
-    """Trigger mistake-based analysis (called internally)"""
-    try:
-        SuggestionEngine.process_mistake_logged(mistake_id)
-    except Exception as e:
-        print(f"Error in mistake analysis: {e}")
