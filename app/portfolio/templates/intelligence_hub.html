@@ -39,38 +39,45 @@
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon blue">
+                    <i class="bi bi-percent"></i>
+                </div>
+                <div class="portfolio-metric-label">XIRR</div>
+                <div class="portfolio-metric-value">{% if health.xirr is not none %}{{ health.xirr }}%{% else %}&mdash;{% endif %}</div>
+                <div class="portfolio-metric-subtext">
+                    {% if health.xirr is not none %}Money-weighted annualized{% else %}Under 30 days of history{% endif %}
+                </div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green">
                     <i class="bi bi-trophy"></i>
                 </div>
                 <div class="portfolio-metric-label">Win Rate</div>
-                <div class="portfolio-metric-value">{{ "%.0f"|format(health.win_rate) }}%</div>
+                <div class="portfolio-metric-value">{% if health.win_rate is not none %}{{ health.win_rate }}%{% else %}&mdash;{% endif %}</div>
+                <div class="portfolio-metric-subtext">
+                    {% if health.win_rate is not none %}{{ health.wins }} of {{ health.closed_count }} closed{% else %}No closed trades{% endif %}
+                </div>
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon {% if health.overdue_checkpoints > 0 %}gray{% else %}green{% endif %}">
                     <i class="bi bi-calendar-x"></i>
                 </div>
-                <div class="portfolio-metric-label">Overdue</div>
+                <div class="portfolio-metric-label">Overdue Checkpoints</div>
                 <div class="portfolio-metric-value {% if health.overdue_checkpoints > 0 %}loss{% endif %}">{{ health.overdue_checkpoints }}</div>
             </div>
             <div class="portfolio-metric">
-                <div class="portfolio-metric-icon {% if health.needs_attention > 0 %}gray{% else %}green{% endif %}">
+                <div class="portfolio-metric-icon {% if health.below_thesis > 0 %}gray{% else %}green{% endif %}">
                     <i class="bi bi-exclamation-triangle"></i>
                 </div>
-                <div class="portfolio-metric-label">Needs Attention</div>
-                <div class="portfolio-metric-value {% if health.needs_attention > 0 %}loss{% endif %}">{{ health.needs_attention }}</div>
-            </div>
-            <div class="portfolio-metric">
-                <div class="portfolio-metric-icon blue">
-                    <i class="bi bi-star"></i>
-                </div>
-                <div class="portfolio-metric-label">Avg Research</div>
-                <div class="portfolio-metric-value">{{ health.avg_quality_grade }}</div>
+                <div class="portfolio-metric-label">Below Thesis</div>
+                <div class="portfolio-metric-value {% if health.below_thesis > 0 %}loss{% endif %}">{{ health.below_thesis }}</div>
+                <div class="portfolio-metric-subtext">Losing vs. thesis</div>
             </div>
         </div>
 
         {% if alerts %}
         <div class="dashboard-alerts-strip" id="alerts-strip">
             {% for alert in alerts[:2] %}
-            <div class="dashboard-alert-card dashboard-alert-card--warning">
+            <div class="dashboard-alert-card dashboard-alert-card--{{ alert.type }}">
                 <i class="bi bi-{{ alert.icon }}"></i>
                 <span class="dashboard-alert-card__text">{{ alert.message }}</span>
                 <div class="dashboard-alert-card__actions">
@@ -88,7 +95,7 @@
             {% if alerts|length > 2 %}
             <div class="dashboard-alerts-expanded" id="alerts-expanded">
                 {% for alert in alerts[2:] %}
-                <div class="dashboard-alert-card dashboard-alert-card--warning">
+                <div class="dashboard-alert-card dashboard-alert-card--{{ alert.type }}">
                     <i class="bi bi-{{ alert.icon }}"></i>
                     <span class="dashboard-alert-card__text">{{ alert.message }}</span>
                     <div class="dashboard-alert-card__actions">
@@ -174,25 +181,36 @@
                 {% if decisions.has_data %}
                 <div class="hub-intel-card-metrics">
                     <div class="hub-intel-metric">
-                        <div class="hub-intel-metric-value {% if decisions.research_return >= decisions.no_research_return %}positive{% else %}negative{% endif %}">
+                        {% if decisions.research_count > 0 %}
+                        <div class="hub-intel-metric-value {% if decisions.research_return >= 0 %}positive{% else %}negative{% endif %}">
                             {% if decisions.research_return >= 0 %}+{% endif %}{{ "%.1f"|format(decisions.research_return) }}%
                         </div>
-                        <div class="hub-intel-metric-label">With Research</div>
+                        {% else %}
+                        <div class="hub-intel-metric-value">&mdash;</div>
+                        {% endif %}
+                        <div class="hub-intel-metric-label">With Research ({{ decisions.research_count }})</div>
                     </div>
                     <div class="hub-intel-metric">
-                        <div class="hub-intel-metric-value {% if decisions.no_research_return >= decisions.research_return %}positive{% else %}negative{% endif %}">
+                        {% if decisions.no_research_count > 0 %}
+                        <div class="hub-intel-metric-value {% if decisions.no_research_return >= 0 %}positive{% else %}negative{% endif %}">
                             {% if decisions.no_research_return >= 0 %}+{% endif %}{{ "%.1f"|format(decisions.no_research_return) }}%
                         </div>
-                        <div class="hub-intel-metric-label">No Research</div>
+                        {% else %}
+                        <div class="hub-intel-metric-value">&mdash;</div>
+                        {% endif %}
+                        <div class="hub-intel-metric-label">No Research ({{ decisions.no_research_count }})</div>
                     </div>
                 </div>
                 <div class="hub-intel-card-highlight">
-                    {% if decisions.research_advantage >= 0 %}
+                    {% if decisions.edge is none %}
+                    <i class="bi bi-info-circle"></i>
+                    <span>{% if decisions.no_research_count == 0 %}No unresearched positions to compare{% else %}No research-backed positions to compare{% endif %}</span>
+                    {% elif decisions.edge >= 0 %}
                     <i class="bi bi-check-circle text-success"></i>
-                    <span>Research adds +{{ "%.1f"|format(decisions.research_advantage) }}% edge</span>
+                    <span>Research adds +{{ "%.1f"|format(decisions.edge) }}% edge</span>
                     {% else %}
                     <i class="bi bi-exclamation-circle text-warning"></i>
-                    <span>Research process needs review</span>
+                    <span>Research trails by {{ "%.1f"|format(-decisions.edge) }}%</span>
                     {% endif %}
                 </div>
                 {% else %}
@@ -243,7 +261,7 @@
                 {% else %}
                 <div class="hub-intel-card-empty">
                     <i class="bi bi-graph-up"></i>
-                    <p>Need {{ correlation.min_needed }} trades to analyze</p>
+                    <p>Needs {{ correlation.min_needed }} closed trades with tracked research ({{ correlation.total_outcomes }} so far)</p>
                 </div>
                 {% endif %}
             </div>
@@ -290,7 +308,7 @@
                 {% if checkpoints.overdue > 0 %}
                 <div class="hub-intel-card-highlight" style="background: #fef2f2;">
                     <i class="bi bi-exclamation-triangle text-danger"></i>
-                    <span>{{ checkpoints.overdue }} checkpoint{% if checkpoints.overdue != 1 %}s{% endif %} need review</span>
+                    <span>{{ checkpoints.overdue }} checkpoint{% if checkpoints.overdue != 1 %}s need{% else %} needs{% endif %} review</span>
                 </div>
                 {% else %}
                 <div class="hub-intel-card-highlight">
@@ -403,7 +421,7 @@
                 {% else %}
                 <div class="hub-intel-card-empty">
                     <i class="bi bi-lightbulb"></i>
-                    <p>Need {{ learning.min_needed }} trades to unlock insights</p>
+                    <p>Needs {{ learning.min_needed }} closed trades with tracked research ({{ learning.total_trades }} so far)</p>
                 </div>
                 {% endif %}
             </div>

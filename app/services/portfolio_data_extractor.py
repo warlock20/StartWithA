@@ -197,6 +197,12 @@ class PortfolioDataExtractor:
     # STRUCTURED METRICS EXTRACTION (Pre-calculated)
     # ================================================================
 
+    def summary(self, as_of: Optional[date] = None) -> Dict[str, Any]:
+        """Portfolio summary only (win rate, XIRR, ...), without the rest of extract_all."""
+        return self.extract_portfolio_summary(
+            self._load_positions(), self._load_transactions(), as_of
+        )
+
     def extract_all(self, as_of: Optional[date] = None) -> Dict[str, Any]:
         """
         Extract complete portfolio data with pre-calculated metrics.

@@ -522,6 +522,15 @@
         }
     }
 
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     async function showRelatedEntries(entryId) {
         try {
             const response = await fetch(`/journal/api/entry/${entryId}/related`);
@@ -537,11 +546,11 @@
                         <a href="/journal/entry/${entry.entry_id}" class="list-group-item list-group-item-action">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <strong>${entry.entry_title}</strong>
+                                    <strong>${escapeHtml(entry.entry_title)}</strong>
                                     ${relationshipBadge}
                                     <br>
                                     <small class="text-muted">
-                                        ${entry.created_at} ${entry.company_name ? '• ' + entry.company_name : ''}
+                                        ${escapeHtml(entry.created_at)} ${entry.company_name ? '• ' + escapeHtml(entry.company_name) : ''}
                                     </small>
                                 </div>
                                 <span class="badge bg-secondary">${Math.round(entry.relevance_score * 100)}%</span>
@@ -596,7 +605,7 @@
                             </div>
                             <div class="modal-body">
                                 <div class="alert alert-warning">
-                                    <strong>Severity:</strong> ${contradictions.contradiction_severity || 'Unknown'}
+                                    <strong>Severity:</strong> ${escapeHtml(contradictions.contradiction_severity || 'Unknown')}
                                 </div>
 
                                 ${contradictions.specific_conflicts ? `
@@ -606,9 +615,9 @@
                                             <li class="mb-3">
                                                 <div class="card">
                                                     <div class="card-body">
-                                                        <strong>Thesis Point:</strong> ${conflict.thesis_point}<br>
-                                                        <strong>Contradicting Evidence:</strong> ${conflict.contradicting_evidence}<br>
-                                                        <strong>Impact:</strong> ${conflict.impact_assessment}
+                                                        <strong>Thesis Point:</strong> ${escapeHtml(conflict.thesis_point)}<br>
+                                                        <strong>Contradicting Evidence:</strong> ${escapeHtml(conflict.contradicting_evidence)}<br>
+                                                        <strong>Impact:</strong> ${escapeHtml(conflict.impact_assessment)}
                                                     </div>
                                                 </div>
                                             </li>
@@ -619,7 +628,7 @@
                                 ${contradictions.recommended_actions ? `
                                     <h6>Recommended Actions:</h6>
                                     <ul>
-                                        ${contradictions.recommended_actions.map(action => `<li>${action.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</li>`).join('')}
+                                        ${contradictions.recommended_actions.map(action => `<li>${escapeHtml(String(action).replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()))}</li>`).join('')}
                                     </ul>
                                 ` : ''}
                             </div>
