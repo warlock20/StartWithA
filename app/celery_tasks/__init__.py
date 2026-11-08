@@ -37,6 +37,10 @@ from app.celery_tasks.tasks_chart_data import (
     portfolio_chart_data_task,
 )
 
+from app.celery_tasks.tasks_kill_criteria import (
+    suggest_kill_criterion_task,
+)
+
 from app.celery_tasks.tasks_research import (
     bias_check_task,
     argos_deep_analysis_task,
@@ -104,6 +108,9 @@ __all__ = [
 
     # Screening analysis tasks
     'screening_analysis_task',
+
+    # Kill criterion suggestion tasks
+    'suggest_kill_criterion_task',
 
     # Companion tasks
     'companion_ask_task',
