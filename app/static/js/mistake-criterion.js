@@ -461,14 +461,17 @@
             'Added to ' + added.checklist_name + ' as criterion #' + (added.position !== undefined ? added.position : added.order + 1)));
         text.firstChild.tabIndex = -1;
         text.appendChild(el('p', 'criterion-success-quote', '“' + question + '”'));
+        var undoError = el('p', 'criterion-panel-message text-danger');
+        undoError.setAttribute('role', 'alert');
+        undoError.hidden = true;
+        text.appendChild(undoError);
         var row = el('div', 'criterion-panel-buttons');
         var undo = button('Undo', 'action-btn', function () {
             undo.disabled = true;
             undoCriterion(mistakeId, added, prefill, result, function (message) {
                 undo.disabled = false;
-                var line = el('p', 'criterion-panel-message text-danger', message);
-                line.setAttribute('role', 'alert');
-                text.appendChild(line);
+                undoError.textContent = message;
+                undoError.hidden = false;
             });
         });
         row.appendChild(undo);

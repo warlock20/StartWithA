@@ -32,6 +32,23 @@ from app.services.kill_criterion_suggester import (
 
 SUGGESTION_STALL_SECONDS = 300
 
+
+def _json_object():
+    """The JSON request body if it is an object, else an empty dict."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
+
+
+def _parse_id(value):
+    """An int id from an int or an ASCII-digit string; None stays None; anything else raises ValueError."""
+    if value is None:
+        return None
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    if isinstance(value, str) and value.isascii() and value.isdigit():
+        return int(value)
+    raise ValueError('invalid id')
+
 @learning_bp.route('/mistakes')
 @login_required
 def mistake_log():
@@ -50,6 +67,15 @@ def mistake_log():
    # Calculate total cost
     total_cost = sum(m.cost_estimate or 0 for m in mistakes)
     
+    top_costly_mistakes = sorted(
+        (m for m in mistakes if m.cost_estimate),
+        key=lambda m: m.cost_estimate, reverse=True
+    )[:3]
+    top_reviewed_mistakes = sorted(
+        (m for m in mistakes if (m.times_reviewed or 0) > 0),
+        key=lambda m: m.times_reviewed, reverse=True
+    )[:3]
+
     # Most common mistake type
     if by_type:
         most_common_type = max(by_type, key=lambda k: len(by_type[k]))
@@ -79,6 +105,8 @@ def mistake_log():
                             suggest_for=suggest_mistake.id if suggest_mistake else None,
                             suggest_mistake=suggest_mistake,
                             mistakes=mistakes,
+                            top_costly_mistakes=top_costly_mistakes,
+                            top_reviewed_mistakes=top_reviewed_mistakes,
                             by_type=by_type,
                             total_cost=total_cost,
                             most_common_type=most_common_type,
@@ -113,7 +141,10 @@ def review_mistake(mistake_id):
 def suggest_criterion(mistake_id):
     """Start an AI suggestion of a kill question that would have caught this mistake."""
     mistake = owned_or_404(MistakeLog, mistake_id)
-    checklist_id = (request.get_json(silent=True) or {}).get('checklist_id')
+    try:
+        checklist_id = _parse_id(_json_object().get('checklist_id'))
+    except ValueError:
+        return jsonify({'error': 'checklist_id must be a number.'}), 400
     if checklist_id is not None:
         checklist = owned_or_404(KillChecklist, checklist_id)
     else:
@@ -149,8 +180,12 @@ def suggest_criterion_status(task_id):
 def add_mistake_criterion(mistake_id):
     """Add a suggested question to one of the user's kill checklists."""
     mistake = owned_or_404(MistakeLog, mistake_id)
-    data = request.get_json(silent=True) or {}
-    checklist = owned_or_404(KillChecklist, data.get('checklist_id'))
+    data = _json_object()
+    try:
+        checklist_id = _parse_id(data.get('checklist_id'))
+    except ValueError:
+        return jsonify({'error': 'checklist_id must be a number.'}), 400
+    checklist = owned_or_404(KillChecklist, checklist_id)
     question = str(data.get('question') or '').strip()
     if not question:
         return jsonify({'error': 'Question is required.'}), 400

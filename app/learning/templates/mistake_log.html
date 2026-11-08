@@ -217,27 +217,23 @@
                 <div class="learning-mistakes-insight-section">
                     <h6 class="learning-mistakes-insight-section-title">Most Expensive Mistakes</h6>
                     <ul class="learning-mistakes-insight-list">
-                        {% for mistake in (mistakes|sort(attribute='cost_estimate', reverse=true))[:3] %}
-                        {% if mistake.cost_estimate %}
+                        {% for mistake in top_costly_mistakes %}
                         <li class="insight-list-item">
                             <div class="insight-item-title">{{ mistake.title }}</div>
                             <div class="insight-item-meta">Cost: {{ current_user.base_currency|currency_symbol }}{{ "{:,.0f}".format(mistake.cost_estimate) }}</div>
                             <p class="insight-item-lesson">Lesson: {{ mistake.lesson_learned|truncate(100) }}</p>
                         </li>
-                        {% endif %}
                         {% endfor %}
                     </ul>
                 </div>
                 <div class="learning-mistakes-insight-section">
                     <h6 class="learning-mistakes-insight-section-title">Most Reviewed Mistakes</h6>
                     <ul class="learning-mistakes-insight-list">
-                        {% for mistake in (mistakes|sort(attribute='times_reviewed', reverse=true))[:3] %}
-                        {% if mistake.times_reviewed > 0 %}
+                        {% for mistake in top_reviewed_mistakes %}
                         <li class="insight-list-item">
                             <div class="insight-item-title">{{ mistake.title }}</div>
                             <div class="insight-item-meta">Reviewed {{ mistake.times_reviewed }}x | Type: {{ mistake.mistake_type|replace('_', ' ')|title }}</div>
                         </li>
-                        {% endif %}
                         {% endfor %}
                     </ul>
                 </div>
