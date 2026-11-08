@@ -166,6 +166,11 @@
                 {% if is_newly_unlocked('knowledge_hub') %}<span class="sidebar-badge sidebar-badge--new">NEW</span>{%
                 endif %}
             </a>
+            <a href="{{ url_for('learning.mistake_log') }}" class="sidebar-item" data-tooltip="Mistake Log"
+                data-feature-group="knowledge_learning">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span class="sidebar-item-text">Mistake Log</span>
+            </a>
         </div>
         {% endif %}
 

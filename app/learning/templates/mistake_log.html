@@ -9,6 +9,10 @@
      data-suggest-for="{{ suggest_for|tojson|forceescape }}">
     <!-- Header -->
     <div class="dashboard-header-card">
+        <nav aria-label="Breadcrumb" class="mistake-breadcrumb">
+            <a href="{{ url_for('journal_enhanced.knowledge_hub', type='mistake') }}"><i class="bi bi-arrow-left"></i> Knowledge Hub</a>
+            <span aria-hidden="true">/</span><span>Mistake Log</span>
+        </nav>
         <header class="dashboard-header">
             <div>
                 <h1 class="dashboard-title font-poppins">Mistake Log</h1>

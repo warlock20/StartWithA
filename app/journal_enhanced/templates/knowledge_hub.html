@@ -61,6 +61,26 @@
         </div>
     </div>
 
+    {# ── Mistake Log link strip (Mistakes tab only) ── #}
+    {% if content_type == 'mistake' and type_counts.mistake > 0 %}
+    <section class="cc-mistake-log-strip" aria-label="Mistake Log">
+        <div class="cc-mistake-log-strip-main">
+            <span class="cc-mistake-log-strip-icon"><i class="bi bi-exclamation-triangle"></i></span>
+            <div>
+                <p class="cc-mistake-log-strip-title">
+                    {%- if mistake_total_cost -%}
+                    Your {{ type_counts.mistake }} mistake{{ '' if type_counts.mistake == 1 else 's' }} cost an estimated {{ current_user.base_currency|currency_symbol }}{{ "{:,.0f}".format(mistake_total_cost) }}
+                    {%- else -%}
+                    You have logged {{ type_counts.mistake }} mistake{{ '' if type_counts.mistake == 1 else 's' }}
+                    {%- endif -%}
+                </p>
+                <p class="cc-mistake-log-strip-text">The Mistake Log has the costs, patterns and kill-criterion suggestions.</p>
+            </div>
+        </div>
+        <a href="{{ url_for('learning.mistake_log') }}" class="action-btn">Open Mistake Log <i class="bi bi-arrow-right"></i></a>
+    </section>
+    {% endif %}
+
     {# ── Secondary Filter Bar ── #}
     <div class="cc-filter-bar">
         <select class="cc-filter-select" onchange="applyFilter('company_id', this.value)">

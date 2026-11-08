@@ -803,12 +803,22 @@ def knowledge_hub():
         'mistake': all_mistake_count,
     }
 
+    mistake_total_cost = None
+    if content_type == 'mistake':
+        cost_query = db.session.query(
+            db.func.coalesce(db.func.sum(MistakeLog.cost_estimate), 0)
+        ).filter(MistakeLog.user_id == current_user.id)
+        if company_filter:
+            cost_query = cost_query.filter(MistakeLog.company_id == company_filter)
+        mistake_total_cost = float(cost_query.scalar() or 0)
+
     return render_template('knowledge_hub.html',
                          title="Knowledge Hub",
                          content_type=content_type,
                          unified_results=unified_results,
                          grouped_results=ordered_groups,
                          type_counts=type_counts,
+                         mistake_total_cost=mistake_total_cost,
                          companies=companies,
                          company_summary=company_summary,
                          all_tags=all_tags,
