@@ -743,7 +743,9 @@ def get_correlation_data(user_id: int) -> CorrelationData:
     return service.get_correlation_data()
 
 
-@cache.memoize(timeout=300)  # 5 min — checkpoint status changes infrequently
+# Not cached: Met / Not Met and the destination-analysis edits change this list,
+# and a stale copy keeps resolved checkpoints on the reminders page. It is one
+# indexed query.
 def get_upcoming_checkpoints(user_id: int, days_ahead: int = 30) -> Dict[str, List[CheckpointReminder]]:
     """Get upcoming and overdue checkpoints"""
     service = PortfolioIntelligenceService(user_id)

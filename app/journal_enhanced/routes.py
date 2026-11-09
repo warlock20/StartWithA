@@ -26,6 +26,9 @@ from app.journal_enhanced.utils import (extract_tags_from_content, get_related_e
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success
 from app.utils.blocknote_utils import blocknote_to_text
+from app.models.idea_pipeline import KillChecklist
+from app.services.kill_criterion_suggester import default_kill_checklist, mistake_ids_with_criteria
+from app.services.mistake_log_view import build_mistake_view
 from app.utils.decorators import json_errors
 from app.utils.auth_utils import owned_or_404
 from app.services.findings import FINDING_TYPES, finding_signal, finding_text_from_editor
@@ -111,15 +114,15 @@ def _build_wisdom_entry():
 def _build_mistake_entry():
     """Build a MistakeLog (plus its companion LearningNote) from the form.
 
-    Adds both records to the session and returns None, or returns an error
-    string if validation fails.
+    Adds both records to the session and returns (error, mistake): error is a
+    string if validation fails (mistake is then None), else None.
     """
     title = request.form.get('title')
     description = request.form.get('description')
     lesson_learned = request.form.get('lesson_learned')
 
     if not title or not description or not lesson_learned:
-        return 'Title, description, and lesson are required for a Mistake entry'
+        return 'Title, description, and lesson are required for a Mistake entry', None
 
     contributing_factors = request.form.get('contributing_factors', '').split('\n')
     contributing_factors = [f.strip() for f in contributing_factors if f.strip()]
@@ -159,7 +162,7 @@ def _build_mistake_entry():
         source_type='experience',
         importance=severity,
     ))
-    return None
+    return None, mistake
 
 
 @journal_enhanced_bp.route('/entry/new', methods=['GET', 'POST'])
@@ -176,16 +179,22 @@ def new_entry():
         entry_category = request.form.get('entry_category', 'research')
 
         if entry_category in ('wisdom', 'mistake'):
-            error = _build_wisdom_entry() if entry_category == 'wisdom' else _build_mistake_entry()
+            mistake = None
+            if entry_category == 'wisdom':
+                error = _build_wisdom_entry()
+            else:
+                error, mistake = _build_mistake_entry()
             if error:
                 flash(error, 'error')
                 return redirect(url_for('journal_enhanced.new_entry'))
             try:
                 db.session.commit()
                 flash('Entry created successfully!', 'success')
-                return_url = request.form.get('return_url') or url_for(
-                    'journal_enhanced.knowledge_hub', type=entry_category)
-                return redirect(return_url)
+                return_url = request.form.get('return_url')
+                if not return_url and mistake is not None:
+                    return_url = url_for('journal_enhanced.knowledge_hub', type='mistake', suggest_for=mistake.id)
+                return redirect(return_url or url_for(
+                    'journal_enhanced.knowledge_hub', type=entry_category))
             except Exception:
                 current_app.logger.exception('Error creating entry')
                 db.session.rollback()
@@ -797,7 +806,43 @@ def knowledge_hub():
         'mistake': all_mistake_count,
     }
 
+    # --- Mistake Log view (Mistakes tab only) ---
+    mistake_context = {}
+    if content_type == 'mistake':
+        all_mistakes = MistakeLog.query.filter_by(user_id=current_user.id).outerjoin(
+            MistakeLog.company).options(contains_eager(MistakeLog.company)).all()
+        criteria_ids = mistake_ids_with_criteria(current_user.id)
+        visible_mistakes = [r['item'] for r in unified_results if r['type'] == 'mistake']
+        mistake_view = build_mistake_view(
+            all_mistakes, visible_mistakes, request.args.get('mistake_type'), sort_by,
+            criteria_ids,
+            search=search_query, company_filtered=bool(company_filter))
+        sort_by = mistake_view['sort_by']
+        mistake_companies = sorted(
+            {m.company_id: m.company.name for m in all_mistakes if m.company}.items(),
+            key=lambda kv: kv[1].lower())
+
+        kill_checklists = [
+            {'id': c.id, 'name': c.name, 'criteria_count': c.criteria.count(), 'is_default': bool(c.is_default)}
+            for c in KillChecklist.query.filter_by(user_id=current_user.id).order_by(
+                KillChecklist.is_default.desc(), KillChecklist.name, KillChecklist.id).all()
+        ]
+        default_checklist = default_kill_checklist(current_user.id)
+        suggest_for = request.args.get('suggest_for', type=int)
+        shown_ids = {m.id for m in mistake_view['list']}
+        suggest_mistake = next(
+            (m for m in all_mistakes if m.id == suggest_for and m.id in shown_ids), None)
+        mistake_context = {
+            'mistake_view': mistake_view,
+            'mistake_companies': mistake_companies,
+            'kill_checklists': kill_checklists,
+            'default_checklist_id': default_checklist.id if default_checklist else None,
+            'mistakes_with_criteria': criteria_ids,
+            'suggest_mistake': suggest_mistake,
+        }
+
     return render_template('knowledge_hub.html',
+                         **mistake_context,
                          title="Knowledge Hub",
                          content_type=content_type,
                          unified_results=unified_results,

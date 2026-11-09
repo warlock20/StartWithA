@@ -44,7 +44,7 @@
                 <div class="portfolio-metric-label">XIRR</div>
                 <div class="portfolio-metric-value">{% if health.xirr is not none %}{{ health.xirr }}%{% else %}&mdash;{% endif %}</div>
                 <div class="portfolio-metric-subtext">
-                    {% if health.xirr is not none %}Money-weighted annualized{% else %}Under 30 days of history{% endif %}
+                    {% if health.xirr is not none %}Money-weighted annualized{% else %}Not enough history{% endif %}
                 </div>
             </div>
             <div class="portfolio-metric">
@@ -216,7 +216,7 @@
                 {% else %}
                 <div class="hub-intel-card-empty">
                     <i class="bi bi-clipboard-data"></i>
-                    <p>Complete trades to analyze decisions</p>
+                    <p>No positions with a return yet</p>
                 </div>
                 {% endif %}
             </div>
@@ -421,7 +421,7 @@
                 {% else %}
                 <div class="hub-intel-card-empty">
                     <i class="bi bi-lightbulb"></i>
-                    <p>Needs {{ learning.min_needed }} closed trades with tracked research ({{ learning.total_trades }} so far)</p>
+                    <p>{% if learning.total_trades >= learning.min_needed %}No patterns detected yet across {{ learning.total_trades }} trades{% else %}Needs {{ learning.min_needed }} closed trades with tracked research ({{ learning.total_trades }} so far){% endif %}</p>
                 </div>
                 {% endif %}
             </div>

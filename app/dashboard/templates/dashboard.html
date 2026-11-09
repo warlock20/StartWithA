@@ -46,9 +46,9 @@
                         </li>
                         {% if has_feature('mistake_log') %}
                         <li>
-                            <a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
+                            <a class="dropdown-item" href="{{ url_for('journal_enhanced.new_entry', category='mistake') }}">
                                 <i class="bi bi-exclamation-triangle text-danger me-2"></i>
-                                New Mistake Log
+                                Log Mistake
                             </a>
                         </li>
                         {% endif %}
@@ -378,9 +378,9 @@
             </a>
             {% endif %}
             {% if has_feature('mistake_log') %}
-            <a href="{{ url_for('learning.mistake_log') }}" class="nav-link-card">
+            <a href="{{ url_for('journal_enhanced.knowledge_hub', type='mistake') }}" class="nav-link-card">
                 <i class="bi bi-exclamation-triangle-fill nav-link-icon"></i>
-                Mistake Log
+                Mistakes
             </a>
             {% endif %}
         </div>

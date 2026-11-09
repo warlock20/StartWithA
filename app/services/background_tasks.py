@@ -35,6 +35,7 @@ from app.celery_tasks import argos_deep_analysis_task
 from app.celery_tasks import portfolio_import_task
 from app.celery_tasks import ai_research_assist_task
 from app.celery_tasks import screening_analysis_task
+from app.celery_tasks import suggest_kill_criterion_task
 from app.celery_tasks import companion_ask_task
 from app.celery_tasks import reindex_knowledge_task
 from app.services.argos.knowledge_index import TASK_TYPE as KNOWLEDGE_INDEX_TASK_TYPE
@@ -303,3 +304,10 @@ class BackgroundTaskService:
         """Companion knowledge Re-index now. Reuses the user's in-flight run, scheduled or manual."""
         return BackgroundTaskService._enqueue(
             user_id, KNOWLEDGE_INDEX_TASK_TYPE, reindex_knowledge_task, user_id)
+
+    @staticmethod
+    def start_kill_criterion_suggestion(user_id, mistake_id, checklist_id):
+        """Suggest a kill criterion for a mistake. One task per mistake at a time."""
+        return BackgroundTaskService._enqueue(
+            user_id, f'kill_criterion:{mistake_id}', suggest_kill_criterion_task,
+            user_id, mistake_id, checklist_id)

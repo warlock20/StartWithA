@@ -38,6 +38,7 @@ celery = Celery('app.celery_tasks',
                     'app.celery_tasks.tasks_ai_check',              # AI check pipeline
                     'app.celery_tasks.tasks_knowledge',             # Companion knowledge index
                     'app.celery_tasks.tasks_documents',             # Checklist import from uploaded documents
+                    'app.celery_tasks.tasks_kill_criteria',         # Suggest a kill criterion from a mistake
                 ]
                 )
 

@@ -580,6 +580,7 @@ def analytics_decisions():
     expectations_met_pct = (expectations_met_count / expectations_total_count * 100) if expectations_total_count > 0 else 0
 
     return render_template('decisions_intelligence.html',
+                          research_edge=comparison.edge,
                           research_backed_count=len(research_positions),
                           non_research_count=len(non_research_positions),
                           research_avg_return=research_avg_return,

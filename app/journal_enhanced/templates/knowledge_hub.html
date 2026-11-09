@@ -11,7 +11,8 @@
                 {% if company_filter %}<input type="hidden" name="company_id" value="{{ company_filter }}">{% endif %}
                 {% if tag_filter %}<input type="hidden" name="tag" value="{{ tag_filter }}">{% endif %}
                 {% if starred_only %}<input type="hidden" name="starred" value="1">{% endif %}
-                {% if sort_by != 'date' %}<input type="hidden" name="sort" value="{{ sort_by }}">{% endif %}
+                {% if sort_by not in ('date', 'newest') %}<input type="hidden" name="sort" value="{{ sort_by }}">{% endif %}
+                {% if mistake_view and mistake_view.mistake_type %}<input type="hidden" name="mistake_type" value="{{ mistake_view.mistake_type }}">{% endif %}
                 <div class="cc-search-wrapper">
                     <i class="bi bi-search cc-search-icon"></i>
                     <input type="text" name="q" class="cc-search-input" id="ccSearchInput"
@@ -51,7 +52,7 @@
                                 company_id=company_filter,
                                 tag=tag_filter,
                                 starred=1 if starred_only else None,
-                                sort=sort_by if sort_by != 'date' else None) }}"
+                                sort=sort_by if sort_by in ('title', 'type') else None) }}"
                class="cc-tab {{ 'active' if content_type == key }}">
                 <i class="bi {{ icon }}"></i>
                 <span>{{ label }}</span>
@@ -61,7 +62,10 @@
         </div>
     </div>
 
-    {# ── Secondary Filter Bar ── #}
+    {% set show_mistake_log = mistake_view and mistake_view.metrics.total > 0 %}
+
+    {# ── Secondary Filter Bar (the Mistake Log has its own filters) ── #}
+    {% if not show_mistake_log %}
     <div class="cc-filter-bar">
         <select class="cc-filter-select" onchange="applyFilter('company_id', this.value)">
             <option value="">All Companies</option>
@@ -86,6 +90,7 @@
             <option value="type" {{ 'selected' if sort_by == 'type' }}>By Type</option>
         </select>
     </div>
+    {% endif %}
 
     {% if company_summary %}
     {% include 'knowledge_hub/_company_header.html' %}
@@ -93,7 +98,9 @@
 
     {# ── Card Grid ── #}
     <div class="cc-content">
-        {% if unified_results|length == 0 %}
+        {% if show_mistake_log %}
+        {% include 'knowledge_hub/_mistakes_tab.html' %}
+        {% elif unified_results|length == 0 %}
         <div class="cc-empty">
             <i class="bi {{ 'bi-search' if search_query or company_filter or tag_filter or starred_only else 'bi-journal-plus' }}"></i>
             <h3>{{ 'No notes match your search' if search_query or company_filter or tag_filter or starred_only else 'No notes yet' }}</h3>
@@ -131,6 +138,9 @@
 
 {% block scripts %}
 {{ super() }}
+{% if mistake_view and mistake_view.metrics.total > 0 %}
+<script src="{{ url_for('static', filename='js/mistake-criterion.js') }}" defer></script>
+{% endif %}
 <script>
     // Cmd+K shortcut
     document.addEventListener('keydown', function(e) {

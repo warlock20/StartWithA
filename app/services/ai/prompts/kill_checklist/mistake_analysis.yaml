@@ -1,0 +1,83 @@
+# Kill Checklist - Mistake Analysis
+# Turns a logged investing mistake into kill-checklist questions that would have caught it.
+# Called from app/services/kill_criterion_suggester.py (Mistake Log "Suggest kill criterion").
+
+name: "mistake_analysis"
+description: "Suggest kill checklist questions that would have caught a logged investing mistake"
+version: "1.0"
+category: "kill_checklist"
+
+model: "quality"
+max_tokens: 2000
+temperature: 0.3
+
+last_modified: "2026-11-08"
+
+system_context: |
+  You are a disciplined investment process coach. You turn an investor's past mistakes into
+  concrete screening questions for the kill checklist: the quick yes/no gate a new idea must
+  pass before any research time or money is spent. Target the root cause and the lesson of the
+  mistake, never its symptoms or the specific company. Never invent facts that are not in the
+  mistake record. Reply with JSON only.
+
+template: |
+  ## Logged mistake
+  Title: {mistake_title}
+  Type: {mistake_type}
+  Severity (1-10): {mistake_severity}
+  Cost: {mistake_cost}
+  Date: {mistake_date}
+  Description: {mistake_description}
+  Root cause: {root_cause}
+  Contributing factors: {contributing_factors}
+  Lesson learned: {lesson_learned}
+  Prevention steps: {prevention_steps}
+  Process changes: {process_changes}
+
+  ## Kill checklist: {checklist_name}
+  Existing criteria, in order:
+  {existing_criteria}
+
+  ## Task
+  1. Suggest 1 to 3 yes/no questions an investor answers about a NEW idea before buying, so
+     that the same mistake would have been caught. Best first.
+     - Each question targets this mistake's root cause and lesson, not its symptoms.
+     - Each must be concrete enough to answer from filings or market data. Prefer a
+       measurable threshold when the mistake allows it; otherwise keep it qualitative but
+       specific.
+     - Phrase each so that "yes" means the idea passes and "no" kills it.
+  2. For each suggestion give:
+     - "question": the yes/no question
+     - "help_text": how to check it (where to look, what to compute)
+     - "failure_reason": what answer kills the idea and why
+     - "why_it_catches": one sentence tying it to this mistake
+     - "threshold_type": "numerical" or "qualitative"
+     - "confidence": 0 to 1, how well it would have caught this mistake
+  3. Name the existing criterion closest to what you suggest by its number in the list
+     above, with a one-sentence explanation. Use null if nothing is close.
+  4. Set "already_covered" to true ONLY when an existing criterion would already have
+     caught this mistake. Otherwise false.
+     If already_covered is true, overlap must name the criterion that already covers it.
+
+  Reply with JSON only, no markdown fences.
+
+output_format: |
+  {
+    "already_covered": false,
+    "overlap": {"criterion_number": 4, "explanation": "One sentence on how it relates"} | null,
+    "suggestions": [
+      {
+        "question": "Yes/no question about a new idea",
+        "help_text": "How to check it",
+        "failure_reason": "What answer kills the idea and why",
+        "why_it_catches": "One sentence tying it to this mistake",
+        "threshold_type": "numerical | qualitative",
+        "confidence": 0.8
+      }
+    ]
+  }
+
+tuning_notes: |
+  - Only the 13 template variables may appear in braces; the JSON shape lives in output_format.
+  - If it suggests symptom questions, tighten the "root cause and lesson" rule.
+  - If already_covered is over-claimed, tighten step 4.

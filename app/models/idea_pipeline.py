@@ -17,7 +17,7 @@
 # app/models/idea_pipeline.py
 
 from app import db
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, ensure_timezone_aware
 
 
 class IdeaPipeline(db.Model):
@@ -101,7 +101,7 @@ class KillCriterion(db.Model):
     effectiveness_score = db.Column(db.Float, default=0.0)
     last_calculated = db.Column(db.DateTime)
     auto_suggested = db.Column(db.Boolean, default=False)
-    source_mistake_id = db.Column(db.Integer, db.ForeignKey('mistake_log.id'))
+    source_mistake_id = db.Column(db.Integer, db.ForeignKey('mistake_log.id', ondelete='SET NULL'))
     created_at = db.Column(db.DateTime, default=now_utc)
     last_used = db.Column(db.DateTime)
 
@@ -195,7 +195,7 @@ class KillChecklistSuggestion(db.Model):
         """How many hours old is this suggestion"""
         if not self.created_at:
             return 0
-        return (now_utc() - self.created_at).total_seconds() / 3600
+        return (now_utc() - ensure_timezone_aware(self.created_at)).total_seconds() / 3600
 
     @property
     def is_expired(self):

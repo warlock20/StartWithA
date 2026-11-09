@@ -65,6 +65,7 @@ CATEGORY_LABELS = {
     'portfolio': 'Portfolio Analytics',
     'argos': 'Argos Insights',
     'document_processing': 'Document Processing',
+    'kill_checklist': 'Kill Criterion Suggestions',
 }
 
 CATEGORY_ICONS = {
@@ -77,6 +78,7 @@ CATEGORY_ICONS = {
     'portfolio': 'bi-pie-chart',
     'argos': 'bi-eye',
     'document_processing': 'bi-file-earmark-text',
+    'kill_checklist': 'bi-lightbulb',
 }
 
 
