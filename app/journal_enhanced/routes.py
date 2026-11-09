@@ -26,6 +26,9 @@ from app.journal_enhanced.utils import (extract_tags_from_content, get_related_e
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success
 from app.utils.blocknote_utils import blocknote_to_text
+from app.models.idea_pipeline import KillChecklist
+from app.services.kill_criterion_suggester import default_kill_checklist, mistake_ids_with_criteria
+from app.services.mistake_log_view import build_mistake_view
 from app.utils.decorators import json_errors
 from app.utils.auth_utils import owned_or_404
 from app.services.findings import FINDING_TYPES, finding_signal, finding_text_from_editor
@@ -812,7 +815,40 @@ def knowledge_hub():
             cost_query = cost_query.filter(MistakeLog.company_id == company_filter)
         mistake_total_cost = float(cost_query.scalar() or 0)
 
+    # --- Mistake Log view (Mistakes tab only) ---
+    mistake_context = {}
+    if content_type == 'mistake':
+        all_mistakes = MistakeLog.query.filter_by(user_id=current_user.id).outerjoin(
+            MistakeLog.company).options(contains_eager(MistakeLog.company)).all()
+        visible_mistakes = [r['item'] for r in unified_results if r['type'] == 'mistake']
+        mistake_view = build_mistake_view(
+            all_mistakes, visible_mistakes, request.args.get('mistake_type'), sort_by,
+            mistake_ids_with_criteria(current_user.id),
+            search=search_query, company_filtered=bool(company_filter))
+        sort_by = mistake_view['sort_by']
+        mistake_companies = sorted(
+            {m.company_id: m.company.name for m in all_mistakes if m.company}.items(),
+            key=lambda kv: kv[1].lower())
+
+        kill_checklists = [
+            {'id': c.id, 'name': c.name, 'criteria_count': c.criteria.count(), 'is_default': bool(c.is_default)}
+            for c in KillChecklist.query.filter_by(user_id=current_user.id).order_by(
+                KillChecklist.is_default.desc(), KillChecklist.name, KillChecklist.id).all()
+        ]
+        default_checklist = default_kill_checklist(current_user.id)
+        suggest_for = request.args.get('suggest_for', type=int)
+        suggest_mistake = next((m for m in all_mistakes if m.id == suggest_for), None)
+        mistake_context = {
+            'mistake_view': mistake_view,
+            'mistake_companies': mistake_companies,
+            'kill_checklists': kill_checklists,
+            'default_checklist_id': default_checklist.id if default_checklist else None,
+            'mistakes_with_criteria': mistake_ids_with_criteria(current_user.id),
+            'suggest_mistake': suggest_mistake,
+        }
+
     return render_template('knowledge_hub.html',
+                         **mistake_context,
                          title="Knowledge Hub",
                          content_type=content_type,
                          unified_results=unified_results,

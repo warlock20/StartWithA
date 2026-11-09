@@ -1,0 +1,281 @@
+{# Mistake Log inside the Knowledge Hub Mistakes tab. Context: mistake_view and the Suggest context from the route. #}
+{% set mv = mistake_view %}
+{% set cur = current_user.base_currency|currency_symbol %}
+{% macro money(value) -%}{{ cur }}{{ "{:,.0f}".format(value or 0) }}{%- endmacro %}
+{% macro tab_url(mistake_type) -%}
+{{ url_for('journal_enhanced.knowledge_hub', type='mistake', q=search_query or None, company_id=company_filter,
+           mistake_type=mistake_type, sort=mv.sort_by if mv.sort_by != 'newest' else None) }}
+{%- endmacro %}
+
+<div id="mistake-log-root" class="cc-mistake-log"
+     data-kill-checklists="{{ kill_checklists|tojson|forceescape }}"
+     data-default-checklist-id="{{ default_checklist_id|tojson|forceescape }}"
+     data-manage-url="{{ url_for('ideas.manage_kill_checklists') }}"
+     data-usage-url="{{ url_for('settings.account') }}"
+     data-suggest-for="{{ (suggest_mistake.id if suggest_mistake else None)|tojson|forceescape }}">
+
+    {% if suggest_mistake %}
+    <div class="mistake-banner" id="mistake-suggest-banner" role="status">
+        <div>
+            <p class="mistake-banner-title">Mistake logged: “{{ suggest_mistake.title }}”</p>
+            <p class="mistake-banner-text">Turn the lesson into a check that stops the next one?</p>
+        </div>
+        <div class="mistake-banner-actions">
+            <button type="button" class="action-btn" id="mistake-banner-dismiss">Not now</button>
+            <button type="button" class="action-btn primary" id="mistake-banner-suggest"
+                    data-mistake-id="{{ suggest_mistake.id }}">
+                <i class="bi bi-lightbulb"></i> Suggest kill criterion
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Overview: always all mistakes ── #}
+    <section class="cc-mistake-card" aria-label="Mistake overview">
+        <div class="cc-mistake-overview">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-journal-x" aria-hidden="true"></i></div>
+                <div class="portfolio-metric-label">Total Mistakes</div>
+                <div class="portfolio-metric-value">{{ mv.metrics.total }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-currency-exchange" aria-hidden="true"></i></div>
+                <div class="portfolio-metric-label">Estimated Cost</div>
+                <div class="portfolio-metric-value loss">{{ money(mv.metrics.total_cost) }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon purple"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+                <div class="portfolio-metric-label">Most Common</div>
+                <div class="portfolio-metric-value">
+                    {%- if mv.metrics.most_common -%}
+                    {{ mv.metrics.most_common.label }} <small>{{ mv.metrics.most_common.count }} of {{ mv.metrics.total }}</small>
+                    {%- else -%}—{%- endif -%}
+                </div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green"><i class="bi bi-shield-check" aria-hidden="true"></i></div>
+                <div class="portfolio-metric-label">Prevented</div>
+                <div class="portfolio-metric-value gain">{{ mv.metrics.prevented }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-lightbulb" aria-hidden="true"></i></div>
+                <div class="portfolio-metric-label">In kill checklists</div>
+                <div class="portfolio-metric-value">{{ mv.metrics.in_checklists }} <small>of {{ mv.metrics.total }}</small></div>
+            </div>
+        </div>
+    </section>
+
+    {# ── Insights: always all mistakes ── #}
+    <section class="cc-mistake-insights" aria-labelledby="mistake-insights-title">
+        <h2 id="mistake-insights-title" class="cc-mistake-section-title">Key insights</h2>
+        <div class="priority-lane-grid">
+            <article class="cc-mistake-card cc-mistake-insight">
+                <h3 class="cc-mistake-insight-title">Most expensive</h3>
+                {% if mv.insights.costly %}
+                <ol class="cc-mistake-costly">
+                    {% for m in mv.insights.costly %}
+                    <li>
+                        <span class="cc-mistake-costly-head">
+                            <span>{{ m.title }}</span>
+                            <span class="cc-mistake-costly-cost">{{ money(m.cost_estimate) }}</span>
+                        </span>
+                        <span class="cc-mistake-costly-lesson">{{ (m.lesson_learned or '')|truncate(80) }}</span>
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <p class="cc-mistake-insight-empty">No mistake has a cost estimate yet.</p>
+                {% endif %}
+            </article>
+            <article class="cc-mistake-card cc-mistake-insight">
+                <header class="cc-mistake-insight-head">
+                    <h3 class="cc-mistake-insight-title">Repeat pattern</h3>
+                    {% if mv.insights.pattern %}
+                    <a href="{{ url_for('journal_enhanced.knowledge_hub', type='mistake', mistake_type=mv.insights.pattern.key) }}">See all {{ mv.insights.pattern.count }}</a>
+                    {% endif %}
+                </header>
+                {% if mv.insights.pattern %}
+                {% set pat = mv.insights.pattern %}
+                <p class="cc-mistake-pattern-text"><strong>{{ pat.label }}</strong> is behind {{ pat.count }} of your {{ pat.total }} mistake{{ '' if pat.total == 1 else 's' }}{% if pat.cost > 0 %}, {{ money(pat.cost) }} in total{% endif %}.</p>
+                <div class="cc-mistake-bar" aria-hidden="true"><div class="cc-mistake-bar-fill" style="width: {{ pat.share_pct }}%"></div></div>
+                {% if pat.others %}
+                <p class="cc-mistake-insight-empty">{% for o in pat.others %}{{ o.label }} {{ o.count }}{{ ' · ' if not loop.last }}{% endfor %}</p>
+                {% endif %}
+                {% else %}
+                <p class="cc-mistake-insight-empty">Patterns show up once you have logged a few mistakes.</p>
+                {% endif %}
+            </article>
+        </div>
+    </section>
+
+    {# ── List ── #}
+    <section class="cc-mistake-card cc-mistake-list" aria-labelledby="mistake-list-title">
+        <div class="cc-mistake-list-head">
+            <h2 id="mistake-list-title" class="cc-mistake-section-title">{{ (mv.mistake_type|replace('_', ' ')|title ~ ' mistakes') if mv.mistake_type else 'All mistakes' }}</h2>
+            <div class="cc-mistake-list-controls">
+                <select class="cc-filter-select" id="mistake-company-select" aria-label="Company">
+                    <option value="">All companies</option>
+                    {% for cid, cname in mistake_companies %}
+                    <option value="{{ cid }}" {{ 'selected' if company_filter == cid }}>{{ cname }}</option>
+                    {% endfor %}
+                </select>
+                <select class="cc-filter-select" id="mistake-sort-select" aria-label="Sort">
+                    <option value="newest" {{ 'selected' if mv.sort_by == 'newest' }}>Newest first</option>
+                    <option value="cost" {{ 'selected' if mv.sort_by == 'cost' }}>Highest cost</option>
+                    <option value="severity" {{ 'selected' if mv.sort_by == 'severity' }}>Highest severity</option>
+                </select>
+            </div>
+        </div>
+
+        <nav class="cc-mistake-type-row" aria-label="Mistake type">
+            <span class="cc-mistake-type-row-label">Type</span>
+            {% for chip in mv.type_chips %}
+            <a href="{{ tab_url(chip.key) }}" class="cc-mistake-type-chip {{ 'active' if chip.active }}"
+               {% if chip.active %}aria-current="page"{% endif %}>{{ chip.label }} <span class="cc-mistake-type-chip-count">{{ chip.count }}</span></a>
+            {% endfor %}
+        </nav>
+
+        {% if mv.filter_summary %}
+        {% set fs = mv.filter_summary %}
+        <div class="cc-mistake-summary">
+            <p><strong>{{ fs.count }} {% if fs.label %}{{ fs.label }} {% endif %}mistake{{ '' if fs.count == 1 else 's' }}</strong>
+                {%- if fs.search %} matching “{{ fs.search }}”{% endif %}
+                {%- if fs.cost > 0 %} · {{ money(fs.cost) }} estimated cost{% endif %}</p>
+            <a href="{{ url_for('journal_enhanced.knowledge_hub', type='mistake') }}">Clear filters</a>
+        </div>
+        {% endif %}
+
+        {% if mv.list %}
+        <div class="mistakes-accordion cc-mistake-accordion" id="mistakes-accordion">
+            {% for mistake in mv.list %}
+            <div class="mistake-accordion-item">
+                <h3 class="mistake-accordion-header">
+                    <button class="mistake-accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#mistake-{{ mistake.id }}" aria-expanded="false" aria-controls="mistake-{{ mistake.id }}">
+                        <div class="mistake-title-section">
+                            <div class="mistake-title-row">
+                                <span class="mistake-title-text">{{ mistake.title }}</span>
+                                <div class="mistake-badges">
+                                    <span class="mistake-severity-badge">Severity {{ mistake.severity }}/10</span>
+                                    {% if mistake.cost_estimate %}
+                                    <span class="mistake-cost-badge">{{ money(mistake.cost_estimate) }}</span>
+                                    {% endif %}
+                                    <span class="cc-mistake-type-chip">{{ mistake.mistake_type|replace('_', ' ')|title }}</span>
+                                    {% if mistake.id in mistakes_with_criteria %}
+                                    <span class="mistake-criterion-chip" id="added-chip-{{ mistake.id }}">
+                                        <i class="bi bi-check-circle-fill"></i> Kill criterion added
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <small class="mistake-date">
+                                {{ mistake.occurred_date.strftime('%b %d, %Y') if mistake.occurred_date else 'Date unknown' }}
+                                {%- if mistake.company %} · {{ mistake.company.name }}{% endif %}
+                            </small>
+                        </div>
+                    </button>
+                </h3>
+                <div id="mistake-{{ mistake.id }}" class="accordion-collapse collapse mistake-collapse"
+                     data-bs-parent=".mistakes-accordion">
+                    <div class="mistake-accordion-body">
+                        <div class="mistake-details-grid">
+                            <div class="mistake-detail-section">
+                                <h4 class="mistake-detail-heading">Description</h4>
+                                <p class="mistake-detail-content">{{ mistake.description }}</p>
+
+                                {% if mistake.root_cause %}
+                                <h4 class="mistake-detail-heading">Root cause</h4>
+                                <p class="mistake-detail-content">{{ mistake.root_cause }}</p>
+                                {% endif %}
+
+                                {% if mistake.contributing_factors %}
+                                <h4 class="mistake-detail-heading">Contributing factors</h4>
+                                <ul class="mistake-factors-list">
+                                    {% for factor in mistake.contributing_factors %}
+                                    <li>{{ factor }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </div>
+                            <div class="mistake-detail-section">
+                                <div class="mistake-lesson-highlight cc-mistake-lesson">
+                                    <h4 class="mistake-detail-heading">Lesson learned</h4>
+                                    <p class="mistake-detail-content">{{ mistake.lesson_learned }}</p>
+                                </div>
+
+                                {% if mistake.prevention_steps %}
+                                <h4 class="mistake-detail-heading">Prevention steps</h4>
+                                <ul class="mistake-prevention-list">
+                                    {% for step in mistake.prevention_steps %}
+                                    <li>{{ step }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+
+                                {% if mistake.process_changes %}
+                                <h4 class="mistake-detail-heading">Process changes</h4>
+                                <p class="mistake-detail-content">{{ mistake.process_changes }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mistake-footer">
+                            <div class="mistake-meta-info">
+                                {% if mistake.prevented_similar and mistake.prevented_similar > 0 %}
+                                <span class="text-success">Prevented {{ mistake.prevented_similar }} similar mistake{{ '' if mistake.prevented_similar == 1 else 's' }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="mistake-actions">
+                                <button type="button" class="btn btn-prevented" onclick="preventedSimilar({{ mistake.id }})">
+                                    <i class="bi bi-shield-check"></i> Prevented Similar
+                                </button>
+                                <button type="button" class="action-btn js-suggest-criterion"
+                                        data-mistake-id="{{ mistake.id }}">
+                                    <i class="bi bi-lightbulb"></i> Suggest kill criterion
+                                </button>
+                            </div>
+                        </div>
+                        <p class="mistake-ai-note">Uses AI (about 3k tokens). Nothing changes on your checklist until you confirm.</p>
+                        <div id="criterion-panel-{{ mistake.id }}" class="criterion-panel-slot" aria-live="polite"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="cc-mistake-empty">
+            <h3>No mistakes match
+                {%- if search_query %} “{{ search_query }}”{% endif %}
+                {%- if mv.mistake_type %} in {{ mv.mistake_type|replace('_', ' ')|title }}{% endif %}
+                {%- if not search_query and not mv.mistake_type %} these filters{% endif %}</h3>
+            <p>Try another word or clear the filters.</p>
+            <a href="{{ url_for('journal_enhanced.knowledge_hub', type='mistake') }}" class="action-btn">Clear filters</a>
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<script>
+    // The sort and company selects keep type, q, company_id and mistake_type.
+    (function () {
+        function go(key, value) {
+            var params = new URLSearchParams(window.location.search);
+            params.set('type', 'mistake');
+            params.delete('suggest_for');
+            if (value) { params.set(key, value); } else { params.delete(key); }
+            window.location.search = params.toString();
+        }
+        document.getElementById('mistake-company-select').addEventListener('change', function () { go('company_id', this.value); });
+        document.getElementById('mistake-sort-select').addEventListener('change', function () { go('sort', this.value); });
+    })();
+
+    function preventedSimilar(mistakeId) {
+        fetch('/learning/mistakes/' + mistakeId + '/review', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prevented_similar: true })
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (data) { if (data.success) { location.reload(); } });
+    }
+</script>
