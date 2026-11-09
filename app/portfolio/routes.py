@@ -59,6 +59,7 @@ from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_quality import compare_research, position_gain, position_return_pct
+from app.services.outcome_tracking import research_backed_company_ids
 from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
@@ -508,7 +509,7 @@ def analytics_decisions():
     ).all()
 
     # Research-backed vs non-research split (shared definition)
-    comparison = compare_research(all_positions, all_journals)
+    comparison = compare_research(all_positions, research_backed_company_ids(current_user.id))
     research_positions = comparison.research.positions
     non_research_positions = comparison.no_research.positions
     research_avg_return = comparison.research.avg_return
@@ -878,12 +879,7 @@ def intelligence_hub():
     
     # Decisions Card
     all_positions = PortfolioPosition.query.filter_by(user_id=current_user.id).all()
-    buy_journals = DecisionJournal.query.filter_by(
-        user_id=current_user.id,
-        is_portfolio_decision=True,
-        decision_type='BUY'
-    ).all()
-    comparison = compare_research(all_positions, buy_journals)
+    comparison = compare_research(all_positions, research_backed_company_ids(current_user.id))
 
     decisions = {
         'has_data': comparison.research.count > 0 or comparison.no_research.count > 0,

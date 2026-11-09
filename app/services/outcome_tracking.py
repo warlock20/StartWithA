@@ -35,7 +35,7 @@ Usage:
 """
 
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 import logging
 
 from app import db
@@ -238,6 +238,19 @@ def research_project_for_trade(
     if project is not None and project.created_at and project.created_at.date() <= entry_date:
         return project
     return None
+
+
+def research_backed_company_ids(user_id: int) -> Set[int]:
+    """Company ids whose latest trade outcome has a research project (#417 timing rule)."""
+    latest = (
+        db.session.query(ResearchOutcome.company_id, ResearchOutcome.project_id)
+        .filter(ResearchOutcome.user_id == user_id)
+        .distinct(ResearchOutcome.company_id)
+        .order_by(ResearchOutcome.company_id, ResearchOutcome.decision_date.desc().nullslast(),
+                  ResearchOutcome.id.desc())
+        .all()
+    )
+    return {company_id for company_id, project_id in latest if project_id is not None}
 
 
 def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company_id: int,
