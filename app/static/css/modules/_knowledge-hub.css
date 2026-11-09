@@ -937,65 +937,6 @@
     }
 }
 
-/* ===== Mistake Log link strip (Mistakes tab) and breadcrumb ===== */
-.cc-mistake-log-strip {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-md);
-    flex-wrap: wrap;
-    padding: 0.875rem 1.125rem;
-    margin-bottom: var(--space-md);
-    background: var(--background-white);
-    border: 1px solid var(--gray-200);
-    border-radius: var(--radius-lg);
-}
-
-.cc-mistake-log-strip-main {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.cc-mistake-log-strip-icon {
-    flex: none;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--danger-50);
-    color: var(--danger-600);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.cc-mistake-log-strip-title {
-    margin: 0;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--gray-900);
-}
-
-.cc-mistake-log-strip-text {
-    margin: 2px 0 0;
-    font-size: 0.875rem;
-    color: var(--gray-600);
-}
-
-.mistake-breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: var(--space-sm);
-    font-size: 0.8125rem;
-    color: var(--gray-600);
-}
-
-.mistake-breadcrumb a {
-    font-weight: 600;
-    text-decoration: none;
-}
-
 /* ===== Mistakes tab: the Mistake Log ===== */
 .cc-mistake-log {
     display: flex;

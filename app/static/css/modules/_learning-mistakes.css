@@ -1,127 +1,11 @@
 /* =============================================================================
-   LEARNING - MISTAKE LOG PAGE STYLES
+   LEARNING - MISTAKE LOG STYLES (Knowledge Hub Mistakes tab)
    ============================================================================= */
 
 /* Mistake Log Layout - Uses dashboard-container from design-system.css */
 
-/* Stats Cards Section */
-.mistake-stats-section {
-    margin-bottom: 2rem;
-}
-
-.mistake-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-}
-
-.mistake-stat-card {
-    background: white;
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-light);
-    border: 1px solid var(--gray-200);
-    padding: 1.5rem;
-    transition: all var(--transition-normal);
-}
-
-.mistake-stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-medium);
-}
-
-.mistake-stat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: start;
-    margin-bottom: 0.75rem;
-}
-
-.mistake-stat-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--gray-600);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.mistake-stat-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-}
-
-.mistake-stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    line-height: 1;
-    margin-bottom: 0.25rem;
-}
-
-.mistake-stat-description {
-    font-size: 0.8125rem;
-    color: var(--gray-500);
-    margin: 0;
-}
-
-/* Mistakes Content Section */
-.mistakes-content-card {
-    background: white;
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-light);
-    border: 1px solid var(--gray-200);
-    overflow: hidden;
-}
-
-.mistakes-tabs-header {
-    background: var(--gray-50);
-    border-bottom: 2px solid var(--gray-200);
-    padding: 0;
-}
-
-.mistakes-nav-tabs {
-    border-bottom: none;
-    padding: 0 1.5rem;
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.mistakes-nav-tabs .nav-item {
-    margin-bottom: 0;
-}
-
-.mistakes-nav-tabs .nav-link {
-    border: none;
-    border-bottom: 3px solid transparent;
-    background: transparent;
-    color: var(--gray-600);
-    font-weight: 600;
-    padding: 1rem 1.5rem;
-    transition: all var(--transition-normal);
-    border-radius: 0;
-}
-
-.mistakes-nav-tabs .nav-link:hover {
-    color: var(--primary-600);
-    background: rgba(45, 106, 79, 0.05);
-}
-
-.mistakes-nav-tabs .nav-link.active {
-    color: var(--primary-600);
-    border-bottom-color: var(--primary-600);
-    background: white;
-}
-
-.mistakes-tab-content {
-    padding: 2rem;
-}
-
 /* Mistake Accordion */
+
 .mistakes-accordion {
     display: flex;
     flex-direction: column;
@@ -134,6 +18,7 @@
 }
 
 /* Custom scrollbar for mistakes accordion */
+
 .mistakes-accordion::-webkit-scrollbar {
     width: 8px;
 }
@@ -355,24 +240,6 @@
     gap: 0.5rem;
 }
 
-.btn-review {
-    background: linear-gradient(135deg, var(--accent-50) 0%, var(--accent-100) 100%);
-    color: var(--accent-700);
-    border: 1px solid var(--accent-300);
-    font-size: 0.875rem;
-    font-weight: 600;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-md);
-    transition: all var(--transition-normal);
-}
-
-.btn-review:hover {
-    background: linear-gradient(135deg, var(--accent-100) 0%, var(--accent-200) 100%);
-    color: var(--accent-800);
-    border-color: var(--accent-400);
-    transform: translateY(-1px);
-}
-
 .btn-prevented {
     background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
     color: #065f46;
@@ -391,133 +258,9 @@
     transform: translateY(-1px);
 }
 
-/* Empty State */
-.mistakes-empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-}
-
-.mistakes-empty-state i {
-    font-size: 4rem;
-    color: var(--gray-300);
-    margin-bottom: 1rem;
-}
-
-.mistakes-empty-state h3 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--gray-700);
-    margin-bottom: 0.5rem;
-}
-
-.mistakes-empty-state p {
-    color: var(--gray-500);
-    font-size: 1rem;
-}
-
-/* Learning Insights Section */
-.learning-mistakes-learning-insights-card {
-    background: white;
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-light);
-    border: 1px solid var(--gray-200);
-    margin-top: 2rem;
-    overflow: hidden;
-}
-
-.insights-card-header {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border-bottom: 2px solid #fbbf24;
-    padding: 1.5rem;
-}
-
-.insights-card-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.insights-card-body {
-    padding: 2rem;
-}
-
-.learning-mistakes-insights-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-}
-
-@media (max-width: 768px) {
-    .learning-mistakes-insights-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.learning-mistakes-insight-section {
-    display: flex;
-    flex-direction: column;
-}
-
-.learning-mistakes-insight-section-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin-bottom: 1rem;
-}
-
-.learning-mistakes-insight-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    counter-reset: insight-counter;
-}
-
-.insight-list-item {
-    counter-increment: insight-counter;
-    margin-bottom: 1rem;
-    padding: 1rem;
-    background: var(--gray-50);
-    border-radius: var(--radius-md);
-    border-left: 3px solid var(--primary-500);
-}
-
-.insight-list-item::before {
-    content: counter(insight-counter) ". ";
-    font-weight: 700;
-    color: var(--primary-600);
-    margin-right: 0.5rem;
-}
-
-.insight-item-title {
-    font-weight: 600;
-    color: var(--gray-900);
-    margin-bottom: 0.25rem;
-}
-
-.insight-item-meta {
-    font-size: 0.8125rem;
-    color: var(--gray-600);
-    margin-bottom: 0.5rem;
-}
-
-.insight-item-lesson {
-    font-size: 0.875rem;
-    color: var(--gray-700);
-    margin: 0;
-    line-height: 1.5;
-}
-
 /* Responsive Design - dashboard-container styles handled in design-system.css */
 
 @media (max-width: 768px) {
-    .mistake-stats-grid {
-        grid-template-columns: 1fr;
-    }
-
     .mistake-title-row {
         flex-direction: column;
         align-items: flex-start;
@@ -533,7 +276,6 @@
         flex-direction: column;
     }
 
-    .btn-review,
     .btn-prevented {
         width: 100%;
         text-align: center;
@@ -543,6 +285,7 @@
 /* =============================================================================
    SUGGEST KILL CRITERION (mistake -> kill checklist question)
    ============================================================================= */
+
 .mistake-criterion-chip {
     display: inline-flex;
     align-items: center;
@@ -575,6 +318,7 @@
 }
 
 /* Banner after logging a mistake */
+
 .mistake-banner {
     display: flex;
     justify-content: space-between;
@@ -607,6 +351,7 @@
 }
 
 /* Suggestion panel */
+
 .criterion-panel {
     background: white;
     border: 1px solid var(--accent-300);

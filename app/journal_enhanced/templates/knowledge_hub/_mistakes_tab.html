@@ -76,7 +76,7 @@
                     {% for m in mv.insights.costly %}
                     <li>
                         <span class="cc-mistake-costly-head">
-                            <span>{{ m.title }}</span>
+                            <a href="#mistake-{{ m.id }}" class="cc-mistake-costly-link">{{ m.title }}</a>
                             <span class="cc-mistake-costly-cost">{{ money(m.cost_estimate) }}</span>
                         </span>
                         <span class="cc-mistake-costly-lesson">{{ (m.lesson_learned or '')|truncate(80) }}</span>
@@ -226,9 +226,10 @@
                                 {% endif %}
                             </div>
                             <div class="mistake-actions">
-                                <button type="button" class="btn btn-prevented" onclick="preventedSimilar({{ mistake.id }})">
+                                <button type="button" class="btn btn-prevented" onclick="preventedSimilar(this, {{ mistake.id }})">
                                     <i class="bi bi-shield-check"></i> Prevented Similar
                                 </button>
+                                <span class="text-danger small prevented-error" role="alert"></span>
                                 <button type="button" class="action-btn js-suggest-criterion"
                                         data-mistake-id="{{ mistake.id }}">
                                     <i class="bi bi-lightbulb"></i> Suggest kill criterion
@@ -269,13 +270,53 @@
         document.getElementById('mistake-sort-select').addEventListener('change', function () { go('sort', this.value); });
     })();
 
-    function preventedSimilar(mistakeId) {
+    // A #mistake-<id> link opens that mistake, scrolls it into view and focuses its header.
+    (function () {
+        function openFromHash() {
+            var match = /^#mistake-(\d+)$/.exec(window.location.hash);
+            if (!match) { return; }
+            var panel = document.getElementById('mistake-' + match[1]);
+            if (!panel || !panel.classList.contains('mistake-collapse')) { return; }
+            if (window.bootstrap && window.bootstrap.Collapse) {
+                window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false }).show();
+            } else {
+                panel.classList.add('show');
+            }
+            var button = document.querySelector('[data-bs-target="#mistake-' + match[1] + '"]');
+            if (button) {
+                button.classList.remove('collapsed');
+                button.setAttribute('aria-expanded', 'true');
+                button.focus({ preventScroll: true });
+            }
+            panel.scrollIntoView({ block: 'center' });
+        }
+        openFromHash();
+        window.addEventListener('hashchange', openFromHash);
+    })();
+
+    function preventedSimilar(trigger, mistakeId) {
+        var errorSlot = trigger.parentNode.querySelector('.prevented-error');
+        errorSlot.setAttribute('role', 'alert');
+        errorSlot.textContent = '';
+        trigger.disabled = true;
+        function fail() {
+            trigger.disabled = false;
+            errorSlot.textContent = 'Could not save. Try again.';
+        }
         fetch('/learning/mistakes/' + mistakeId + '/review', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prevented_similar: true })
         })
-            .then(function (response) { return response.json(); })
-            .then(function (data) { if (data.success) { location.reload(); } });
+            .then(function (response) {
+                if (!response.ok) { throw new Error('bad status'); }
+                return response.json();
+            })
+            .then(function (data) {
+                if (!data.success) { fail(); return; }
+                window.location.hash = 'mistake-' + mistakeId;
+                window.location.reload();
+            })
+            .catch(fail);
     }
 </script>

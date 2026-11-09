@@ -113,7 +113,7 @@
                                     <div class="criterion-header-content">
                                         <label class="criterion-label">Criterion {{ loop.index }}</label>
                                         {% if criterion.source_mistake_id %}
-                                        <a href="{{ url_for('learning.mistake_log') }}" class="kill-criteria-source-chip"
+                                        <a href="{{ url_for('journal_enhanced.knowledge_hub', type='mistake') }}#mistake-{{ criterion.source_mistake_id }}" class="kill-criteria-source-chip"
                                            title="Added from a logged mistake"><i class="bi bi-journal-x"></i> From mistake</a>
                                         {% endif %}
                                     </div>

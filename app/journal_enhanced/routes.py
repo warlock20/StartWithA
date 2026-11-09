@@ -192,7 +192,7 @@ def new_entry():
                 flash('Entry created successfully!', 'success')
                 return_url = request.form.get('return_url')
                 if not return_url and mistake is not None:
-                    return_url = url_for('learning.mistake_log', suggest_for=mistake.id)
+                    return_url = url_for('journal_enhanced.knowledge_hub', type='mistake', suggest_for=mistake.id)
                 return redirect(return_url or url_for(
                     'journal_enhanced.knowledge_hub', type=entry_category))
             except Exception:
@@ -806,24 +806,16 @@ def knowledge_hub():
         'mistake': all_mistake_count,
     }
 
-    mistake_total_cost = None
-    if content_type == 'mistake':
-        cost_query = db.session.query(
-            db.func.coalesce(db.func.sum(MistakeLog.cost_estimate), 0)
-        ).filter(MistakeLog.user_id == current_user.id)
-        if company_filter:
-            cost_query = cost_query.filter(MistakeLog.company_id == company_filter)
-        mistake_total_cost = float(cost_query.scalar() or 0)
-
     # --- Mistake Log view (Mistakes tab only) ---
     mistake_context = {}
     if content_type == 'mistake':
         all_mistakes = MistakeLog.query.filter_by(user_id=current_user.id).outerjoin(
             MistakeLog.company).options(contains_eager(MistakeLog.company)).all()
+        criteria_ids = mistake_ids_with_criteria(current_user.id)
         visible_mistakes = [r['item'] for r in unified_results if r['type'] == 'mistake']
         mistake_view = build_mistake_view(
             all_mistakes, visible_mistakes, request.args.get('mistake_type'), sort_by,
-            mistake_ids_with_criteria(current_user.id),
+            criteria_ids,
             search=search_query, company_filtered=bool(company_filter))
         sort_by = mistake_view['sort_by']
         mistake_companies = sorted(
@@ -837,13 +829,15 @@ def knowledge_hub():
         ]
         default_checklist = default_kill_checklist(current_user.id)
         suggest_for = request.args.get('suggest_for', type=int)
-        suggest_mistake = next((m for m in all_mistakes if m.id == suggest_for), None)
+        shown_ids = {m.id for m in mistake_view['list']}
+        suggest_mistake = next(
+            (m for m in all_mistakes if m.id == suggest_for and m.id in shown_ids), None)
         mistake_context = {
             'mistake_view': mistake_view,
             'mistake_companies': mistake_companies,
             'kill_checklists': kill_checklists,
             'default_checklist_id': default_checklist.id if default_checklist else None,
-            'mistakes_with_criteria': mistake_ids_with_criteria(current_user.id),
+            'mistakes_with_criteria': criteria_ids,
             'suggest_mistake': suggest_mistake,
         }
 
@@ -854,7 +848,6 @@ def knowledge_hub():
                          unified_results=unified_results,
                          grouped_results=ordered_groups,
                          type_counts=type_counts,
-                         mistake_total_cost=mistake_total_cost,
                          companies=companies,
                          company_summary=company_summary,
                          all_tags=all_tags,

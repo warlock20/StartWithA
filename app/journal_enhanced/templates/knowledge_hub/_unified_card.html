@@ -103,8 +103,8 @@
                     <i class="bi bi-trash"></i> Delete
                 </a></li>
                 {% elif result.type == 'mistake' %}
-                <li><a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
-                    <i class="bi bi-list-ul"></i> View All Mistakes
+                <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.knowledge_hub', type='mistake') }}#mistake-{{ result.item.id }}">
+                    <i class="bi bi-list-ul"></i> Open in Mistakes
                 </a></li>
                 {% endif %}
             </ul>

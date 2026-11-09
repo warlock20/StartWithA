@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-from flask import render_template, request, jsonify, url_for
+from flask import redirect, request, jsonify, url_for
 from flask_login import current_user, login_required
 from app import db
 from app.models import BackgroundTask, MistakeLog
@@ -24,9 +24,10 @@ from app.utils.time_utils import now_utc
 from app.utils.decorators import json_errors
 from app.utils.auth_utils import owned_or_404
 from app.services.background_tasks import BackgroundTaskService
+from app.services.mistake_log_view import valid_mistake_type
 from app.services.kill_criterion_suggester import (
     KILL_CRITERION_TOKEN_ESTIMATE, CriterionInUse, DuplicateCriterion,
-    add_suggested_criterion, default_kill_checklist, mistake_ids_with_criteria,
+    add_suggested_criterion, default_kill_checklist,
     undo_suggested_criterion,
 )
 
@@ -52,65 +53,11 @@ def _parse_id(value):
 @learning_bp.route('/mistakes')
 @login_required
 def mistake_log():
-    """View and manage mistake log"""
-    mistakes = current_user.mistake_logs.order_by(
-        MistakeLog.created_at.desc()
-    ).all()
-    
-    # Categorize mistakes
-    by_type = {}
-    for mistake in mistakes:
-        if mistake.mistake_type not in by_type:
-            by_type[mistake.mistake_type] = []
-        by_type[mistake.mistake_type].append(mistake)
-   
-   # Calculate total cost
-    total_cost = sum(m.cost_estimate or 0 for m in mistakes)
-    
-    top_costly_mistakes = sorted(
-        (m for m in mistakes if m.cost_estimate),
-        key=lambda m: m.cost_estimate, reverse=True
-    )[:3]
-    top_reviewed_mistakes = sorted(
-        (m for m in mistakes if (m.times_reviewed or 0) > 0),
-        key=lambda m: m.times_reviewed, reverse=True
-    )[:3]
-
-    # Most common mistake type
-    if by_type:
-        most_common_type = max(by_type, key=lambda k: len(by_type[k]))
-        most_common_count = len(by_type[most_common_type])
-    else:
-        most_common_type = None
-        most_common_count = 0
-    
-    checklists = KillChecklist.query.filter_by(user_id=current_user.id).order_by(
-        KillChecklist.is_default.desc(), KillChecklist.name, KillChecklist.id
-    ).all()
-    default_checklist = default_kill_checklist(current_user.id)
-    kill_checklists = [
-        {'id': c.id, 'name': c.name, 'criteria_count': c.criteria.count(), 'is_default': bool(c.is_default)}
-        for c in checklists
-    ]
-
-    # Banner after logging a mistake: only for a mistake the user owns
-    suggest_for = request.args.get('suggest_for', type=int)
-    suggest_mistake = next((m for m in mistakes if m.id == suggest_for), None)
-
-    return render_template('mistake_log.html',
-                            title="Mistake Log",
-                            kill_checklists=kill_checklists,
-                            default_checklist_id=default_checklist.id if default_checklist else None,
-                            mistakes_with_criteria=mistake_ids_with_criteria(current_user.id),
-                            suggest_for=suggest_mistake.id if suggest_mistake else None,
-                            suggest_mistake=suggest_mistake,
-                            mistakes=mistakes,
-                            top_costly_mistakes=top_costly_mistakes,
-                            top_reviewed_mistakes=top_reviewed_mistakes,
-                            by_type=by_type,
-                            total_cost=total_cost,
-                            most_common_type=most_common_type,
-                            most_common_count=most_common_count)
+    """The Mistake Log lives on the Knowledge Hub's Mistakes tab; old bookmarks land there."""
+    return redirect(url_for(
+        'journal_enhanced.knowledge_hub', type='mistake',
+        suggest_for=request.args.get('suggest_for', type=int),
+        mistake_type=valid_mistake_type(request.args.get('type'))))
 
 @learning_bp.route('/mistakes/<int:mistake_id>/review', methods=['POST'])
 @login_required

@@ -348,7 +348,7 @@ def _run_journey(client, user_id):
         'lesson_learned': 'Finish the filings before sizing.',
         'mistake_type': 'position_sizing', 'severity': '4',
         'company_id': company_id})
-    _lands_on(resp, '/learning/mistakes')  # redirect carries ?suggest_for=<id> (kill criterion banner)
+    _lands_on(resp, '/journal/knowledge-hub')  # redirect carries ?type=mistake&suggest_for=<id> (kill criterion banner)
     assert MistakeLog.query.filter_by(user_id=user_id).count() == 1
     assert LearningNote.query.filter_by(user_id=user_id).count() >= 1
 
@@ -356,7 +356,7 @@ def _run_journey(client, user_id):
     assert 'ASML' in _open(client, f'/companies/{company_id}')
     _open(client, f'/journal/thesis-evolution/{company_id}')
     assert 'Q3 call notes' in _open(client, '/journal/knowledge-hub')
-    _open(client, '/learning/mistakes')
+    _open(client, '/journal/knowledge-hub?type=mistake')
     for page in ('/dashboard/', '/portfolio/thesis-reality', '/portfolio/checkpoints',
                  '/portfolio/intelligence', '/portfolio/decision-journal',
                  '/portfolio/learning-insights', '/analytics/dashboard'):
@@ -442,7 +442,7 @@ def _assert_nothing_leaks(intruder, ids):
         assert 'ASML' not in resp.get_data(as_text=True), f'{url} leaked the company'
 
     for url in ('/ideas/inbox', '/portfolio/', '/journal/knowledge-hub',
-                '/research/workflow/my-projects', '/learning/mistakes'):
+                '/research/workflow/my-projects', '/learning/mistakes'):  # the old URL redirects to the tab
         resp = intruder.get(url, follow_redirects=True)
         assert resp.status_code == 200, f'{url} -> {resp.status_code}'
         body = resp.get_data(as_text=True)
