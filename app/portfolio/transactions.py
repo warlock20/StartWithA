@@ -26,15 +26,17 @@ from sqlalchemy.orm import joinedload
 from app.portfolio import portfolio_bp
 from app.models import (
                         Company,Transaction, PortfolioPosition,
-                        ResearchProject, update_portfolio_position)
+                        ResearchProject, ResearchOutcome, update_portfolio_position)
 from app import db
 from app.services.background_tasks import BackgroundTaskService
 from app.services.currency_service import CurrencyService
 from app.services.transaction_service import TransactionService
 from app.services.cash_service import CashService
+from app.services.outcome_tracking import safe_sync_outcomes
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 
 logger = logging.getLogger(__name__)
+
 
 @portfolio_bp.route('/transactions')
 @login_required
@@ -73,6 +75,7 @@ def transactions():
                           transactions=all_transactions,
                           transactions_json=transactions_json,
                           currency_symbol=currency_symbol)
+
 
 @portfolio_bp.route('/transactions/import', methods=['POST'])
 @login_required
@@ -157,6 +160,7 @@ def import_status(task_id):
         response['result'] = result
     return jsonify(response)
 
+
 @portfolio_bp.route('/transactions/reset', methods=['POST'])
 @login_required
 def reset_portfolio():
@@ -175,7 +179,10 @@ def reset_portfolio():
             user_id=current_user.id
         ).delete()
 
-        # 3. Reset cash balance
+        # 3. Delete the user's research outcomes (derived from transactions)
+        db.session.query(ResearchOutcome).filter_by(user_id=current_user.id).delete()
+
+        # 4. Reset cash balance
         current_user.cash_balance = 0
         current_user.cash_setup_complete = False
 
@@ -190,6 +197,7 @@ def reset_portfolio():
         
     return redirect(url_for('portfolio.dashboard'))
 
+
 @portfolio_bp.route('/debug/force-resync', methods=['GET', 'POST'])
 @login_required
 def force_resync():
@@ -199,8 +207,9 @@ def force_resync():
     """
     try:
         # 1. Get all company IDs that have transactions for this user
-        company_ids = db.session.query(Transaction.company_id).filter_by(
-            user_id=current_user.id
+        company_ids = db.session.query(Transaction.company_id).filter(
+            Transaction.user_id == current_user.id,
+            Transaction.company_id.isnot(None),
         ).distinct().all()
         company_ids = [c[0] for c in company_ids]  # Flatten list of tuples
         
@@ -221,6 +230,7 @@ def force_resync():
             if latest_txn:
                 # Pass the real transaction object
                 update_portfolio_position(latest_txn)
+                safe_sync_outcomes(current_user.id, comp_id)
                 recalculated += 1
             
         # Commit all position updates
@@ -329,6 +339,7 @@ def add_transaction():
                           form_data=None,
                           **_add_transaction_context())
 
+
 @portfolio_bp.route('/transaction/<int:transaction_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_transaction(transaction_id):
@@ -431,6 +442,7 @@ def edit_transaction(transaction_id):
 
                 # Recalculate portfolio position
                 update_portfolio_position(transaction)
+                safe_sync_outcomes(current_user.id, transaction.company_id)
 
             db.session.commit()
 
@@ -490,6 +502,7 @@ def delete_transaction(transaction_id):
                 price_per_share=0
             )
             update_portfolio_position(temp_transaction)
+            safe_sync_outcomes(current_user.id, company_id)
             db.session.commit()
 
         # Recalculate cash balance

@@ -16,9 +16,18 @@
 
 """Research-backed vs unresearched positions, one definition for every page.
 
-A position is research-backed when the user has a portfolio BUY journal linked
-to a research project for its company. Every other position, with no journal
-or with a journal that has no linked research, is unresearched.
+A position is research-backed when its company's latest trade outcome (highest
+``decision_date``, ties by highest id) has a research project under the #417
+timing rule: an explicit journal link, else a project created on or before the
+trade's entry date. Every other position, including one with no outcome row, is
+unresearched. The set of research-backed company ids comes from
+``outcome_tracking.research_backed_company_ids``; this module stays free of DB
+queries.
+
+Limitations: for a company traded more than once, a closed position's return %
+is lifetime across trades while the research flag comes from the latest trade.
+Before the backfill (``flask rebuild-trade-outcomes``) runs, positions without
+outcome rows count as no research.
 
 A position's return is its own return %: unrealized for an open position,
 ``realized_gain_loss_pct`` for a closed one. Positions with no return are left
@@ -81,18 +90,14 @@ class ResearchComparison:
         return self.research.avg_return - self.no_research.avg_return
 
 
-def research_company_ids(journals: Iterable) -> Set[int]:
-    return {
-        j.company_id for j in journals
-        if j.decision_type == 'BUY' and j.is_portfolio_decision and j.linked_research_id is not None
-    }
+def compare_research(positions: Iterable, researched_company_ids: Set[int]) -> ResearchComparison:
+    """Split positions by whether their company id is in researched_company_ids.
 
-
-def compare_research(positions: Iterable, journals: Iterable) -> ResearchComparison:
-    researched = research_company_ids(journals)
+    See the module docstring for the definition and its limitations.
+    """
     research, no_research = [], []
     for position in positions:
         if position_return_pct(position) is None:
             continue
-        (research if position.company_id in researched else no_research).append(position)
+        (research if position.company_id in researched_company_ids else no_research).append(position)
     return ResearchComparison(ResearchGroup(research), ResearchGroup(no_research))

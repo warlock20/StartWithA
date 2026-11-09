@@ -22,32 +22,35 @@ This is the core feedback loop that enables learning from investment results.
 
 Lifecycle:
 1. User completes research (ResearchSession or ResearchProject)
-2. User makes BUY transaction → OutcomeTracker.create_outcome_record()
-3. Position is held, current_return_pct updated periodically
-4. User makes SELL transaction → OutcomeTracker.update_outcome_on_sell()
-5. Correlation analysis runs to identify patterns
+2. Every write to a company's transactions (add, edit, delete, sync-positions,
+   bulk import) calls sync_outcomes_for_company(user_id, company_id)
+3. The sync rebuilds that company's ResearchOutcome rows from its FIFO round
+   trips (get_round_trips): open trips stay open, closed trips get exit data
+4. Correlation analysis runs to identify patterns
 
 Usage:
-    from app.services.outcome_tracking import OutcomeTracker, on_buy_transaction, on_sell_transaction
-    
-    # Called from portfolio transaction routes
-    on_buy_transaction(transaction, decision_journal)
-    on_sell_transaction(transaction, realized_return_pct)
-    
-    # Or use the tracker directly
-    tracker = OutcomeTracker()
-    outcome = tracker.create_outcome_record(user_id, company_id, ...)
+    from app.services.outcome_tracking import sync_outcomes_for_company
+
+    sync_outcomes_for_company(user_id, company_id)  # flushes, never commits
 """
 
-from typing import Dict, Any, Optional
+from dataclasses import dataclass
+from typing import Dict, Any, List, Optional, Set
 import logging
 
 from app import db
-from app.utils.time_utils import now_utc
-from app.models.ai_intelligence import ResearchOutcome, AIInsight
+from app.utils.time_utils import date, days_between, now_utc
+from app.models.ai_intelligence import ResearchOutcome
+from app.models.checklist import DestinationCheckpoint
+from app.models.journal import DecisionJournal
+from app.models.portfolio import PortfolioPosition, Transaction, get_round_trips, update_portfolio_position_for_company
+from app.models.research import ResearchProject
 from .research_quality import calculate_research_quality
 
 logger = logging.getLogger(__name__)
+
+# Thesis text the bulk importer writes on its placeholder BUY journals.
+IMPORTED_BUY_THESIS = 'Imported via bulk uploader'
 
 
 class OutcomeTracker:
@@ -66,208 +69,6 @@ class OutcomeTracker:
         'small_loss': -25,  # >= -25% return
         'big_loss': float('-inf')  # < -25% return
     }
-    
-    def create_outcome_record(
-        self,
-        user_id: int,
-        company_id: int,
-        transaction: 'Transaction',
-        decision_journal: Optional['DecisionJournal'] = None,
-        research_session_id: Optional[int] = None,
-        research_project_id: Optional[int] = None
-    ) -> ResearchOutcome:
-        """
-        Create outcome record when user makes a BUY transaction.
-        
-        Called automatically from portfolio transaction flow.
-        
-        Args:
-            user_id: User ID
-            company_id: Company ID
-            transaction: The BUY Transaction object
-            decision_journal: Optional linked DecisionJournal
-            research_session_id: Optional specific research session
-            research_project_id: Optional specific research project
-            
-        Returns:
-            Created ResearchOutcome record
-        """
-        from app.models import ResearchProject, DecisionJournal, DestinationCheckpoint
-        
-        # Find linked research if not provided
-        if not research_session_id and not research_project_id:
-            # Check DecisionJournal for linked research
-            if decision_journal and hasattr(decision_journal, 'linked_research_id'):
-                research_project_id = decision_journal.linked_research_id
-            
-            # Try to find most recent completed research for this company
-            if not research_project_id:
-                project = ResearchProject.query.filter_by(
-                    user_id=user_id,
-                    company_id=company_id,
-                    status='completed'
-                ).order_by(ResearchProject.created_at.desc()).first()
-                
-                if project:
-                    research_project_id = project.id
-            
-        # Calculate research quality
-        quality_score = None
-        quality_data = None
-        
-        if research_project_id or research_session_id:
-            quality_data = calculate_research_quality(
-                research_session_id=research_session_id,
-                research_project_id=research_project_id
-            )
-            quality_score = quality_data
-        
-        # Get checkpoint count for this company
-        checkpoints = DestinationCheckpoint.query.filter_by(
-            company_id=company_id,
-            user_id=user_id
-        ).all()
-        
-        # Extract thesis and confidence from decision journal
-        initial_thesis = None
-        confidence_at_entry = None
-        expected_return_pct = None
-        expected_hold_months = None
-        
-        if decision_journal:
-            initial_thesis = decision_journal.investment_thesis_text
-            confidence_at_entry = decision_journal.confidence_score
-            expected_return_pct = decision_journal.expected_return
-            expected_hold_months = decision_journal.expected_timeframe  # months
-        
-        # Create the outcome record
-        outcome = ResearchOutcome(
-            user_id=user_id,
-            company_id=company_id,
-            checklist_analysis_id=research_session_id,
-            project_id=research_project_id,
-            decision_journal_id=decision_journal.id if decision_journal else None,
-            
-            # Research metrics
-            research_quality_score=quality_score.overall_score if quality_score else None,
-            questions_answered=quality_score.questions_answered if quality_score else 0,
-            questions_total=quality_score.questions_total if quality_score else 0,
-            documents_analyzed=quality_score.documents_analyzed if quality_score else 0,
-            research_duration_minutes=quality_score.research_duration_minutes if quality_score else 0,
-            checklist_completion_pct=(
-                (quality_score.questions_answered / quality_score.questions_total * 100)
-                if quality_score and quality_score.questions_total > 0 else 0
-            ),
-            
-            # Research depth indicators
-            had_financial_analysis=quality_score.had_financial_analysis if quality_score else False,
-            had_competitive_analysis=quality_score.had_competitive_analysis if quality_score else False,
-            had_management_review=quality_score.had_management_review if quality_score else False,
-            had_valuation_model=quality_score.had_valuation_model if quality_score else False,
-            
-            # Decision metrics
-            decision_date=transaction.date,
-            entry_price=transaction.price_per_share,
-            position_size=transaction.total_value,
-            initial_thesis=initial_thesis,
-            confidence_at_entry=confidence_at_entry,
-            expected_return_pct=expected_return_pct,
-            expected_hold_months=expected_hold_months,
-            
-            # Initialize outcome metrics
-            checkpoints_total=len(checkpoints),
-            thesis_still_valid=True,
-
-            created_at=now_utc()
-        )
-        
-        db.session.add(outcome)
-        db.session.commit()
-        
-        logger.info(
-            f"Created ResearchOutcome {outcome.id} for company {company_id} "
-            f"(quality_score={quality_score.overall_score if quality_score else 'N/A'})"
-        )
-        
-        return outcome
-    
-    def update_outcome_on_sell(
-        self,
-        user_id: int,
-        company_id: int,
-        sell_transaction: 'Transaction',
-        realized_return_pct: float
-    ) -> Optional[ResearchOutcome]:
-        """
-        Update outcome record when user sells a position.
-        
-        Args:
-            user_id: User ID
-            company_id: Company ID
-            sell_transaction: The SELL Transaction object
-            realized_return_pct: Realized return percentage
-            
-        Returns:
-            Updated ResearchOutcome or None if not found
-        """
-        from app.models import DestinationCheckpoint
-        
-        # Find the open outcome record for this position
-        outcome = ResearchOutcome.query.filter_by(
-            user_id=user_id,
-            company_id=company_id,
-            exit_date=None  # Not yet closed
-        ).order_by(ResearchOutcome.decision_date.desc()).first()
-        
-        if not outcome:
-            logger.warning(f"No open outcome record found for company {company_id}")
-            return None
-        
-        # Calculate thesis accuracy
-        thesis_accuracy = self._calculate_thesis_accuracy(outcome, realized_return_pct)
-        
-        # Get checkpoint metrics
-        checkpoints = DestinationCheckpoint.query.filter_by(
-            company_id=company_id,
-            user_id=user_id
-        ).all()
-        
-        met_checkpoints = len([c for c in checkpoints if c.status == 'met'])
-        
-        # Categorize outcome
-        outcome_category = self._categorize_outcome(realized_return_pct)
-        
-        # Calculate hold period
-        actual_hold_days = None
-        if outcome.decision_date:
-            hold_delta = sell_transaction.date - outcome.decision_date
-            actual_hold_days = hold_delta.days
-        
-        # Update the record
-        outcome.exit_date = sell_transaction.date
-        outcome.exit_price = sell_transaction.price_per_share
-        outcome.realized_return_pct = realized_return_pct
-        outcome.actual_hold_days = actual_hold_days
-        
-        outcome.thesis_accuracy_score = thesis_accuracy
-        outcome.checkpoints_met = met_checkpoints
-        outcome.checkpoints_total = len(checkpoints)
-        
-        outcome.outcome_category = outcome_category
-        outcome.outcome_recorded_at = now_utc()
-        outcome.last_updated_at = now_utc()
-        
-        db.session.commit()
-        
-        logger.info(
-            f"Updated ResearchOutcome {outcome.id}: {outcome_category} "
-            f"({realized_return_pct:.1f}%, held {actual_hold_days} days)"
-        )
-        
-        # Trigger correlation analysis if we have enough data
-        self._check_and_run_correlation_analysis(user_id)
-        
-        return outcome
     
     def _calculate_thesis_accuracy(
         self,
@@ -337,68 +138,6 @@ class OutcomeTracker:
         else:
             return 'big_loss'
     
-    def _check_and_run_correlation_analysis(self, user_id: int):
-        """
-        Check if we have enough data and run correlation analysis.
-        
-        Creates AI insights if meaningful patterns are found.
-        """
-        # Get completed outcomes
-        outcomes = ResearchOutcome.query.filter(
-            ResearchOutcome.user_id == user_id,
-            ResearchOutcome.realized_return_pct.isnot(None)
-        ).all()
-        
-        if len(outcomes) < 5:
-            # Not enough data for meaningful correlation
-            logger.debug(f"Only {len(outcomes)} outcomes for user {user_id}, need at least 5")
-            return
-        
-        # Analyze correlation between research quality and returns
-        high_quality = [o for o in outcomes if (o.research_quality_score or 0) >= 70]
-        low_quality = [o for o in outcomes if (o.research_quality_score or 0) < 70]
-        
-        if high_quality and low_quality:
-            high_avg = sum(o.realized_return_pct for o in high_quality) / len(high_quality)
-            low_avg = sum(o.realized_return_pct for o in low_quality) / len(low_quality)
-            
-            difference = high_avg - low_avg
-            
-            if difference > 5:  # Meaningful difference (>5%)
-                # Create an insight
-                insight = AIInsight(
-                    user_id=user_id,
-                    insight_type='pattern',
-                    trigger_type='periodic',
-                    context_type='portfolio',
-                    title='Research Quality Correlates with Returns',
-                    insight_text=(
-                        f"Your high-quality research (score 70+) has averaged {high_avg:.1f}% returns, "
-                        f"while lower-quality research averaged {low_avg:.1f}% returns. "
-                        f"That's a {difference:.1f}% difference! This suggests your thorough research pays off."
-                    ),
-                    supporting_data={
-                        'high_quality_avg_return': high_avg,
-                        'low_quality_avg_return': low_avg,
-                        'difference': difference,
-                        'high_quality_count': len(high_quality),
-                        'low_quality_count': len(low_quality),
-                        'total_outcomes': len(outcomes)
-                    },
-                    ai_provider='rule_based',
-                    confidence=min(0.9, 0.5 + len(outcomes) * 0.05),  # Higher confidence with more data
-                    is_active=True,
-                    created_at=now_utc()
-                )
-                
-                db.session.add(insight)
-                db.session.commit()
-                
-                logger.info(
-                    f"Created correlation insight for user {user_id}: "
-                    f"high_quality={high_avg:.1f}%, low_quality={low_avg:.1f}%"
-                )
-    
     def get_user_outcome_stats(self, user_id: int) -> Dict[str, Any]:
         """
         Get summary statistics for a user's outcomes.
@@ -422,8 +161,9 @@ class OutcomeTracker:
         wins = [o for o in outcomes if o.realized_return_pct > 0]
         
         # Calculate research correlation
-        researched = [o for o in outcomes if o.research_quality_score and o.research_quality_score > 0]
-        unreasearched = [o for o in outcomes if not o.research_quality_score or o.research_quality_score == 0]
+        researched = [o for o in outcomes if o.research_quality_score is not None and o.research_quality_score > 0]
+        unreasearched = [o for o in outcomes if o.research_quality_score is None or o.research_quality_score <= 0]
+        scored = [o.research_quality_score for o in outcomes if o.research_quality_score is not None]
         
         research_advantage = None
         if researched and unreasearched:
@@ -439,9 +179,7 @@ class OutcomeTracker:
             'worst_return': min(o.realized_return_pct for o in outcomes),
             'avg_hold_days': sum(o.actual_hold_days or 0 for o in outcomes) / len(outcomes),
             'research_advantage_pct': research_advantage,
-            'avg_research_quality': (
-                sum(o.research_quality_score or 0 for o in outcomes) / len(outcomes)
-            ),
+            'avg_research_quality': sum(scored) / len(scored) if scored else None,
             'outcome_breakdown': {
                 'big_wins': len([o for o in outcomes if o.outcome_category == 'big_win']),
                 'small_wins': len([o for o in outcomes if o.outcome_category == 'small_win']),
@@ -452,68 +190,6 @@ class OutcomeTracker:
         }
 
 
-# ============================================================
-# Integration Functions - Called from Portfolio Routes
-# ============================================================
-
-def on_buy_transaction(
-    transaction: 'Transaction',
-    decision_journal: Optional['DecisionJournal'] = None
-) -> Optional[ResearchOutcome]:
-    """
-    Hook called when user makes a BUY transaction.
-    
-    Creates a ResearchOutcome record linking research to this investment.
-    
-    Args:
-        transaction: The BUY Transaction object
-        decision_journal: Optional linked DecisionJournal
-        
-    Returns:
-        Created ResearchOutcome or None if error
-    """
-    try:
-        tracker = OutcomeTracker()
-        return tracker.create_outcome_record(
-            user_id=transaction.user_id,
-            company_id=transaction.company_id,
-            transaction=transaction,
-            decision_journal=decision_journal
-        )
-    except Exception as e:
-        logger.error(f"Error creating outcome record: {e}")
-        return None
-
-
-def on_sell_transaction(
-    transaction: 'Transaction',
-    realized_return_pct: float
-) -> Optional[ResearchOutcome]:
-    """
-    Hook called when user makes a SELL transaction.
-    
-    Updates the ResearchOutcome record with final outcome data.
-    
-    Args:
-        transaction: The SELL Transaction object
-        realized_return_pct: Realized return percentage
-        
-    Returns:
-        Updated ResearchOutcome or None if not found/error
-    """
-    try:
-        tracker = OutcomeTracker()
-        return tracker.update_outcome_on_sell(
-            user_id=transaction.user_id,
-            company_id=transaction.company_id,
-            sell_transaction=transaction,
-            realized_return_pct=realized_return_pct
-        )
-    except Exception as e:
-        logger.error(f"Error updating outcome on sell: {e}")
-        return None
-
-
 def get_outcome_stats(user_id: int) -> Dict[str, Any]:
     """
     Get outcome statistics for a user.
@@ -522,3 +198,252 @@ def get_outcome_stats(user_id: int) -> Dict[str, Any]:
     """
     tracker = OutcomeTracker()
     return tracker.get_user_outcome_stats(user_id)
+
+
+# ============================================================
+# Rebuild outcomes from round trips (#417)
+# ============================================================
+
+@dataclass
+class OutcomeSyncStats:
+    created: int = 0
+    updated: int = 0
+    deleted: int = 0
+    closed: int = 0  # outcomes that are closed after the sync
+
+
+def is_placeholder_journal(journal: Optional[DecisionJournal]) -> bool:
+    """True for the importer's made-up journal (thesis, confidence 5, expected return 15)."""
+    return journal is not None and (journal.investment_thesis or '').strip() == IMPORTED_BUY_THESIS
+
+
+def research_project_for_trade(
+    user_id: int,
+    company_id: int,
+    entry_date: date,
+    journal: Optional[DecisionJournal],
+) -> Optional[ResearchProject]:
+    """
+    The research project that counts for a trade entered on entry_date.
+
+    An explicit journal link wins (it was made when the user bought). Otherwise the
+    user's project for the company counts if it was created on or before entry_date,
+    whatever its status. Research created later never counts for this trade.
+    """
+    if journal is not None and journal.linked_research_id:
+        project = db.session.get(ResearchProject, journal.linked_research_id)
+        if project is not None:
+            return project
+    project = ResearchProject.query.filter_by(user_id=user_id, company_id=company_id).first()
+    if project is not None and project.created_at and project.created_at.date() <= entry_date:
+        return project
+    return None
+
+
+def research_backed_company_ids(user_id: int) -> Set[int]:
+    """Company ids whose latest trade outcome has a research project (#417 timing rule)."""
+    latest = (
+        db.session.query(ResearchOutcome.company_id, ResearchOutcome.project_id)
+        .filter(ResearchOutcome.user_id == user_id)
+        .distinct(ResearchOutcome.company_id)
+        .order_by(ResearchOutcome.company_id, ResearchOutcome.decision_date.desc().nullslast(),
+                  ResearchOutcome.id.desc())
+        .all()
+    )
+    return {company_id for company_id, project_id in latest if project_id is not None}
+
+
+def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company_id: int,
+                           checkpoints: List[DestinationCheckpoint],
+                           quality_cache: Dict[int, Any]) -> bool:
+    """Write the trip onto the outcome. Returns True when any field actually changed."""
+    tracker = OutcomeTracker()
+    opening = trip.opening_transaction
+    journal = opening.decision_journal
+    if journal is not None and journal.decision_type != 'BUY':
+        journal = None
+
+    outcome.decision_date = trip.entry_date
+    outcome.entry_price = trip.entry_price
+    outcome.position_size = trip.buy_cost
+    outcome.decision_journal_id = journal.id if journal else None
+
+    real_journal = journal if journal is not None and not is_placeholder_journal(journal) else None
+    outcome.initial_thesis = real_journal.investment_thesis_text if real_journal else None
+    outcome.confidence_at_entry = real_journal.confidence_score if real_journal else None
+    outcome.expected_return_pct = real_journal.expected_return if real_journal else None
+    outcome.expected_hold_months = real_journal.expected_timeframe if real_journal else None
+
+    # Known limitation: the quality score is the project's quality NOW, not on the
+    # entry date, because nothing records past snapshots.
+    project = research_project_for_trade(user_id, company_id, trip.entry_date, journal)
+    quality = None
+    if project:
+        if project.id not in quality_cache:
+            quality_cache[project.id] = calculate_research_quality(research_project_id=project.id)
+        quality = quality_cache[project.id]
+    outcome.project_id = project.id if project else None
+    outcome.research_quality_score = quality.overall_score if quality else None
+    outcome.questions_answered = quality.questions_answered if quality else 0
+    outcome.questions_total = quality.questions_total if quality else 0
+    outcome.documents_analyzed = quality.documents_analyzed if quality else 0
+    outcome.research_duration_minutes = quality.research_duration_minutes if quality else 0
+    outcome.checklist_completion_pct = (
+        quality.questions_answered / quality.questions_total * 100
+        if quality and quality.questions_total > 0 else 0
+    )
+    outcome.had_financial_analysis = quality.had_financial_analysis if quality else False
+    outcome.had_competitive_analysis = quality.had_competitive_analysis if quality else False
+    outcome.had_management_review = quality.had_management_review if quality else False
+    outcome.had_valuation_model = quality.had_valuation_model if quality else False
+
+    outcome.checkpoints_total = len(checkpoints)
+    outcome.checkpoints_met = len([c for c in checkpoints if c.status == 'Met'])
+
+    if trip.is_closed:
+        realized = trip.realized_return_pct
+        was_closed = outcome.exit_date is not None and outcome.outcome_recorded_at is not None
+        outcome.exit_date = trip.exit_date
+        outcome.exit_price = trip.exit_price
+        outcome.realized_return_pct = realized
+        outcome.actual_hold_days = days_between(trip.entry_date, trip.exit_date)
+        outcome.outcome_category = tracker._categorize_outcome(realized) if realized is not None else None
+        if not was_closed:
+            outcome.outcome_recorded_at = now_utc()
+        outcome.thesis_accuracy_score = (
+            tracker._calculate_thesis_accuracy(outcome, realized)
+            if outcome.expected_return_pct is not None and realized is not None else None
+        )
+    else:
+        outcome.exit_date = None
+        outcome.exit_price = None
+        outcome.realized_return_pct = None
+        outcome.actual_hold_days = None
+        outcome.outcome_category = None
+        outcome.outcome_recorded_at = None
+        outcome.thesis_accuracy_score = None
+    changed = db.session.is_modified(outcome)
+    if changed:
+        outcome.last_updated_at = now_utc()
+    return changed
+
+
+def sync_outcomes_for_company(user_id: int, company_id: int) -> OutcomeSyncStats:
+    """
+    Make the company's ResearchOutcome rows match its round trips (one per trade).
+
+    Rows are matched to trades by decision_date (in id order when several share a date)
+    and updated in place so ids stay stable. Flushes, never commits; raises on error.
+    """
+    stats = OutcomeSyncStats()
+    trips = get_round_trips(company_id, user_id)
+    existing = ResearchOutcome.query.filter_by(user_id=user_id, company_id=company_id) \
+        .order_by(ResearchOutcome.id).all()
+    by_date: Dict[Any, List[ResearchOutcome]] = {}
+    for row in existing:
+        by_date.setdefault(row.decision_date, []).append(row)
+
+    checkpoints = DestinationCheckpoint.query.filter_by(company_id=company_id, user_id=user_id).all()
+
+    quality_cache: Dict[int, Any] = {}
+    kept: List[ResearchOutcome] = []
+    for trip in trips:
+        candidates = by_date.get(trip.entry_date)
+        if candidates:
+            outcome = candidates.pop(0)
+            if _apply_trip_to_outcome(outcome, trip, user_id, company_id, checkpoints, quality_cache):
+                stats.updated += 1
+        else:
+            outcome = ResearchOutcome(user_id=user_id, company_id=company_id,
+                                      thesis_still_valid=True, created_at=now_utc())
+            db.session.add(outcome)
+            stats.created += 1
+            _apply_trip_to_outcome(outcome, trip, user_id, company_id, checkpoints, quality_cache)
+        kept.append(outcome)
+
+    for leftovers in by_date.values():
+        for row in leftovers:
+            db.session.delete(row)
+            stats.deleted += 1
+
+    stats.closed = len([o for o in kept if o.exit_date is not None])
+    db.session.flush()
+    return stats
+
+
+def safe_sync_outcomes(user_id: int, company_id: int) -> Optional[OutcomeSyncStats]:
+    """
+    Run sync_outcomes_for_company inside a savepoint. A failure rolls back only the
+    sync's own writes, is logged with a traceback, and returns None, so the caller's
+    transaction write is never lost.
+    """
+    try:
+        with db.session.begin_nested():
+            return sync_outcomes_for_company(user_id, company_id)
+    except Exception:
+        logger.warning(f"[AI] Outcome sync failed for company {company_id}", exc_info=True)
+        return None
+
+
+@dataclass
+class UserRebuildReport:
+    user_id: int
+    companies: int = 0
+    created: int = 0
+    updated: int = 0
+    deleted: int = 0
+    closed: int = 0
+    positions_with_realized_pct: int = 0
+    failed: bool = False
+    error: Optional[str] = None
+
+
+def rebuild_trade_outcomes(user_id: Optional[int] = None, dry_run: bool = False) -> List[UserRebuildReport]:
+    """
+    Backfill positions' realized_gain_loss_pct and ResearchOutcome rows from existing
+    transaction history. Commits per user (rolls back per user when dry_run). A failure
+    rolls back that user only, is logged, and is recorded on the report.
+    """
+    txn_query = db.session.query(Transaction.user_id, Transaction.company_id).filter(
+        Transaction.company_id.isnot(None))
+    outcome_query = db.session.query(ResearchOutcome.user_id, ResearchOutcome.company_id)
+    if user_id is not None:
+        txn_query = txn_query.filter(Transaction.user_id == user_id)
+        outcome_query = outcome_query.filter(ResearchOutcome.user_id == user_id)
+    # Pairs with outcomes but no transactions are included so leftovers get deleted
+    pairs = {(row[0], row[1]) for row in txn_query.distinct().all()}
+    pairs |= {(row[0], row[1]) for row in outcome_query.distinct().all()}
+    companies_by_user: Dict[int, List[int]] = {}
+    for uid, company_id in sorted(pairs):
+        companies_by_user.setdefault(uid, []).append(company_id)
+
+    reports: List[UserRebuildReport] = []
+    for uid, company_ids in sorted(companies_by_user.items()):
+        report = UserRebuildReport(user_id=uid)
+        try:
+            report.companies = len(company_ids)
+            for company_id in company_ids:
+                update_portfolio_position_for_company(company_id, uid)
+                stats = sync_outcomes_for_company(uid, company_id)
+                report.created += stats.created
+                report.updated += stats.updated
+                report.deleted += stats.deleted
+                report.closed += stats.closed
+            report.positions_with_realized_pct = PortfolioPosition.query.filter(
+                PortfolioPosition.user_id == uid,
+                PortfolioPosition.realized_gain_loss_pct.isnot(None),
+            ).count()
+            if dry_run:
+                db.session.rollback()
+            else:
+                db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            logger.error(f"Outcome rebuild failed for user {uid}", exc_info=True)
+            # Nothing landed for this user, so don't let the totals count it
+            report.created = report.updated = report.deleted = report.closed = 0
+            report.positions_with_realized_pct = 0
+            report.failed = True
+            report.error = str(exc)
+        reports.append(report)
+    return reports

@@ -508,9 +508,9 @@ class SimilarMistakesService:
             if outcome and outcome.realized_return_pct is not None:
                 return {
                     'return_pct': float(outcome.realized_return_pct),
-                    'holding_days': outcome.holding_days,
+                    'holding_days': outcome.actual_hold_days,
                     'category': outcome.outcome_category,
-                    'lessons_learned': outcome.lessons_learned
+                    'lessons_learned': None
                 }
         except Exception:
             pass

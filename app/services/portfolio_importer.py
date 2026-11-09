@@ -26,6 +26,7 @@ from app.models.journal import DecisionJournal
 from app.models.research import ResearchProject
 from app.services.financial_data import FinancialDataService
 from app.services.cash_service import CashService
+from app.services.outcome_tracking import IMPORTED_BUY_THESIS, safe_sync_outcomes
 from app.services.currency_service import CurrencyService
 
 logger = logging.getLogger(__name__)
@@ -434,7 +435,7 @@ class PortfolioImporter:
                 company_id=company_id,
                 decision_type='BUY',
                 decision_date=transaction_date,
-                investment_thesis=f'Imported via bulk uploader',
+                investment_thesis=IMPORTED_BUY_THESIS,
                 confidence_score=5,
                 expected_return=15.0,
                 expected_timeframe=60,
@@ -486,6 +487,7 @@ class PortfolioImporter:
                 user_id=self.user.id,
                 last_transaction_date=last_date
             )
+            safe_sync_outcomes(self.user.id, comp_id)
             print(f"✓ Updated portfolio for {ticker}")
 
         db.session.commit()

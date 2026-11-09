@@ -15,6 +15,8 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import os
+import sys
+import click
 from whitenoise import WhiteNoise
 
 from app import create_app, db
@@ -25,6 +27,7 @@ from app.models import (User, Checklist, ChecklistItem, Company,
 from app.services.portfolio_importer import PortfolioImporter
 from app.services.financial_data import FinancialDataService
 from app.services.feature_unlock_service import seed_unlock_thresholds
+from app.services.outcome_tracking import rebuild_trade_outcomes
 from app.models.research import ResearchProject
 # 1. Create the Flask app instance FIRST.
 app = create_app()
@@ -230,6 +233,34 @@ def fix_imported_research_flags_command():
 
         db.session.commit()
         print(f"\nDone! Fixed {fixed} out of {len(imported_buys)} imported BUY transactions.")
+
+
+@app.cli.command("rebuild-trade-outcomes")
+@click.option('--user-id', type=int, default=None, help='Only rebuild this user.')
+@click.option('--dry-run', is_flag=True, help='Do the full rebuild, then roll back.')
+def rebuild_trade_outcomes_command(user_id, dry_run):
+    """Backfills realized_gain_loss_pct and per-trade ResearchOutcome rows from transactions."""
+    with app.app_context():
+        if dry_run:
+            click.echo("DRY RUN — nothing written")
+        reports = rebuild_trade_outcomes(user_id=user_id, dry_run=dry_run)
+        totals = dict(companies=0, created=0, updated=0, deleted=0, closed=0, positions_with_realized_pct=0)
+        for r in reports:
+            line = (f"user {r.user_id}: companies={r.companies} created={r.created} updated={r.updated} "
+                    f"deleted={r.deleted} closed={r.closed} "
+                    f"positions_with_realized_pct={r.positions_with_realized_pct}")
+            if r.failed:
+                line += f" FAILED: {r.error}"
+            click.echo(line)
+            for key in totals:
+                totals[key] += getattr(r, key)
+        failed = len([r for r in reports if r.failed])
+        click.echo(f"TOTAL: users={len(reports)} " + " ".join(f"{k}={v}" for k, v in totals.items())
+                   + f" failed={failed}")
+        if dry_run:
+            click.echo("DRY RUN — nothing written")
+        if failed:
+            sys.exit(1)
 
 
 @app.cli.command("init-db")
