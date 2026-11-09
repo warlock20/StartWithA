@@ -1,6 +1,8 @@
 {# Mistake Log inside the Knowledge Hub Mistakes tab. Context: mistake_view and the Suggest context from the route. #}
 {% set mv = mistake_view %}
 {% set cur = current_user.base_currency|currency_symbol %}
+{% set listed_ids = mv.list|map(attribute='id')|list %}
+{% set unfiltered_url = url_for('journal_enhanced.knowledge_hub', type='mistake', sort=mv.sort_by if mv.sort_by != 'newest' else None) %}
 {% macro money(value) -%}{{ cur }}{{ "{:,.0f}".format(value or 0) }}{%- endmacro %}
 {% macro tab_url(mistake_type) -%}
 {{ url_for('journal_enhanced.knowledge_hub', type='mistake', q=search_query or None, company_id=company_filter,
@@ -76,7 +78,7 @@
                     {% for m in mv.insights.costly %}
                     <li>
                         <span class="cc-mistake-costly-head">
-                            <a href="#mistake-{{ m.id }}" class="cc-mistake-costly-link">{{ m.title }}</a>
+                            <a href="{{ '#mistake-' ~ m.id if m.id in listed_ids else unfiltered_url ~ '#mistake-' ~ m.id }}" class="cc-mistake-costly-link">{{ m.title }}</a>
                             <span class="cc-mistake-costly-cost">{{ money(m.cost_estimate) }}</span>
                         </span>
                         <span class="cc-mistake-costly-lesson">{{ (m.lesson_learned or '')|truncate(80) }}</span>
@@ -292,6 +294,13 @@
         }
         openFromHash();
         window.addEventListener('hashchange', openFromHash);
+        // Re-clicking the link for the current hash fires no hashchange, so reopen it here.
+        document.getElementById('mistake-log-root').addEventListener('click', function (event) {
+            var link = event.target.closest ? event.target.closest('a[href*="#mistake-"]') : null;
+            if (!link || !/^#mistake-\d+$/.test(link.hash)) { return; }
+            if (link.pathname !== window.location.pathname || link.search !== window.location.search) { return; }
+            if (link.hash === window.location.hash) { openFromHash(); }
+        });
     })();
 
     function preventedSimilar(trigger, mistakeId) {
