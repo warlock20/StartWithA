@@ -16,9 +16,12 @@
 
 # app/models/portfolio.py
 
+from dataclasses import dataclass
 from decimal import Decimal
+from typing import List, Optional
+
 from app import db
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import date, now_utc
 from app.models.company import Company
 
 # SPLIT comes only from the bulk importer. SPINOFF is handled in places but no
@@ -295,36 +298,87 @@ def _get_base_fees(txn):
     return Decimal(str(txn.fees))
 
 
-def calculate_fifo_cost_basis(company_id, user_id):
-    """
-    Calculate cost basis using FIFO (First In, First Out) method.
+@dataclass
+class RoundTrip:
+    """One trade: from the BUY that took the holding from 0 shares to the SELL that took it back to 0."""
+    opening_transaction: Transaction
+    closing_transaction: Optional[Transaction]
+    entry_date: date
+    entry_price: Decimal
+    buy_cost: Decimal
+    sold_cost: Decimal
+    sell_proceeds: Decimal
+    exit_date: Optional[date] = None
+    exit_price: Optional[Decimal] = None
 
-    Uses base currency values (_base fields) when available, falling back
-    to original currency values for backward compatibility. This ensures
-    all calculations are in the user's base currency.
+    @property
+    def is_closed(self) -> bool:
+        return self.closing_transaction is not None
 
-    Returns:
-        tuple: (total_shares, avg_cost_basis, total_cost, realized_gain_loss, first_purchase_date, total_dividends)
-    """
-    transactions = Transaction.query.filter_by(
+    @property
+    def realized_return_pct(self) -> Optional[float]:
+        if not self.is_closed or self.sold_cost <= 0:
+            return None
+        return float((self.sell_proceeds - self.sold_cost) / self.sold_cost * 100)
+
+
+@dataclass
+class _FifoResult:
+    total_shares: int
+    avg_cost_basis: Decimal
+    total_cost: Decimal
+    realized_gain_loss: Decimal
+    first_purchase_date: Optional[date]
+    total_dividends: Decimal
+    sold_cost: Decimal
+    sell_proceeds: Decimal
+    round_trips: List[RoundTrip]
+
+
+def _load_transactions(company_id, user_id):
+    return Transaction.query.filter_by(
         company_id=company_id,
         user_id=user_id
     ).order_by(Transaction.date.asc(), Transaction.id.asc()).all()
 
-    # FIFO queue: [(date, quantity, price_per_share), ...]
+
+def _walk_fifo(transactions):
+    """
+    Single FIFO pass over a company's transactions (oldest first).
+
+    Returns a _FifoResult with the position totals and the round trips (0 shares -> 0 shares).
+    Uses base currency values (_base fields) when available.
+    """
+    # FIFO queue: [{date, quantity, price_per_share, fees}, ...]
     shares_queue = []
     total_shares = 0
     total_cost = Decimal('0.00')
     realized_gain_loss = Decimal('0.00')
     total_dividends = Decimal('0.00')
     first_purchase_date = None
+    lifetime_sold_cost = Decimal('0.00')
+    lifetime_proceeds = Decimal('0.00')
+
+    round_trips = []
+    trip = None
 
     for txn in transactions:
         price = _get_base_price(txn)
         fees = _get_base_fees(txn)
 
         if txn.type == 'BUY':
-            # Add to queue
+            if total_shares == 0:
+                trip = RoundTrip(
+                    opening_transaction=txn,
+                    closing_transaction=None,
+                    entry_date=txn.date,
+                    entry_price=price,
+                    buy_cost=Decimal('0.00'),
+                    sold_cost=Decimal('0.00'),
+                    sell_proceeds=Decimal('0.00'),
+                )
+                round_trips.append(trip)
+
             shares_queue.append({
                 'date': txn.date,
                 'quantity': txn.quantity,
@@ -332,10 +386,12 @@ def calculate_fifo_cost_basis(company_id, user_id):
                 'fees': fees
             })
 
+            buy_cost = (Decimal(str(txn.quantity)) * price) + fees
             total_shares += txn.quantity
-            total_cost += (Decimal(str(txn.quantity)) * price) + fees
+            total_cost += buy_cost
+            if trip is not None:
+                trip.buy_cost += buy_cost
 
-            # Track first purchase
             if first_purchase_date is None:
                 first_purchase_date = txn.date
 
@@ -371,8 +427,21 @@ def calculate_fifo_cost_basis(company_id, user_id):
                     sell_cost_basis += partial_cost
                     shares_to_sell = 0
 
-            # Calculate realized gain/loss for this sell
             realized_gain_loss += (sell_proceeds - sell_cost_basis)
+            lifetime_sold_cost += sell_cost_basis
+
+            # Shares actually matched against open lots (less than txn.quantity on an oversell or orphan SELL)
+            matched = txn.quantity - shares_to_sell
+            if txn.quantity > 0:
+                lifetime_proceeds += sell_proceeds * Decimal(matched) / Decimal(txn.quantity)
+            if trip is not None and matched > 0:
+                trip.sold_cost += sell_cost_basis
+                trip.sell_proceeds += sell_proceeds * Decimal(matched) / Decimal(txn.quantity)
+                if total_shares == 0:
+                    trip.closing_transaction = txn
+                    trip.exit_date = txn.date
+                    trip.exit_price = price
+                    trip = None
 
         elif txn.type == 'DIVIDEND':
             # Dividends don't affect share count or cost basis
@@ -393,17 +462,46 @@ def calculate_fifo_cost_basis(company_id, user_id):
             total_shares = int(total_shares * split_ratio)
             # total_cost remains the same (splits don't change total investment)
 
-    # Calculate average cost basis
     avg_cost_basis = (total_cost / Decimal(str(total_shares))) if total_shares > 0 else Decimal('0.00')
 
-    return (
-        total_shares,
-        avg_cost_basis,
-        total_cost,
-        realized_gain_loss,
-        first_purchase_date,
-        total_dividends
+    return _FifoResult(
+        total_shares=total_shares,
+        avg_cost_basis=avg_cost_basis,
+        total_cost=total_cost,
+        realized_gain_loss=realized_gain_loss,
+        first_purchase_date=first_purchase_date,
+        total_dividends=total_dividends,
+        sold_cost=lifetime_sold_cost,
+        sell_proceeds=lifetime_proceeds,
+        round_trips=round_trips,
     )
+
+
+def calculate_fifo_cost_basis(company_id, user_id):
+    """
+    Calculate cost basis using FIFO (First In, First Out) method.
+
+    Uses base currency values (_base fields) when available, falling back
+    to original currency values for backward compatibility. This ensures
+    all calculations are in the user's base currency.
+
+    Returns:
+        tuple: (total_shares, avg_cost_basis, total_cost, realized_gain_loss, first_purchase_date, total_dividends)
+    """
+    result = _walk_fifo(_load_transactions(company_id, user_id))
+    return (
+        result.total_shares,
+        result.avg_cost_basis,
+        result.total_cost,
+        result.realized_gain_loss,
+        result.first_purchase_date,
+        result.total_dividends
+    )
+
+
+def get_round_trips(company_id: int, user_id: int) -> List[RoundTrip]:
+    """The user's trades in a company (0 -> 0 shares), oldest first. The last may be open."""
+    return _walk_fifo(_load_transactions(company_id, user_id)).round_trips
 
 
 def update_portfolio_position(transaction):
@@ -431,10 +529,9 @@ def update_portfolio_position_for_company(company_id, user_id, last_transaction_
         last_transaction_date: Optional last transaction date (will query if not provided)
     """
     # Recalculate position from scratch using FIFO
-    total_shares, avg_cost, total_cost, realized_gl, first_date, total_divs = calculate_fifo_cost_basis(
-        company_id,
-        user_id
-    )
+    fifo = _walk_fifo(_load_transactions(company_id, user_id))
+    total_shares, avg_cost, total_cost = fifo.total_shares, fifo.avg_cost_basis, fifo.total_cost
+    realized_gl, first_date, total_divs = fifo.realized_gain_loss, fifo.first_purchase_date, fifo.total_dividends
 
     # Find or create position
     position = PortfolioPosition.query.filter_by(
@@ -473,6 +570,12 @@ def update_portfolio_position_for_company(company_id, user_id, last_transaction_
     position.average_cost_basis_base = avg_cost
     position.total_cost_base = total_cost
     position.realized_gain_loss = realized_gl
+    if fifo.sold_cost > 0:
+        # Trading return on what was sold; dividends excluded. Column is Numeric(6, 2).
+        pct = (fifo.sell_proceeds - fifo.sold_cost) / fifo.sold_cost * 100
+        position.realized_gain_loss_pct = max(Decimal('-9999.99'), min(Decimal('9999.99'), pct)).quantize(Decimal('0.01'))
+    else:
+        position.realized_gain_loss_pct = None
     position.total_dividends = total_divs
     position.first_purchase_date = first_date
     position.last_transaction_date = last_transaction_date

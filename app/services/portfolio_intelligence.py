@@ -43,7 +43,7 @@ import logging
 from sqlalchemy.orm import joinedload
 
 from app import cache
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import days_between, now_utc
 from app.utils.financial_utils import calculate_cagr
 from app.utils.grading import score_to_grade
 
@@ -148,6 +148,15 @@ class LearningInsight:
     importance: str  # 'high', 'medium', 'low'
 
 
+def outcome_hold_days(outcome) -> Optional[int]:
+    """Days the trade was held: the stored value, else derived from the dates."""
+    if outcome.actual_hold_days is not None:
+        return outcome.actual_hold_days
+    if outcome.decision_date and outcome.exit_date:
+        return days_between(outcome.decision_date, outcome.exit_date)
+    return None
+
+
 class PortfolioIntelligenceService:
     """
     Main service for portfolio intelligence and learning insights.
@@ -201,17 +210,21 @@ class PortfolioIntelligenceService:
         non_researched_returns = []
         
         for outcome in outcomes:
-            grade = score_to_grade(outcome.research_quality_score or 0)
             return_pct = float(outcome.realized_return_pct)
-            
-            grade_buckets[grade].append({
+            score = outcome.research_quality_score
+
+            # A null score means no research: no letter grade, non-researched group
+            if score is None:
+                non_researched_returns.append(return_pct)
+                continue
+
+            grade_buckets[score_to_grade(score)].append({
                 'return': return_pct,
-                'hold_days': (outcome.exit_date - outcome.entry_date).days if outcome.exit_date and outcome.entry_date else 0,
+                'hold_days': outcome_hold_days(outcome) or 0,
                 'won': return_pct > 0
             })
-            
-            # Split into researched vs non-researched
-            if (outcome.research_quality_score or 0) >= self.HIGH_QUALITY_THRESHOLD:
+
+            if score >= self.HIGH_QUALITY_THRESHOLD:
                 researched_returns.append(return_pct)
             else:
                 non_researched_returns.append(return_pct)
@@ -555,22 +568,10 @@ class PortfolioIntelligenceService:
             ))
             return insights
 
-        # Batch load BUY decision journals for confidence calibration (avoids N+1)
-        company_ids = [o.company_id for o in outcomes]
-        journals = DecisionJournal.query.filter(
-            DecisionJournal.user_id == self.user_id,
-            DecisionJournal.company_id.in_(company_ids),
-            DecisionJournal.decision_type == 'BUY',
-            DecisionJournal.is_portfolio_decision == True
-        ).all()
-        journals_by_company = {}
-        for j in journals:
-            journals_by_company[j.company_id] = j
-
         # Analyze patterns
         insights.extend(self._analyze_quality_patterns(outcomes))
         insights.extend(self._analyze_holding_patterns(outcomes))
-        insights.extend(self._analyze_confidence_calibration(outcomes, journals_by_company))
+        insights.extend(self._analyze_confidence_calibration(outcomes))
         insights.extend(self._analyze_sector_patterns(outcomes))
         
         # Sort by importance
@@ -583,8 +584,8 @@ class PortfolioIntelligenceService:
         """Analyze research quality patterns"""
         insights = []
         
-        high_quality = [o for o in outcomes if (o.research_quality_score or 0) >= 70]
-        low_quality = [o for o in outcomes if (o.research_quality_score or 0) < 70]
+        high_quality = [o for o in outcomes if o.research_quality_score is not None and o.research_quality_score >= 70]
+        low_quality = [o for o in outcomes if o.research_quality_score is None or o.research_quality_score < 70]
         
         if high_quality and low_quality:
             hq_avg = sum(float(o.realized_return_pct) for o in high_quality) / len(high_quality)
@@ -617,8 +618,8 @@ class PortfolioIntelligenceService:
         long_holds = []   # >= 90 days
         
         for o in outcomes:
-            if o.exit_date and o.entry_date:
-                days = (o.exit_date - o.entry_date).days
+            days = outcome_hold_days(o)
+            if days is not None:
                 if days < SHORT_HOLD_THRESHOLD_DAYS:
                     short_holds.append(float(o.realized_return_pct))
                 else:
@@ -647,16 +648,15 @@ class PortfolioIntelligenceService:
         
         return insights
     
-    def _analyze_confidence_calibration(self, outcomes, journals_by_company=None) -> List[LearningInsight]:
+    def _analyze_confidence_calibration(self, outcomes) -> List[LearningInsight]:
         """Analyze if confidence scores predict outcomes"""
         insights = []
         confidence_returns = []
         for o in outcomes:
-            journal = (journals_by_company or {}).get(o.company_id)
-
-            if journal and journal.confidence_score:
+            # confidence_at_entry is None for importer placeholder journals
+            if o.confidence_at_entry:
                 confidence_returns.append({
-                    'confidence': journal.confidence_score,
+                    'confidence': o.confidence_at_entry,
                     'return': float(o.realized_return_pct)
                 })
         

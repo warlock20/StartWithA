@@ -31,7 +31,7 @@ from app.models import (
 )
 from app.services.currency_service import CurrencyService
 from app.services.cash_service import CashService
-from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
+from app.services.outcome_tracking import safe_sync_outcomes
 from app.services.intelligence_engine import IntelligenceEngine
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 
@@ -385,16 +385,6 @@ class TransactionService:
             db.session.add(transaction)
             db.session.flush()
 
-            # Capture pre-sale cost basis for SELL
-            pre_sale_cost_basis = None
-            if transaction_type == 'SELL':
-                position = PortfolioPosition.query.filter_by(
-                    user_id=user_id,
-                    company_id=company_id
-                ).first()
-                if position and position.average_cost_basis:
-                    pre_sale_cost_basis = float(position.average_cost_basis)
-
             # Update portfolio position
             update_portfolio_position(transaction)
 
@@ -413,22 +403,17 @@ class TransactionService:
             if decision_journal:
                 transaction.decision_journal_id = decision_journal.id
 
+            # Rebuild research outcomes (after the journal link so the sync sees it).
+            # A sync failure must never lose the transaction.
+            if transaction_type in ('BUY', 'SELL'):
+                safe_sync_outcomes(user_id, company_id)
+
             db.session.commit()
 
             # Update cash balance (may auto-create deposit if cash goes negative)
             cash_notice = CashService.update_after_transaction(user_id, transaction)
             if cash_notice:
                 warnings.append(cash_notice)
-
-            # AI Outcome tracking
-            TransactionService._track_outcome(
-                transaction=transaction,
-                transaction_type=transaction_type,
-                decision_journal=decision_journal,
-                pre_sale_cost_basis=pre_sale_cost_basis,
-                price_per_share=float(price_per_share_decimal),
-                company=company
-            )
 
             # Determine redirect
             redirect_url = 'portfolio.dashboard'
@@ -632,40 +617,3 @@ class TransactionService:
             return sell_journal
 
         return None
-
-    @staticmethod
-    def _track_outcome(
-        transaction: Transaction,
-        transaction_type: str,
-        decision_journal: Optional[DecisionJournal],
-        pre_sale_cost_basis: Optional[float],
-        price_per_share: float,
-        company: Company
-    ):
-        """Track outcome for AI learning"""
-
-        if transaction_type == 'BUY':
-            try:
-                outcome = on_buy_transaction(
-                    transaction=transaction,
-                    decision_journal=decision_journal
-                )
-                if outcome:
-                    logger.info(f"[AI] Created ResearchOutcome {outcome.id} for {company.ticker_symbol} "
-                               f"(quality_score={outcome.research_quality_score})")
-            except Exception as e:
-                logger.warning(f"[AI] Failed to create outcome record: {e}")
-
-        elif transaction_type == 'SELL' and pre_sale_cost_basis:
-            try:
-                realized_return_pct = ((price_per_share - pre_sale_cost_basis) / pre_sale_cost_basis) * 100
-
-                outcome = on_sell_transaction(
-                    transaction=transaction,
-                    realized_return_pct=realized_return_pct
-                )
-                if outcome:
-                    logger.info(f"[AI] Updated ResearchOutcome {outcome.id}: "
-                               f"{outcome.outcome_category} ({realized_return_pct:.1f}%)")
-            except Exception as e:
-                logger.warning(f"[AI] Failed to update outcome record: {e}")

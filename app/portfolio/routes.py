@@ -53,7 +53,7 @@ from app.constants import (
 )
 from app.services.portfolio_intelligence import (
     get_thesis_reality_check, PortfolioIntelligenceService,
-    get_learning_insights, get_correlation_data
+    get_learning_insights, get_correlation_data, outcome_hold_days
     )
 from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
@@ -694,8 +694,9 @@ def learning_insights():
         
         hold_days = []
         for o in outcomes:
-            if o.exit_date and o.entry_date:
-                hold_days.append((o.exit_date - o.entry_date).days)
+            days = outcome_hold_days(o)
+            if days is not None:
+                hold_days.append(days)
         
         stats = {
             'total_trades': len(outcomes),
