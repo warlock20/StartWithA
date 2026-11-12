@@ -37,6 +37,16 @@ from app.services.ai.prompt_service import PromptService, resolve_model_provider
 
 logger = logging.getLogger(__name__)
 
+# Wording for corporate-action legs in the transaction history lines. They are
+# never "Bought" or "Sold": the user did not trade, the holding was converted.
+CORPORATE_LEG_VERBS = {
+    'MERGER_OUT': 'Merged away',
+    'MERGER_IN': 'Received in merger',
+    'SPINOFF_PARENT': 'Spin-off cost moved',
+    'SPINOFF_CHILD': 'Received in spin-off',
+    'STOCK_DIVIDEND': 'Received stock dividend',
+}
+
 # Cache directory
 CACHE_DIR = (
     Path(__file__).parent.parent.parent / "instance" / "cache" / "portfolio_insights"
@@ -404,10 +414,15 @@ class PortfolioAIAnalytics:
                 verb = 'Sold'
             elif action == 'DIVIDEND':
                 verb = 'Received dividend on'
+            elif action in CORPORATE_LEG_VERBS:
+                verb = CORPORATE_LEG_VERBS[action]
             else:
                 verb = action.capitalize()
 
-            line = f"On {tx_date}: {verb} {qty_str} shares of {ticker} at ${price_str}"
+            line = f"On {tx_date}: {verb} {qty_str} shares of {ticker}"
+            # Legs that carry no price (spin-off parent, zero-cost stock dividend) omit it.
+            if not (action in CORPORATE_LEG_VERBS and not price):
+                line += f" at ${price_str}"
 
             if fee_str:
                 line += f" {fee_str}"

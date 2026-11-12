@@ -33,7 +33,9 @@ from app.models import (
     ThesisEvolution, DestinationCheckpoint,
     Transaction, DecisionJournal, JournalEntry,
 )
+from app.models.portfolio import CORPORATE_LEG_TYPES, LOT_ADDING_TYPES
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
+from app.services.corporate_action_display import has_corporate_leg
 # Aliased: this module's own functions take a `company_state` parameter (the
 # 3-way portfolio/watchlist/new bucket used to gate export components), which
 # would otherwise shadow this import inside every function that has it.
@@ -513,6 +515,9 @@ def build_transactions_md(transactions, company_name):
 
     total_invested = 0
     total_sold = 0
+    corporate_received = 0
+    corporate_shares_in = 0
+    has_legs = False
 
     for t in company_txns:
         date_str = _format_date(t.date)
@@ -522,16 +527,30 @@ def build_transactions_md(transactions, company_name):
         notes = _table_cell(t.notes)[:60]
         lines.append(f"| {date_str} | {t.type} | {qty} | {price} | {fees} | {t.currency} | {notes} |")
 
+        # Money totals stay BUY/SELL only; corporate legs are listed above by type.
         if t.type == 'BUY' and t.price_per_share and t.quantity:
             total_invested += float(t.price_per_share) * t.quantity + float(t.fees or 0)
         elif t.type == 'SELL' and t.price_per_share and t.quantity:
             total_sold += float(t.price_per_share) * t.quantity - float(t.fees or 0)
+
+        # Corporate legs (base currency): what a merger paid out, and the value of shares received
+        if t.type in CORPORATE_LEG_TYPES:
+            has_legs = True
+            if t.type == 'MERGER_OUT':
+                fees_base = t.fees_base if t.fees_base is not None else t.fees
+                corporate_received += (float(t.corporate_value_base or 0) + float(t.cash_amount_base or 0)
+                                       - float(fees_base or 0))
+            elif t.type in LOT_ADDING_TYPES:
+                corporate_shares_in += float(t.corporate_value_base or 0)
 
     lines.append("")
     if total_invested:
         lines.append(f"**Total Invested:** {total_invested:,.2f}")
     if total_sold:
         lines.append(f"**Total Sold:** {total_sold:,.2f}")
+    if has_legs:
+        lines.append(f"**Corporate actions (not trades, base currency):** received {corporate_received:,.2f}, "
+                     f"shares in {corporate_shares_in:,.2f}")
     lines.append("")
 
     return "\n".join(lines)
@@ -730,7 +749,7 @@ def build_journey_overview_md(company, company_state, counts, ladder_label=None)
     lines.append("")
     lines.append(f"- Thesis Updates: {counts.get('thesis', 0)}")
     lines.append(f"- Checkpoints: {counts.get('checkpoints', 0)}")
-    if company_state == 'portfolio':
+    if company_state == 'portfolio' or 'transactions' in counts:
         lines.append(f"- Transactions: {counts.get('transactions', 0)}")
     lines.append(f"- Decisions: {counts.get('decisions', 0)}")
     lines.append(f"- Journal Entries: {counts.get('journal', 0)}")
@@ -835,7 +854,8 @@ def export_company_journey(company, user_id, components, company_state):
                 zf.writestr(f"{folder_name}/{file_index:02d}_checkpoints.md", md)
                 file_index += 1
 
-        if 'transactions' in components and company_state == 'portfolio':
+        if 'transactions' in components and (company_state == 'portfolio'
+                                             or has_corporate_leg(company.id, user_id)):
             transactions = Transaction.query.filter_by(
                 company_id=company.id, user_id=user_id
             ).order_by(Transaction.date).all()

@@ -46,8 +46,8 @@
                 <div class="portfolio-metric-label">Too Hard</div>
             </div>
             <div class="portfolio-metric">
-                <div class="portfolio-metric-value" style="color: var(--success-500);">{{ metrics.selectivity_rate }}%</div>
-                <div class="portfolio-metric-label">Pass Rate</div>
+                <div class="portfolio-metric-value" style="color: var(--success-500);">{{ metrics.filter_rate }}%</div>
+                <div class="portfolio-metric-label">Filtered Overall</div>
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-value">{{ metrics.total_time }}h</div>
@@ -289,7 +289,7 @@
                     <div class="rcl-empty-state">
                         <i class="bi bi-basket"></i>
                         <h5>No companies passed yet</h5>
-                        <p>This will fill up as you make research decisions. A high pass rate means strong filtering — that's good!</p>
+                        <p>This will fill up as you make research decisions. A high filter rate means strong filtering — that's good!</p>
                     </div>
                     {% endif %}
                 </div>

@@ -19,6 +19,9 @@
                 <a href="{{ url_for('portfolio.dashboard') }}" class="action-btn">
                     <i class="bi bi-briefcase"></i> Portfolio
                 </a>
+                <a href="{{ url_for('portfolio.new_corporate_action') }}" class="action-btn">
+                    <i class="bi bi-diagram-3"></i> Corporate action
+                </a>
                 <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn primary">
                     <i class="bi bi-plus"></i> Add Transaction
                 </a>
@@ -131,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         else if (type === 'DIVIDEND') cls += 'rcl-cell-badge--active';
                         else cls += 'rcl-cell-badge--default';
 
-                        var html = '<span class="' + cls + '">' + type + '</span>';
+                        var html = '<span class="' + cls + '">' + (data.corporate_action_id != null ? data.label : type) + '</span>';
                         if (data.bought_without_research) {
                             html += ' <i class="bi bi-exclamation-triangle" style="color: var(--warning-500);" title="Bought without research"></i>';
                         }
@@ -231,7 +234,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     responsive: 0,
                     formatter: function(cell) {
                         var row = cell.getRow().getData();
-                        return '<a href="' + row.edit_url + '" class="rcl-action" title="Edit"><i class="bi bi-pencil"></i> Edit</a>' +
+                        var editLink = '<a href="' + row.edit_url + '" class="rcl-action" title="Edit"><i class="bi bi-pencil"></i> Edit</a>';
+                        // Legs are removed with their action, from its edit page
+                        if (row.corporate_action_id != null) return editLink;
+                        return editLink +
                                ' <button onclick="confirmDelete(\'' + row.delete_url + '\', \'' + row.ticker + '\', \'' + row.type + '\', \'' + row.date + '\')" class="rcl-action" title="Delete" aria-label="Delete" style="border: none; background: none; cursor: pointer; color: var(--danger-500);"><i class="bi bi-trash"></i><span class="dt-action-label">Delete</span></button>';
                     }
                 }

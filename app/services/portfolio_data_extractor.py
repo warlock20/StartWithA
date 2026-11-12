@@ -38,9 +38,9 @@ Usage:
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import date, timedelta
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import days_between, now_utc
 
-from app.models.portfolio import Transaction, PortfolioPosition
+from app.models.portfolio import CORPORATE_LEG_TYPES, LOT_ADDING_TYPES, RECEIVED_POSITION_TYPES, Transaction, PortfolioPosition
 from app.models.company import Company
 from app.utils.financial_utils import calculate_cagr, calculate_xirr
 from app.utils.portfolio_utils import trading_gain_loss
@@ -176,7 +176,8 @@ class PortfolioDataExtractor:
         ).order_by(Transaction.date.asc()).all()
 
         for txn in all_txns:
-            if txn.type == 'BUY' and txn.company_id not in company_first_buy:
+            # Data reader: a position opened by a merger or spin-off counts as opened.
+            if txn.type in ('BUY', *RECEIVED_POSITION_TYPES) and txn.company_id not in company_first_buy:
                 company_first_buy[txn.company_id] = txn.date
 
         # Filter: keep only transactions for positions opened >= start_date
@@ -401,8 +402,10 @@ class PortfolioDataExtractor:
         avg_hold_days = round(sum(hold_times) / len(hold_times)) if hold_times else 0
 
         # Transaction frequency
-        date_range = (transactions[0].date - transactions[-1].date).days
-        txns_per_month = len(transactions) / (date_range / 30) if date_range > 0 else 0
+        # Decision reader: corporate-action legs are not trades the user made.
+        trades = [t for t in transactions if not self._is_corporate_row(t)]
+        date_range = (trades[0].date - trades[-1].date).days if trades else 0
+        txns_per_month = len(trades) / (date_range / 30) if date_range > 0 else 0
 
         # Most traded companies
         most_traded = self._get_most_traded_companies(transactions, limit=5)
@@ -631,6 +634,21 @@ class PortfolioDataExtractor:
                             cumulative_positions[ticker]['cost_basis'] = 0
                             cumulative_positions[ticker]['quantity'] = 0
 
+                elif txn.type in LOT_ADDING_TYPES:
+                    # Corporate-action legs that add shares (BUY is handled above), at their booked value
+                    cumulative_positions[ticker]['quantity'] += float(txn.quantity or 0)
+                    cumulative_positions[ticker]['cost_basis'] += float(txn.corporate_value_base or 0)
+
+                elif txn.type == 'MERGER_OUT':
+                    # The merger converts every share; the proceeds arrive as the target's MERGER_IN
+                    cumulative_positions[ticker]['quantity'] = 0
+                    cumulative_positions[ticker]['cost_basis'] = 0
+
+                elif txn.type == 'SPINOFF_PARENT':
+                    # Part of the parent's cost moves to the child; never below zero
+                    moved = float(txn.corporate_value_base or 0)
+                    cumulative_positions[ticker]['cost_basis'] = max(0, cumulative_positions[ticker]['cost_basis'] - moved)
+
                 # Note: DIVIDEND transactions don't affect quantity or cost basis
 
                 txn_idx += 1
@@ -730,15 +748,22 @@ class PortfolioDataExtractor:
         hold_times = []
         company_first_buy = {}
 
+        entry_types = ('BUY', *RECEIVED_POSITION_TYPES)
+        exit_types = ('SELL', 'MERGER_OUT')
+
         for txn in sorted(transactions, key=lambda t: t.date):
-            if txn.type == 'BUY' and txn.company_id not in company_first_buy:
+            if txn.type in entry_types and txn.company_id not in company_first_buy:
                 company_first_buy[txn.company_id] = txn.date
-            elif txn.type == 'SELL' and txn.company_id in company_first_buy:
-                first_buy = company_first_buy[txn.company_id]
-                hold_days = (txn.date - first_buy).days
-                hold_times.append(hold_days)
+            elif txn.type in exit_types and txn.company_id in company_first_buy:
+                hold_times.append(days_between(company_first_buy[txn.company_id], txn.date))
 
         return hold_times
+
+    @staticmethod
+    def _is_corporate_row(txn: Transaction) -> bool:
+        """True for corporate-action legs, including SPLIT rows created by an action."""
+        return txn.type in CORPORATE_LEG_TYPES or (
+            txn.type == 'SPLIT' and txn.corporate_action_id is not None)
 
     def _get_most_traded_companies(
         self,
@@ -749,6 +774,8 @@ class PortfolioDataExtractor:
         company_txn_count = {}
 
         for txn in transactions:
+            if self._is_corporate_row(txn):
+                continue
             if txn.company:
                 ticker = txn.company.ticker_symbol
                 if ticker not in company_txn_count:
@@ -802,10 +829,13 @@ class PortfolioDataExtractor:
 
             if company_transactions:
                 # Calculate total buy cost (original investment)
+                # Money reader: every lot-adding row counts. A corporate leg
+                # costs the base value it moved, a BUY costs qty x price + fees.
                 total_buy_cost = sum(
                     float(t.quantity) * float(t.price_per_share) + float(t.fees)
+                    if t.type == 'BUY' else float(t.corporate_value_base or 0)
                     for t in company_transactions
-                    if t.type == 'BUY'
+                    if t.type in LOT_ADDING_TYPES
                 )
 
                 if total_buy_cost > 0:

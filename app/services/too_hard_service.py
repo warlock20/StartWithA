@@ -45,6 +45,17 @@ class TooHardItem:
     company_id: Optional[int] = None
 
 
+def overall_filter_rate(rejected_count: int, invest_count: int) -> int:
+    """Share of decided companies the user rejected, across every stage, as a whole percent.
+
+    rejected_count is the whole Too Hard Basket (kill-checklist kills as well as
+    research passes); invest_count is research projects decided 'invest'. The
+    dashboard and the Company Research page both show this one number.
+    """
+    total = rejected_count + invest_count
+    return round(rejected_count / total * 100) if total > 0 else 0
+
+
 class TooHardBasketService:
     """Service to fetch and analyze all rejected companies"""
 

@@ -31,6 +31,7 @@ from flask_login import login_required, logout_user, current_user
 from app import db, limiter
 from app.auth import auth_bp
 from app.constants import RATELIMIT_AUTH
+from app.models import CorporateAction
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import serialize_model_to_dict
 from app.utils.db_utils import safe_db_transaction
@@ -319,6 +320,7 @@ def delete_account():
 
             # Portfolio data
             Transaction.query.filter_by(user_id=user_id).delete()
+            CorporateAction.query.filter_by(user_id=user_id).delete()  # references the user's companies
             PortfolioPosition.query.filter_by(user_id=user_id).delete()
 
             # Sector data

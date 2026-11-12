@@ -24,9 +24,30 @@ from app import db
 from app.utils.time_utils import date, now_utc
 from app.models.company import Company
 
-# SPLIT comes only from the bulk importer. SPINOFF is handled in places but no
-# flow writes it, so it is not listed.
-TRANSACTION_TYPES = ('BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'DEPOSIT', 'WITHDRAWAL')
+# Every value a Transaction.type can hold. SPLIT comes only from the bulk importer.
+TRANSACTION_TYPES = ('BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'DEPOSIT', 'WITHDRAWAL',
+                     'MERGER_OUT', 'MERGER_IN', 'SPINOFF_PARENT', 'SPINOFF_CHILD',
+                     'STOCK_DIVIDEND')
+# The kinds of CorporateAction.
+CORPORATE_ACTION_TYPES = ('MERGER', 'SPINOFF', 'STOCK_DIVIDEND', 'SPLIT')
+# Transaction types that are legs of a CorporateAction and always have a
+# corporate_action_id. SPLIT is excluded: importer splits have no action.
+CORPORATE_LEG_TYPES = ('MERGER_OUT', 'MERGER_IN', 'SPINOFF_PARENT', 'SPINOFF_CHILD',
+                       'STOCK_DIVIDEND')
+# Display text for each leg type, used by templates and the transactions JSON.
+CORPORATE_LEG_LABELS = {
+    'MERGER_OUT': 'Merged away',
+    'MERGER_IN': 'Merger shares',
+    'SPINOFF_PARENT': 'Spin-off (cost moved)',
+    'SPINOFF_CHILD': 'Spin-off shares',
+    'STOCK_DIVIDEND': 'Stock dividend',
+}
+# Types that open a FIFO lot.
+LOT_ADDING_TYPES = ('BUY', 'MERGER_IN', 'SPINOFF_CHILD', 'STOCK_DIVIDEND')
+# Types that consume FIFO lots.
+LOT_REMOVING_TYPES = ('SELL', 'MERGER_OUT')
+# A round trip opened by one of these is not a buy decision.
+RECEIVED_POSITION_TYPES = ('MERGER_IN', 'SPINOFF_CHILD')
 # The options of the add-transaction form's "Why are you adding?" select.
 ADD_POSITION_REASONS = ('price_drop', 'extra_cash', 'increased_confidence',
                         'averaging_down', 'rebalancing', 'other')
@@ -57,9 +78,39 @@ class ExchangeRate(db.Model):
         return f'<ExchangeRate {self.from_currency}/{self.to_currency} @ {self.rate} on {self.date}>'
 
 
+class CorporateAction(db.Model):
+    """
+    A merger, spin-off, stock dividend or split. The Transaction rows it created
+    are its legs; deleting the action deletes them.
+    """
+    __tablename__ = 'corporate_action'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    action_type = db.Column(db.String(20), nullable=False)  # CORPORATE_ACTION_TYPES
+    effective_date = db.Column(db.Date, nullable=False, index=True)
+    source_company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    target_company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
+    ratio = db.Column(db.Numeric(12, 6), nullable=True)
+    cost_allocation_pct = db.Column(db.Numeric(6, 3), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc, nullable=False)
+
+    user = db.relationship('User', backref=db.backref('corporate_actions', lazy='dynamic',
+                                                      cascade='all, delete-orphan'))
+    source_company = db.relationship('Company', foreign_keys=[source_company_id])
+    target_company = db.relationship('Company', foreign_keys=[target_company_id])
+    legs = db.relationship('Transaction', backref='corporate_action', cascade='all, delete-orphan',
+                           passive_deletes=True, order_by='Transaction.id')
+
+    def __repr__(self):
+        return f'<CorporateAction {self.action_type} {self.source_company_id} on {self.effective_date}>'
+
+
 class Transaction(db.Model):
     """
-    Records all portfolio transactions: buys, sells, dividends, splits, spinoffs.
+    Records all portfolio transactions: buys, sells, dividends, splits and corporate-action legs (see CorporateAction).
     This is the source of truth for portfolio position calculations using FIFO method.
     """
     __tablename__ = 'transaction'
@@ -93,6 +144,11 @@ class Transaction(db.Model):
     exchange_rate = db.Column(db.Numeric(10, 6), nullable=True)  # Rate used for conversion
     exchange_rate_date = db.Column(db.Date, nullable=True)  # Date of exchange rate used
 
+    # Corporate-action leg: the action it belongs to and the exact base value it moves
+    corporate_action_id = db.Column(db.Integer, db.ForeignKey('corporate_action.id', ondelete='CASCADE'),
+                                    nullable=True, index=True)
+    corporate_value_base = db.Column(db.Numeric(14, 2), nullable=True)  # exact base value a corporate leg moves (spec section 1)
+
     # Additional context
     notes = db.Column(db.Text, nullable=True)
 
@@ -125,6 +181,10 @@ class Transaction(db.Model):
         come out of sell and dividend proceeds (as in calculate_fifo_cost_basis)."""
         if self.type in ('DEPOSIT', 'WITHDRAWAL'):
             return float(self.cash_amount or 0)
+        if self.type in CORPORATE_LEG_TYPES:
+            return float(Decimal(str(self.corporate_value_base or 0))
+                         + Decimal(str(self.cash_amount_base or 0))
+                         - Decimal(str(self.fees_base or 0)))
         gross = float(self.quantity * self.price_per_share)
         fees = float(self.fees or 0)
         if self.type in ('SELL', 'DIVIDEND'):
@@ -321,6 +381,11 @@ class RoundTrip:
             return None
         return float((self.sell_proceeds - self.sold_cost) / self.sold_cost * 100)
 
+    @property
+    def opened_by_corporate_action(self) -> bool:
+        """True when a merger or spin-off handed over the first shares, not a purchase."""
+        return self.opening_transaction.type in RECEIVED_POSITION_TYPES
+
 
 @dataclass
 class _FifoResult:
@@ -333,6 +398,7 @@ class _FifoResult:
     sold_cost: Decimal
     sell_proceeds: Decimal
     round_trips: List[RoundTrip]
+    first_oversold: Optional[Transaction] = None  # first removal that found fewer shares than it asked for
 
 
 def _load_transactions(company_id, user_id):
@@ -361,87 +427,128 @@ def _walk_fifo(transactions):
 
     round_trips = []
     trip = None
+    first_oversold = None
+
+    def add_lot(txn, quantity, unit_price, lot_fees, cost, opens_trip=True):
+        """Put a lot at the back of the queue; a lot added at 0 shares opens a round trip."""
+        nonlocal total_shares, total_cost, first_purchase_date, trip
+        if opens_trip and total_shares == 0:
+            trip = RoundTrip(
+                opening_transaction=txn,
+                closing_transaction=None,
+                entry_date=txn.date,
+                entry_price=unit_price,
+                buy_cost=Decimal('0.00'),
+                sold_cost=Decimal('0.00'),
+                sell_proceeds=Decimal('0.00'),
+            )
+            round_trips.append(trip)
+
+        shares_queue.append({
+            'date': txn.date,
+            'quantity': quantity,
+            'price_per_share': unit_price,
+            'fees': lot_fees
+        })
+
+        total_shares += quantity
+        total_cost += cost
+        if trip is not None:
+            trip.buy_cost += cost
+
+        if first_purchase_date is None:
+            first_purchase_date = txn.date
+
+    def remove_shares(txn, sell_proceeds, exit_price):
+        """Take txn.quantity shares off the front of the queue (FIFO) for sell_proceeds."""
+        nonlocal total_shares, total_cost, realized_gain_loss, lifetime_sold_cost, lifetime_proceeds, trip
+        nonlocal first_oversold
+        shares_to_sell = txn.quantity
+        sell_cost_basis = Decimal('0.00')
+
+        while shares_to_sell > 0 and shares_queue:
+            batch = shares_queue[0]
+            batch_qty = batch['quantity']
+            batch_price = batch['price_per_share']
+            batch_fees_per_share = batch['fees'] / batch['quantity'] if batch['quantity'] > 0 else Decimal('0.00')
+
+            if batch_qty <= shares_to_sell:
+                # Sell entire batch
+                shares_queue.pop(0)
+                shares_to_sell -= batch_qty
+                total_shares -= batch_qty
+
+                batch_cost = (batch_qty * batch_price) + batch['fees']
+                total_cost -= batch_cost
+                sell_cost_basis += batch_cost
+            else:
+                # Partial batch sale
+                shares_queue[0]['quantity'] = batch_qty - shares_to_sell
+                shares_queue[0]['fees'] = batch_fees_per_share * (batch_qty - shares_to_sell)
+
+                partial_cost = (shares_to_sell * batch_price) + (batch_fees_per_share * shares_to_sell)
+                total_shares -= shares_to_sell
+                total_cost -= partial_cost
+                sell_cost_basis += partial_cost
+                shares_to_sell = 0
+
+        if shares_to_sell > 0 and first_oversold is None:
+            first_oversold = txn
+
+        realized_gain_loss += (sell_proceeds - sell_cost_basis)
+        lifetime_sold_cost += sell_cost_basis
+
+        # Shares actually matched against open lots (less than txn.quantity on an oversell or orphan SELL)
+        matched = txn.quantity - shares_to_sell
+        if txn.quantity > 0:
+            lifetime_proceeds += sell_proceeds * Decimal(matched) / Decimal(txn.quantity)
+        if trip is not None and matched > 0:
+            trip.sold_cost += sell_cost_basis
+            trip.sell_proceeds += sell_proceeds * Decimal(matched) / Decimal(txn.quantity)
+            if total_shares == 0:
+                trip.closing_transaction = txn
+                trip.exit_date = txn.date
+                trip.exit_price = exit_price
+                trip = None
 
     for txn in transactions:
         price = _get_base_price(txn)
         fees = _get_base_fees(txn)
+        if txn.type in CORPORATE_LEG_TYPES:
+            value = Decimal(str(txn.corporate_value_base or 0))
+            cash = Decimal(str(txn.cash_amount_base or 0))
+            unit_value = value / Decimal(str(txn.quantity)) if txn.quantity else Decimal('0.00')
 
         if txn.type == 'BUY':
-            if total_shares == 0:
-                trip = RoundTrip(
-                    opening_transaction=txn,
-                    closing_transaction=None,
-                    entry_date=txn.date,
-                    entry_price=price,
-                    buy_cost=Decimal('0.00'),
-                    sold_cost=Decimal('0.00'),
-                    sell_proceeds=Decimal('0.00'),
-                )
-                round_trips.append(trip)
-
-            shares_queue.append({
-                'date': txn.date,
-                'quantity': txn.quantity,
-                'price_per_share': price,
-                'fees': fees
-            })
-
-            buy_cost = (Decimal(str(txn.quantity)) * price) + fees
-            total_shares += txn.quantity
-            total_cost += buy_cost
-            if trip is not None:
-                trip.buy_cost += buy_cost
-
-            if first_purchase_date is None:
-                first_purchase_date = txn.date
+            add_lot(txn, txn.quantity, price, fees, (Decimal(str(txn.quantity)) * price) + fees)
 
         elif txn.type == 'SELL':
-            shares_to_sell = txn.quantity
-            sell_proceeds = (Decimal(str(txn.quantity)) * price) - fees
-            sell_cost_basis = Decimal('0.00')
+            remove_shares(txn, (Decimal(str(txn.quantity)) * price) - fees, price)
 
-            # Remove shares from front of queue (FIFO)
-            while shares_to_sell > 0 and shares_queue:
-                batch = shares_queue[0]
-                batch_qty = batch['quantity']
-                batch_price = batch['price_per_share']
-                batch_fees_per_share = batch['fees'] / batch['quantity'] if batch['quantity'] > 0 else Decimal('0.00')
+        elif txn.type == 'MERGER_OUT':
+            proceeds = value + cash - fees
+            remove_shares(txn, proceeds, proceeds / Decimal(str(txn.quantity)) if txn.quantity else price)
 
-                if batch_qty <= shares_to_sell:
-                    # Sell entire batch
-                    shares_queue.pop(0)
-                    shares_to_sell -= batch_qty
-                    total_shares -= batch_qty
+        elif txn.type in RECEIVED_POSITION_TYPES:
+            add_lot(txn, txn.quantity, unit_value, Decimal('0.00'), value)
+            if txn.type == 'SPINOFF_CHILD':
+                realized_gain_loss += cash - fees
 
-                    batch_cost = (batch_qty * batch_price) + batch['fees']
-                    total_cost -= batch_cost
-                    sell_cost_basis += batch_cost
-                else:
-                    # Partial batch sale
-                    shares_queue[0]['quantity'] = batch_qty - shares_to_sell
-                    shares_queue[0]['fees'] = batch_fees_per_share * (batch_qty - shares_to_sell)
+        elif txn.type == 'SPINOFF_PARENT':
+            # Part of the parent's cost moves to the child; shares and gains are untouched.
+            # Clamped at zero: a history changed under the spin-off can leave less cost than it moved.
+            if total_cost > 0:
+                factor = max(Decimal('0'), Decimal('1') - value / total_cost)
+                for batch in shares_queue:
+                    batch['price_per_share'] = batch['price_per_share'] * factor
+                    batch['fees'] = batch['fees'] * factor
+                total_cost = max(Decimal('0.00'), total_cost - value)
 
-                    partial_cost = (shares_to_sell * batch_price) + (batch_fees_per_share * shares_to_sell)
-                    total_shares -= shares_to_sell
-                    total_cost -= partial_cost
-                    sell_cost_basis += partial_cost
-                    shares_to_sell = 0
-
-            realized_gain_loss += (sell_proceeds - sell_cost_basis)
-            lifetime_sold_cost += sell_cost_basis
-
-            # Shares actually matched against open lots (less than txn.quantity on an oversell or orphan SELL)
-            matched = txn.quantity - shares_to_sell
-            if txn.quantity > 0:
-                lifetime_proceeds += sell_proceeds * Decimal(matched) / Decimal(txn.quantity)
-            if trip is not None and matched > 0:
-                trip.sold_cost += sell_cost_basis
-                trip.sell_proceeds += sell_proceeds * Decimal(matched) / Decimal(txn.quantity)
-                if total_shares == 0:
-                    trip.closing_transaction = txn
-                    trip.exit_date = txn.date
-                    trip.exit_price = price
-                    trip = None
+        elif txn.type == 'STOCK_DIVIDEND':
+            add_lot(txn, txn.quantity, unit_value, Decimal('0.00'), value, opens_trip=False)
+            income = value + cash - fees
+            realized_gain_loss += income
+            total_dividends += income
 
         elif txn.type == 'DIVIDEND':
             # Dividends don't affect share count or cost basis
@@ -452,7 +559,13 @@ def _walk_fifo(transactions):
 
         elif txn.type == 'SPLIT':
             # Stock split: adjust all batches in queue
-            split_ratio = Decimal(str(txn.price_per_share))  # e.g., 2.0 for 2-for-1 split
+            # Service-made splits keep the exact ratio on their action (price_per_share is
+            # Numeric(10, 2)); importer rows have no action and carry it in price_per_share.
+            action = txn.corporate_action if txn.corporate_action_id else None
+            if action is not None and action.ratio is not None:
+                split_ratio = Decimal(str(action.ratio))
+            else:
+                split_ratio = Decimal(str(txn.price_per_share))  # e.g., 2.0 for 2-for-1 split
 
             for batch in shares_queue:
                 new_quantity = int(batch['quantity'] * split_ratio)
@@ -474,6 +587,7 @@ def _walk_fifo(transactions):
         sold_cost=lifetime_sold_cost,
         sell_proceeds=lifetime_proceeds,
         round_trips=round_trips,
+        first_oversold=first_oversold,
     )
 
 
@@ -502,6 +616,32 @@ def calculate_fifo_cost_basis(company_id, user_id):
 def get_round_trips(company_id: int, user_id: int) -> List[RoundTrip]:
     """The user's trades in a company (0 -> 0 shares), oldest first. The last may be open."""
     return _walk_fifo(_load_transactions(company_id, user_id)).round_trips
+
+
+def fifo_state_on(company_id: int, user_id: int, on_date: date) -> _FifoResult:
+    """FIFO result over the company's transactions dated on or before on_date."""
+    transactions = [t for t in _load_transactions(company_id, user_id) if t.date <= on_date]
+    return _walk_fifo(transactions)
+
+
+def fifo_state_before(txn: Transaction) -> _FifoResult:
+    """FIFO result over the company's transactions that come before txn, in (date, id) order."""
+    earlier = []
+    for other in _load_transactions(txn.company_id, txn.user_id):
+        if other.id == txn.id:
+            break
+        earlier.append(other)
+    return _walk_fifo(earlier)
+
+
+def shares_held_on(company_id: int, user_id: int, on_date: date) -> int:
+    """FIFO share count over the company's transactions dated on or before on_date."""
+    return fifo_state_on(company_id, user_id, on_date).total_shares
+
+
+def first_oversell(company_id: int, user_id: int) -> Optional[Transaction]:
+    """The first transaction that asked for more shares than the FIFO walk had, or None."""
+    return _walk_fifo(_load_transactions(company_id, user_id)).first_oversold
 
 
 def update_portfolio_position(transaction):

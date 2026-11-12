@@ -21,6 +21,7 @@ from app.models import Company, ResearchProject, ResearchSettings, IdeaPipeline,
 from app.services.research_priority import ResearchPriorityService
 from app.services.feature_unlock_service import FeatureUnlockService
 from app.services.company_state import company_states
+from app.services.too_hard_service import overall_filter_rate
 from . import dashboard_bp
 from datetime import timedelta
 from app.utils.time_utils import now_utc
@@ -50,46 +51,21 @@ def index():
         user_id=current_user.id, is_active=True
     ).count()
 
-    # --- Too Hard Basket Rate / Too Hard Total Count ---
-    # These two numbers answer different questions and, on purpose, read
-    # different data.
-    #
-    # too_hard_rate asks a PROJECT-level, historical question: "of the
-    # companies I took all the way through research to a decision, what
-    # fraction did I pass on" -- ResearchProject.decision as it was recorded
-    # at decision time, not where the company sits today. It deliberately
-    # does NOT go through the ladder, for the same reason all five
-    # sector_service.py references stayed unconverted in Task 6: this is a
-    # question about a project's own recorded fact, not about company state.
-    # Concretely, the ladder's `held` rung sits above `invest_decided` and
-    # masks it permanently the moment a company is actually bought -- so a
-    # ladder-sourced denominator empties out as investments succeed, and the
-    # rate would climb toward 100% precisely *because* things went well
-    # (measured on real data: 5 invest decisions, all 5 now `held`, so
-    # ladder invest_decided == 0, which drove a wrongly-ladder-scoped
-    # version of this rate to 100%). Do not reroute this through
-    # company_states -- if a future version of the rate needs to reflect
-    # today's state rather than decision history, that is a deliberate,
-    # separate design decision, not a "fix" of this comment.
+    # --- Too Hard Basket count and "filtered overall" rate ---
+    # too_hard_total_count is ladder-wide on purpose: it is the total size of
+    # the Too Hard Basket, and an idea- or sweep-stage kill belongs in it just
+    # as much as a research-stage one.
+    states = company_states(current_user.id)
+    too_hard_total_count = sum(1 for s in states.values() if s.is_dead)
+
+    # The rate is the same number the Company Research page shows: every
+    # rejection, at any stage, against every invest decision. The invest side
+    # reads ResearchProject.decision, not the ladder, because the ladder's
+    # `held` rung masks `invest_decided` once a company is bought.
     company_invest_count = current_user.research_projects.filter_by(
         decision='invest'
     ).count()
-    company_pass_count = current_user.research_projects.filter_by(
-        decision='pass'
-    ).count()
-    total_decided = company_invest_count + company_pass_count
-    too_hard_rate = (company_pass_count / total_decided * 100) if total_decided > 0 else 0
-
-    # too_hard_total_count, unlike the rate above, IS ladder-wide on purpose:
-    # it is the total size of the Too Hard Basket, and an idea- or
-    # sweep-stage kill belongs in it just as much as a research-stage one.
-    # Counting is_dead states here (instead of only
-    # ResearchProject.decision == 'pass', which missed idea/sweep kills and
-    # research kills recorded as status='killed' or too_hard_reason without
-    # decision='pass') is the correct, intended broadening -- do not narrow
-    # this to match too_hard_rate above; they are different questions.
-    states = company_states(current_user.id)
-    too_hard_total_count = sum(1 for s in states.values() if s.is_dead)
+    too_hard_rate = overall_filter_rate(too_hard_total_count, company_invest_count)
 
     # --- Upcoming Checkpoints ---
     today = now_utc().date()
@@ -124,7 +100,7 @@ def index():
         active_projects_count=len(active_projects),
         position_count=position_count,
         too_hard_total_count=too_hard_total_count,
-        too_hard_rate=round(too_hard_rate, 1),
+        too_hard_rate=too_hard_rate,
         # Research focus
         focus_recommendation=focus_recommendation,
         pinned_project_id=pinned_project_id,

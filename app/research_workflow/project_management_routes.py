@@ -31,7 +31,7 @@ from app.models import ResearchProject, ResearchSettings, Company, ResearchLog, 
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
 from app.utils.auth_utils import owned_or_404
-from app.services.too_hard_service import TooHardBasketService
+from app.services.too_hard_service import TooHardBasketService, overall_filter_rate
 from app.services.research_priority import ResearchPriorityService
 
 
@@ -237,9 +237,8 @@ def my_projects():
     total_time = sum(p.total_hours_spent or 0 for p in all_projects)
 
     invest_count = sum(1 for p in all_projects if p.decision == 'invest')
-    pass_count = len(too_hard_data)  # Includes both passed research projects and killed pipeline ideas
-    total_decided = invest_count + pass_count
-    selectivity_rate = round((pass_count / total_decided) * 100, 1) if total_decided > 0 else 0
+    # Every rejection at any stage (kill checklist and research passes) against invest decisions
+    filter_rate = overall_filter_rate(len(too_hard_data), invest_count)
 
     # --- Pipeline (sidebar) ---
     idea_count = IdeaPipeline.query.filter_by(user_id=current_user.id, status='inbox').count()
@@ -262,7 +261,7 @@ def my_projects():
                               'paused_count': paused_count,
                               'watchlist_count': len(watchlist_data),
                               'too_hard_count': len(too_hard_data),
-                              'selectivity_rate': selectivity_rate,
+                              'filter_rate': filter_rate,
                               'total_time': round(total_time, 1),
                               'project_limit': settings.active_project_limit,
                           },

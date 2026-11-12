@@ -36,8 +36,15 @@ export function transactionColumns(currencySymbol) {
         else if (type === 'SELL') typeClass = 'sell';
         else if (type === 'DIVIDEND') typeClass = 'dividend';
         else if (type === 'SPLIT') typeClass = 'split';
+        var data = cell.getRow ? cell.getRow().getData() : {};
+        var text = type;
+        // Corporate action legs (and splits made by an action) share one badge
+        if (data.corporate_action_id != null) {
+          typeClass = 'corporate';
+          text = data.label || type;
+        }
         return (
-          '<span class="position-txn-type ' + typeClass + '">' + type + '</span>'
+          '<span class="position-txn-type ' + typeClass + '">' + text + '</span>'
         );
       },
       minWidth: 115,
@@ -121,9 +128,12 @@ export function transactionColumns(currencySymbol) {
       hozAlign: 'center',
       formatter: function (cell) {
         var id = cell.getValue();
+        // Legs are edited through their corporate action
+        var row = cell.getRow ? cell.getRow().getData() : {};
+        var url = row.edit_url || '/portfolio/transaction/' + id + '/edit';
         return (
-          '<a href="/portfolio/transaction/' + id +
-          '/edit" class="position-link-btn" title="Edit" aria-label="Edit">' +
+          '<a href="' + url +
+          '" class="position-link-btn" title="Edit" aria-label="Edit">' +
           '<i class="bi bi-pencil"></i><span class="dt-action-label"> Edit</span></a>'
         );
       },
@@ -142,7 +152,8 @@ export function transactionColumns(currencySymbol) {
  * Tabulator instance inside the mount point and cleans it up on unmount.
  *
  * Props:
- *   transactions: Array of { id, date, type, shares, price, total, currency_symbol, notes }
+ *   transactions: Array of { id, date, type, shares, price, total, currency_symbol, notes,
+ *     corporate_action_id, label, edit_url }
  *   currencySymbol: string (default: '$')
  */
 export function TransactionsTable({ transactions, currencySymbol = '$' }) {
