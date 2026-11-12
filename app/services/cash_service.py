@@ -24,7 +24,7 @@ import logging
 from decimal import Decimal
 
 from app import db
-from app.models.portfolio import Transaction
+from app.models.portfolio import CORPORATE_LEG_TYPES, Transaction
 from app.models.user import User
 from app.utils.time_utils import now_utc
 
@@ -63,7 +63,12 @@ class CashService:
             fees = Decimal(str(txn.fees_base or txn.fees or 0))
             return Decimal(str(txn.quantity)) * price - fees
 
-        # SPLIT, SPINOFF — no cash impact
+        elif txn.type in CORPORATE_LEG_TYPES:
+            cash = Decimal(str(txn.cash_amount_base or txn.cash_amount or 0))
+            fees = Decimal(str(txn.fees_base or txn.fees or 0))
+            return cash - fees
+
+        # SPLIT — no cash impact
         return Decimal('0.00')
 
     @staticmethod
@@ -154,7 +159,7 @@ class CashService:
         transactions = Transaction.query.filter_by(
             user_id=user_id
         ).filter(
-            Transaction.type.in_(['BUY', 'SELL', 'DIVIDEND'])
+            Transaction.type.in_(['BUY', 'SELL', 'DIVIDEND', *CORPORATE_LEG_TYPES])
         ).order_by(Transaction.date.asc(), Transaction.id.asc()).all()
 
         balance = Decimal('0.00')

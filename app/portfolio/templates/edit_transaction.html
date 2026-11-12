@@ -38,15 +38,16 @@
                                 {% elif transaction.type == 'DIVIDEND' %}bg-success
                                 {% elif transaction.type == 'DEPOSIT' %}bg-info
                                 {% elif transaction.type == 'WITHDRAWAL' %}bg-warning text-dark
-                                {% elif transaction.type in ('SPLIT', 'SPINOFF') %}bg-secondary
+                                {% elif transaction.type == 'SPLIT' or transaction.corporate_action_id %}bg-secondary
                                 {% endif %}">
                                 {% if transaction.type == 'BUY' %}<i class="bi bi-arrow-down-circle me-1"></i>
                                 {% elif transaction.type == 'SELL' %}<i class="bi bi-arrow-up-circle me-1"></i>
                                 {% elif transaction.type == 'DIVIDEND' %}<i class="bi bi-cash-coin me-1"></i>
                                 {% elif transaction.type == 'DEPOSIT' %}<i class="bi bi-box-arrow-in-down me-1"></i>
                                 {% elif transaction.type == 'WITHDRAWAL' %}<i class="bi bi-box-arrow-up me-1"></i>
+                                {% elif transaction.corporate_action_id %}<i class="bi bi-diagram-3 me-1"></i>
                                 {% endif %}
-                                {{ transaction.type }}
+                                {{ corporate_leg_labels.get(transaction.type, transaction.type) }}
                             </span>
                             {% if not is_cash_transaction and transaction.company %}
                                 <span class="ms-3 text-muted">

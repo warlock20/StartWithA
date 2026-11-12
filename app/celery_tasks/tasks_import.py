@@ -54,6 +54,7 @@ def portfolio_import_task(self, task, user_id, file_path):
         return {
             "count": result['count'],
             "skipped": result.get('skipped', 0),
+            "rejected": result.get('rejected', []),
             "companies": result['companies'],
             "date_range": result['date_range'],
             "message": result.get('message', f"Imported {result['count']} transactions for {result['companies']} companies")

@@ -1,0 +1,226 @@
+{% extends "main/_base_portfolio.html" %}
+
+{% block title %}{{ 'Edit' if action else 'New' }} Corporate Action{% endblock %}
+
+{% macro field(name, label, step='0.01', hint='') %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label fw-semibold">{{ label }}</label>
+    <input type="number" class="form-control" id="{{ name }}" name="{{ name }}" step="{{ step }}" min="0"
+           value="{{ form.get(name, '') }}">
+    {% if hint %}<div class="form-text">{{ hint }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">{{ 'Edit' if action else 'New' }} Corporate Action</h1>
+                <p class="dashboard-subtitle">Record a merger, spin-off, stock dividend or split</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.transactions') }}" class="action-btn">
+                    <i class="bi bi-arrow-left-right"></i> Transactions
+                </a>
+            </div>
+        </header>
+        {% if error %}
+        <div class="dashboard-alerts-strip">
+            <div class="dashboard-alert-card dashboard-alert-card--warning" role="alert">{{ error }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="action-card">
+        <div class="action-card-body">
+            <form method="POST" id="corporateActionForm" data-source-shares="{{ source_shares }}"
+                  data-price-url="{{ url_for('portfolio.corporate_action_price') }}">
+
+                <div class="mb-3">
+                    <label for="source_company_id" class="form-label fw-semibold">Company you held <span class="text-danger">*</span></label>
+                    {% if action %}
+                    <input type="hidden" name="source_company_id" id="source_company_id" value="{{ form.source_company_id }}" data-currency="{{ currencies[source.id] if source }}"
+                           data-ticker="{{ source.ticker_symbol if source }}">
+                    <div class="form-control-plaintext">{{ source.ticker_symbol }} - {{ source.name }}</div>
+                    {% else %}
+                    <select class="form-select" id="source_company_id" name="source_company_id" required>
+                        <option value="">Select a company...</option>
+                        {% for c in held_companies %}
+                        <option value="{{ c.id }}" data-ticker="{{ c.ticker_symbol }}" data-currency="{{ currencies[c.id] }}"
+                                {% if form.source_company_id|string == c.id|string %}selected{% endif %}>
+                            {{ c.ticker_symbol }} - {{ c.name }}</option>
+                        {% endfor %}
+                        {% if source and source not in held_companies %}
+                        <option value="{{ source.id }}" data-ticker="{{ source.ticker_symbol }}" data-currency="{{ currencies[source.id] }}" selected>
+                            {{ source.ticker_symbol }} - {{ source.name }}</option>
+                        {% endif %}
+                    </select>
+                    {% endif %}
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="action_type" class="form-label fw-semibold">Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="action_type" name="action_type">
+                            <option value="MERGER" {% if form.action_type == 'MERGER' %}selected{% endif %}>Merger / takeover</option>
+                            <option value="SPINOFF" {% if form.action_type == 'SPINOFF' %}selected{% endif %}>Spin-off</option>
+                            <option value="STOCK_DIVIDEND" {% if form.action_type == 'STOCK_DIVIDEND' %}selected{% endif %}>Stock dividend</option>
+                            <option value="SPLIT" {% if form.action_type == 'SPLIT' %}selected{% endif %}>Split</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="effective_date" class="form-label fw-semibold">Effective date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="effective_date" name="effective_date"
+                               value="{{ form.effective_date }}" required>
+                    </div>
+                </div>
+
+                {# Merger and spin-off: the new company #}
+                <div data-types="MERGER SPINOFF">
+                    <div class="form-check mb-3" data-types="MERGER">
+                        <input class="form-check-input" type="checkbox" id="cash_only"
+                               {% if form.action_type == 'MERGER' and not form.target_company_id and not form.target_ticker and form.cash_received %}checked{% endif %}>
+                        <label class="form-check-label" for="cash_only">Cash only (no shares in a new company)</label>
+                    </div>
+                    <div id="target_fields">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="target_company_id" class="form-label fw-semibold">New company (from your companies)</label>
+                                <select class="form-select" id="target_company_id" name="target_company_id">
+                                    <option value="">None / type a ticker</option>
+                                    {% for c in companies %}
+                                    <option value="{{ c.id }}" data-ticker="{{ c.ticker_symbol }}" data-currency="{{ currencies[c.id] }}"
+                                            {% if form.target_company_id|string == c.id|string %}selected{% endif %}>
+                                        {{ c.ticker_symbol }} - {{ c.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="target_ticker" class="form-label fw-semibold">...or a ticker not yet in your companies</label>
+                                <input type="text" class="form-control" id="target_ticker" name="target_ticker"
+                                       value="{{ form.target_ticker }}" placeholder="e.g. RIG">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3" data-types="MERGER">
+                                <label for="ratio" class="form-label fw-semibold">Ratio (new shares per old share, optional)</label>
+                                <input type="number" class="form-control" id="ratio" name="ratio" step="any" min="0" value="{{ form.ratio }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ field('shares_received', 'Shares received', '1') }}
+                            </div>
+                            <div class="col-md-4 mb-3" data-types="MERGER">
+                                {{ field('price_per_share', "New company's closing price on the date", '0.0001', 'In the new company\'s currency; filled in automatically when available.') }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div data-types="MERGER SPINOFF STOCK_DIVIDEND" id="cash_fields">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="cash_received" class="form-label fw-semibold">
+                                <span data-types="MERGER">Cash received</span><span data-types="SPINOFF">Cash in lieu</span><span data-types="STOCK_DIVIDEND">Cash for fractional rights</span>
+                                (<span class="cash-currency">currency</span>)</label>
+                            <input type="number" class="form-control" id="cash_received" name="cash_received" step="0.01" min="0" value="{{ form.cash_received }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="fees" class="form-label fw-semibold">
+                                <span data-types="MERGER SPINOFF">Fees</span><span data-types="STOCK_DIVIDEND">Fees and tax</span>
+                                (<span class="cash-currency">currency</span>)</label>
+                            <input type="number" class="form-control" id="fees" name="fees" step="0.01" min="0" value="{{ form.fees }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div data-types="SPINOFF" class="mb-3">
+                    <label for="cost_allocation_pct" class="form-label fw-semibold">Share of cost moved to the new company (%)</label>
+                    <input type="number" class="form-control" id="cost_allocation_pct" name="cost_allocation_pct" step="any" min="0" max="100" value="{{ form.cost_allocation_pct }}">
+                    <div class="form-text">Pre-filled from both closing prices; edit it to match the company's announced allocation.</div>
+                </div>
+
+                <div data-types="STOCK_DIVIDEND">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="sd_shares_received" class="form-label fw-semibold">Shares received</label>
+                            <input type="number" class="form-control" id="sd_shares_received" name="sd_shares_received" step="1" min="0" value="{{ form.sd_shares_received }}">
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label fw-semibold d-block">Cost</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="zero_cost" id="zero_cost_no" value="" {% if form.zero_cost != '1' %}checked{% endif %}>
+                                <label class="form-check-label" for="zero_cost_no">Booked at value</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="zero_cost" id="zero_cost_yes" value="1" {% if form.zero_cost == '1' %}checked{% endif %}>
+                                <label class="form-check-label" for="zero_cost_yes">Zero cost</label>
+                            </div>
+                            <input type="number" class="form-control mt-2" id="sd_price_per_share" name="sd_price_per_share" step="0.0001" min="0" placeholder="Booked value per share" value="{{ form.sd_price_per_share }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div data-types="SPLIT" class="mb-3">
+                    <label for="split_ratio" class="form-label fw-semibold">Split ratio (new shares per old share)</label>
+                    <input type="number" class="form-control" id="split_ratio" name="split_ratio" step="any" min="0" value="{{ form.split_ratio }}">
+                    <div class="form-text">2 for a 2-for-1 split, 0.1 for a 1-for-10 reverse split.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="notes" class="form-label fw-semibold">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="2">{{ form.notes }}</textarea>
+                </div>
+
+                {% if preview %}
+                <div class="mb-3" id="preview-table">
+                    <h6 class="fw-semibold">Preview (nothing is saved yet)</h6>
+                    <table class="table table-sm">
+                        <thead><tr><th>Company</th><th>Shares</th><th>Cost basis ({{ base_currency }})</th></tr></thead>
+                        <tbody>
+                            {% for ch in preview.changes %}
+                            <tr>
+                                <td>{{ ch.ticker }}</td>
+                                <td>{{ ch.shares_before }} &rarr; {{ ch.shares_after }}</td>
+                                <td>{{ base_symbol }}{{ '{:,.2f}'.format(ch.cost_before) }} &rarr; {{ base_symbol }}{{ '{:,.2f}'.format(ch.cost_after) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <ul class="list-unstyled mb-0">
+                        <li>Realized gain: <strong>{{ base_symbol }}{{ '{:,.2f}'.format(preview.realized_gain_base) }}</strong></li>
+                        <li>Dividend income: <strong>{{ base_symbol }}{{ '{:,.2f}'.format(preview.dividend_income_base) }}</strong></li>
+                        <li>Cash change: <strong>{{ base_symbol }}{{ '{:,.2f}'.format(preview.cash_change_base) }}</strong></li>
+                    </ul>
+                </div>
+                {% endif %}
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="submit" name="intent" value="preview" class="action-btn">
+                        <i class="bi bi-eye"></i> Preview
+                    </button>
+                    <button type="submit" name="intent" value="save" class="action-btn primary">
+                        <i class="bi bi-check-circle"></i> Save
+                    </button>
+                    <a href="{{ url_for('companies.company_detail', company_id=source.id, _anchor='transactions') if source else url_for('portfolio.transactions') }}"
+                       class="action-btn">Cancel</a>
+                </div>
+            </form>
+
+            {% if action %}
+            <form method="POST" action="{{ url_for('portfolio.delete_corporate_action', action_id=action.id) }}"
+                  class="mt-3" onsubmit="return confirm('Delete this corporate action and the transactions it created?');">
+                <button type="submit" class="action-btn">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/corporate-action-form.js') }}"></script>
+{% endblock %}

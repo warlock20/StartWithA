@@ -25,13 +25,15 @@ from sqlalchemy.orm import joinedload
 
 from app.portfolio import portfolio_bp
 from app.models import (
-                        Company,Transaction, PortfolioPosition,
+                        Company, CorporateAction, Transaction, PortfolioPosition,
                         ResearchProject, ResearchOutcome, update_portfolio_position)
 from app import db
+from app.models.portfolio import CORPORATE_LEG_LABELS
 from app.services.background_tasks import BackgroundTaskService
 from app.services.currency_service import CurrencyService
-from app.services.transaction_service import TransactionService
+from app.services.transaction_service import TransactionService, corporate_action_guard_error
 from app.services.cash_service import CashService
+from app.services.corporate_action_display import row_fields as corporate_row_fields
 from app.services.outcome_tracking import safe_sync_outcomes
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 
@@ -53,7 +55,7 @@ def transactions():
     currency_symbol = CurrencyService.get_currency_symbol(current_user.base_currency)
 
     # Serialize for Tabulator
-    transactions_json = json.dumps([{
+    rows = [{
         'id': txn.id,
         'date': txn.date.strftime('%Y-%m-%d'),
         'type': txn.type,
@@ -69,7 +71,10 @@ def transactions():
         'bought_without_research': bool(txn.bought_without_research),
         'edit_url': url_for('portfolio.edit_transaction', transaction_id=txn.id),
         'delete_url': url_for('portfolio.delete_transaction', transaction_id=txn.id),
-    } for txn in all_transactions])
+    } for txn in all_transactions]
+    for row, txn in zip(rows, all_transactions):
+        row.update(corporate_row_fields(txn, current_user.base_currency))
+    transactions_json = json.dumps(rows)
 
     return render_template('transactions.html',
                           transactions=all_transactions,
@@ -178,6 +183,9 @@ def reset_portfolio():
         num_transactions = db.session.query(Transaction).filter_by(
             user_id=current_user.id
         ).delete()
+
+        # Corporate actions go with their legs (already deleted above)
+        db.session.query(CorporateAction).filter_by(user_id=current_user.id).delete()
 
         # 3. Delete the user's research outcomes (derived from transactions)
         db.session.query(ResearchOutcome).filter_by(user_id=current_user.id).delete()
@@ -340,6 +348,12 @@ def add_transaction():
                           **_add_transaction_context())
 
 
+def _redirect_to_action(transaction):
+    """A corporate-action leg is changed or removed through its action, never alone."""
+    flash('This is part of a corporate action; edit or delete the action as a whole.', 'info')
+    return redirect(url_for('portfolio.edit_corporate_action', action_id=transaction.corporate_action_id))
+
+
 @portfolio_bp.route('/transaction/<int:transaction_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_transaction(transaction_id):
@@ -348,6 +362,9 @@ def edit_transaction(transaction_id):
         id=transaction_id,
         user_id=current_user.id
     ).first_or_404()
+
+    if transaction.corporate_action_id is not None:
+        return _redirect_to_action(transaction)
 
     is_cash_transaction = transaction.type in ('DEPOSIT', 'WITHDRAWAL')
 
@@ -419,6 +436,18 @@ def edit_transaction(transaction_id):
                     flash('Invalid price or fees amount', 'error')
                     return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 
+                # A merger or spin-off fixed the shares and cost it used; only a notes edit
+                # may touch a transaction it depends on (checked at the old and the new date).
+                changed = (transaction.date, transaction.quantity, Decimal(str(transaction.price_per_share or 0)),
+                           Decimal(str(transaction.fees or 0))) != (transaction_date, quantity, price_per_share, fees)
+                if changed:
+                    for on in (transaction.date, transaction_date):
+                        guard_error = corporate_action_guard_error(
+                            current_user.id, transaction.company_id, transaction.type, on)
+                        if guard_error:
+                            flash(guard_error, 'error')
+                            return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
+
                 # Recalculate base currency values
                 tx_currency = (transaction.currency
                                or transaction.company.reporting_currency
@@ -470,7 +499,8 @@ def edit_transaction(transaction_id):
     return render_template('edit_transaction.html',
                            transaction=transaction,
                            currency_symbol=currency_symbol,
-                           is_cash_transaction=is_cash_transaction)
+                           is_cash_transaction=is_cash_transaction,
+                           corporate_leg_labels=CORPORATE_LEG_LABELS)
 
 
 @portfolio_bp.route('/transaction/<int:transaction_id>/delete', methods=['POST'])
@@ -481,6 +511,16 @@ def delete_transaction(transaction_id):
         id=transaction_id,
         user_id=current_user.id
     ).first_or_404()
+
+    if transaction.corporate_action_id is not None:
+        return _redirect_to_action(transaction)
+
+    if transaction.type in ('BUY', 'SELL'):
+        guard_error = corporate_action_guard_error(
+            current_user.id, transaction.company_id, transaction.type, transaction.date)
+        if guard_error:
+            flash(guard_error, 'error')
+            return redirect(url_for('portfolio.transactions'))
 
     try:
         company_id = transaction.company_id

@@ -11,7 +11,7 @@
 {% block head %}
 {{ super() }}
 {% include 'components/blocknote_editor_include.html' %}
-{% if company_state == 'portfolio' %}
+{% if show_transactions %}
 {% include 'components/_tabulator.html' %}
 {% endif %}
 {% endblock %}
@@ -209,6 +209,26 @@
         </div>
         {% endif %}
         {% endif %}
+
+        <!-- Corporate action banners (mergers and spin-offs touching this company) -->
+        {% if corporate_banners %}
+        <div class="dashboard-alerts-strip">
+            {% for banner in corporate_banners %}
+            <div class="dashboard-alert-card dashboard-alert-card--info">
+                <i class="bi {{ banner.icon }}"></i>
+                <span>
+                    {{ banner.prefix }}
+                    {% if banner.other %}<a href="{{ url_for('companies.company_detail', company_id=banner.other.id) }}">{{ banner.other.name }} ({{ banner.other.ticker_symbol }})</a>{% endif %}
+                    {{ banner.suffix }}
+                    {% if banner.gain is not none %}
+                    &middot; Realized {{ '+' if banner.gain >= 0 else '-' }}{{ currency_symbol }}{{ "{:,.2f}".format(banner.gain|abs) }} from merger (not a sale)
+                    {% endif %}
+                </span>
+                <a href="{{ banner.edit_url }}" class="action-btn">Corporate action</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 
     <!-- ============ PILL TAB BAR (React Island) ============ -->
@@ -233,7 +253,7 @@
         </div>
 
         <!-- Transactions (portfolio only) -->
-        {% if company_state == 'portfolio' %}
+        {% if show_transactions %}
         <div class="unified-tab-panel" id="panel-transactions">
             {% include 'partials/_company_transactions.html' %}
         </div>
@@ -320,7 +340,7 @@
                         <span><i class="bi bi-flag"></i> Checkpoints ({{ checkpoint_count }})</span>
                     </label>
                     {% endif %}
-                    {% if company_state == 'portfolio' and transaction_count > 0 %}
+                    {% if show_transactions and transaction_count > 0 %}
                     <label class="export-component-option">
                         <input type="checkbox" name="export_transactions" value="1" checked>
                         <span><i class="bi bi-arrow-left-right"></i> Transactions ({{ transaction_count }})</span>
@@ -372,7 +392,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/company-resources.js') }}"></script>
-{% if company_state == 'portfolio' %}
+{% if show_transactions %}
 {% include 'components/_tabulator_js.html' %}
 {% endif %}
 {# ---- Data bridge: pass template variables to JS ---- #}
@@ -385,22 +405,7 @@ window.companyConfig = {
     isPortfolio: {{ 'true' if company_state == 'portfolio' else 'false' }},
     notesGetUrl: "{{ url_for('companies.get_journey_notes', company_id=company.id) }}",
     notesSaveUrl: "{{ url_for('companies.save_journey_notes', company_id=company.id) }}",
-    transactions: [
-        {% if company_state == 'portfolio' %}
-        {% for txn in transactions %}
-        {
-            id: {{ txn.id }},
-            date: "{{ txn.date.strftime('%Y-%m-%d') }}",
-            type: "{{ txn.type }}",
-            shares: {{ txn.quantity }},
-            price: {{ txn.price_per_share }},
-            total: {{ txn.total_value }},
-            currency_symbol: {{ (txn.currency|currency_symbol)|tojson }},
-            notes: {{ txn.notes | tojson | safe if txn.notes else 'null' }}
-        }{{ ',' if not loop.last else '' }}
-        {% endfor %}
-        {% endif %}
-    ]
+    transactions: {{ (transaction_rows if show_transactions else [])|tojson }}
 };
 </script>
 {# ---- External scripts (vanilla, still needed) ---- #}
@@ -416,7 +421,7 @@ window.companyConfig = {
 <script defer src="{{ url_for('static', filename='js/dist/sec-filings-fetcher.bundle.js') }}"></script>
 {# Company search modal: Research > Competitors "Add competitor" opens it via openCompanyModal() #}
 <script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
-{% if company_state == 'portfolio' %}
+{% if show_transactions %}
 <script defer src="{{ url_for('static', filename='js/dist/transactions-table.bundle.js') }}"></script>
 {% endif %}
 {# ---- Hidden mount points for behaviour-only islands ---- #}
@@ -511,7 +516,7 @@ window.companyConfig = {
                     { type: 'separator' },
                     { type: 'tab', key: 'research', label: 'Research', icon: 'bi-microscope' },
                     { type: 'separator', auto: true },
-                    {% if company_state == 'portfolio' %}
+                    {% if show_transactions %}
                     { type: 'tab', key: 'transactions', label: 'Transactions', icon: 'bi-arrow-left-right', count: {{ transaction_count or 0 }} },
                     {% endif %}
                     { type: 'separator' },

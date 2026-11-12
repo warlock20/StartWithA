@@ -22,4 +22,4 @@ portfolio_bp = Blueprint('portfolio',
                          url_prefix='/portfolio')
 
 from app.portfolio import (api_routes, routes, transactions,
-                           portfolio_journal,checkpoint)
+                           portfolio_journal,checkpoint, corporate_actions)

@@ -253,6 +253,19 @@ def research_backed_company_ids(user_id: int) -> Set[int]:
     return {company_id for company_id, project_id in latest if project_id is not None}
 
 
+def received_position_company_ids(user_id: int) -> Set[int]:
+    """Company ids whose latest round trip was opened by a merger or spin-off."""
+    company_ids = [row[0] for row in db.session.query(Transaction.company_id)
+                   .filter(Transaction.user_id == user_id, Transaction.company_id.isnot(None))
+                   .distinct().all()]
+    received = set()
+    for company_id in company_ids:
+        trips = get_round_trips(company_id, user_id)
+        if trips and trips[-1].opened_by_corporate_action:
+            received.add(company_id)
+    return received
+
+
 def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company_id: int,
                            checkpoints: List[DestinationCheckpoint],
                            quality_cache: Dict[int, Any]) -> bool:
@@ -348,6 +361,8 @@ def sync_outcomes_for_company(user_id: int, company_id: int) -> OutcomeSyncStats
     quality_cache: Dict[int, Any] = {}
     kept: List[ResearchOutcome] = []
     for trip in trips:
+        if trip.opened_by_corporate_action:
+            continue  # received shares carry no research decision; stale rows become leftovers
         candidates = by_date.get(trip.entry_date)
         if candidates:
             outcome = candidates.pop(0)

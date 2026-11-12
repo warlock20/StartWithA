@@ -43,8 +43,13 @@ from app.models import (
     MistakeLog,
     InvestmentPostMortem,
     Transaction,
+    CorporateAction,
 )
 from app.models.research import FreeResearchQuestion
+from app.models.portfolio import CORPORATE_LEG_LABELS, CORPORATE_LEG_TYPES
+from app.services.corporate_action_display import (
+    corporate_action_banners, has_corporate_leg, row_fields as corporate_row_fields,
+)
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
 from app.services.export_service import export_company_journey, safe_name
@@ -378,6 +383,15 @@ def add_company_confirmed():
 def delete_company(company_id):
     company_to_delete = owned_or_404(Company, company_id)
 
+    in_action = CorporateAction.query.filter(
+        CorporateAction.user_id == current_user.id,
+        (CorporateAction.source_company_id == company_id) | (CorporateAction.target_company_id == company_id),
+    ).first()
+    if in_action is not None:
+        flash(f'"{company_to_delete.name}" is part of a corporate action. Delete its corporate actions first.',
+              'error')
+        return redirect(url_for('companies.company_detail', company_id=company_id))
+
     try:
         # Two-phase deletion to handle foreign key constraints
         # Phase 1: Delete related records that reference this company
@@ -449,9 +463,11 @@ def _gather_journey_data(company, user_id):
         user_id=user_id
     ).order_by(DestinationCheckpoint.target_date).all()
 
-    # Get transactions (only if portfolio)
+    # Get transactions (portfolio companies, and any company a corporate action touched,
+    # so a fully merged-away company keeps its history)
+    show_transactions = company_state == 'portfolio' or has_corporate_leg(company.id, user_id)
     transactions = []
-    if company_state == 'portfolio':
+    if show_transactions:
         transactions = Transaction.query.filter_by(
             company_id=company.id,
             user_id=user_id
@@ -483,7 +499,7 @@ def _gather_journey_data(company, user_id):
         })
 
     for txn in transactions:
-        if txn.type in ['BUY', 'SELL', 'DIVIDEND']:
+        if txn.type in ['BUY', 'SELL', 'DIVIDEND', *CORPORATE_LEG_TYPES]:
             timeline_events.append({
                 'type': 'transaction',
                 'date': txn.date,
@@ -597,6 +613,7 @@ def _gather_journey_data(company, user_id):
         'thesis_count': len(thesis_versions),
         'checkpoint_count': len(checkpoints),
         'transaction_count': len(transactions),
+        'show_transactions': show_transactions,
         'decision_count': len(decision_journals),
         'findings_count': findings_count,
         'findings': findings,
@@ -713,6 +730,10 @@ def company_detail(company_id):
         position=journey_data['position'],
         timeline_events=journey_data['timeline_events'],
         journey_stats=journey_data['journey_stats'],
+        corporate_banners=corporate_action_banners(company, current_user.id),
+        corporate_leg_labels=CORPORATE_LEG_LABELS,
+        show_transactions=journey_data['show_transactions'],
+        transaction_rows=_transaction_rows(journey_data['transactions']),
         current_thesis=journey_data['current_thesis'],
         thesis_count=journey_data['thesis_count'],
         checkpoint_count=journey_data['checkpoint_count'],
@@ -730,6 +751,25 @@ def company_detail(company_id):
         price_stale=journey_data['price_stale'],
         title=f"{company.name}"
     )
+
+
+def _transaction_rows(transactions):
+    """The company page's transactions table rows. Leg amounts are in base currency."""
+    rows = []
+    for txn in transactions:
+        row = {
+            'id': txn.id,
+            'date': txn.date.strftime('%Y-%m-%d'),
+            'type': txn.type,
+            'shares': txn.quantity,
+            'price': float(txn.price_per_share),
+            'total': txn.total_value,
+            'currency_symbol': CurrencyService.get_currency_symbol(txn.currency or 'USD'),
+            'notes': txn.notes or None,
+        }
+        row.update(corporate_row_fields(txn, current_user.base_currency))
+        rows.append(row)
+    return rows
 
 
 @companies_bp.route('/<int:company_id>/reopen-research', methods=['POST'])
@@ -1218,8 +1258,9 @@ def export_company_journey_route(company_id):
         flash('Please select at least one component to export.', 'warning')
         return redirect(url_for('companies.company_detail', company_id=company_id))
 
-    # Guard: transactions only for portfolio companies
-    if 'transactions' in selected and company_state != 'portfolio':
+    # Guard: transactions only for portfolio companies and ones a corporate action touched
+    if ('transactions' in selected and company_state != 'portfolio'
+            and not has_corporate_leg(company.id, current_user.id)):
         selected.remove('transactions')
 
     zip_bytes = export_company_journey(

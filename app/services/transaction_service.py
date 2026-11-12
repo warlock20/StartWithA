@@ -38,6 +38,62 @@ from app.utils.time_utils import now_utc, parse_date_to_date_object
 logger = logging.getLogger(__name__)
 
 
+def corporate_action_guard_error(user_id: int, company_id: int, transaction_type: str,
+                                 transaction_date) -> Optional[str]:
+    """
+    Why a transaction of this type on this date may not be added, changed or deleted
+    because of a corporate action on the company, or None when it may.
+
+    A merger fixes the shares it converts and a spin-off fixes the cost it moves, so a
+    BUY or SELL dated before either would unbalance it; after a merger the company has
+    no shares left to trade. Shared by add, edit, delete and the importer.
+    """
+    if transaction_type not in ('BUY', 'SELL', 'DIVIDEND'):
+        return None
+    company = db.session.get(Company, company_id)
+    ticker = company.ticker_symbol if company else ''
+
+    # A merged-away company has no shares left to trade
+    merger_out = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.company_id == company_id,
+        Transaction.type == 'MERGER_OUT',
+        Transaction.date <= transaction_date,
+    ).order_by(Transaction.date.asc(), Transaction.id.asc()).first()
+    if merger_out:
+        target = merger_out.corporate_action.target_company if merger_out.corporate_action else None
+        if target:
+            return (f'{ticker} merged into {target.ticker_symbol} on '
+                    f'{merger_out.date.isoformat()}; log transactions on the new holding.')
+        return f'{ticker} was acquired for cash on {merger_out.date.isoformat()}; it can no longer be traded.'
+
+    if transaction_type == 'DIVIDEND':
+        return None
+
+    # A BUY or SELL dated before the merger would change the shares the merger converted
+    later_merger = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.company_id == company_id,
+        Transaction.type == 'MERGER_OUT',
+        Transaction.date > transaction_date,
+    ).order_by(Transaction.date.asc(), Transaction.id.asc()).first()
+    if later_merger:
+        return (f'{ticker} was merged on {later_merger.date.isoformat()}. '
+                f'Delete the merger, add this transaction, then record the merger again.')
+
+    # ...and one dated before a spin-off would change the cost base the spin-off split
+    later_spinoff = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.company_id == company_id,
+        Transaction.type == 'SPINOFF_PARENT',
+        Transaction.date > transaction_date,
+    ).order_by(Transaction.date.asc(), Transaction.id.asc()).first()
+    if later_spinoff:
+        return (f'{ticker} had a spin-off on {later_spinoff.date.isoformat()}. '
+                f'Delete the spin-off, change this transaction, then record the spin-off again.')
+    return None
+
+
 @dataclass
 class TransactionValidationResult:
     """Result of transaction validation"""
@@ -162,6 +218,10 @@ class TransactionService:
                 error_message='Transaction date cannot be in the future'
             )
 
+        guard_error = corporate_action_guard_error(user_id, company_id, transaction_type, transaction_date)
+        if guard_error:
+            return TransactionValidationResult(is_valid=False, error_message=guard_error)
+
         # Parse numeric values
         try:
             price_decimal = Decimal(price_per_share)
@@ -271,7 +331,7 @@ class TransactionService:
                     user_base_currency=user_base_currency
                 )
 
-            # === BUY / SELL / DIVIDEND / SPLIT / SPINOFF ===
+            # === BUY / SELL / DIVIDEND ===
             # Extract form data
             company_id = int(form_data.get('company_id'))
             date_str = form_data.get('date')

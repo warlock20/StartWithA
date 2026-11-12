@@ -130,8 +130,9 @@ entities:
     fields:
       type:
         type: str
-        values: [BUY, SELL, DIVIDEND, SPLIT, DEPOSIT, WITHDRAWAL]
+        values: [BUY, SELL, DIVIDEND, SPLIT, DEPOSIT, WITHDRAWAL, MERGER_OUT, MERGER_IN, SPINOFF_PARENT, SPINOFF_CHILD, STOCK_DIVIDEND]
         values_from: app.models.portfolio.TRANSACTION_TYPES
+        meaning: "MERGER_OUT = holding converted away in a merger (closes the trade); MERGER_IN = shares received in a merger; SPINOFF_PARENT/SPINOFF_CHILD = spin-off cost moved from parent to child; STOCK_DIVIDEND = shares received as a dividend"
       date: {type: date, meaning: "Trade date"}
       quantity: {type: int, meaning: "Shares. Empty for deposits and withdrawals"}
       price_per_share_base: {type: decimal, meaning: "Price per share in the user's base currency"}
@@ -148,7 +149,7 @@ entities:
         type: decimal
         derived: product
         of: [quantity, price_per_share_base]
-        meaning: "Shares x price in base currency, fees excluded. Meaningful for BUY and SELL"
+        meaning: "Shares x price in base currency, fees excluded. Meaningful for BUY and SELL, not for corporate-action legs"
     relations:
       company: company
       decision_journal: decision

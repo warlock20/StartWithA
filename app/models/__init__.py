@@ -87,6 +87,7 @@ from .journal import (
 )
 from .portfolio import (
     ExchangeRate,
+    CorporateAction,
     Transaction,
     PortfolioPosition,
     calculate_fifo_cost_basis,
@@ -205,6 +206,7 @@ __all__ = [
     'PatternRecognition',
     # Portfolio models
     'ExchangeRate',
+    'CorporateAction',
     'Transaction',
     'PortfolioPosition',
     'calculate_fifo_cost_basis',

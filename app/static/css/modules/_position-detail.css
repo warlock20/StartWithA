@@ -186,7 +186,8 @@
     color: var(--success-500);
 }
 
-.position-txn-type.split {
+.position-txn-type.split,
+.position-txn-type.corporate {
     background: var(--info-50);
     color: var(--info-500);
 }

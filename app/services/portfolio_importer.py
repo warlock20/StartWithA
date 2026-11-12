@@ -28,12 +28,18 @@ from app.services.financial_data import FinancialDataService
 from app.services.cash_service import CashService
 from app.services.outcome_tracking import IMPORTED_BUY_THESIS, safe_sync_outcomes
 from app.services.currency_service import CurrencyService
+from app.services.company_lookup import get_or_create_company_by_ticker
+from app.services.transaction_service import corporate_action_guard_error
 
 logger = logging.getLogger(__name__)
 
 class PortfolioImportError(Exception):
     """Custom exception for import validation failures"""
     pass
+
+
+class ImportRowRejected(Exception):
+    """One row the import leaves out (the rest still import). str(e) says why."""
 
 class PortfolioImporter:
     def __init__(self, user_id):
@@ -76,50 +82,12 @@ class PortfolioImporter:
             return self.company_cache[ticker]
 
         # The cache is loaded once when the importer is constructed, so it goes
-        # stale if anything else creates a company meanwhile. Falling straight
-        # through to a create in that case is how duplicate companies appeared.
-        existing = Company.query.filter(
-            Company.user_id == self.user.id,
-            db.func.upper(Company.ticker_symbol) == ticker
-        ).first()
-        if existing:
-            self.company_cache[ticker] = existing.id
-            return existing.id
+        # stale if anything else creates a company meanwhile; the helper looks
+        # the ticker up again before it creates anything.
+        company = get_or_create_company_by_ticker(self.user.id, ticker, self.financial_service)
+        self.company_cache[ticker] = company.id
+        return company.id
 
-        # Try to fetch company info from financial data service
-        company_name = None
-        industry = None
-
-        try:
-            info = self.financial_service.get_ticker_info(ticker)
-            if info:
-                company_name = info.get('name')
-                industry = info.get('industry')
-                if company_name:
-                    logger.info(f"Fetched company info for {ticker}: {company_name}")
-        except Exception as e:
-            logger.warning(f"Could not fetch company info for {ticker}: {e}")
-
-        # Fallback to ticker if lookup failed
-        if not company_name:
-            company_name = f"{ticker} (Imported)"
-            logger.info(f"Using fallback name for {ticker}")
-
-        # Create new company
-        new_company = Company(
-            name=company_name,
-            ticker_symbol=ticker,
-            user_id=self.user.id,
-            is_in_portfolio=True,
-            industry=industry,
-            reporting_currency=CurrencyService.detect_currency_from_ticker(ticker)
-        )
-        db.session.add(new_company)
-        db.session.flush()  # Flush to get the ID
-
-        self.company_cache[ticker] = new_company.id
-        return new_company.id
-    
     def _normalize_ticker(self, raw_ticker):
         """
         Converts Google Finance format (EXCHANGE:TICKER) to Yahoo Finance (TICKER.SUFFIX).
@@ -205,6 +173,7 @@ class PortfolioImporter:
 
         created_transactions = []
         skipped_count = 0
+        rejected = []
         min_date = None
         max_date = None
         ticker_last_dates = {}
@@ -226,6 +195,8 @@ class PortfolioImporter:
                             ticker_last_dates[ticker] = row_date
                     else:
                         skipped_count += 1
+                except ImportRowRejected as e:
+                    rejected.append(f"Row {index + 2}: {e}")
                 except Exception as e:
                     raise PortfolioImportError(f"Row {index + 2} Error: {str(e)}")
 
@@ -242,12 +213,15 @@ class PortfolioImporter:
                 message_parts.append(f"Imported {len(created_transactions)} transactions for {len(set(created_transactions))} companies")
             if skipped_count:
                 message_parts.append(f"{skipped_count} duplicates skipped")
-            if not created_transactions and skipped_count:
+            if rejected:
+                message_parts.append(f"{len(rejected)} rows rejected: " + '; '.join(rejected))
+            if not created_transactions and (skipped_count or rejected):
                 message_parts.insert(0, "No new transactions")
 
             return {
                 'count': len(created_transactions),
                 'skipped': skipped_count,
+                'rejected': rejected,
                 'companies': len(set(created_transactions)),
                 'date_range': f"{min_date} to {max_date}" if min_date else "N/A",
                 'message': '. '.join(message_parts) if message_parts else 'Import completed!'
@@ -367,6 +341,11 @@ class PortfolioImporter:
             # Skip duplicate - log but don't raise error to allow partial imports
             print(f"⚠️ Skipping duplicate transaction: {ticker} {db_type} on {transaction_date} ({db_quantity} @ ${db_price})")
             return False  # Exit early, don't create duplicate
+
+        # A merger or spin-off fixed the shares and cost it used; rows that would change them are left out
+        guard_error = corporate_action_guard_error(self.user.id, company_id, db_type, transaction_date)
+        if guard_error:
+            raise ImportRowRejected(guard_error)
 
         # --- F. Detect Currency ---
         # Excel prices are in user's base currency by default, CSV 'Currency' column overrides
