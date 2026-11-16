@@ -8,7 +8,7 @@
  *
  * The composition strip is mounted separately inside the header card.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { colors } from '../../tokens';
 import { SegmentedControl } from '../shared/SegmentedControl';
 import { DataTable } from '../shared/DataTable';
@@ -33,6 +33,17 @@ export function PortfolioDashboard({
 
   const showCash = true;
   const cashBalance = portfolioValue.cash_balance || 0;
+
+  // ── Conviction: the header warning activates the Unrated filter ──────
+  useEffect(() => {
+    const showUnrated = () => setPlFilter('unrated');
+    window.portfolioDashboardShowUnrated = showUnrated;
+    return () => {
+      if (window.portfolioDashboardShowUnrated === showUnrated) {
+        delete window.portfolioDashboardShowUnrated;
+      }
+    };
+  }, []);
 
   // ── Enrichment ────────────────────────────────────────────────────────
   const enriched = useMemo(
@@ -69,6 +80,7 @@ export function PortfolioDashboard({
     }
     if (plFilter === 'gains') list = list.filter((p) => (p.gain_loss || 0) >= 0);
     if (plFilter === 'losses') list = list.filter((p) => (p.gain_loss || 0) < 0);
+    if (plFilter === 'unrated') list = list.filter((p) => p.conviction == null);
     return list;
   }, [enriched, search, plFilter]);
 
@@ -185,6 +197,9 @@ export function PortfolioDashboard({
                 </PlFilterChip>
                 <PlFilterChip active={plFilter === 'losses'} onClick={() => setPlFilter('losses')}>
                   Losses
+                </PlFilterChip>
+                <PlFilterChip active={plFilter === 'unrated'} onClick={() => setPlFilter('unrated')}>
+                  <i className="bi bi-exclamation-triangle" /> Unrated
                 </PlFilterChip>
               </div>
               <div className="rcl-search" style={{ minWidth: 200 }}>

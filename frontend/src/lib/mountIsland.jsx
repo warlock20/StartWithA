@@ -20,6 +20,10 @@ function getQueryClient() {
   return queryClient;
 }
 
+// One root per container, so re-mounting (e.g. after an async data refresh)
+// re-renders with new props and keeps component state instead of resetting it.
+const roots = new WeakMap();
+
 /**
  * Mount a React island into a DOM element.
  *
@@ -47,7 +51,11 @@ export function mountIsland(elementId, Component, props = {}) {
     return null;
   }
 
-  const root = createRoot(container);
+  let root = roots.get(container);
+  if (!root) {
+    root = createRoot(container);
+    roots.set(container, root);
+  }
   root.render(
     <QueryClientProvider client={getQueryClient()}>
       <ErrorBoundary>

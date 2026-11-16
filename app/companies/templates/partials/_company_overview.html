@@ -43,8 +43,12 @@
             </button>
             <div class="unified-card-footer">
                 <div class="d-flex gap-2 align-items-center">
-                    {% if current_thesis.conviction_level %}
+                    {% if current_thesis.conviction_level is not none %}
                     <span class="journey-badge current">Conviction: {{ current_thesis.conviction_level }}/10</span>
+                    {% elif is_held %}
+                    <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" class="action-btn" title="Add a thesis version with your conviction" style="border: 1px dashed #d97706; background: #fffbeb; color: #b45309;">
+                        <span aria-hidden="true">&#9888;</span> Add conviction
+                    </a>
                     {% endif %}
                     <span class="journey-badge thesis" style="background: var(--gray-200); color: var(--gray-600);">
                         V{{ current_thesis.version }}

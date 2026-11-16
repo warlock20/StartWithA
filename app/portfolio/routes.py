@@ -63,6 +63,7 @@ from app.services.outcome_tracking import received_position_company_ids, researc
 from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
+from app.services.conviction_service import current_theses, conviction_summary
 
 import json
 # Import blueprint from current package (avoids circular import)
@@ -113,6 +114,8 @@ def dashboard():
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
+    theses = current_theses(current_user.id, [pos.company_id for pos in positions])
+
     # Serialize positions for Tabulator + React dashboard island
     holdings_json = json.dumps([{
         'ticker': pos.company.ticker_symbol,
@@ -130,6 +133,8 @@ def dashboard():
         'company_id': pos.company_id,
         'position_url': url_for('companies.company_detail', company_id=pos.company_id),
         'add_tx_url': url_for('portfolio.add_transaction', company_id=pos.company_id),
+        'conviction': theses[pos.company_id].conviction_level if pos.company_id in theses else None,
+        'new_thesis_url': url_for('portfolio.add_thesis_version', company_id=pos.company_id),
     } for pos in positions])
 
     # Cash setup: infer initial deposit for existing users who haven't set up cash tracking
@@ -150,7 +155,8 @@ def dashboard():
                           stale_company_ids=json.dumps(stale_company_ids),
                           updated_time='just now',
                           currency_symbol=currency_symbol,
-                          inferred_deposit=inferred_deposit)
+                          inferred_deposit=inferred_deposit,
+                          conviction_summary=conviction_summary(positions, theses))
 
 
 @portfolio_bp.route('/cash/setup', methods=['POST'])
