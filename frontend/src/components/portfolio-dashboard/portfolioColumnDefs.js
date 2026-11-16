@@ -10,7 +10,7 @@
  * and `responsive` sets the fold order (higher folds first, 0 never).
  */
 import { ColumnFormatters } from '../../lib/columnFormatters';
-import { fmtCur, fmtPct, fmtSign, plColor, plBg, sectorColor, escapeHtml } from './portfolioUtils';
+import { fmtCur, fmtPct, fmtSign, plColor, plBg, sectorColor, escapeHtml, convictionTone } from './portfolioUtils';
 
 const MONO = "'JetBrains Mono', ui-monospace, monospace";
 
@@ -23,6 +23,47 @@ function companyFormatter(cell) {
     <div title="${escapeHtml(row.name)}" style="font-size:13px;color:var(--gray-400,#9ca3af);margin-top:1px;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.name}</div>
   </a>`;
+}
+
+// ── Shared: Conviction column ───────────────────────────────────────────
+// Rated: a badge that links to the new-thesis-version page (a score only
+// changes through a new version). Unrated: an "Add" link to the same page.
+const BADGE_BASE =
+  "display:inline-block;padding:2px 10px;border-radius:4px;font-size:14px;font-weight:600;font-family:'JetBrains Mono',ui-monospace,monospace;text-decoration:none;";
+
+const TONE_STYLE = {
+  high: 'background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;',
+  mid: 'background:#fffbeb;color:#b45309;border:1px solid #fde68a;',
+  low: 'background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;',
+};
+
+const UNRATED_STYLE =
+  'display:inline-block;padding:2px 10px;border:1px dashed #d97706;border-radius:4px;background:#fffbeb;color:#b45309;font-size:13px;font-weight:600;text-decoration:none;';
+
+export function convictionFormatter(cell) {
+  const row = cell.getRow().getData();
+  if (row._isCash) return '<span style="font-size:13px;color:var(--gray-400,#9ca3af);">&mdash;</span>';
+  const n = row.conviction;
+  const url = escapeHtml(row.new_thesis_url || '#');
+  if (n == null) {
+    return `<a href="${url}" title="Add a thesis version with your conviction" aria-label="Add conviction for ${escapeHtml(row.ticker)}"
+      style="${UNRATED_STYLE}"><span aria-hidden="true">&#9888;</span> Add</a>`;
+  }
+  return `<a href="${url}" title="Change via a new thesis version"
+    style="${TONE_STYLE[convictionTone(n)]}">${n}/10</a>`;
+}
+
+export function convictionColumn() {
+  return {
+    title: 'Conviction',
+    field: 'conviction',
+    sorter: 'number', // Tabulator's number sorter ranks null/empty lowest, so unrated sinks to the bottom when descending
+    hozAlign: 'center',
+    headerHozAlign: 'center',
+    minWidth: 130,
+    responsive: 0,
+    formatter: convictionFormatter,
+  };
 }
 
 // ── Shared: Actions cell (Details + Txn links) ──────────────────────────
@@ -67,6 +108,7 @@ const COMPANY_COLUMN = {
 export function overviewColumns(currencySymbol) {
   return [
     { ...COMPANY_COLUMN, formatter: companyFormatter },
+    convictionColumn(),
     {
       title: 'Shares',
       field: 'shares',
@@ -170,6 +212,7 @@ export function weightsColumns(currencySymbol, sectorColorMap) {
         return companyFormatter(cell);
       },
     },
+    convictionColumn(),
     {
       title: 'Sector',
       field: 'sector',

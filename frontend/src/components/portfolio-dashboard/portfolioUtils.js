@@ -103,3 +103,11 @@ export function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+// ── Conviction ──────────────────────────────────────────────────────────────
+/** green 7-10, amber 4-6, red 1-3 */
+export function convictionTone(n) {
+  if (n >= 7) return 'high';
+  if (n >= 4) return 'mid';
+  return 'low';
+}

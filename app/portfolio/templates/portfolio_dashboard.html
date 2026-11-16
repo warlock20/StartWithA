@@ -111,8 +111,22 @@
             <span>Updating prices... <span class="update-count" id="priceUpdateCount"></span></span>
         </div>
 
-        {% if inferred_deposit is not none and not current_user.cash_setup_complete %}
+        {% set show_cash_alert = inferred_deposit is not none and not current_user.cash_setup_complete %}
+        {% if show_cash_alert or conviction_summary.unrated_count > 0 %}
         <div class="dashboard-alerts-strip">
+            {% if conviction_summary.unrated_count > 0 %}
+            <div class="dashboard-alert-card dashboard-alert-card--warning">
+                <i class="bi bi-exclamation-triangle"></i>
+                <div class="dashboard-alert-card__text">
+                    <strong>{{ conviction_summary.unrated_count }} of {{ conviction_summary.total_count }} {{ 'position has' if conviction_summary.total_count == 1 else 'positions have' }} no conviction score</strong> &mdash;
+                    {% if conviction_summary.unrated_value_pct == 0 %}&lt;1{% else %}{{ conviction_summary.unrated_value_pct }}{% endif %}% of your money is unrated.
+                </div>
+                <div class="dashboard-alert-card__actions">
+                    <button type="button" class="action-btn" id="showUnratedBtn">Show unrated</button>
+                </div>
+            </div>
+            {% endif %}
+            {% if show_cash_alert %}
             <form action="{{ url_for('portfolio.cash_setup') }}" method="POST" class="dashboard-alert-card dashboard-alert-card--info">
                 <i class="bi bi-cash-coin"></i>
                 <div class="dashboard-alert-card__text">
@@ -135,6 +149,7 @@
                     <button type="submit" class="action-btn">Confirm</button>
                 </div>
             </form>
+            {% endif %}
         </div>
         {% endif %}
     </div>
@@ -190,6 +205,16 @@ document.addEventListener('DOMContentLoaded', function() {
             currencySymbol: currencySymbol,
             gainsCount: {{ gains_count }},
             lossesCount: {{ losses_count }},
+        });
+    }
+
+    // ── Conviction: header button activates the Unrated filter ──
+    var showUnratedBtn = document.getElementById('showUnratedBtn');
+    if (showUnratedBtn) {
+        showUnratedBtn.addEventListener('click', function() {
+            if (window.portfolioDashboardShowUnrated) window.portfolioDashboardShowUnrated();
+            var mount = document.getElementById('portfolio-dashboard-mount');
+            if (mount) mount.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     }
 

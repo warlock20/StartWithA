@@ -22,6 +22,7 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from app.utils.time_utils import now_utc
+from app.services.conviction_service import current_theses
 from app.utils.auth_utils import owned_or_404
 from flask import render_template, request, redirect, url_for, flash, current_app, jsonify, Response, Response
 from flask_login import current_user, login_required
@@ -570,13 +571,8 @@ def _gather_journey_data(company, user_id):
     }
 
     # Identify current thesis
-    current_thesis = None
-    if thesis_versions:
-        current_thesis_objs = [t for t in thesis_versions if t.is_current]
-        if current_thesis_objs:
-            current_thesis = current_thesis_objs[0]
-        else:
-            current_thesis = max(thesis_versions, key=lambda x: x.created_at or datetime.min)
+    # Same rule as the portfolio dashboard, but with the full row for rendering
+    current_thesis = current_theses(user_id, [company.id], full=True).get(company.id)
 
     # Research tab data: project-linked questions
     free_research_questions = []
@@ -610,6 +606,7 @@ def _gather_journey_data(company, user_id):
         'timeline_events': timeline_events,
         'journey_stats': journey_stats,
         'current_thesis': current_thesis,
+        'is_held': bool(position and position.is_active),
         'thesis_count': len(thesis_versions),
         'checkpoint_count': len(checkpoints),
         'transaction_count': len(transactions),
@@ -735,6 +732,7 @@ def company_detail(company_id):
         show_transactions=journey_data['show_transactions'],
         transaction_rows=_transaction_rows(journey_data['transactions']),
         current_thesis=journey_data['current_thesis'],
+        is_held=journey_data['is_held'],
         thesis_count=journey_data['thesis_count'],
         checkpoint_count=journey_data['checkpoint_count'],
         transaction_count=journey_data['transaction_count'],
