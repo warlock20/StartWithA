@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
 import { apiGet } from '../../lib/api';
 import { TickerValidator } from '../../lib/tickerValidator';
+import { normalizeIsin, isValidIsin, invalidIsinMessage } from '../../lib/isin';
+
+const ISIN_HINT = "We can't look ISINs up reliably, so please type it. Leave blank to add it later.";
 
 /**
  * Quick-add form for creating a new company inside the search modal.
@@ -15,6 +18,8 @@ export function QuickAddForm({ prefillQuery, onSubmit }) {
   const [summary, setSummary] = useState('');
   const [tickerError, setTickerError] = useState('');
   const [nameError, setNameError] = useState('');
+  const [isin, setIsin] = useState('');
+  const [isinError, setIsinError] = useState('');
   const [tickerHint, setTickerHint] = useState('Formats: AAPL, NYSE:MSFT, SAP.DE, FRA:SAP');
   const [tickerValid, setTickerValid] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,6 +101,15 @@ export function QuickAddForm({ prefillQuery, onSubmit }) {
     }
   }
 
+  function handleIsinChange(e) {
+    const val = e.target.value;
+    setIsin(val);
+    const normalized = normalizeIsin(val);
+    setIsinError(
+      normalized.length === 12 && !isValidIsin(normalized) ? invalidIsinMessage(normalized) : ''
+    );
+  }
+
   async function handleSubmit() {
     const validation = TickerValidator.parseAndValidate(ticker);
     if (!validation.isValid) {
@@ -108,9 +122,16 @@ export function QuickAddForm({ prefillQuery, onSubmit }) {
       return;
     }
 
+    const normalizedIsin = normalizeIsin(isin);
+    if (normalizedIsin && !isValidIsin(normalizedIsin)) {
+      setIsinError(invalidIsinMessage(normalizedIsin));
+      return;
+    }
+
     setIsSubmitting(true);
     setNameError('');
     setTickerError('');
+    setIsinError('');
 
     const result = await onSubmit({
       ticker_symbol: validation.normalizedTicker,
@@ -118,12 +139,17 @@ export function QuickAddForm({ prefillQuery, onSubmit }) {
       industry: industry.trim() || null,
       sector: sector.trim() || null,
       summary: summary.trim() || null,
+      isin: normalizedIsin || null,
     });
 
     setIsSubmitting(false);
 
     if (!result.success && result.error) {
-      setTickerError(result.error);
+      if (/ISIN/.test(result.error)) {
+        setIsinError(result.error);
+      } else {
+        setTickerError(result.error);
+      }
     }
   }
 
@@ -162,6 +188,24 @@ export function QuickAddForm({ prefillQuery, onSubmit }) {
           />
           {nameError && <div className="invalid-feedback">{nameError}</div>}
         </div>
+      </div>
+      <div className="mt-2">
+        <label htmlFor="newCompanyIsin" className="form-label">
+          ISIN <span className="text-muted fw-normal">(recommended)</span>
+        </label>
+        <input
+          type="text"
+          className={`form-control${isinError ? ' is-invalid' : normalizeIsin(isin).length === 12 ? ' is-valid' : ''}`}
+          id="newCompanyIsin"
+          placeholder="e.g. US0378331005"
+          autoComplete="off"
+          style={{ fontFamily: 'monospace', textTransform: 'uppercase' }}
+          value={isin}
+          onChange={handleIsinChange}
+        />
+        {isinError
+          ? <div className="invalid-feedback">{isinError}</div>
+          : <small className="form-text text-muted">{ISIN_HINT}</small>}
       </div>
       <div className="row mt-2">
         <div className="col-md-6">
