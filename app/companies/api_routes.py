@@ -31,6 +31,7 @@ from app.utils.company_identity import company_identity_key, normalize_company_n
 from app.utils.isin import is_valid_isin, isin_plausible_for_listing, normalize_isin
 from app.services.currency_service import CurrencyService
 from app.services.sweep_link import confirm as confirm_link, link_from_isin
+from app.services.company_isin import check_company_isin, set_company_isin
 from app.utils.response_utils import json_error, json_not_found
 from app.utils.time_utils import format_for_javascript, now_utc
 from app.utils.blocknote_utils import append_note, blocknote_to_text
@@ -290,6 +291,7 @@ def api_create_company():
         sector_name = (data.get('sector') or '').strip() or None
         summary = (data.get('summary') or '').strip() or None
         sweep_company_id = data.get('sweep_company_id')
+        typed_isin_raw = data.get('isin')
 
         # The row the user picked, when they picked one. Its ISIN is the
         # reason this branch exists: it is the only identifier in the system a
@@ -357,6 +359,15 @@ def api_create_company():
         # proposed; the provider's is re-checked here because the client had a
         # turn with it in between.
         isin = sweep_company.isin if sweep_company is not None else None
+        isin_typed_by_user = False
+        if isin is None and normalize_isin(typed_isin_raw):
+            # Typed by the user: the same human vouching as a sweep row, so it
+            # replaces the provider's proposal, which is then not consulted.
+            isin, isin_error = check_company_isin(
+                current_user.id, None, typed_isin_raw)
+            if isin_error:
+                return jsonify({'success': False, 'error': isin_error})
+            isin_typed_by_user = True
         if isin is None:
             isin = _trusted_provider_isin(data.get('provider_isin'), ticker_symbol)
         if isin:
@@ -387,6 +398,9 @@ def api_create_company():
 
         db.session.add(company)
         db.session.flush()
+
+        if isin_typed_by_user:
+            set_company_isin(current_user.id, company, isin)
 
         if sweep_company is not None:
             # Choosing the row is the judgement, so the link is 'confirmed'.
@@ -532,6 +546,40 @@ def api_company_adopt_isin(company_id):
     except Exception:
         db.session.rollback()
         logger.exception('Adopting ISIN from sweep row failed')
+        return json_error('Something went wrong. Please try again.')
+
+    return jsonify({
+        'success': True,
+        'company': {'id': company.id, 'isin': company.isin},
+    })
+
+
+@companies_bp.route('/api/companies/<int:company_id>/isin', methods=['POST'])
+@login_required
+def api_company_set_isin(company_id):
+    """Set the ISIN a user typed for an existing company.
+
+    Validation, the clash check and sweep linking are the shared ones, so the
+    messages match the edit page. A blank value is refused: the modal only
+    ever adds an ISIN.
+    """
+    company = _owned_company_or_404(company_id)
+    if company is None:
+        return json_not_found('Company not found')
+
+    raw = (request.get_json(silent=True) or {}).get('isin')
+    isin, error = check_company_isin(current_user.id, company.id, raw)
+    if error:
+        return json_error(error)
+    if isin is None:
+        return json_error('Enter an ISIN')
+
+    try:
+        set_company_isin(current_user.id, company, isin)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception('Setting ISIN from the company modal failed')
         return json_error('Something went wrong. Please try again.')
 
     return jsonify({

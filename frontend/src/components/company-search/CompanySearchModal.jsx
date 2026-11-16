@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
-import { apiGet, apiPost } from '../../lib/api';
+import { apiGet, apiPost, ApiError } from '../../lib/api';
 import { SearchResults } from './SearchResults';
 import { QuickAddForm } from './QuickAddForm';
+import { MissingIsinNotice } from './MissingIsinNotice';
+import { normalizeIsin, isValidIsin, invalidIsinMessage } from '../../lib/isin';
 
 /**
  * Company Search Modal — React island replacement for company-search.js.
@@ -23,7 +25,11 @@ export function CompanySearchModal() {
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [sweepMatch, setSweepMatch] = useState(null);
+  const [sweepMatchCheckedFor, setSweepMatchCheckedFor] = useState(null);
   const [isAdopting, setIsAdopting] = useState(false);
+  const [isinValue, setIsinValue] = useState('');
+  const [isinError, setIsinError] = useState('');
+  const [isSavingIsin, setIsSavingIsin] = useState(false);
 
   const callbackRef = useRef(null);
   const modalElRef = useRef(null);
@@ -118,19 +124,33 @@ export function CompanySearchModal() {
   useEffect(() => {
     if (!selectedCompany || !selectedCompany.id || selectedCompany.isin) {
       setSweepMatch(null);
+      setSweepMatchCheckedFor(null);
       return;
     }
 
     let cancelled = false;
+    setSweepMatchCheckedFor(null);
     apiGet(`/companies/api/companies/${selectedCompany.id}/sweep-match`)
       .then((data) => {
         if (cancelled) return;
         setSweepMatch((data.matches && data.matches[0]) || null);
+        setSweepMatchCheckedFor(selectedCompany.id);
       })
-      .catch(() => { if (!cancelled) setSweepMatch(null); });
+      .catch(() => {
+        if (cancelled) return;
+        setSweepMatch(null);
+        setSweepMatchCheckedFor(selectedCompany.id);
+      });
 
     return () => { cancelled = true; };
   }, [selectedCompany]);
+
+  // A typed-but-unsaved ISIN belongs to one company; drop it when that changes.
+  const selectedId = selectedCompany ? selectedCompany.id : null;
+  useEffect(() => {
+    setIsinValue('');
+    setIsinError('');
+  }, [selectedId]);
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -142,7 +162,11 @@ export function CompanySearchModal() {
     setShowQuickAdd(false);
     setIsSearching(false);
     setSweepMatch(null);
+    setSweepMatchCheckedFor(null);
     setIsAdopting(false);
+    setIsinValue('');
+    setIsinError('');
+    setIsSavingIsin(false);
     callbackRef.current = null;
   }
 
@@ -244,9 +268,41 @@ export function CompanySearchModal() {
     }
   }
 
-  function handleConfirm() {
-    if (selectedCompany && callbackRef.current) {
-      callbackRef.current(selectedCompany);
+  // One save path for the notice's Save button and for Select Company.
+  // Resolves to the updated company, or null if the save failed.
+  async function saveIsin(isin) {
+    setIsSavingIsin(true);
+    setIsinError('');
+    try {
+      const result = await apiPost(`/companies/api/companies/${selectedCompany.id}/isin`, { isin });
+      if (window.showToast) window.showToast('ISIN saved', 'success');
+      const updated = { ...selectedCompany, isin: result.company.isin };
+      setSelectedCompany(updated);
+      setIsinValue('');
+      return updated;
+    } catch (err) {
+      setIsinError(
+        err instanceof ApiError && err.status < 500 ? err.message : 'Could not save that ISIN',
+      );
+      return null;
+    } finally {
+      setIsSavingIsin(false);
+    }
+  }
+
+  async function handleConfirm() {
+    let company = selectedCompany;
+    const typed = normalizeIsin(isinValue);
+    if (noticeVisible && typed) {
+      if (!isValidIsin(typed)) {
+        setIsinError(invalidIsinMessage(typed));
+        return;
+      }
+      company = await saveIsin(typed);
+      if (!company) return;
+    }
+    if (company && callbackRef.current) {
+      callbackRef.current(company);
     }
     close();
   }
@@ -254,6 +310,8 @@ export function CompanySearchModal() {
   // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
+  const noticeVisible = !!selectedCompany && !!selectedCompany.id && !selectedCompany.isin
+    && sweepMatchCheckedFor === selectedCompany.id && !sweepMatch;
   const hasResults = results.yahoo.length > 0 || results.user.length > 0
     || results.sweep.length > 0;
 
@@ -347,7 +405,9 @@ export function CompanySearchModal() {
                     <strong>{selectedCompany.name}</strong><br />
                     <small>
                       Ticker: {selectedCompany.ticker_symbol || 'N/A'} | Industry: {selectedCompany.industry || 'N/A'}
-                      {selectedCompany.isin && <> | ISIN: {selectedCompany.isin}</>}
+                      {selectedCompany.isin
+                        ? <> | ISIN: {selectedCompany.isin}</>
+                        : <> | ISIN: <span className="text-warning-emphasis fw-semibold">missing</span></>}
                     </small>
                   </div>
                   <button
@@ -394,6 +454,16 @@ export function CompanySearchModal() {
                     </button>
                   </div>
                 )}
+
+                {noticeVisible && (
+                  <MissingIsinNotice
+                    value={isinValue}
+                    onValueChange={(v) => { setIsinValue(v); setIsinError(''); }}
+                    error={isinError}
+                    isSaving={isSavingIsin}
+                    onSave={() => saveIsin(normalizeIsin(isinValue))}
+                  />
+                )}
               </>
             )}
           </div>
@@ -404,7 +474,7 @@ export function CompanySearchModal() {
               type="button"
               className="btn btn-primary"
               id="confirmCompanySelection"
-              disabled={!selectedCompany}
+              disabled={!selectedCompany || isSavingIsin}
               onClick={handleConfirm}
             >
               Select Company
