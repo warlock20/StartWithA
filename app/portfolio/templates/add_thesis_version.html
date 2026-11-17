@@ -357,32 +357,42 @@ function hideDetailModal(event) {
 }
 
 // Copy current thesis to form
-function copyCurrentThesis() {
+async function copyCurrentThesis() {
     {% if current_thesis %}
-    document.getElementById('change_summary').value = '{{ current_thesis.change_summary|safe }}';
+    document.getElementById('change_summary').value = {{ (current_thesis.change_summary or '')|tojson }};
 
     // Load current thesis into BlockNote editor
-    if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
-        const raw = {{ current_thesis.thesis|tojson }};
+    const editor = window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor;
+    if (editor) {
+        const raw = {{ (current_thesis.thesis or '')|tojson }};
+        let blocks = null;
         try {
-            const blocks = JSON.parse(raw);
-            if (Array.isArray(blocks)) {
-                window.blockNoteEditorInstance.editor.replaceBlocks(
-                    window.blockNoteEditorInstance.editor.document,
-                    blocks
-                );
-            }
-        } catch {
-            // Plain text fallback — insert as a paragraph
-            window.blockNoteEditorInstance.editor.replaceBlocks(
-                window.blockNoteEditorInstance.editor.document,
-                [{ type: "paragraph", content: [{ type: "text", text: raw }] }]
-            );
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) blocks = parsed;
+        } catch (e) {
+            // Not BlockNote JSON; fall through to plain text
         }
+        if (!blocks && /<[a-z][\s\S]*>/i.test(raw)) {
+            // Legacy HTML thesis
+            try { blocks = await editor.tryParseHTMLToBlocks(raw); } catch (e) { blocks = null; }
+        }
+        if (!blocks || !blocks.length) {
+            // Legacy plain-text thesis: one paragraph per line
+            blocks = raw.split('\n').filter(line => line.trim()).map(line => ({
+                type: "paragraph",
+                content: [{ type: "text", text: line.trim(), styles: {} }]
+            }));
+        }
+        if (blocks.length) {
+            editor.replaceBlocks(editor.document, blocks);
+        }
+        thesisContent = JSON.stringify(editor.document);
+    } else {
+        alert('The editor is still loading. Please try again in a moment.');
     }
 
     {% if current_thesis.change_trigger %}
-    document.getElementById('change_trigger').value = '{{ current_thesis.change_trigger|safe }}';
+    document.getElementById('change_trigger').value = {{ current_thesis.change_trigger|tojson }};
     {% endif %}
 
     {% if current_thesis.bull_case %}
@@ -524,6 +534,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // On form submit, serialize editor content to hidden input
     document.getElementById('thesisForm').addEventListener('submit', function(e) {
+        // Read straight from the editor: onChange is debounced, so
+        // thesisContent can lag behind what the user just typed or copied.
+        const editor = window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor;
+        if (editor) {
+            const hasText = editor.document.some(b =>
+                (Array.isArray(b.content) && b.content.length > 0) || (b.children && b.children.length > 0)
+                || (b.type && b.type !== 'paragraph'));
+            thesisContent = hasText ? JSON.stringify(editor.document) : '';
+        }
         if (!thesisContent) {
             e.preventDefault();
             alert('Please provide your investment thesis');
