@@ -52,6 +52,9 @@
 .tr-section-tab.active--blue    { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
 .tr-section-tab.active--blue    .tr-tab-count { background: #dbeafe; color: #1d4ed8; }
 
+.tr-section-tab.active--neutral { background: #f8fafc; color: #475569; border-color: #cbd5e1; }
+.tr-section-tab.active--neutral .tr-tab-count { background: #e2e8f0; color: #475569; }
+
 /* ── Section Content Toggle ── */
 .tr-section-content { display: none; }
 .tr-section-content.active { display: block; }

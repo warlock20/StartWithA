@@ -56,6 +56,40 @@ logger = logging.getLogger(__name__)
 SHORT_HOLD_THRESHOLD_DAYS = 90
 # Minimum data points needed for confidence-return correlation
 MIN_CONFIDENCE_RETURN_SAMPLES = 3
+# Horizon assumed when a BUY decision has an expected return but no timeframe
+DEFAULT_EXPECTED_TIMEFRAME_MONTHS = 12
+# Below this many days held, compare total return to a pro-rated expectation,
+# since annualizing a few days' move is meaningless
+MIN_DAYS_FOR_ANNUALIZED_COMPARISON = 30
+DAYS_PER_MONTH = 365 / 12
+
+
+def annualize_expected_return(
+    expected_return: Optional[float],
+    expected_timeframe_months: Optional[int]
+) -> Optional[float]:
+    """Convert an expected total return over a horizon to an annual rate (CAGR).
+
+    The buy form asks for "Expected Return (%)" over "Expected Timeframe (months)",
+    so 50% over 36 months is about 14.5% a year. Without a timeframe the expected
+    return is taken as a 12-month target.
+    """
+    if expected_return is None:
+        return None
+    months = expected_timeframe_months or DEFAULT_EXPECTED_TIMEFRAME_MONTHS
+    growth = max(1 + float(expected_return) / 100, 0.0)
+    return (growth ** (12 / months) - 1) * 100
+
+
+def expected_return_to_date(
+    expected_return: float,
+    expected_timeframe_months: Optional[int],
+    days_held: int
+) -> float:
+    """Share of the expected total return a position should have earned after days_held, compounding."""
+    months = expected_timeframe_months or DEFAULT_EXPECTED_TIMEFRAME_MONTHS
+    growth = max(1 + float(expected_return) / 100, 0.0)
+    return (growth ** (days_held / (months * DAYS_PER_MONTH)) - 1) * 100
 
 
 @dataclass
@@ -123,8 +157,9 @@ class ThesisReality:
 
     # Original thesis
     investment_thesis: str
-    expected_return: Optional[float]
+    expected_return: Optional[float]  # Total return expected over the timeframe
     expected_timeframe_months: Optional[int]
+    expected_annualized_return: Optional[float]  # expected_return as a CAGR
     confidence_score: Optional[int]
 
     # Reality
@@ -464,6 +499,10 @@ class PortfolioIntelligenceService:
                 investment_thesis=journal.investment_thesis if journal else 'No thesis recorded',
                 expected_return=journal.expected_return if journal else None,
                 expected_timeframe_months=journal.expected_timeframe if journal else None,
+                expected_annualized_return=annualize_expected_return(
+                    journal.expected_return if journal else None,
+                    journal.expected_timeframe if journal else None
+                ),
                 confidence_score=journal.confidence_score if journal else None,
                 actual_return_pct=actual_return,
                 annualized_return_pct=annualized_return,
@@ -474,7 +513,7 @@ class PortfolioIntelligenceService:
             ))
 
         # Sort by status (needs_attention first)
-        status_order = {'needs_attention': 0, 'behind': 1, 'on_track': 2, 'exceeding': 3}
+        status_order = {'needs_attention': 0, 'behind': 1, 'on_track': 2, 'exceeding': 3, 'no_target': 4}
         results.sort(key=lambda x: status_order.get(x.status, 99))
 
         return results
@@ -488,44 +527,35 @@ class PortfolioIntelligenceService:
         days_held: int
     ) -> str:
         """
-        Assess how the position is tracking vs expectations using CAGR.
+        Assess how the position is tracking vs the expectation set at purchase.
 
         Args:
-            expected_return: Expected return % (assumed to be annualized if timeframe given)
-            expected_timeframe: Expected timeframe in months
+            expected_return: Total return % expected over expected_timeframe
+            expected_timeframe: Expected timeframe in months (12 assumed if missing)
             annualized_return: CAGR of the position
             total_return: Total return % (for short-term positions)
             days_held: Days the position has been held
 
         Returns:
-            Status: 'exceeding', 'on_track', 'behind', or 'needs_attention'
+            Status: 'exceeding', 'on_track', 'behind', 'needs_attention', or
+            'no_target' when no expected return was recorded
         """
 
         if expected_return is None:
-            # No expectations set - use annualized return thresholds
-            if annualized_return >= 20:
-                return 'exceeding'
-            elif annualized_return >= 0:
-                return 'on_track'
-            elif annualized_return >= -10:
-                return 'behind'
-            else:
-                return 'needs_attention'
+            # Without a target there is no plan to be ahead of or behind.
+            # A loss still needs a look, as it does when a target exists.
+            return 'needs_attention' if total_return < 0 else 'no_target'
 
-        # For positions held < 30 days, use total return for comparison
-        # (annualized returns are misleading for very short periods)
-        if days_held < 30:
+        if days_held < MIN_DAYS_FOR_ANNUALIZED_COMPARISON:
+            # Annualized returns are misleading for very short periods, so compare
+            # the total return with the part of the target due by now
             comparison_return = total_return
-            # Scale expected return proportionally for short holding period
-            if expected_timeframe:
-                months_held = days_held / 30
-                expected_comparison = expected_return * (months_held / expected_timeframe)
-            else:
-                expected_comparison = expected_return * 0.1  # Assume 10% of expected
+            expected_comparison = expected_return_to_date(
+                expected_return, expected_timeframe, days_held)
         else:
-            # Use annualized returns for fair comparison
+            # Compare like with like: actual CAGR vs the target expressed as a CAGR
             comparison_return = annualized_return
-            expected_comparison = expected_return
+            expected_comparison = annualize_expected_return(expected_return, expected_timeframe)
 
         # Compare actual to expected
         if comparison_return >= expected_comparison * 1.2:
