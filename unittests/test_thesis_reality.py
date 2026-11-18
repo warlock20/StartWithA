@@ -21,12 +21,13 @@ from datetime import timedelta
 import pytest
 
 from app import db
-from app.models import DecisionJournal
+from app.models import DecisionJournal, ThesisEvolution
 from app.models.portfolio import PortfolioPosition
 from app.services.portfolio_intelligence import (
     PortfolioIntelligenceService,
     annualize_expected_return,
     expected_return_to_date,
+    get_return_target,
 )
 from app.utils.time_utils import now_utc
 from conftest import _make_company, _make_user
@@ -147,6 +148,23 @@ def test_reality_check_with_target_exposes_annualized_target(app_context):
     assert result.expected_annualized_return == pytest.approx(14.47, abs=0.01)
 
 
+def _logged_in(app, user):
+    user.username = user.username or 'tester'
+    db.session.commit()
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['_user_id'] = str(user.id)
+        sess['_fresh'] = True
+    return client
+
+
+def _seed_thesis(user_id, company_id, version, key_metrics=None):
+    db.session.add(ThesisEvolution(
+        user_id=user_id, company_id=company_id, version=version, thesis='Thesis',
+        change_summary='Update', conviction_level=7, key_metrics=key_metrics,
+        is_current=False))
+
+
 def test_page_lists_positions_without_target_separately(app_context, _app):
     user = _make_user()
     user.username = 'tester'
@@ -171,3 +189,120 @@ def test_page_lists_positions_without_target_separately(app_context, _app):
     assert '+50.0% over 36mo' in html
     assert '+14.5%' in html
     assert 'id="section-exceeding"' not in html
+
+
+# ── setting or revising a target through Update Thesis ──
+
+def test_thesis_version_target_overrides_purchase_target(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _seed_position(user.id, company.id, gain_pct=32, days_held=730)
+    # Bought expecting 100% in 12 months; later revised to 50% over 36 months
+    _seed_buy(user.id, company.id, expected_return=100, expected_timeframe=12)
+    _seed_thesis(user.id, company.id, 1, {'expected_return': 50, 'expected_timeframe': 36})
+    db.session.commit()
+
+    [result] = PortfolioIntelligenceService(user.id).get_thesis_reality_check()
+
+    assert result.expected_return == 50
+    assert result.expected_timeframe_months == 36
+    assert result.target_source == 'thesis'
+    assert result.target_version == 1
+    assert result.status == 'on_track'
+
+
+def test_thesis_version_target_works_without_a_buy_journal(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _seed_position(user.id, company.id, gain_pct=30, days_held=400)
+    _seed_thesis(user.id, company.id, 1, {'expected_return': 25, 'expected_timeframe': 12})
+    db.session.commit()
+
+    [result] = PortfolioIntelligenceService(user.id).get_thesis_reality_check()
+
+    assert result.target_source == 'thesis'
+    assert result.status != 'no_target'
+
+
+def test_later_version_without_target_keeps_the_revised_one(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _seed_buy(user.id, company.id, expected_return=100, expected_timeframe=12)
+    _seed_thesis(user.id, company.id, 1, {'expected_return': 50, 'expected_timeframe': 36})
+    _seed_thesis(user.id, company.id, 2, {'target_price': 120.0})
+    db.session.commit()
+
+    target = get_return_target(user.id, company.id)
+
+    assert (target.expected_return, target.source, target.thesis_version) == (50, 'thesis', 1)
+
+
+def test_purchase_target_is_used_when_no_version_revises_it(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _seed_buy(user.id, company.id, expected_return=20, expected_timeframe=24)
+    _seed_thesis(user.id, company.id, 1)
+    db.session.commit()
+
+    target = get_return_target(user.id, company.id)
+
+    assert (target.expected_return, target.expected_timeframe_months, target.source) == (20, 24, 'purchase')
+
+
+def _thesis_form(**extra):
+    form = {'thesis': 'Updated thesis', 'change_summary': 'Set a target', 'conviction_level': '7'}
+    form.update(extra)
+    return form
+
+
+def test_update_thesis_saves_the_return_target(app_context, _app):
+    user = _make_user()
+    company = _make_company(user.id)
+    _seed_position(user.id, company.id, gain_pct=30, days_held=400)
+    client = _logged_in(_app, user)
+
+    response = client.post(f'/portfolio/position/{company.id}/thesis/new',
+                           data=_thesis_form(expected_return='40', expected_timeframe='24'))
+
+    assert response.status_code == 302
+    version = ThesisEvolution.query.filter_by(user_id=user.id, company_id=company.id).one()
+    assert version.key_metrics == {'expected_return': 40.0, 'expected_timeframe': 24}
+    [result] = PortfolioIntelligenceService(user.id).get_thesis_reality_check()
+    assert (result.expected_return, result.target_source) == (40.0, 'thesis')
+
+
+def test_update_thesis_rejects_timeframe_below_one_month(app_context, _app):
+    user = _make_user()
+    company = _make_company(user.id)
+    client = _logged_in(_app, user)
+
+    client.post(f'/portfolio/position/{company.id}/thesis/new',
+                data=_thesis_form(expected_return='40', expected_timeframe='0'))
+
+    assert ThesisEvolution.query.filter_by(user_id=user.id).count() == 0
+
+
+def test_update_thesis_rejects_timeframe_without_return(app_context, _app):
+    user = _make_user()
+    company = _make_company(user.id)
+    client = _logged_in(_app, user)
+
+    client.post(f'/portfolio/position/{company.id}/thesis/new',
+                data=_thesis_form(expected_timeframe='24'))
+
+    assert ThesisEvolution.query.filter_by(user_id=user.id).count() == 0
+
+
+def test_update_thesis_form_prefills_purchase_target(app_context, _app):
+    user = _make_user()
+    company = _make_company(user.id)
+    _seed_position(user.id, company.id, gain_pct=30, days_held=400)
+    _seed_buy(user.id, company.id, expected_return=25, expected_timeframe=18)
+    client = _logged_in(_app, user)
+
+    html = client.get(f'/portfolio/position/{company.id}/thesis/new').get_data(as_text=True)
+
+    assert 'name="expected_return"' in html
+    assert 'value="25.0"' in html
+    assert 'value="18"' in html
+    assert 'Set when you bought.' in html

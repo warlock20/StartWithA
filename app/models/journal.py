@@ -256,6 +256,23 @@ class ThesisEvolution(db.Model):
         """Plain text version of thesis for LLM prompts and embeddings"""
         return blocknote_to_text(self.thesis) if self.thesis else ''
 
+    def _key_metric(self, name):
+        return self.key_metrics.get(name) if isinstance(self.key_metrics, dict) else None
+
+    @property
+    def target_price(self):
+        return self._key_metric('target_price')
+
+    @property
+    def expected_return(self):
+        """Total return % expected from purchase, as revised in this version."""
+        return self._key_metric('expected_return')
+
+    @property
+    def expected_timeframe(self):
+        """Months from purchase over which expected_return is expected."""
+        return self._key_metric('expected_timeframe')
+
     def __repr__(self):
         return f'<ThesisEvolution v{self.version} for Company {self.company_id}>'
 

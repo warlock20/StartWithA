@@ -95,7 +95,7 @@
                 <div class="row">
                     {% for metric, value in version.key_metrics.items() %}
                     <div class="col-md-3">
-                        <strong>{{ metric }}:</strong> {{ value }}
+                        <strong>{{ metric|replace('_', ' ')|title }}:</strong> {{ value }}
                     </div>
                     {% endfor %}
                 </div>

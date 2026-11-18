@@ -52,7 +52,7 @@ from app.constants import (
     MAX_DYNAMIC_FORM_FIELDS,
 )
 from app.services.portfolio_intelligence import (
-    get_thesis_reality_check, PortfolioIntelligenceService,
+    get_thesis_reality_check, get_return_target, PortfolioIntelligenceService,
     get_learning_insights, get_correlation_data, outcome_hold_days
     )
 from app.services.intelligence_engine import get_portfolio_warnings
@@ -232,9 +232,23 @@ def add_thesis_version(company_id):
 
             # Get key metrics
             target_price = request.form.get('target_price', type=float)
+            expected_return = request.form.get('expected_return', type=float)
+            expected_timeframe = request.form.get('expected_timeframe', type=int)
+
+            if expected_timeframe is not None and expected_timeframe < 1:
+                flash('Expected timeframe must be at least 1 month', 'error')
+                return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
+            if expected_timeframe is not None and expected_return is None:
+                flash('Add the expected return that goes with the timeframe', 'error')
+                return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
+
             key_metrics = {}
             if target_price:
                 key_metrics['target_price'] = target_price
+            if expected_return is not None:
+                key_metrics['expected_return'] = expected_return
+                if expected_timeframe:
+                    key_metrics['expected_timeframe'] = expected_timeframe
 
             # Get next version number
             max_version = db.session.query(db.func.max(ThesisEvolution.version)).filter_by(
@@ -296,10 +310,14 @@ def add_thesis_version(company_id):
     stock_currency = company.reporting_currency or CurrencyService.detect_currency_from_ticker(company.ticker_symbol)
     currency_symbol = CurrencyService.get_currency_symbol(stock_currency)
 
+    # Return target to prefill: the current version's, else the one set at purchase
+    return_target = get_return_target(current_user.id, company_id)
+
     return render_template('add_thesis_version.html',
                           company=company,
                           position=position,
                           current_thesis=current_thesis,
+                          return_target=return_target,
                           next_version=next_version,
                           currency_symbol=currency_symbol)
 
