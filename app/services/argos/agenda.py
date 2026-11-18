@@ -213,6 +213,9 @@ def _thesis_drift(user_id):
             'status': t.status,
             'expected_return_pct': t.expected_return,
             'expected_timeframe_months': t.expected_timeframe_months,
+            'expected_annualized_return_pct': (
+                round(t.expected_annualized_return, 1)
+                if t.expected_annualized_return is not None else None),
             'actual_return_pct': round(t.actual_return_pct, 1),
             'annualized_return_pct': round(t.annualized_return_pct, 1),
             'days_held': t.days_held,

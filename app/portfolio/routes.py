@@ -646,7 +646,8 @@ def thesis_reality():
         'exceeding': 0,
         'on_track': 0,
         'behind': 0,
-        'needs_attention': 0
+        'needs_attention': 0,
+        'no_target': 0
     }
     
     for pos in positions:
