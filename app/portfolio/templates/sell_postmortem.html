@@ -65,7 +65,10 @@
                                    step="0.01" placeholder="e.g., 15.5 or -8.3"
                                    {% if calculated_return is not none %}value="{{ '%.2f'|format(calculated_return) }}"{% endif %}>
                             {% if calculated_return is not none %}
-                            <div class="form-text">Auto-calculated from your transactions (FIFO). You can override if needed.</div>
+                            <div class="form-text">
+                                {% if closed_trade %}Return on this trade, from the first buy to this sale{% else %}Return on the shares sold in this transaction{% endif %}
+                                (FIFO, excluding dividends). You can override if needed.
+                            </div>
                             {% else %}
                             <div class="form-text">Positive for gain, negative for loss</div>
                             {% endif %}

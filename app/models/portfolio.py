@@ -16,9 +16,9 @@
 
 # app/models/portfolio.py
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from app import db
 from app.utils.time_utils import date, now_utc
@@ -359,6 +359,20 @@ def _get_base_fees(txn):
 
 
 @dataclass
+class SaleMatch:
+    """One SELL or MERGER_OUT inside a round trip: the shares it matched against open lots."""
+    transaction: Transaction
+    sold_cost: Decimal
+    sell_proceeds: Decimal
+
+    @property
+    def return_pct(self) -> Optional[float]:
+        if self.sold_cost <= 0:
+            return None
+        return float((self.sell_proceeds - self.sold_cost) / self.sold_cost * 100)
+
+
+@dataclass
 class RoundTrip:
     """One trade: from the BUY that took the holding from 0 shares to the SELL that took it back to 0."""
     opening_transaction: Transaction
@@ -370,6 +384,7 @@ class RoundTrip:
     sell_proceeds: Decimal
     exit_date: Optional[date] = None
     exit_price: Optional[Decimal] = None
+    sales: List[SaleMatch] = field(default_factory=list)  # oldest first
 
     @property
     def is_closed(self) -> bool:
@@ -503,8 +518,11 @@ def _walk_fifo(transactions):
         if txn.quantity > 0:
             lifetime_proceeds += sell_proceeds * Decimal(matched) / Decimal(txn.quantity)
         if trip is not None and matched > 0:
+            matched_proceeds = sell_proceeds * Decimal(matched) / Decimal(txn.quantity)
             trip.sold_cost += sell_cost_basis
-            trip.sell_proceeds += sell_proceeds * Decimal(matched) / Decimal(txn.quantity)
+            trip.sell_proceeds += matched_proceeds
+            trip.sales.append(SaleMatch(transaction=txn, sold_cost=sell_cost_basis,
+                                        sell_proceeds=matched_proceeds))
             if total_shares == 0:
                 trip.closing_transaction = txn
                 trip.exit_date = txn.date
@@ -616,6 +634,15 @@ def calculate_fifo_cost_basis(company_id, user_id):
 def get_round_trips(company_id: int, user_id: int) -> List[RoundTrip]:
     """The user's trades in a company (0 -> 0 shares), oldest first. The last may be open."""
     return _walk_fifo(_load_transactions(company_id, user_id)).round_trips
+
+
+def find_sale(txn: Transaction) -> Optional[Tuple[RoundTrip, SaleMatch]]:
+    """The round trip a SELL or MERGER_OUT belongs to and its own matched cost and proceeds, or None."""
+    for trip in get_round_trips(txn.company_id, txn.user_id):
+        for sale in trip.sales:
+            if sale.transaction.id == txn.id:
+                return trip, sale
+    return None
 
 
 def fifo_state_on(company_id: int, user_id: int, on_date: date) -> _FifoResult:

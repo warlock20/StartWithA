@@ -43,7 +43,10 @@ from app.utils.time_utils import date, days_between, now_utc
 from app.models.ai_intelligence import ResearchOutcome
 from app.models.checklist import DestinationCheckpoint
 from app.models.journal import DecisionJournal
-from app.models.portfolio import PortfolioPosition, Transaction, get_round_trips, update_portfolio_position_for_company
+from app.models.portfolio import (
+    PortfolioPosition, RoundTrip, Transaction, find_sale, get_round_trips,
+    update_portfolio_position_for_company,
+)
 from app.models.research import ResearchProject
 from .research_quality import calculate_research_quality
 
@@ -266,15 +269,20 @@ def received_position_company_ids(user_id: int) -> Set[int]:
     return received
 
 
+def trip_buy_journal(trip: RoundTrip) -> Optional[DecisionJournal]:
+    """The BUY journal of the transaction that opened the trade, or None."""
+    journal = trip.opening_transaction.decision_journal
+    if journal is not None and journal.decision_type != 'BUY':
+        return None
+    return journal
+
+
 def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company_id: int,
                            checkpoints: List[DestinationCheckpoint],
                            quality_cache: Dict[int, Any]) -> bool:
     """Write the trip onto the outcome. Returns True when any field actually changed."""
     tracker = OutcomeTracker()
-    opening = trip.opening_transaction
-    journal = opening.decision_journal
-    if journal is not None and journal.decision_type != 'BUY':
-        journal = None
+    journal = trip_buy_journal(trip)
 
     outcome.decision_date = trip.entry_date
     outcome.entry_price = trip.entry_price
@@ -398,6 +406,46 @@ def safe_sync_outcomes(user_id: int, company_id: int) -> Optional[OutcomeSyncSta
     except Exception:
         logger.warning(f"[AI] Outcome sync failed for company {company_id}", exc_info=True)
         return None
+
+
+@dataclass
+class SalePostmortem:
+    """What the sell post-mortem shows for one SELL journal."""
+    sell_transaction: Optional[Transaction] = None
+    buy_journal: Optional[DecisionJournal] = None
+    calculated_return: Optional[float] = None
+    closed_trade: bool = False  # True when this sale took the holding to 0 shares
+
+
+def sale_postmortem(sell_journal: DecisionJournal) -> SalePostmortem:
+    """
+    The return and BUY journal for the trade a SELL journal's sale belongs to.
+
+    A sale that closed the trade gets the trade's realized return (the value the
+    trade's ResearchOutcome holds); a partial sale gets the return on the shares it
+    sold. A journal with no linked SELL transaction gets an empty result.
+    """
+    txn = Transaction.query.filter_by(
+        user_id=sell_journal.user_id,
+        company_id=sell_journal.company_id,
+        decision_journal_id=sell_journal.id,
+        type='SELL',
+    ).order_by(Transaction.id.desc()).first()
+    if txn is None:
+        return SalePostmortem()
+
+    match = find_sale(txn)
+    if match is None:
+        return SalePostmortem(sell_transaction=txn)  # sold nothing the FIFO walk held
+
+    trip, sale = match
+    closed = trip.closing_transaction is not None and trip.closing_transaction.id == txn.id
+    return SalePostmortem(
+        sell_transaction=txn,
+        buy_journal=trip_buy_journal(trip),
+        calculated_return=trip.realized_return_pct if closed else sale.return_pct,
+        closed_trade=closed,
+    )
 
 
 @dataclass

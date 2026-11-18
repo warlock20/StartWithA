@@ -21,6 +21,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.portfolio import portfolio_bp
 from app.models import DecisionJournal, Transaction, PortfolioPosition, ResearchProject
+from app.services.outcome_tracking import sale_postmortem
 from app.constants import JOURNALS_PER_PAGE
 from app.utils.time_utils import now_utc
 
@@ -114,22 +115,10 @@ def sell_postmortem(journal_id):
         decision_type='SELL'
     ).first_or_404()
 
-    # Get the original BUY journal
-    buy_journal = DecisionJournal.query.filter_by(
-        company_id=journal.company_id,
-        user_id=current_user.id,
-        decision_type='BUY',
-        is_portfolio_decision=True
-    ).first()
-
-    # Get portfolio position for auto-calculated return
-    position = PortfolioPosition.query.filter_by(
-        user_id=current_user.id,
-        company_id=journal.company_id
-    ).first()
-    calculated_return = None
-    if position and position.realized_gain_loss_pct is not None:
-        calculated_return = float(position.realized_gain_loss_pct)
+    # Return and BUY journal of the trade this sale belongs to (not the company's lifetime figure)
+    postmortem = sale_postmortem(journal)
+    buy_journal = postmortem.buy_journal
+    calculated_return = postmortem.calculated_return
 
     if request.method == 'POST':
         # Get form data
@@ -169,5 +158,6 @@ def sell_postmortem(journal_id):
     return render_template('sell_postmortem.html',
                           journal=journal,
                           buy_journal=buy_journal,
-                          calculated_return=calculated_return)
+                          calculated_return=calculated_return,
+                          closed_trade=postmortem.closed_trade)
 
