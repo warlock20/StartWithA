@@ -48,7 +48,7 @@ from app.utils.financial_utils import calculate_cagr
 from app.utils.grading import score_to_grade
 
 from app.models.ai_intelligence import ResearchOutcome
-from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company
+from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company, ThesisEvolution
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +148,33 @@ class CheckpointReminder:
 
 
 @dataclass
+class ReturnTarget:
+    """The expected return a position is measured against."""
+    expected_return: Optional[float]  # Total return % expected from purchase
+    expected_timeframe_months: Optional[int]
+    source: Optional[str]  # 'thesis' (revised in a thesis version), 'purchase', or None
+    thesis_version: Optional[int]  # Version that set it, when source == 'thesis'
+
+
+NO_RETURN_TARGET = ReturnTarget(None, None, None, None)
+
+
+def _resolve_return_target(journal, theses) -> ReturnTarget:
+    """Latest thesis version that sets a return target, else the BUY decision's.
+
+    ``theses`` are the company's thesis versions, newest first.
+    """
+    for thesis in theses:
+        if thesis.expected_return is not None:
+            return ReturnTarget(thesis.expected_return, thesis.expected_timeframe,
+                                'thesis', thesis.version)
+    if journal is not None and journal.expected_return is not None:
+        return ReturnTarget(journal.expected_return, journal.expected_timeframe,
+                            'purchase', None)
+    return NO_RETURN_TARGET
+
+
+@dataclass
 class ThesisReality:
     """Comparison of thesis expectations vs actual performance"""
     company_name: str
@@ -160,6 +187,8 @@ class ThesisReality:
     expected_return: Optional[float]  # Total return expected over the timeframe
     expected_timeframe_months: Optional[int]
     expected_annualized_return: Optional[float]  # expected_return as a CAGR
+    target_source: Optional[str]  # 'thesis', 'purchase', or None (no target)
+    target_version: Optional[int]  # Thesis version that set the target
     confidence_score: Optional[int]
 
     # Reality
@@ -472,10 +501,19 @@ class PortfolioIntelligenceService:
             if j.company_id not in journals_map:
                 journals_map[j.company_id] = j
 
+        # Thesis versions can revise the return target set at purchase
+        theses_map = {}
+        for t in ThesisEvolution.query.filter(
+            ThesisEvolution.user_id == self.user_id,
+            ThesisEvolution.company_id.in_(company_ids)
+        ).order_by(ThesisEvolution.version.desc()).all():
+            theses_map.setdefault(t.company_id, []).append(t)
+
         results = []
 
         for position in positions:
             journal = journals_map.get(position.company_id)
+            target = _resolve_return_target(journal, theses_map.get(position.company_id, []))
 
             # Calculate actual returns
             actual_return = float(position.unrealized_gain_loss_pct or 0)
@@ -484,8 +522,8 @@ class PortfolioIntelligenceService:
 
             # Determine status (using annualized return for fair comparison)
             status = self._assess_thesis_status(
-                expected_return=journal.expected_return if journal else None,
-                expected_timeframe=journal.expected_timeframe if journal else None,
+                expected_return=target.expected_return,
+                expected_timeframe=target.expected_timeframe_months,
                 annualized_return=annualized_return,
                 total_return=actual_return,
                 days_held=days_held
@@ -497,12 +535,12 @@ class PortfolioIntelligenceService:
                 company_id=position.company_id,
                 position_id=position.id,
                 investment_thesis=journal.investment_thesis if journal else 'No thesis recorded',
-                expected_return=journal.expected_return if journal else None,
-                expected_timeframe_months=journal.expected_timeframe if journal else None,
+                expected_return=target.expected_return,
+                expected_timeframe_months=target.expected_timeframe_months,
                 expected_annualized_return=annualize_expected_return(
-                    journal.expected_return if journal else None,
-                    journal.expected_timeframe if journal else None
-                ),
+                    target.expected_return, target.expected_timeframe_months),
+                target_source=target.source,
+                target_version=target.thesis_version,
                 confidence_score=journal.confidence_score if journal else None,
                 actual_return_pct=actual_return,
                 annualized_return_pct=annualized_return,
@@ -783,6 +821,21 @@ def get_upcoming_checkpoints(user_id: int, days_ahead: int = 30) -> Dict[str, Li
 
 
 @cache.memoize(timeout=300)  # 5 min — position data changes with price refreshes
+def get_return_target(user_id: int, company_id: int) -> ReturnTarget:
+    """The return target in effect for one company (see _resolve_return_target)."""
+    journal = DecisionJournal.query.filter_by(
+        user_id=user_id,
+        company_id=company_id,
+        decision_type='BUY',
+        is_portfolio_decision=True
+    ).order_by(DecisionJournal.decision_date.desc()).first()
+    theses = ThesisEvolution.query.filter_by(
+        user_id=user_id,
+        company_id=company_id
+    ).order_by(ThesisEvolution.version.desc()).all()
+    return _resolve_return_target(journal, theses)
+
+
 def get_thesis_reality_check(user_id: int) -> List[ThesisReality]:
     """Get thesis vs reality comparison for active positions"""
     service = PortfolioIntelligenceService(user_id)

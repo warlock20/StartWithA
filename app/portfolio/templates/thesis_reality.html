@@ -92,7 +92,7 @@
     {% set first_section = (sections | selectattr('rows') | first).id %}
 
     {% macro expected_summary(p) -%}
-        {{ "%+.1f"|format(p.expected_return) }}%{% if p.expected_timeframe_months %} over {{ p.expected_timeframe_months }}mo{% endif %}
+        {{ "%+.1f"|format(p.expected_return) }}%{% if p.expected_timeframe_months %} over {{ p.expected_timeframe_months }}mo{% endif %}{% if p.target_source == 'thesis' %} (revised in V{{ p.target_version }}){% endif %}
     {%- endmacro %}
 
     {% macro position_section(section, is_active) %}
@@ -100,7 +100,7 @@
         <div class="tr-positions-panel">
             {% if section.id == 'notarget' %}
             <p class="tr-section-note" style="color:var(--text-muted);font-size:0.85rem;margin:0 0 0.75rem;">
-                No expected return was recorded when you bought these, so there is nothing to compare them against. Add a target to track them against your plan.
+                No expected return was recorded for these, so there is nothing to compare them against. Use Update Thesis to set one.
             </p>
             {% endif %}
             <table class="tr-positions-table">
