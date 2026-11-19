@@ -214,9 +214,38 @@
                 <i class="bi bi-bell me-1"></i> Needs Attention
             </div>
 
-            {% set has_actions = inbox_count > 0 or upcoming_checkpoints or stale_projects %}
+            {% set has_actions = watchlist_hits or watchlist_near or inbox_count > 0 or upcoming_checkpoints or stale_projects %}
 
             <div class="actions-list" id="actionsList">
+                {% for hit in watchlist_hits %}
+                <div class="action-item">
+                    <div class="action-icon action-icon--success">
+                        <i class="bi bi-bullseye"></i>
+                    </div>
+                    <div class="action-content">
+                        <p class="action-title"><a href="{{ hit.project_url }}">{{ hit.company_name }}</a> reached your {{ hit.metric_label|lower }} target</p>
+                        <p class="action-meta">{{ hit.last_display }} &middot; target {{ hit.target_display }} &middot; {{ hit.hit_at.strftime('%b %d') }}</p>
+                        <div class="d-flex gap-3 small">
+                            <a href="{{ hit.project_url }}">Resume research</a>
+                            <form method="post" action="{{ hit.dismiss_url }}" class="d-inline"><button type="submit" class="btn btn-link p-0 border-0 align-baseline small text-muted text-decoration-none fw-normal">Dismiss</button></form>
+                        </div>
+                    </div>
+                    <span class="dashboard-action-badge action-badge--hit">Target hit</span>
+                </div>
+                {% endfor %}
+
+                {% for near in watchlist_near %}
+                <div class="action-item">
+                    <div class="action-icon action-icon--warning">
+                        <i class="bi bi-bullseye"></i>
+                    </div>
+                    <div class="action-content">
+                        <p class="action-title"><a href="{{ near.project_url }}">{{ near.company_name }}</a> is close to your target</p>
+                        <p class="action-meta">{{ near.fall_needed_pct }}% to go &middot; target {{ near.target_display }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+
                 {% if inbox_count > 0 %}
                 <div class="action-item">
                     <div class="action-icon action-icon--warning">

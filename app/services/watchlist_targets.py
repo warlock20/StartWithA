@@ -20,6 +20,8 @@ import logging
 from decimal import Decimal, InvalidOperation
 from typing import Optional
 
+from flask import url_for
+
 from app import db
 from app.models import JournalEntry, ResearchProject
 from app.models.company import Company
@@ -204,3 +206,40 @@ def active_hits(user_id: int) -> list:
         .order_by(ResearchProject.watch_target_hit_at.desc())
         .all()
     )
+
+
+def near_targets(user_id: int, near_pct: float) -> list:
+    """Watchlist projects not yet hit whose value must fall at most near_pct to reach
+    the target, closest first. Empty when near_pct <= 0."""
+    if near_pct <= 0:
+        return []
+    projects = (
+        ResearchProject.query
+        .filter(
+            ResearchProject.user_id == user_id,
+            ResearchProject.decision == 'watchlist',
+            ResearchProject.watch_target_value.isnot(None),
+            ResearchProject.watch_last_value.isnot(None),
+            ResearchProject.watch_target_hit_at.is_(None),
+        )
+        .all()
+    )
+    ranked = []
+    for project in projects:
+        fall = fall_needed_pct(project.watch_last_value, project.watch_target_value)
+        if fall is not None and 0 < fall <= near_pct:
+            ranked.append((fall, project))
+    ranked.sort(key=lambda pair: pair[0])
+    return [project for _, project in ranked]
+
+
+def alert_item(project, near_pct: float) -> dict:
+    """target_status plus the name and URLs the alert strips need."""
+    item = target_status(project, near_pct)
+    item.update({
+        'company_name': project.subject_display_name,
+        'hit_at': project.watch_target_hit_at,
+        'project_url': url_for('research_workflow.project_dashboard', project_id=project.id),
+        'dismiss_url': url_for('research_workflow.dismiss_watch_target', project_id=project.id),
+    })
+    return item

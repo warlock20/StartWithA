@@ -33,7 +33,7 @@ from app.utils.time_utils import now_utc
 from app.utils.auth_utils import owned_or_404
 from app.services.too_hard_service import TooHardBasketService, overall_filter_rate
 from app.services.research_priority import ResearchPriorityService
-from app.services.watchlist_targets import active_hits, near_target_pct, target_status
+from app.services.watchlist_targets import active_hits, alert_item, near_target_pct, target_status
 
 
 def _html_safe_json(data):
@@ -233,16 +233,12 @@ def my_projects():
 
     hit_alerts = []
     for p in hits:
-        status = target_status(p, near_pct)
+        item = alert_item(p, near_pct)
         hit_alerts.append({
             'type': 'watchlist_target_hit',
             'project_id': p.id,
-            'company_name': p.subject_display_name,
-            'metric_label': status['metric_label'],
-            'last_display': status['last_display'],
-            'target_display': status['target_display'],
-            'project_url': url_for('research_workflow.project_dashboard', project_id=p.id),
-            'dismiss_url': url_for('research_workflow.dismiss_watch_target', project_id=p.id),
+            **{k: item[k] for k in ('company_name', 'metric_label', 'last_display',
+                                    'target_display', 'project_url', 'dismiss_url')},
         })
     alerts = hit_alerts + alerts
 
