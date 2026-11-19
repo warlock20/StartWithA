@@ -25,6 +25,12 @@ from app.utils.blocknote_utils import blocknote_to_text
 RESEARCH_PROJECT_STATUSES = ('active', 'completed', 'killed')
 RESEARCH_DECISIONS = ('invest', 'pass', 'watchlist')
 WATCH_REASONS = ('valuation_too_high', 'waiting_for_catalyst', 'lower_priority', 'other')
+WATCH_TARGET_METRICS = ('price', 'market_cap', 'enterprise_value')
+WATCH_TARGET_METRIC_LABELS = {
+    'price': 'Price',
+    'market_cap': 'Market cap',
+    'enterprise_value': 'Enterprise value',
+}
 
 
 class ChecklistAnalysis(db.Model):
@@ -234,6 +240,15 @@ class ResearchProject(db.Model):
     # Watchlist tracking (can be set on active or completed projects)
     watch_reason = db.Column(db.String(50))  # WATCH_REASONS
     watch_notes = db.Column(db.Text)
+
+    # Watchlist valuation target. Market cap and EV are stored in full currency units.
+    watch_target_metric = db.Column(db.String(20))  # WATCH_TARGET_METRICS
+    watch_target_value = db.Column(db.Numeric(24, 4))
+    watch_target_currency = db.Column(db.String(3))
+    watch_last_value = db.Column(db.Numeric(24, 4))
+    watch_last_checked_at = db.Column(db.DateTime)
+    watch_target_hit_at = db.Column(db.DateTime)
+    watch_target_dismissed_at = db.Column(db.DateTime)
 
     # Circle of Competence tracking (for Too Hard Basket analytics)
     within_circle_of_competence = db.Column(db.String(20))  # 'yes', 'no', 'unsure'

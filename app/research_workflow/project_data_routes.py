@@ -39,6 +39,7 @@ from app.utils.auth_utils import owned_or_404
 from app.services.export_service import resolve_checklist_id
 from app.services.research_quality import calculate_research_quality
 from app.services.findings import finding_entries
+from app.services.watchlist_targets import clear_target
 
 
 def _apply_completion_status(project):
@@ -165,6 +166,7 @@ def save_project_decision(project_id):
         if decision != 'watchlist':
             project.watch_reason = None
             project.watch_notes = None
+            clear_target(project)
 
         # Mark as completed if not already
         _apply_completion_status(project)

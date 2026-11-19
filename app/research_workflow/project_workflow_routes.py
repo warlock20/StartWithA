@@ -55,6 +55,7 @@ from app.services.export_service import resolve_checklist_id
 from app.services.sector_service import SectorService
 from app.services.company_state import company_state
 from app.services.findings import finding_entries
+from app.services.watchlist_targets import clear_target
 from app.services.research_reopen_service import ReopenNotAllowed, ResearchReopenService
 from sqlalchemy.orm.attributes import flag_modified
 import json
@@ -1111,6 +1112,7 @@ def remove_from_watchlist(project_id):
         project.decision_date = None
         project.watch_reason = None
         project.watch_notes = None
+        clear_target(project)
         project.last_worked_at = now_utc()
 
         db.session.commit()
