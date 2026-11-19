@@ -1,6 +1,9 @@
-/* Watchlist valuation target fields (Move to Watchlist modal).
- * WatchTarget.init(container, metricsUrl) fetches current values once, then drives
- * the metric switch, the -10/-15/-20/-30% chips and the live "needs to fall". */
+/* Watchlist valuation target fields (Move to Watchlist and Set target modals).
+ * WatchTarget.init(container, metricsUrl, initial) fetches current values once, then
+ * drives the metric switch, the -10/-15/-20/-30% chips and the live "needs to fall".
+ * `initial` is optional: { metric: 'price' | 'market_cap' | 'enterprise_value',
+ * value: <number in input units, billions for cap/EV> } starts the fields on a saved
+ * target instead of seeding 15% below the current value. Runs once per container. */
 (function () {
     'use strict';
 

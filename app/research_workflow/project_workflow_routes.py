@@ -1069,8 +1069,9 @@ def move_to_watchlist(project_id):
             return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
 
         target = None
-        if watch_reason == 'valuation_too_high':
-            ticker = project.company.ticker_symbol if project.company else None
+        ticker = project.company.ticker_symbol if project.company else None
+        # Without a ticker the nightly check can never test a target, so none is asked for.
+        if watch_reason == 'valuation_too_high' and ticker:
             metric, value, currency, error = _read_target_form(ticker)
             if error:
                 if request.headers.get('Content-Type') == 'application/json':
@@ -1082,6 +1083,9 @@ def move_to_watchlist(project_id):
         project.decision = 'watchlist'
         project.decision_date = now_utc()
         project.watch_reason = watch_reason
+        # Start from a clean slate: a target (and its hit/dismiss state) left over from
+        # an earlier stint on the watchlist must not come back.
+        clear_target(project)
         if target:
             set_target(project, *target)
         project.watch_notes = watch_notes
@@ -1137,6 +1141,8 @@ def move_to_watchlist(project_id):
 
         company_name = project.company.name if project.company else project.project_name
         flash(f'{company_name} moved to watchlist. You can continue research or revisit later.', 'info')
+        if watch_reason == 'valuation_too_high' and not ticker:
+            flash('Add a ticker to set a valuation target', 'info')
         return redirect(url_for('research_workflow.my_projects'))
 
     except Exception as e:
@@ -1201,8 +1207,10 @@ def dismiss_watch_target(project_id):
     if project.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
-    project.watch_target_dismissed_at = now_utc()
-    db.session.commit()
+    # Only an active hit can be dismissed; a stale or replayed post changes nothing.
+    if project.decision == 'watchlist' and project.watch_target_hit_at is not None:
+        project.watch_target_dismissed_at = now_utc()
+        db.session.commit()
     return redirect(request.referrer or url_for('research_workflow.my_projects'))
 
 

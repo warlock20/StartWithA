@@ -63,7 +63,7 @@ celery.conf.update(
         },
         'watchlist-target-check': {
             'task': 'app.celery_tasks.tasks_watchlist.check_watchlist_targets',
-            'schedule': crontab(hour=20, minute=30),  # Daily at 20:30 UTC
+            'schedule': crontab(hour=21, minute=30),  # Daily at 21:30 UTC (after the US close in EST too)
         },
         'ai-check-reap-stale-runs': {
             'task': 'app.celery_tasks.tasks_ai_check.ai_check_reap_task',

@@ -141,6 +141,7 @@ class YahooFinanceProvider(FinancialDataProvider):
         Returns:
             Dict with 'price', 'market_cap', 'enterprise_value', 'currency',
             'shares_outstanding' (each a float or None), or None if no price
+            (missing, zero or negative)
         """
         try:
             info = yf.Ticker(ticker).info
@@ -150,7 +151,9 @@ class YahooFinanceProvider(FinancialDataProvider):
                 info.get('regularMarketPrice') or
                 info.get('previousClose')
             )
-            if price is None:
+            # A zero or negative quote is a Yahoo data gap, not a price; treating it as
+            # one would trip every target as hit.
+            if price is None or float(price) <= 0:
                 logger.warning(f"No price data available for {ticker}")
                 return None
 

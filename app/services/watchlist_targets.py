@@ -29,11 +29,13 @@ from app.models.research import WATCH_TARGET_METRICS, WATCH_TARGET_METRIC_LABELS
 from app.services.config_service import get_config
 from app.services.currency_service import CurrencyService
 from app.services.financial_data import FinancialDataService
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import add_days, ensure_timezone_aware, format_date, now_utc
 
 logger = logging.getLogger(__name__)
 
 NEAR_TARGET_CONFIG_KEY = 'watchlist_near_target_pct'
+STALE_AFTER_DAYS = 3
+MIN_TARGET_VALUE = Decimal('0.0001')  # Numeric(24,4): anything smaller rounds to 0
 
 _TARGET_FIELDS = (
     'watch_target_metric', 'watch_target_value', 'watch_target_currency',
@@ -44,7 +46,8 @@ _TARGET_FIELDS = (
 
 def parse_target_value(raw: str) -> Optional[Decimal]:
     """Parse a typed target. A comma is a thousands separator when a '.' is
-    present, otherwise the decimal separator. None for empty, non-numeric or <= 0."""
+    present, otherwise the decimal separator. None for empty, non-numeric or below
+    0.0001 (the column's precision, so a smaller value would be stored as 0)."""
     text = (raw or '').strip()
     if not text:
         return None
@@ -53,7 +56,7 @@ def parse_target_value(raw: str) -> Optional[Decimal]:
         value = Decimal(text)
     except InvalidOperation:
         return None
-    if not value.is_finite() or value <= 0:
+    if not value.is_finite() or value < MIN_TARGET_VALUE:
         return None
     return value
 
@@ -91,6 +94,10 @@ def format_watch_value(metric: str, value: Optional[Decimal], currency: Optional
     return f'{symbol}{value / Decimal(10) ** 9:,.1f}B'
 
 
+def _has_ticker(project) -> bool:
+    return bool(project.company and project.company.ticker_symbol)
+
+
 def target_status(project, near_pct: float) -> dict:
     metric = project.watch_target_metric
     target = project.watch_target_value
@@ -98,17 +105,26 @@ def target_status(project, near_pct: float) -> dict:
     currency = project.watch_target_currency
     fall = fall_needed_pct(last, target)
     raw_fall = float((last - target) / last * 100) if last is not None and target is not None and last > 0 else None
+    has_target = metric is not None and target is not None
+    has_ticker = _has_ticker(project)
+    checked_at = ensure_timezone_aware(project.watch_last_checked_at)
 
-    if metric is None or target is None:
+    if not has_target:
         state = 'none'
+    elif last is not None and last <= target:
+        state = 'hit'
+    elif not has_ticker:
+        # The nightly check skips companies without a ticker, so this target never updates.
+        state = 'no_ticker'
     elif last is None:
         state = 'unchecked'
-    elif last <= target:
-        state = 'hit'
     elif near_pct > 0 and raw_fall is not None and 0 < raw_fall <= near_pct:
         state = 'near'
     else:
         state = 'far'
+
+    stale = bool(has_target and has_ticker and checked_at is not None
+                 and checked_at < add_days(now_utc(), -STALE_AFTER_DAYS))
 
     return {
         'state': state,
@@ -118,6 +134,9 @@ def target_status(project, near_pct: float) -> dict:
         'last': last,
         'currency': currency,
         'fall_needed_pct': fall,
+        'raw_fall_pct': raw_fall,
+        'checked_display': format_date(checked_at, 'as of %b %d', default=None),
+        'stale': stale,
         'target_display': format_watch_value(metric, target, currency) if metric else '—',
         'last_display': format_watch_value(metric, last, currency) if metric else '—',
     }
@@ -145,11 +164,39 @@ def _record_hit(project, last: Decimal) -> None:
     ))
 
 
+def _target_key(project) -> tuple:
+    return (project.watch_target_metric, project.watch_target_value, project.watch_target_currency)
+
+
+def _apply_fetch(project, metrics: Optional[dict], key_at_fetch: tuple) -> str:
+    """Apply one ticker's fetch to one project. Returns 'hit', 'checked' or 'skipped'.
+
+    Reloads the project first so a change made while the fetch ran (decision
+    changed, target edited or removed) is never overwritten with a stale result.
+    """
+    db.session.refresh(project)
+    if (project.decision != 'watchlist' or project.watch_target_value is None
+            or _target_key(project) != key_at_fetch):
+        return 'skipped'
+    raw = metrics.get(project.watch_target_metric) if metrics else None
+    if raw is None or metrics.get('currency') != project.watch_target_currency:
+        return 'skipped'
+    last = Decimal(str(raw))
+    project.watch_last_value = last
+    project.watch_last_checked_at = now_utc()
+    if project.watch_target_hit_at is None and last <= project.watch_target_value:
+        project.watch_target_hit_at = now_utc()
+        _record_hit(project, last)
+        return 'hit'
+    return 'checked'
+
+
 def check_all_targets(financial_service=None) -> dict:
     """Fetch each watched ticker once and update every project's target state.
 
-    A fetch failure or a missing/mismatched value skips that row without a hit.
-    Commits once at the end.
+    A fetch failure, a missing/mismatched value, a project changed during the
+    fetch or an error while updating one project skips that row without a hit
+    and the run carries on. Commits once per ticker.
     """
     service = financial_service or FinancialDataService()
     projects = (
@@ -169,27 +216,40 @@ def check_all_targets(financial_service=None) -> dict:
     counts = {'tickers': len(by_ticker), 'checked': 0, 'hits': 0, 'skipped': 0}
     for ticker, ticker_projects in by_ticker.items():
         try:
+            # Snapshot each target before the (slow) fetch to spot edits made meanwhile.
+            keys = [(project.id, _target_key(project)) for project in ticker_projects]
             metrics = service.get_watch_metrics(ticker)
         except Exception:
             logger.exception('Watchlist target fetch failed for %s', ticker)
+            db.session.rollback()
             counts['skipped'] += len(ticker_projects)
             continue
 
-        for project in ticker_projects:
-            raw = metrics.get(project.watch_target_metric) if metrics else None
-            if raw is None or metrics.get('currency') != project.watch_target_currency:
-                counts['skipped'] += 1
-                continue
-            last = Decimal(str(raw))
-            project.watch_last_value = last
-            project.watch_last_checked_at = now_utc()
-            counts['checked'] += 1
-            if project.watch_target_hit_at is None and last <= project.watch_target_value:
-                project.watch_target_hit_at = now_utc()
-                _record_hit(project, last)
-                counts['hits'] += 1
+        tally = {'checked': 0, 'hits': 0, 'skipped': 0}
+        for project, (project_id, key) in zip(ticker_projects, keys):
+            try:
+                with db.session.begin_nested():
+                    outcome = _apply_fetch(project, metrics, key)
+            except Exception:
+                logger.exception('Watchlist target update failed for project %s (%s)',
+                                 project_id, ticker)
+                outcome = 'skipped'
+            if outcome == 'skipped':
+                tally['skipped'] += 1
+            else:
+                tally['checked'] += 1
+                tally['hits'] += outcome == 'hit'
 
-    db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            logger.exception('Watchlist target commit failed for %s', ticker)
+            db.session.rollback()
+            counts['skipped'] += len(ticker_projects)
+            continue
+        for key, value in tally.items():
+            counts[key] += value
+
     return counts
 
 
@@ -209,8 +269,8 @@ def active_hits(user_id: int) -> list:
 
 
 def near_targets(user_id: int, near_pct: float) -> list:
-    """Watchlist projects not yet hit whose value must fall at most near_pct to reach
-    the target, closest first. Empty when near_pct <= 0."""
+    """Watchlist projects not yet hit whose target_status is 'near' (the value must
+    fall at most near_pct to reach the target), closest first. Empty when near_pct <= 0."""
     if near_pct <= 0:
         return []
     projects = (
@@ -226,19 +286,27 @@ def near_targets(user_id: int, near_pct: float) -> list:
     )
     ranked = []
     for project in projects:
-        fall = fall_needed_pct(project.watch_last_value, project.watch_target_value)
-        if fall is not None and 0 < fall <= near_pct:
-            ranked.append((fall, project))
+        # Same rule as the watchlist table's "Close" badge, so both always agree.
+        status = target_status(project, near_pct)
+        if status['state'] == 'near':
+            ranked.append((status['raw_fall_pct'], project))
     ranked.sort(key=lambda pair: pair[0])
     return [project for _, project in ranked]
 
 
 def alert_item(project, near_pct: float) -> dict:
-    """target_status plus the name and URLs the alert strips need."""
+    """target_status plus the name, hit date and URLs the alert strips need.
+
+    `recovered` is True when the target was hit but the value has since risen
+    back above it, so the alert says "reached on <date>" instead of "is at or below".
+    """
     item = target_status(project, near_pct)
     item.update({
         'company_name': project.subject_display_name,
         'hit_at': project.watch_target_hit_at,
+        'hit_date_display': format_date(project.watch_target_hit_at, '%b %d'),
+        'recovered': (project.watch_target_hit_at is not None and item['last'] is not None
+                      and item['target'] is not None and item['last'] > item['target']),
         'project_url': url_for('research_workflow.project_dashboard', project_id=project.id),
         'dismiss_url': url_for('research_workflow.dismiss_watch_target', project_id=project.id),
     })

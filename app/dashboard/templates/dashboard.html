@@ -224,7 +224,11 @@
                     </div>
                     <div class="action-content">
                         <p class="action-title"><a href="{{ hit.project_url }}">{{ hit.company_name }}</a> reached your {{ hit.metric_label|lower }} target</p>
-                        <p class="action-meta">{{ hit.last_display }} &middot; target {{ hit.target_display }} &middot; {{ hit.hit_at.strftime('%b %d') }}</p>
+                        {% if hit.recovered %}
+                        <p class="action-meta">target {{ hit.target_display }} &middot; reached {{ hit.hit_date_display }} &middot; now {{ hit.last_display }}</p>
+                        {% else %}
+                        <p class="action-meta">{{ hit.last_display }} &middot; target {{ hit.target_display }} &middot; {{ hit.hit_date_display }}</p>
+                        {% endif %}
                         <div class="d-flex gap-3 small">
                             <a href="{{ hit.project_url }}">Resume research</a>
                             <form method="post" action="{{ hit.dismiss_url }}" class="d-inline"><button type="submit" class="btn btn-link p-0 border-0 align-baseline small text-muted text-decoration-none fw-normal">Dismiss</button></form>

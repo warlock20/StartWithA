@@ -159,7 +159,8 @@ def my_projects():
         if project is None:
             return {'target_state': 'manual', 'target_metric_label': None, 'target_display': '',
                     'last_display': '', 'fall_needed_pct': None, 'set_target_url': None,
-                    'metrics_url': None, 'target_metric': None, 'target_input_value': None}
+                    'metrics_url': None, 'target_metric': None, 'target_input_value': None,
+                    'checked_display': None, 'stale': False}
         status = target_status(project, near_pct)
         fields = {
             'target_state': status['state'],
@@ -167,6 +168,8 @@ def my_projects():
             'target_display': status['target_display'] if status['metric'] else '',
             'last_display': status['last_display'] if status['last'] is not None else '',
             'fall_needed_pct': round(status['fall_needed_pct'], 1) if status['fall_needed_pct'] is not None else None,
+            'checked_display': status['checked_display'],
+            'stale': status['stale'],
             'set_target_url': url_for('research_workflow.set_watch_target', project_id=project.id),
             'metrics_url': url_for('research_workflow.watch_metrics', project_id=project.id),
             # Saved target in the modal's input units: billions for market cap / EV.
@@ -220,14 +223,15 @@ def my_projects():
                     **target_fields(p),
                 })
 
-    # Hits first, then nearest to target, then unchecked, no target, manual rows.
+    # Hits first, then nearest to target, then unchecked (or uncheckable: no ticker),
+    # no target, manual rows.
     def watchlist_order(row):
         state = row['target_state']
         if state == 'hit':
             return (0, 0)
         if state in ('near', 'far'):
             return (1, row['fall_needed_pct'] if row['fall_needed_pct'] is not None else float('inf'))
-        return ({'unchecked': 2, 'none': 3}.get(state, 4), 0)
+        return ({'unchecked': 2, 'no_ticker': 2, 'none': 3}.get(state, 4), 0)
 
     watchlist_data.sort(key=watchlist_order)
 
@@ -238,7 +242,8 @@ def my_projects():
             'type': 'watchlist_target_hit',
             'project_id': p.id,
             **{k: item[k] for k in ('company_name', 'metric_label', 'last_display',
-                                    'target_display', 'project_url', 'dismiss_url')},
+                                    'target_display', 'project_url', 'dismiss_url',
+                                    'recovered', 'hit_date_display')},
         })
     alerts = hit_alerts + alerts
 

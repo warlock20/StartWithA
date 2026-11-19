@@ -167,6 +167,9 @@ def save_project_decision(project_id):
             project.watch_reason = None
             project.watch_notes = None
             clear_target(project)
+        elif previous[0] != 'watchlist':
+            # Coming (back) onto the watchlist: never revive an old target or its hit.
+            clear_target(project)
 
         # Mark as completed if not already
         _apply_completion_status(project)

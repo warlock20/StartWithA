@@ -37,7 +37,7 @@
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-2 px-3 bg-white border rounded-2">
         <div>
-            <div class="small text-muted">Current <span data-wt-short>price</span> &middot; {{ project.company.ticker_symbol if project.company else '' }}</div>
+            <div class="small text-muted">Current <span data-wt-short>price</span> &middot; <span data-wt-ticker>{{ project.company.ticker_symbol if project.company else '' }}</span></div>
             <div class="fw-semibold" data-wt-current>Loading&hellip;</div>
         </div>
         <div class="text-end">

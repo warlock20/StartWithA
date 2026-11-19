@@ -18,7 +18,7 @@
 Watchlist target check: daily scheduled task that compares each watchlist
 project's valuation target with the latest price, market cap or EV.
 
-Scheduled: Daily at 20:30 UTC via Celery Beat.
+Scheduled: Daily at 21:30 UTC via Celery Beat (after the 16:00 New York close all year).
 """
 
 from app.celery_tasks.base import record_job_run
