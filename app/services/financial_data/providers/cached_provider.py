@@ -99,6 +99,18 @@ class CachedFinancialDataProvider(FinancialDataProvider):
         """
         return self.provider.get_current_price_with_currency(ticker)
 
+    def get_watch_metrics(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """
+        Get price, market cap and EV in one fetch (NOT cached - always fresh).
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            Dict from provider, or None if unavailable
+        """
+        return self.provider.get_watch_metrics(ticker)
+
     def get_historical_price(
         self,
         ticker: str,

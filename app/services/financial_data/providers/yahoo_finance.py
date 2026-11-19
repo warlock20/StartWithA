@@ -128,6 +128,74 @@ class YahooFinanceProvider(FinancialDataProvider):
             logger.error(f"Error fetching price with currency for {ticker}: {str(e)}")
             return None
 
+    def get_watch_metrics(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch price, market cap, enterprise value, currency and shares outstanding
+        from a single Yahoo .info call, in major currency units.
+
+        Sub-unit quotes (e.g. GBp) are normalised. Yahoo may then report market cap
+        and EV in pence or in pounds; the ratio market_cap / (price * shares)
+        decides which. Without shares outstanding that cannot be proven, so the
+        caps are returned as None rather than risk a value 100x off.
+
+        Returns:
+            Dict with 'price', 'market_cap', 'enterprise_value', 'currency',
+            'shares_outstanding' (each a float or None), or None if no price
+        """
+        try:
+            info = yf.Ticker(ticker).info
+
+            price = (
+                info.get('currentPrice') or
+                info.get('regularMarketPrice') or
+                info.get('previousClose')
+            )
+            if price is None:
+                logger.warning(f"No price data available for {ticker}")
+                return None
+
+            raw_currency = info.get('currency', '')
+            raw_price = float(price)
+            price_float = raw_price
+
+            if not raw_currency or raw_currency.upper() == 'NONE':
+                currency = CurrencyService.detect_currency_from_ticker(ticker)
+            else:
+                currency, price_float = CurrencyService.normalize_yahoo_currency(
+                    raw_currency, raw_price
+                )
+
+            market_cap = info.get('marketCap')
+            enterprise_value = info.get('enterpriseValue')
+            shares = info.get('sharesOutstanding')
+            market_cap = float(market_cap) if market_cap else None
+            enterprise_value = float(enterprise_value) if enterprise_value else None
+            shares = float(shares) if shares else None
+
+            if price_float != raw_price:
+                divisor = raw_price / price_float
+                if shares is None:
+                    market_cap = enterprise_value = None
+                elif not market_cap:
+                    # Unit of EV cannot be proven without a market cap
+                    enterprise_value = None
+                elif market_cap / (price_float * shares) > 20:
+                    market_cap = market_cap / divisor
+                    if enterprise_value is not None:
+                        enterprise_value = enterprise_value / divisor
+
+            return {
+                'price': price_float,
+                'market_cap': market_cap,
+                'enterprise_value': enterprise_value,
+                'currency': currency,
+                'shares_outstanding': shares,
+            }
+
+        except Exception as e:
+            logger.error(f"Error fetching watch metrics for {ticker}: {str(e)}")
+            return None
+
     def get_historical_price(
         self,
         ticker: str,

@@ -111,6 +111,19 @@ class FinancialDataService:
         """
         return self.provider.get_current_price_with_currency(ticker)
 
+    def get_watch_metrics(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """
+        Get price, market cap, enterprise value, currency and shares outstanding.
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            Dict with 'price', 'market_cap', 'enterprise_value', 'currency',
+            'shares_outstanding', or None if no price is available
+        """
+        return self.provider.get_watch_metrics(ticker)
+
     def get_historical_price(
         self,
         ticker: str,

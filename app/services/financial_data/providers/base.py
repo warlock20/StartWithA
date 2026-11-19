@@ -77,6 +77,19 @@ class FinancialDataProvider(ABC):
         """
         pass
 
+    def get_watch_metrics(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """
+        Get price, market cap, enterprise value, currency and shares outstanding
+        from a single fetch, in major currency units.
+
+        Not abstract: providers that cannot supply this return None.
+
+        Returns:
+            Dict with 'price', 'market_cap', 'enterprise_value', 'currency',
+            'shares_outstanding', or None if unavailable
+        """
+        return None
+
     @abstractmethod
     def get_historical_price(
         self,
