@@ -33,6 +33,7 @@ from app.utils.time_utils import now_utc
 from app.utils.auth_utils import owned_or_404
 from app.services.too_hard_service import TooHardBasketService, overall_filter_rate
 from app.services.research_priority import ResearchPriorityService
+from app.services.watchlist_targets import active_hits, alert_item, near_target_pct, target_status
 
 
 def _html_safe_json(data):
@@ -149,6 +150,39 @@ def my_projects():
         'other': 'Other',
     }
 
+    near_pct = near_target_pct(current_user.id)
+    hits = active_hits(current_user.id)
+    hit_ids = {h.id for h in hits}
+
+    def target_fields(project):
+        """Target columns of a watchlist row. `project` is None for manual rows."""
+        if project is None:
+            return {'target_state': 'manual', 'target_metric_label': None, 'target_display': '',
+                    'last_display': '', 'fall_needed_pct': None, 'set_target_url': None,
+                    'metrics_url': None, 'target_metric': None, 'target_input_value': None,
+                    'checked_display': None, 'stale': False}
+        status = target_status(project, near_pct)
+        fields = {
+            'target_state': status['state'],
+            'target_metric_label': status['metric_label'],
+            'target_display': status['target_display'] if status['metric'] else '',
+            'last_display': status['last_display'] if status['last'] is not None else '',
+            'fall_needed_pct': round(status['fall_needed_pct'], 1) if status['fall_needed_pct'] is not None else None,
+            'checked_display': status['checked_display'],
+            'stale': status['stale'],
+            'set_target_url': url_for('research_workflow.set_watch_target', project_id=project.id),
+            'metrics_url': url_for('research_workflow.watch_metrics', project_id=project.id),
+            # Saved target in the modal's input units: billions for market cap / EV.
+            'target_metric': status['metric'],
+            'target_input_value': (
+                float(status['target'] if status['metric'] == 'price' else status['target'] / 10 ** 9)
+                if status['target'] is not None else None
+            ),
+        }
+        if project.id in hit_ids:
+            fields['dismiss_url'] = url_for('research_workflow.dismiss_watch_target', project_id=project.id)
+        return fields
+
     watchlist_data = []
     seen_ids = set()
 
@@ -167,6 +201,7 @@ def my_projects():
             'progress': wp.progress_percentage if wp and wp.status == 'active' else None,
             'company_url': url_for('companies.company_detail', company_id=c.id),
             'project_url': url_for('research_workflow.project_dashboard', project_id=wp.id) if wp else None,
+            **target_fields(wp),
         })
 
     for p in watchlist_projects:
@@ -185,7 +220,32 @@ def my_projects():
                     'progress': p.progress_percentage if p.status == 'active' else None,
                     'company_url': url_for('companies.company_detail', company_id=c.id),
                     'project_url': url_for('research_workflow.project_dashboard', project_id=p.id),
+                    **target_fields(p),
                 })
+
+    # Hits first, then nearest to target, then unchecked (or uncheckable: no ticker),
+    # no target, manual rows.
+    def watchlist_order(row):
+        state = row['target_state']
+        if state == 'hit':
+            return (0, 0)
+        if state in ('near', 'far'):
+            return (1, row['fall_needed_pct'] if row['fall_needed_pct'] is not None else float('inf'))
+        return ({'unchecked': 2, 'no_ticker': 2, 'none': 3}.get(state, 4), 0)
+
+    watchlist_data.sort(key=watchlist_order)
+
+    hit_alerts = []
+    for p in hits:
+        item = alert_item(p, near_pct)
+        hit_alerts.append({
+            'type': 'watchlist_target_hit',
+            'project_id': p.id,
+            **{k: item[k] for k in ('company_name', 'metric_label', 'last_display',
+                                    'target_display', 'project_url', 'dismiss_url',
+                                    'recovered', 'hit_date_display')},
+        })
+    alerts = hit_alerts + alerts
 
     # --- Too Hard / Passed ---
     all_too_hard_items = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})
@@ -260,6 +320,7 @@ def my_projects():
                               'active_count': active_count,
                               'paused_count': paused_count,
                               'watchlist_count': len(watchlist_data),
+                              'targets_hit_count': len(hits),
                               'too_hard_count': len(too_hard_data),
                               'filter_rate': filter_rate,
                               'total_time': round(total_time, 1),

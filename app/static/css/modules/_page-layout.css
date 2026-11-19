@@ -640,6 +640,7 @@
 
 .action-icon--warning { background: var(--warning-50); color: var(--warning-600); }
 .action-icon--danger { background: var(--danger-50); color: var(--danger-500); }
+.action-icon--success { background: var(--accent-50); color: var(--accent-600); }
 .action-icon--info { background: var(--info-50); color: var(--info-500); }
 
 .action-content {
@@ -682,6 +683,7 @@
 }
 
 .action-badge--urgent { background: var(--danger-50); color: var(--danger-500); }
+.action-badge--hit { background: var(--accent-600); color: #fff; }
 .action-badge--new { background: var(--warning-50); color: var(--warning-600); }
 
 .actions-empty {

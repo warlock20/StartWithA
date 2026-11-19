@@ -5,6 +5,21 @@
 {% endblock %}
 
 {% block content %}
+{% macro hit_alert_text(a) -%}
+{% if a.recovered -%}
+<strong>{{ a.company_name }}</strong> {{ a.metric_label }} reached your target of {{ a.target_display }} on {{ a.hit_date_display }} (now {{ a.last_display }}).
+{%- else -%}
+<strong>{{ a.company_name }}</strong> {{ a.metric_label }} is {{ a.last_display }}, at or below your target of {{ a.target_display }}.
+{%- endif %}
+{%- endmacro %}
+{% macro hit_alert_actions(a) -%}
+<div class="dashboard-alert-card__actions">
+    <a href="{{ a.project_url }}" class="action-btn">Resume research</a>
+    <form method="POST" action="{{ a.dismiss_url }}" class="d-inline">
+        <button type="submit" class="action-btn">Dismiss</button>
+    </form>
+</div>
+{%- endmacro %}
 <div class="research-workspace-dashboard-container">
 
     <!-- ════════════════════════════════════════════════
@@ -41,6 +56,12 @@
                 <div class="portfolio-metric-value">{{ metrics.watchlist_count }}</div>
                 <div class="portfolio-metric-label">Watchlist</div>
             </div>
+            {% if metrics.targets_hit_count > 0 %}
+            <a href="#watchlistPanel" class="portfolio-metric text-decoration-none" id="targets-hit-metric">
+                <div class="portfolio-metric-value" style="color: var(--success-500);">{{ metrics.targets_hit_count }}</div>
+                <div class="portfolio-metric-label">Targets hit</div>
+            </a>
+            {% endif %}
             <div class="portfolio-metric">
                 <div class="portfolio-metric-value" style="color: var(--danger-500);">{{ metrics.too_hard_count }}</div>
                 <div class="portfolio-metric-label">Too Hard</div>
@@ -70,16 +91,20 @@
         {% if alerts %}
         <div class="dashboard-alerts-strip" id="alerts-strip">
             {% set first = alerts[0] %}
-            <div class="dashboard-alert-card dashboard-alert-card--warning" id="alert-{{ first.project_id or 'limit' }}">
+            <div class="dashboard-alert-card dashboard-alert-card--warning" id="alert-{{ 'hit-' if first.type == 'watchlist_target_hit' }}{{ first.project_id or 'limit' }}">
                 <i class="bi bi-exclamation-triangle"></i>
                 <span class="dashboard-alert-card__text">
-                    {% if first.type == 'stale_nudge' %}
+                    {% if first.type == 'watchlist_target_hit' %}
+                        {{ hit_alert_text(first) }}
+                    {% elif first.type == 'stale_nudge' %}
                         <strong>{{ first.company_name }}</strong> idle {{ first.days_idle }}d &middot; {{ first.progress }}% done &mdash; Still pursuing?
                     {% elif first.type == 'over_limit' %}
                         {{ first.active_count }} active projects &mdash; your focus limit is {{ first.project_limit }}. Consider pausing or killing {{ first.over_by }}.
                     {% endif %}
                 </span>
-                {% if first.type == 'stale_nudge' %}
+                {% if first.type == 'watchlist_target_hit' %}
+                {{ hit_alert_actions(first) }}
+                {% elif first.type == 'stale_nudge' %}
                 <div class="dashboard-alert-card__actions">
                     <a href="{{ first.mark_too_hard_url }}" class="action-btn">Too Hard</a>
                     <button class="action-btn" onclick="touchProject({{ first.project_id }}, '{{ first.touch_url }}')">I'll work on it</button>
@@ -96,16 +121,20 @@
             {% if alerts|length > 1 %}
             <div class="dashboard-alerts-expanded" id="alerts-expanded">
                 {% for alert in alerts[1:] %}
-                <div class="dashboard-alert-card dashboard-alert-card--warning" id="alert-{{ alert.project_id or 'limit' }}">
+                <div class="dashboard-alert-card dashboard-alert-card--warning" id="alert-{{ 'hit-' if alert.type == 'watchlist_target_hit' }}{{ alert.project_id or 'limit' }}">
                     <i class="bi bi-exclamation-triangle"></i>
                     <span class="dashboard-alert-card__text">
-                        {% if alert.type == 'stale_nudge' %}
+                        {% if alert.type == 'watchlist_target_hit' %}
+                            {{ hit_alert_text(alert) }}
+                        {% elif alert.type == 'stale_nudge' %}
                             <strong>{{ alert.company_name }}</strong> idle {{ alert.days_idle }}d &middot; {{ alert.progress }}% done &mdash; Still pursuing?
                         {% elif alert.type == 'over_limit' %}
                             {{ alert.active_count }} active projects &mdash; your focus limit is {{ alert.project_limit }}. Consider pausing or killing {{ alert.over_by }}.
                         {% endif %}
                     </span>
-                    {% if alert.type == 'stale_nudge' %}
+                    {% if alert.type == 'watchlist_target_hit' %}
+                    {{ hit_alert_actions(alert) }}
+                    {% elif alert.type == 'stale_nudge' %}
                     <div class="dashboard-alert-card__actions">
                         <a href="{{ alert.mark_too_hard_url }}" class="action-btn">Too Hard</a>
                         <button class="action-btn" onclick="touchProject({{ alert.project_id }}, '{{ alert.touch_url }}')">I'll work on it</button>
@@ -363,6 +392,32 @@
     </div>
 
 </div>
+
+<!-- Shared "Set target" modal: one for every watchlist row; the form action and metrics URL are set per row. -->
+<div class="modal fade" id="watchTargetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="watchTargetForm" action="">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-bullseye"></i> Valuation target &middot; <span id="watchTargetCompany"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="watchTargetHolder"></div>
+                </div>
+                <div class="modal-footer">
+                    {# Save must stay the only submit button: the browser's default (Enter) button
+                       is the first submit in the form, and Remove posts clear=1 through JS. #}
+                    <input type="hidden" name="clear" value="" id="watchTargetClear">
+                    <button type="button" class="action-btn me-auto d-none" id="watchTargetRemove">Remove target</button>
+                    <button type="button" class="action-btn" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="action-btn primary">Save target</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<template id="watchTargetFieldsTpl">{% with project = {'company': none} %}{% include 'partials/_watch_target_fields.html' %}{% endwith %}</template>
 {% endblock %}
 
 {% block scripts %}
@@ -370,8 +425,16 @@
 {% include 'components/_tabulator_js.html' %}
 <script defer src="{{ url_for('static', filename='js/dist/table-cards.bundle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script src="{{ url_for('static', filename='js/watch-target.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+
+    // Escape server text before it goes into a formatter's HTML string.
+    const esc = function(value) {
+        const el = document.createElement('div');
+        el.textContent = value == null ? '' : String(value);
+        return el.innerHTML.replace(/"/g, '&quot;');
+    };
 
     // =========================================================================
     // Active Research Table
@@ -565,8 +628,73 @@ document.addEventListener('DOMContentLoaded', function() {
                     responsive: 0,
                     formatter: function(cell) {
                         const row = cell.getRow().getData();
-                        const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${row.ticker}</span>` : '';
-                        return `<strong>${cell.getValue()}</strong>${ticker}`;
+                        const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${esc(row.ticker)}</span>` : '';
+                        return `<strong>${esc(cell.getValue())}</strong>${ticker}`;
+                    }
+                },
+                {
+                    title: "Price / Value",
+                    field: "last_display",
+                    // Mixes metrics and currencies, so a sort on it means nothing.
+                    headerSort: false,
+                    minWidth: 120,
+                    responsive: 2,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        const row = cell.getRow().getData();
+                        if (!val) return '<span class="table-cell-muted">--</span>';
+                        const asOf = row.checked_display ? `<br><small class="table-cell-muted">${esc(row.checked_display)}</small>` : '';
+                        return `${esc(val)}${asOf}`;
+                    }
+                },
+                {
+                    title: "Target",
+                    field: "target_display",
+                    sorter: "string",
+                    minWidth: 150,
+                    responsive: 1,
+                    formatter: function(cell) {
+                        const row = cell.getRow().getData();
+                        if (!row.target_display) return '<span class="table-cell-muted">--</span>';
+                        const edit = row.set_target_url
+                            ? ` <a href="#" class="js-set-target" data-url="${esc(row.set_target_url)}" data-metrics="${esc(row.metrics_url)}" data-company="${esc(row.company_name)}" data-ticker="${esc(row.ticker)}" data-has-target="1" data-metric="${esc(row.target_metric)}" data-value="${esc(row.target_input_value)}" title="Edit target" aria-label="Edit target"><i class="bi bi-pencil"></i></a>`
+                            : '';
+                        return `<span class="rcl-cell-badge rcl-cell-badge--manual">${esc(row.target_metric_label)}</span> ${esc(row.target_display)}${edit}`;
+                    }
+                },
+                {
+                    title: "Distance",
+                    cssClass: "dt-card-key dt-cell-wrap",
+                    field: "fall_needed_pct",
+                    sorter: "number",
+                    minWidth: 190,
+                    responsive: 0,
+                    formatter: function(cell) {
+                        const row = cell.getRow().getData();
+                        const pct = row.fall_needed_pct;
+                        // A check that stopped updating (delisted, Yahoo gap) says so under the distance.
+                        const staleNote = row.stale && row.checked_display
+                            ? `<br><small class="table-cell-muted">last checked ${esc(row.checked_display.replace(/^as of /, ''))}</small>`
+                            : '';
+                        switch (row.target_state) {
+                            case 'hit':
+                                return '<span class="rcl-cell-badge" style="background:#dcfce7;color:#166534;"><i class="bi bi-check-circle-fill"></i> Target hit</span>' + staleNote;
+                            case 'near':
+                                return `<span class="rcl-cell-badge rcl-cell-badge--mid">Close &middot; ${esc(pct)}% to go</span>${staleNote}`;
+                            case 'far':
+                                return `${esc(pct)}% to go${staleNote}`;
+                            case 'no_ticker':
+                                return "<span class=\"table-cell-muted\">Can't check (no ticker)</span>";
+                            case 'unchecked':
+                                return '<span class="table-cell-muted">Checking tonight</span>';
+                            case 'none':
+                                if (row.set_target_url) {
+                                    return `<a href="#" class="js-set-target" data-url="${esc(row.set_target_url)}" data-metrics="${esc(row.metrics_url)}" data-company="${esc(row.company_name)}" data-ticker="${esc(row.ticker)}"><i class="bi bi-bullseye"></i> Set target</a>`;
+                                }
+                                return '<span class="table-cell-muted">--</span>';
+                            default:
+                                return '<span class="table-cell-muted">--</span>';
+                        }
                     }
                 },
                 {
@@ -653,7 +781,7 @@ document.addEventListener('DOMContentLoaded', function() {
             foldColumns: true,
             customConfig: {
                 layout: "fitColumns",
-                initialSort: [{ column: "company_name", dir: "asc" }],
+                // No initialSort: the server's order (hits first, nearest to target next) is the default.
                 pagination: watchlistData.length > 25,
             }
         });
@@ -683,6 +811,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 return match;
             });
         }
+
+        // Shared "Set target" modal: rebuild the fields for the clicked row so
+        // WatchTarget.init (which runs once per container) fetches that project's values.
+        const targetModalEl = document.getElementById('watchTargetModal');
+        document.getElementById('watchlist-table').addEventListener('click', function(ev) {
+            const link = ev.target.closest('.js-set-target');
+            if (!link) return;
+            ev.preventDefault();
+            const holder = document.getElementById('watchTargetHolder');
+            holder.innerHTML = '';
+            holder.appendChild(document.getElementById('watchTargetFieldsTpl').content.cloneNode(true));
+            const tickerSlot = holder.querySelector('[data-wt-ticker]');
+            if (tickerSlot) tickerSlot.textContent = link.dataset.ticker || '';
+            document.getElementById('watchTargetForm').action = link.dataset.url;
+            document.getElementById('watchTargetCompany').textContent = link.dataset.company;
+            document.getElementById('watchTargetClear').value = '';
+            document.getElementById('watchTargetRemove').classList.toggle('d-none', !link.dataset.hasTarget);
+            const initial = link.dataset.metric ? { metric: link.dataset.metric, value: Number(link.dataset.value) } : undefined;
+            WatchTarget.init(holder.querySelector('[data-watch-target]'), link.dataset.metrics, initial);
+            bootstrap.Modal.getOrCreateInstance(targetModalEl).show();
+        });
+        // Removing a target posts clear=1 with an empty value. Remove is a plain button
+        // so Enter in the value field still submits through Save.
+        document.getElementById('watchTargetRemove').addEventListener('click', function() {
+            const form = document.getElementById('watchTargetForm');
+            const input = document.querySelector('#watchTargetHolder [data-wt-input]');
+            if (input) {
+                input.required = false;
+                input.value = '';
+            }
+            document.getElementById('watchTargetClear').value = '1';
+            form.requestSubmit();
+        });
 
         document.getElementById('watchlist-search').addEventListener('input', applyWatchlistFilters);
         document.getElementById('watchlist-source-filter').addEventListener('change', applyWatchlistFilters);
@@ -1125,6 +1286,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(form);
         form.submit();
     };
+
+    // The hit-count metric opens the Watchlist tab (plain anchor without JS).
+    const hitMetric = document.getElementById('targets-hit-metric');
+    if (hitMetric) {
+        hitMetric.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            bootstrap.Tab.getOrCreateInstance(document.getElementById('watchlist-tab')).show();
+            document.getElementById('watchlistPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
 
     window.toggleAlerts = function() {
         const expanded = document.getElementById('alerts-expanded');

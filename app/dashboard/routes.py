@@ -21,6 +21,7 @@ from app.models import Company, ResearchProject, ResearchSettings, IdeaPipeline,
 from app.services.research_priority import ResearchPriorityService
 from app.services.feature_unlock_service import FeatureUnlockService
 from app.services.company_state import company_states
+from app.services.watchlist_targets import active_hits, alert_item, near_target_pct, near_targets
 from app.services.too_hard_service import overall_filter_rate
 from . import dashboard_bp
 from datetime import timedelta
@@ -45,6 +46,11 @@ def index():
 
     # Stale projects for "Needs Attention" panel (idle >= 10 days)
     stale_projects = [s for s in all_scored if s.days_idle >= 10 and s.is_stale_warning]
+
+    # --- Watchlist target alerts ---
+    near_pct = near_target_pct(current_user.id)
+    watchlist_hits = [alert_item(p, near_pct) for p in active_hits(current_user.id)]
+    watchlist_near = [alert_item(p, near_pct) for p in near_targets(current_user.id, near_pct)]
 
     # --- Portfolio Position Count (active positions, not companies) ---
     position_count = PortfolioPosition.query.filter_by(
@@ -97,6 +103,8 @@ def index():
         title='Dashboard',
         # Pipeline strip
         inbox_count=inbox_count,
+        watchlist_hits=watchlist_hits,
+        watchlist_near=watchlist_near,
         active_projects_count=len(active_projects),
         position_count=position_count,
         too_hard_total_count=too_hard_total_count,

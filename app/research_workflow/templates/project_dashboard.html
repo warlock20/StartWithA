@@ -477,6 +477,14 @@
                             <option value="other">Other</option>
                         </select>
                     </div>
+                    {% if project.company and project.company.ticker_symbol %}
+                    <div class="mb-3 d-none" id="watchTargetWrap" data-metrics-url="{{ url_for('research_workflow.watch_metrics', project_id=project.id) }}">
+                        {% include 'partials/_watch_target_fields.html' %}
+                    </div>
+                    {% else %}
+                    {# The nightly check needs a ticker, so no target is asked for without one. #}
+                    <p class="small text-muted mb-3 d-none" id="watchTargetNoTicker"><i class="bi bi-info-circle"></i> Add a ticker to set a valuation target.</p>
+                    {% endif %}
                     <div class="mb-0">
                         <label for="watchNotes" class="form-label">Notes <span class="text-muted">(optional)</span></label>
                         <textarea class="form-control" name="watch_notes" id="watchNotes" rows="3"
@@ -520,6 +528,32 @@
 {{ super() }}
 {% include 'components/blocknote_editor_include.html' %}
 <script src="{{ url_for('static', filename='js/company-resources.js') }}"></script>
+<script src="{{ url_for('static', filename='js/watch-target.js') }}"></script>
+<script>
+// Watchlist modal: the valuation target block shows (and is required) only for "Valuation too high".
+(function () {
+    var reason = document.getElementById('watchReason');
+    var wrap = document.getElementById('watchTargetWrap');
+    var noTicker = document.getElementById('watchTargetNoTicker');
+    if (reason && noTicker) {
+        reason.addEventListener('change', function () {
+            noTicker.classList.toggle('d-none', reason.value !== 'valuation_too_high');
+        });
+    }
+    if (!reason || !wrap) { return; }
+    var valueInput = wrap.querySelector('[data-wt-input]');
+    function sync() {
+        var on = reason.value === 'valuation_too_high';
+        wrap.classList.toggle('d-none', !on);
+        valueInput.required = on;
+        if (on) { WatchTarget.init(wrap.querySelector('[data-watch-target]'), wrap.dataset.metricsUrl); }
+    }
+    reason.addEventListener('change', sync);
+    var modal = document.getElementById('watchlistModal');
+    if (modal) { modal.addEventListener('shown.bs.modal', sync); }
+    sync();
+})();
+</script>
 <script>
 // Quick Note / Quick Journal — save without leaving the page.
 {% if project.company %}

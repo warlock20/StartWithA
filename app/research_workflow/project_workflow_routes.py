@@ -55,6 +55,13 @@ from app.services.export_service import resolve_checklist_id
 from app.services.sector_service import SectorService
 from app.services.company_state import company_state
 from app.services.findings import finding_entries
+from decimal import Decimal
+from app.models.research import WATCH_TARGET_METRICS, WATCH_TARGET_METRIC_LABELS
+from app.services.currency_service import CurrencyService
+from app.services.financial_data import FinancialDataService
+from app.services.watchlist_targets import (
+    clear_target, format_watch_value, parse_target_value, set_target,
+)
 from app.services.research_reopen_service import ReopenNotAllowed, ResearchReopenService
 from sqlalchemy.orm.attributes import flag_modified
 import json
@@ -1002,6 +1009,31 @@ def return_from_checklist(project_id, step_index):
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
 
+MAX_WATCH_TARGET = Decimal(10) ** 20  # Numeric(24,4) column limit
+
+
+def _read_target_form(ticker):
+    """Read target_metric/target_value/target_currency from the form.
+
+    Returns (metric, value, currency, error). Market cap and EV are typed in
+    billions and stored in full units. error is a flash message or None.
+    """
+    metric = request.form.get('target_metric', 'price').strip() or 'price'
+    if metric not in WATCH_TARGET_METRICS:
+        return None, None, None, 'Enter a target above 0'
+    value = parse_target_value(request.form.get('target_value', ''))
+    if value is None:
+        return None, None, None, 'Enter a target above 0'
+    if metric != 'price':
+        value = value * Decimal(10) ** 9
+    if value >= MAX_WATCH_TARGET:
+        return None, None, None, 'Target value is too large'
+    currency = request.form.get('target_currency', '').strip().upper()[:3]
+    if not currency:
+        currency = CurrencyService.detect_currency_from_ticker(ticker)
+    return metric, value, currency, None
+
+
 @research_workflow_bp.route('/projects/<int:project_id>/move-to-watchlist', methods=['POST'])
 @login_required
 def move_to_watchlist(project_id):
@@ -1036,9 +1068,26 @@ def move_to_watchlist(project_id):
             flash('Invalid watch reason', 'error')
             return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
 
+        target = None
+        ticker = project.company.ticker_symbol if project.company else None
+        # Without a ticker the nightly check can never test a target, so none is asked for.
+        if watch_reason == 'valuation_too_high' and ticker:
+            metric, value, currency, error = _read_target_form(ticker)
+            if error:
+                if request.headers.get('Content-Type') == 'application/json':
+                    return json_error(error)
+                flash(error, 'error')
+                return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+            target = (metric, value, currency)
+
         project.decision = 'watchlist'
         project.decision_date = now_utc()
         project.watch_reason = watch_reason
+        # Start from a clean slate: a target (and its hit/dismiss state) left over from
+        # an earlier stint on the watchlist must not come back.
+        clear_target(project)
+        if target:
+            set_target(project, *target)
         project.watch_notes = watch_notes
         project.last_worked_at = now_utc()
         # Status stays 'active' — research is preserved and can continue
@@ -1059,6 +1108,11 @@ def move_to_watchlist(project_id):
             content_parts = [f'Moved to watchlist. Reason: {reason_labels.get(watch_reason, watch_reason)}.']
             if watch_notes:
                 content_parts.append(f'\n\n{watch_notes}')
+            if target:
+                metric, value, currency = target
+                content_parts.append(
+                    f' Target: {WATCH_TARGET_METRIC_LABELS[metric]} ≤ '
+                    f'{format_watch_value(metric, value, currency)}.')
             db.session.add(JournalEntry(
                 user_id=current_user.id,
                 company_id=project.company_id,
@@ -1087,6 +1141,8 @@ def move_to_watchlist(project_id):
 
         company_name = project.company.name if project.company else project.project_name
         flash(f'{company_name} moved to watchlist. You can continue research or revisit later.', 'info')
+        if watch_reason == 'valuation_too_high' and not ticker:
+            flash('Add a ticker to set a valuation target', 'info')
         return redirect(url_for('research_workflow.my_projects'))
 
     except Exception as e:
@@ -1094,6 +1150,68 @@ def move_to_watchlist(project_id):
         logger.error(f'Error moving project to watchlist: {str(e)}')
         flash('Error moving project to watchlist. Please try again.', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/watch-metrics')
+@login_required
+def watch_metrics(project_id):
+    """Current price, market cap and EV for the watchlist target modal."""
+    project = ResearchProject.query.get_or_404(project_id)
+    if project.user_id != current_user.id:
+        return json_error('Access denied', status_code=403)
+    ticker = project.company.ticker_symbol if project.company else None
+    metrics = FinancialDataService().get_watch_metrics(ticker) if ticker else None
+    if not metrics:
+        return json_error('Could not fetch current values', status_code=502)
+    return json_success(**metrics)
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/watch-target', methods=['POST'])
+@login_required
+def set_watch_target(project_id):
+    """Set, change or clear the valuation target of a watchlisted project."""
+    project = ResearchProject.query.get_or_404(project_id)
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+    if project.decision != 'watchlist':
+        flash('Only watchlisted projects can have a target', 'warning')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    if request.form.get('clear') == '1' and not request.form.get('target_value', '').strip():
+        clear_target(project)
+        db.session.commit()
+        flash('Target removed', 'info')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    ticker = project.company.ticker_symbol if project.company else None
+    metric, value, currency, error = _read_target_form(ticker)
+    if error:
+        flash(error, 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+    try:
+        set_target(project, metric, value, currency)
+    except ValueError:
+        flash('Enter a target above 0', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+    db.session.commit()
+    flash('Target saved', 'info')
+    return redirect(url_for('research_workflow.my_projects'))
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/watch-target/dismiss', methods=['POST'])
+@login_required
+def dismiss_watch_target(project_id):
+    """Dismiss a reached-target alert until the target is edited."""
+    project = ResearchProject.query.get_or_404(project_id)
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+    # Only an active hit can be dismissed; a stale or replayed post changes nothing.
+    if project.decision == 'watchlist' and project.watch_target_hit_at is not None:
+        project.watch_target_dismissed_at = now_utc()
+        db.session.commit()
+    return redirect(request.referrer or url_for('research_workflow.my_projects'))
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/remove-from-watchlist', methods=['POST'])
@@ -1111,6 +1229,7 @@ def remove_from_watchlist(project_id):
         project.decision_date = None
         project.watch_reason = None
         project.watch_notes = None
+        clear_target(project)
         project.last_worked_at = now_utc()
 
         db.session.commit()

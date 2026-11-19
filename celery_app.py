@@ -39,6 +39,7 @@ celery = Celery('app.celery_tasks',
                     'app.celery_tasks.tasks_knowledge',             # Companion knowledge index
                     'app.celery_tasks.tasks_documents',             # Checklist import from uploaded documents
                     'app.celery_tasks.tasks_kill_criteria',         # Suggest a kill criterion from a mistake
+                    'app.celery_tasks.tasks_watchlist',             # Watchlist valuation target check
                 ]
                 )
 
@@ -59,6 +60,10 @@ celery.conf.update(
         'checkpoint-daily-analysis': {
             'task': 'app.celery_tasks.tasks_checkpoint_analysis.analyze_all_checkpoints',
             'schedule': crontab(hour=20, minute=0),  # Daily at 20:00 UTC (end of US market day)
+        },
+        'watchlist-target-check': {
+            'task': 'app.celery_tasks.tasks_watchlist.check_watchlist_targets',
+            'schedule': crontab(hour=21, minute=30),  # Daily at 21:30 UTC (after the US close in EST too)
         },
         'ai-check-reap-stale-runs': {
             'task': 'app.celery_tasks.tasks_ai_check.ai_check_reap_task',
