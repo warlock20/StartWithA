@@ -212,6 +212,7 @@
     function addStep(name = '', type = 'custom', estimatedMinutes = 60, config = {}) {
         const container = document.getElementById('workflow-canvas');
         const stepIndex = container.querySelectorAll('.workflow-step').length;
+        const stepKey = stepCount++;  // stable per step; form field names use it, not position
 
         const stepDiv = document.createElement('div');
         stepDiv.className = 'workflow-step';
@@ -246,7 +247,7 @@
                             <span class="step-type-label">${stepInfo.label}</span>
                         </div>
                     </div>
-                    <div id="step-config-${stepIndex}" class="step-config">
+                    <div id="step-config-${stepKey}" class="step-config">
                         <!-- Type-specific configuration will be added here -->
                     </div>
                 </div>
@@ -258,9 +259,13 @@
             </div>
         </div>
         <input type="hidden" name="step_type[]" value="${type}">
-        <input type="hidden" name="step_config[]" id="step-config-data-${stepIndex}" value="{}">
+        <input type="hidden" name="step_key[]" value="${stepKey}">
+        <input type="hidden" name="step_config[]" id="step-config-data-${stepKey}" value="{}">
         <input type="hidden" name="step_estimate[]" value="${estimatedMinutes || 60}">
     `;
+
+        // Set via the DOM: the JSON contains quotes that would break an interpolated attribute
+        stepDiv.querySelector(`#step-config-data-${stepKey}`).value = JSON.stringify(config || {});
 
         // Insert new steps BEFORE the Investment Thesis step (which should always be last)
         // Find the thesis_writing step
@@ -277,7 +282,7 @@
         // Add drag and drop event listeners
         setupDragAndDrop(stepDiv);
 
-        updateStepConfig(stepIndex, type, config);
+        updateStepConfig(stepKey, type, config);
         updateStepNumbers();
     }
 
@@ -356,9 +361,9 @@
         });
     }
 
-    function updateStepConfig(stepIndex, stepType, config = {}) {
-        const configDiv = document.getElementById(`step-config-${stepIndex}`);
-        const configData = document.getElementById(`step-config-data-${stepIndex}`);
+    function updateStepConfig(stepKey, stepType, config = {}) {
+        const configDiv = document.getElementById(`step-config-${stepKey}`);
+        const configData = document.getElementById(`step-config-data-${stepKey}`);
 
         let configHtml = '';
         const selectedChecklistId = config.checklist_id || '';
@@ -372,7 +377,7 @@
             configHtml = `
             <div class="mb-3">
                 <label class="form-label">Select Investment Checklist:</label>
-                <select class="form-select" name="step_${stepIndex}_checklist_id" required>
+                <select class="form-select" name="step_${stepKey}_checklist_id" required>
                     <option value="">-- Choose checklist --</option>
                     ${checklistOptions}
                 </select>
@@ -386,7 +391,7 @@
             configHtml = `
             <div class="mb-3">
                 <label class="form-label">Select Kill Checklist:</label>
-                <select class="form-select" name="step_${stepIndex}_kill_checklist_id" required>
+                <select class="form-select" name="step_${stepKey}_kill_checklist_id" required>
                     <option value="">-- Choose kill checklist --</option>
                     ${killChecklistOptions}
                 </select>
@@ -396,7 +401,7 @@
         } else if (stepType === 'model') {
             configHtml = `
             <label class="form-label">Mental Model:</label>
-            <select class="form-select" name="step_${stepIndex}_model_type" required>
+            <select class="form-select" name="step_${stepKey}_model_type" required>
                 <option value="">-- Choose mental model --</option>
                 ${mentalModels.map(m => `<option value="${m}" ${m === selectedModelType ? 'selected' : ''}>${m}</option>`).join('')}
             </select>

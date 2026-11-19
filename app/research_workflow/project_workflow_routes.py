@@ -47,6 +47,11 @@ from app.research_workflow.session_routes import (
     finalize_session, update_project_time, complete_project_step,
     advance_or_complete_project,
 )
+from app.services.checklist_step_resolver import (
+    fill_template_blank, owned_checklist, record_step_override,
+    resolve_step_checklist, template_step,
+)
+from app.services.export_service import resolve_checklist_id
 from app.services.sector_service import SectorService
 from app.services.company_state import company_state
 from app.services.findings import finding_entries
@@ -58,7 +63,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Import helper function from helpers module
-from app.research_workflow.helpers import collect_research_session_summary
+from app.research_workflow.helpers import build_workflow_steps_from_form, collect_research_session_summary
 
 
 @research_workflow_bp.route('/projects/start', methods=['POST'])
@@ -194,11 +199,11 @@ def project_dashboard(project_id):
             if step_index < len(project.workflow_steps):
                 step = project.workflow_steps[step_index]
                 if step.get('type') == 'checklist':
-                    checklist_id = step.get('config', {}).get('checklist_id')
+                    checklist_id = resolve_checklist_id(project, step_index, step)
                     if checklist_id:
                         analysis = ChecklistAnalysis.query.filter_by(
                             user_id=current_user.id,
-                            checklist_id=int(checklist_id),
+                            checklist_id=checklist_id,
                             company_id=project.company_id
                         ).order_by(ChecklistAnalysis.start_date.desc()).first()
                         if analysis:
@@ -304,126 +309,123 @@ def execute_step(project_id, step_index):
     # Route to appropriate handler based on step type
     if step['type'] == 'checklist':
         # Handle investment checklist reference - redirect to research session evaluation
-        # Check for step override first (in case checklist was replaced)
-        checklist_id = None
-        if project.step_overrides and str(step_index) in project.step_overrides:
-            checklist_id = project.step_overrides[str(step_index)].get('checklist_id')
+        checklist, source = resolve_step_checklist(project, step_index, step, current_user.id)
+        if checklist:
+            stale_override = (source == 'snapshot'
+                              and str(step_index) in (project.step_overrides or {}))
+            if source in ('template', 'analysis', 'only_checklist') or stale_override:
+                record_step_override(project, step_index, checklist.id)
+                if source == 'only_checklist':
+                    fill_template_blank(project, step_index, checklist.id, current_user.id)
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                    current_app.logger.exception('Error saving resolved checklist for step')
+            checklist_id = checklist.id
+            # Check if project has a company (required for research sessions)
+            if not project.company_id:
+                flash('Research project must have a company assigned to use investment checklists. Please assign a company to this project first.', 'error')
+                return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
-        # Fall back to template config
-        if not checklist_id:
-            checklist_id = step['config'].get('checklist_id')
-        if checklist_id:
-            checklist = Checklist.query.get(checklist_id)
-            if checklist and checklist.user_id == current_user.id:
-                # Check if project has a company (required for research sessions)
-                if not project.company_id:
-                    flash('Research project must have a company assigned to use investment checklists. Please assign a company to this project first.', 'error')
-                    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+            # Verify the company still exists in the database
+            company = Company.query.get(project.company_id)
+            if not company:
+                flash(f'The company associated with this project (ID: {project.company_id}) no longer exists. Please update the project.', 'error')
+                return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
-                # Verify the company still exists in the database
-                company = Company.query.get(project.company_id)
-                if not company:
-                    flash(f'The company associated with this project (ID: {project.company_id}) no longer exists. Please update the project.', 'error')
-                    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+            # Check if a research session already exists for this checklist and company
+            existing_research_session = ChecklistAnalysis.query.filter_by(
+                user_id=current_user.id,
+                checklist_id=checklist_id,
+                company_id=project.company_id
+            ).first()
 
-                # Check if a research session already exists for this checklist and company
-                existing_research_session = ChecklistAnalysis.query.filter_by(
-                    user_id=current_user.id,
-                    checklist_id=checklist_id,
-                    company_id=project.company_id
-                ).first()
+            if existing_research_session:
+                # If session exists and is in progress, find the first unanswered item
+                if existing_research_session.status == 'in_progress':
+                    all_items = get_all_ordered_items_for_checklist(checklist_id)
 
-                if existing_research_session:
-                    # If session exists and is in progress, find the first unanswered item
-                    if existing_research_session.status == 'in_progress':
-                        all_items = get_all_ordered_items_for_checklist(checklist_id)
+                    if all_items:
+                        # Find first unanswered item
+                        redirect_to_item_id = all_items[0].id  # Default to first item
+                        for item in all_items:
+                            answer_exists = ChecklistAnswer.query.filter_by(
+                                checklist_analysis_id=existing_research_session.id,
+                                checklist_item_id=item.id
+                            ).first()
+                            if not answer_exists:
+                                redirect_to_item_id = item.id
+                                break
 
-                        if all_items:
-                            # Find first unanswered item
-                            redirect_to_item_id = all_items[0].id  # Default to first item
-                            for item in all_items:
-                                answer_exists = ChecklistAnswer.query.filter_by(
-                                    checklist_analysis_id=existing_research_session.id,
-                                    checklist_item_id=item.id
-                                ).first()
-                                if not answer_exists:
-                                    redirect_to_item_id = item.id
-                                    break
-
-                            # Store research context for potential return
-                            flask_session['research_context'] = {
-                                'project_id': project_id,
-                                'step_index': step_index,
-                                'workflow_session_id': session.id if session else None
-                            }
-
-                            return redirect(url_for('research_workflow.research_step',
-                                                  analysis_id=existing_research_session.id,
-                                                  item_id=redirect_to_item_id))
-                        else:
-                            flash('Investment checklist has no items to evaluate', 'warning')
-                            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
-
-                    elif existing_research_session.status == 'completed':
-                        # Store research context even for completed checklists
+                        # Store research context for potential return
                         flask_session['research_context'] = {
                             'project_id': project_id,
                             'step_index': step_index,
                             'workflow_session_id': session.id if session else None
                         }
-                        flash('Investment checklist research already completed. Viewing summary.', 'info')
-                        return redirect(url_for('research_workflow.view_checklist_session_summary',
-                                              analysis_id=existing_research_session.id))
-                else:
-                    # Create new research session
-                    new_research_session = ChecklistAnalysis(
-                        user_id=current_user.id,
-                        checklist_id=checklist_id,
-                        company_id=project.company_id,
-                        status='in_progress'
-                    )
 
-                    try:
-                        db.session.add(new_research_session)
-                        db.session.commit()
-
-                        # Get first item and redirect to it
-                        all_items = get_all_ordered_items_for_checklist(checklist_id)
-
-                        if all_items:
-                            # Store research context for potential return
-                            flask_session['research_context'] = {
-                                'project_id': project_id,
-                                'step_index': step_index,
-                                'workflow_session_id': session.id if session else None
-                            }
-
-                            return redirect(url_for('research_workflow.research_step',
-                                                  analysis_id=new_research_session.id,
-                                                  item_id=all_items[0].id))
-                        else:
-                            flash('Investment checklist has no items to evaluate', 'warning')
-                            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
-
-                    except Exception:
-                        current_app.logger.exception('Error starting research session')
-                        db.session.rollback()
-                        flash('Error starting research session. Please try again.', 'error')
+                        return redirect(url_for('research_workflow.research_step',
+                                              analysis_id=existing_research_session.id,
+                                              item_id=redirect_to_item_id))
+                    else:
+                        flash('Investment checklist has no items to evaluate', 'warning')
                         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+                elif existing_research_session.status == 'completed':
+                    # Store research context even for completed checklists
+                    flask_session['research_context'] = {
+                        'project_id': project_id,
+                        'step_index': step_index,
+                        'workflow_session_id': session.id if session else None
+                    }
+                    flash('Investment checklist research already completed. Viewing summary.', 'info')
+                    return redirect(url_for('research_workflow.view_checklist_session_summary',
+                                          analysis_id=existing_research_session.id))
             else:
-                # Checklist was deleted or not found - offer to select a new one
-                flash('The investment checklist for this step is no longer available. Please select a new checklist to continue.', 'warning')
-                user_checklists = current_user.checklists.all()
-                return render_template('select_checklist.html',
-                                     title=f"Select Checklist: {step['name']}",
-                                     project=project,
-                                     step=step,
-                                     step_index=step_index,
-                                     session=session,
-                                     user_checklists=user_checklists)
+                # Create new research session
+                new_research_session = ChecklistAnalysis(
+                    user_id=current_user.id,
+                    checklist_id=checklist_id,
+                    company_id=project.company_id,
+                    status='in_progress'
+                )
+
+                try:
+                    db.session.add(new_research_session)
+                    db.session.commit()
+
+                    # Get first item and redirect to it
+                    all_items = get_all_ordered_items_for_checklist(checklist_id)
+
+                    if all_items:
+                        # Store research context for potential return
+                        flask_session['research_context'] = {
+                            'project_id': project_id,
+                            'step_index': step_index,
+                            'workflow_session_id': session.id if session else None
+                        }
+
+                        return redirect(url_for('research_workflow.research_step',
+                                              analysis_id=new_research_session.id,
+                                              item_id=all_items[0].id))
+                    else:
+                        flash('Investment checklist has no items to evaluate', 'warning')
+                        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+                except Exception:
+                    current_app.logger.exception('Error starting research session')
+                    db.session.rollback()
+                    flash('Error starting research session. Please try again.', 'error')
+                    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
         else:
-            # No checklist configured - offer to select one
-            flash('No investment checklist configured for this step. Please select one to continue.', 'info')
+            # Nothing resolved: say why, then offer the picker
+            override = (project.step_overrides or {}).get(str(step_index)) or {}
+            had_binding = override.get('checklist_id') or (step.get('config') or {}).get('checklist_id')
+            if had_binding:
+                flash('The investment checklist for this step is no longer available. Please select a new checklist to continue.', 'warning')
+            else:
+                flash('No investment checklist configured for this step. Please select one to continue.', 'info')
             user_checklists = current_user.checklists.all()
             return render_template('select_checklist.html',
                                  title=f"Select Checklist: {step['name']}",
@@ -910,46 +912,44 @@ def update_step_checklist(project_id, step_index):
     # Verify checklist exists and belongs to user
     checklist = owned_or_404(Checklist, checklist_id)
 
-    # Check if there are other active projects using this template
-    other_active_projects = ResearchProject.query.filter(
-        ResearchProject.template_id == project.template_id,
-        ResearchProject.id != project_id,
-        ResearchProject.status.in_(['active', 'paused'])
-    ).count()
+    tstep = template_step(project, step_index)
+    bound = owned_checklist(current_user.id, tstep['config'].get('checklist_id')) if tstep else None
 
-    # If user hasn't made a choice yet and there are no other active projects, ask
-    if 'update_template' not in request.form and other_active_projects == 0:
-        # Show confirmation modal
-        return render_template('confirm_checklist_update.html',
-                             title="Update Template?",
-                             project=project,
-                             step_index=step_index,
-                             checklist=checklist,
-                             checklist_id=checklist_id)
+    if tstep is None or bound is None or bound.id == checklist_id:
+        # Project-only choice, or a first choice that fills a blank template
+        record_step_override(project, step_index, checklist_id)
+        if tstep is not None and bound is None:
+            fill_template_blank(project, step_index, checklist_id, current_user.id)
+            flash(f'Checklist set for this project and template "{project.template.name}"', 'success')
+        else:
+            flash('Checklist updated for this project', 'success')
+    else:
+        # The template is bound to a different checklist: replacing it still asks
+        other_active_projects = ResearchProject.query.filter(
+            ResearchProject.template_id == project.template_id,
+            ResearchProject.id != project_id,
+            ResearchProject.status.in_(['active', 'paused'])
+        ).count()
 
-    # Update the project's step configuration (always)
-    # We need to override the step config for this specific project
-    if not hasattr(project, 'step_overrides') or not project.step_overrides:
-        project.step_overrides = {}
+        if 'update_template' not in request.form and other_active_projects == 0:
+            return render_template('confirm_checklist_update.html',
+                                 title="Update Template?",
+                                 project=project,
+                                 step_index=step_index,
+                                 checklist=checklist,
+                                 checklist_id=checklist_id)
 
-    project.step_overrides[str(step_index)] = {
-        'checklist_id': checklist_id
-    }
-    flag_modified(project, 'step_overrides')
-
-    # Update template if requested and safe to do so
-    if update_template and other_active_projects == 0:
-        template = project.template
-        if template and template.workflow_steps:
-            template.workflow_steps[step_index]['config']['checklist_id'] = checklist_id
+        record_step_override(project, step_index, checklist_id)
+        if update_template and other_active_projects == 0:
+            template = project.template
+            tstep['config'] = {**tstep['config'], 'checklist_id': checklist_id}
             flag_modified(template, 'workflow_steps')
             flash(f'Checklist updated for this project and template "{template.name}"', 'success')
-    else:
-        flash(f'Checklist updated for this project only', 'success')
+        else:
+            flash('Checklist updated for this project only', 'success')
 
     try:
         db.session.commit()
-        # Now redirect to execute the step with the new checklist
         return redirect(url_for('research_workflow.execute_step', project_id=project_id, step_index=step_index))
     except Exception:
         current_app.logger.exception('Error updating checklist')
@@ -1136,30 +1136,7 @@ def edit_project_workflow(project_id):
 
     if request.method == 'POST':
         # Rebuild workflow steps from form data (same logic as edit_template)
-        workflow_steps = []
-        step_names = request.form.getlist('step_name[]')
-        step_types = request.form.getlist('step_type[]')
-        step_estimates = request.form.getlist('step_estimate[]')
-
-        for i, step_name in enumerate(step_names):
-            if step_name.strip():
-                step = {
-                    'order': i + 1,
-                    'name': step_name.strip(),
-                    'type': step_types[i] if i < len(step_types) else 'custom',
-                    'estimated_minutes': int(step_estimates[i]) if i < len(step_estimates) and step_estimates[i] else 60,
-                    'config': {}
-                }
-
-                # Add type-specific configuration
-                if step['type'] == 'checklist':
-                    step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
-                elif step['type'] == 'kill_checklist_reference':
-                    step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
-                elif step['type'] == 'model':
-                    step['config']['model_type'] = request.form.get(f'step_{i}_model_type')
-
-                workflow_steps.append(step)
+        workflow_steps = build_workflow_steps_from_form(request.form)
 
         project.workflow_snapshot = workflow_steps
         flag_modified(project, 'workflow_snapshot')

@@ -36,7 +36,7 @@ from app.research_workflow import research_workflow_bp
 from app.utils.decorators import require_feature
 from app.utils.time_utils import now_utc
 from app.utils.auth_utils import owned_or_404
-import json
+from app.research_workflow.helpers import build_workflow_steps_from_form
 
 # Available step types for research templates
 STEP_TYPES = [
@@ -259,33 +259,7 @@ def create_template():
             return redirect(url_for('research_workflow.create_template'))
         
         # Build workflow steps from form data
-        workflow_steps = []
-        step_names = request.form.getlist('step_name[]')
-        step_types = request.form.getlist('step_type[]')
-        step_configs = request.form.getlist('step_config[]')
-        step_required = request.form.getlist('step_required[]')
-        step_estimates = request.form.getlist('step_estimate[]')
-        
-        for i, step_name in enumerate(step_names):
-            if step_name.strip():  # Only add non-empty steps
-                step = {
-                    'order': i + 1,
-                    'name': step_name.strip(),
-                    'type': step_types[i] if i < len(step_types) else 'custom',
-                    'config': json.loads(step_configs[i]) if i < len(step_configs) and step_configs[i] else {},
-                    'required': i in step_required,
-                    'estimated_minutes': int(step_estimates[i]) if i < len(step_estimates) and step_estimates[i] else 60
-                }
-                
-                # Add type-specific configuration
-                if step['type'] == 'checklist':
-                    step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
-                elif step['type'] == 'kill_checklist_reference':
-                    step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
-                elif step['type'] == 'model':
-                    step['config']['model_type'] = request.form.get(f'step_{i}_model_type')
-                
-                workflow_steps.append(step)
+        workflow_steps = build_workflow_steps_from_form(request.form)
         
         # Create the template (company-only)
         template = ResearchTemplate(
@@ -371,30 +345,7 @@ def edit_template(template_id):
         template.investment_style = request.form.get('investment_style')
 
         # Rebuild workflow steps
-        workflow_steps = []
-        step_names = request.form.getlist('step_name[]')
-        step_types = request.form.getlist('step_type[]')
-        step_estimates = request.form.getlist('step_estimate[]')
-
-        for i, step_name in enumerate(step_names):
-            if step_name.strip():
-                step = {
-                    'order': i + 1,
-                    'name': step_name.strip(),
-                    'type': step_types[i] if i < len(step_types) else 'custom',
-                    'estimated_minutes': int(step_estimates[i]) if i < len(step_estimates) and step_estimates[i] else 60,
-                    'config': {}
-                }
-
-                # Add type-specific configuration
-                if step['type'] == 'checklist':
-                    step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
-                elif step['type'] == 'kill_checklist_reference':
-                    step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
-                elif step['type'] == 'model':
-                    step['config']['model_type'] = request.form.get(f'step_{i}_model_type')
-
-                workflow_steps.append(step)
+        workflow_steps = build_workflow_steps_from_form(request.form)
 
         template.workflow_steps = workflow_steps
         template.updated_at = now_utc()

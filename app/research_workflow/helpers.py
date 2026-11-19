@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+import json
+
 from flask import current_app
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -166,3 +168,55 @@ def checklist_session_summary(session, company):
     ])
 
     return "\n".join(summary_parts)
+
+
+_STEP_FORM_FIELDS = {
+    'checklist': ('checklist_id', 'checklist_id'),
+    'kill_checklist_reference': ('kill_checklist_id', 'kill_checklist_id'),
+    'model': ('model_type', 'model_type'),
+}
+
+
+def build_workflow_steps_from_form(form):
+    """Build workflow step dicts from the template/workflow edit form.
+
+    Selects are named by the step's stable `step_key[]` (not its position, which changes when
+    steps are reordered). A select value overrides the step's posted `step_config[]` only when
+    non-empty, so a binding the form did not re-post is never wiped.
+    """
+    names = form.getlist('step_name[]')
+    types = form.getlist('step_type[]')
+    keys = form.getlist('step_key[]')
+    configs = form.getlist('step_config[]')
+    estimates = form.getlist('step_estimate[]')
+
+    steps = []
+    for i, name in enumerate(names):
+        if not name.strip():
+            continue
+        key = keys[i] if i < len(keys) else str(i)
+        step_type = types[i] if i < len(types) else 'custom'
+
+        config = {}
+        if i < len(configs) and configs[i]:
+            try:
+                parsed = json.loads(configs[i])
+            except (ValueError, TypeError):
+                parsed = None
+            if isinstance(parsed, dict):
+                config = parsed
+
+        if step_type in _STEP_FORM_FIELDS:
+            config_key, field = _STEP_FORM_FIELDS[step_type]
+            value = form.get(f'step_{key}_{field}')
+            if value:
+                config[config_key] = value
+
+        steps.append({
+            'order': i + 1,
+            'name': name.strip(),
+            'type': step_type,
+            'estimated_minutes': int(estimates[i]) if i < len(estimates) and estimates[i] else 60,
+            'config': config,
+        })
+    return steps
