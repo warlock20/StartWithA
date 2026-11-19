@@ -19,7 +19,7 @@
         return isFinite(n) && n > 0 ? n : null;
     }
 
-    function init(container, metricsUrl) {
+    function init(container, metricsUrl, initial) {
         if (!container || container.dataset.wtReady) { return; }
         container.dataset.wtReady = '1';
 
@@ -30,6 +30,11 @@
         var tabs = container.querySelectorAll('[data-wt-tab]');
         var chips = container.querySelectorAll('[data-wt-chip]');
         var state = { metric: 'price', metrics: null, failed: false };
+        if (initial && DEFS[initial.metric]) {
+            // Editing a saved target: start on its metric and value, not the 15% seed.
+            state.metric = initial.metric;
+            input.value = String(initial.value);
+        }
 
         function scale(metric) { return DEFS[metric].unit ? 1e9 : 1; }
 
