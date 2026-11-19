@@ -16,12 +16,20 @@
 
 """Watchlist valuation targets: parsing, setting, clearing and status."""
 
+import logging
 from decimal import Decimal, InvalidOperation
 from typing import Optional
 
+from app import db
+from app.models import JournalEntry, ResearchProject
+from app.models.company import Company
 from app.models.research import WATCH_TARGET_METRICS, WATCH_TARGET_METRIC_LABELS
 from app.services.config_service import get_config
 from app.services.currency_service import CurrencyService
+from app.services.financial_data import FinancialDataService
+from app.utils.time_utils import now_utc
+
+logger = logging.getLogger(__name__)
 
 NEAR_TARGET_CONFIG_KEY = 'watchlist_near_target_pct'
 
@@ -115,3 +123,84 @@ def target_status(project, near_pct: float) -> dict:
 
 def near_target_pct(user_id: int) -> float:
     return float(get_config(NEAR_TARGET_CONFIG_KEY, user_id=user_id, default=0) or 0)
+
+
+def _record_hit(project, last: Decimal) -> None:
+    metric = project.watch_target_metric
+    currency = project.watch_target_currency
+    label = WATCH_TARGET_METRIC_LABELS[metric]
+    db.session.add(JournalEntry(
+        user_id=project.user_id,
+        company_id=project.company_id,
+        project_id=project.id,
+        title='Watchlist target reached',
+        entry_type='investment_action',
+        sentiment='neutral',
+        tags=['watchlist-target-hit', 'investment-action'],
+        source='watchlist_monitor',
+        content=(f'{label} reached {format_watch_value(metric, last, currency)} '
+                 f'(target {format_watch_value(metric, project.watch_target_value, currency)}).'),
+    ))
+
+
+def check_all_targets(financial_service=None) -> dict:
+    """Fetch each watched ticker once and update every project's target state.
+
+    A fetch failure or a missing/mismatched value skips that row without a hit.
+    Commits once at the end.
+    """
+    service = financial_service or FinancialDataService()
+    projects = (
+        ResearchProject.query.join(Company, ResearchProject.company_id == Company.id)
+        .filter(
+            ResearchProject.decision == 'watchlist',
+            ResearchProject.watch_target_value.isnot(None),
+            Company.ticker_symbol.isnot(None),
+            Company.ticker_symbol != '',
+        )
+        .all()
+    )
+    by_ticker = {}
+    for project in projects:
+        by_ticker.setdefault(project.company.ticker_symbol, []).append(project)
+
+    counts = {'tickers': len(by_ticker), 'checked': 0, 'hits': 0, 'skipped': 0}
+    for ticker, ticker_projects in by_ticker.items():
+        try:
+            metrics = service.get_watch_metrics(ticker)
+        except Exception:
+            logger.exception('Watchlist target fetch failed for %s', ticker)
+            counts['skipped'] += len(ticker_projects)
+            continue
+
+        for project in ticker_projects:
+            raw = metrics.get(project.watch_target_metric) if metrics else None
+            if raw is None or metrics.get('currency') != project.watch_target_currency:
+                counts['skipped'] += 1
+                continue
+            last = Decimal(str(raw))
+            project.watch_last_value = last
+            project.watch_last_checked_at = now_utc()
+            counts['checked'] += 1
+            if project.watch_target_hit_at is None and last <= project.watch_target_value:
+                project.watch_target_hit_at = now_utc()
+                _record_hit(project, last)
+                counts['hits'] += 1
+
+    db.session.commit()
+    return counts
+
+
+def active_hits(user_id: int) -> list:
+    """Watchlist projects whose target was hit and not yet dismissed, newest first."""
+    return (
+        ResearchProject.query
+        .filter(
+            ResearchProject.user_id == user_id,
+            ResearchProject.decision == 'watchlist',
+            ResearchProject.watch_target_hit_at.isnot(None),
+            ResearchProject.watch_target_dismissed_at.is_(None),
+        )
+        .order_by(ResearchProject.watch_target_hit_at.desc())
+        .all()
+    )
