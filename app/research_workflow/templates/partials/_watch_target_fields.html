@@ -1,0 +1,51 @@
+{# Valuation target fields for the Move to Watchlist modal. Driven by static/js/watch-target.js.
+   Posts target_metric, target_value (billions for cap/EV) and target_currency. #}
+<div class="border rounded-3 p-3" style="background:#f0fdf4;border-color:#bbf7d0 !important;" data-watch-target>
+    <div class="d-flex align-items-center gap-2 mb-3 text-success fw-semibold text-uppercase small">
+        <i class="bi bi-bullseye"></i> Valuation target
+    </div>
+
+    <input type="hidden" name="target_metric" value="price" data-wt-metric>
+    <input type="hidden" name="target_currency" value="" data-wt-currency>
+
+    <div class="mb-3">
+        <div class="form-label mb-1">Watch</div>
+        <div class="btn-group w-100" role="group" aria-label="Metric to watch">
+            <button type="button" class="btn btn-outline-success active" aria-pressed="true" data-wt-tab="price">Price</button>
+            <button type="button" class="btn btn-outline-success" aria-pressed="false" data-wt-tab="market_cap">Market cap</button>
+            <button type="button" class="btn btn-outline-success" aria-pressed="false" data-wt-tab="enterprise_value">Enterprise value</button>
+        </div>
+    </div>
+
+    <div class="mb-2">
+        <label for="targetValue" class="form-label"><span data-wt-label>Buy-below price</span> <span class="text-danger">*</span></label>
+        <div class="input-group">
+            <span class="input-group-text" data-wt-prefix>&nbsp;</span>
+            <input type="text" inputmode="decimal" class="form-control fw-semibold" id="targetValue"
+                   name="target_value" autocomplete="off" data-wt-input>
+            <span class="input-group-text d-none" data-wt-suffix>billion</span>
+        </div>
+        <div class="form-text">Use a dot for decimals, e.g. 1234.50</div>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <span class="small text-muted">Below current:</span>
+        {% for pct in (10, 15, 20, 30) %}
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-wt-chip="{{ pct }}">-{{ pct }}%</button>
+        {% endfor %}
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-2 px-3 bg-white border rounded-2">
+        <div>
+            <div class="small text-muted">Current <span data-wt-short>price</span> &middot; {{ project.company.ticker_symbol if project.company else '' }}</div>
+            <div class="fw-semibold" data-wt-current>Loading&hellip;</div>
+        </div>
+        <div class="text-end">
+            <div class="small text-muted">Needs to fall</div>
+            <div class="fw-semibold" style="color:#92400e;" data-wt-drop>&mdash;</div>
+        </div>
+    </div>
+
+    <div class="small mt-2 d-none" data-wt-implied></div>
+    <div class="form-text mt-2">Checked daily after market close, in the stock's own currency.</div>
+</div>
