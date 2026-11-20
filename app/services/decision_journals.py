@@ -167,3 +167,26 @@ def inherited_thesis(user_id: int, company_id: int, opening: Optional[DecisionJo
         if text and text.strip():
             return text
     return ''
+
+
+def _buy_decisions_query(user_id: int, company_id: int):
+    return DecisionJournal.query.filter(
+        DecisionJournal.user_id == user_id,
+        DecisionJournal.company_id == company_id,
+        DecisionJournal.decision_type == 'BUY',
+        DecisionJournal.is_portfolio_decision == True,  # noqa: E712
+    )
+
+
+def opening_buy_decision(user_id: int, company_id: int) -> Optional[DecisionJournal]:
+    """The newest opening BUY for the company: the original thesis and expected return."""
+    return _buy_decisions_query(user_id, company_id).filter(
+        DecisionJournal.parent_decision_id.is_(None)
+    ).order_by(DecisionJournal.decision_date.desc(), DecisionJournal.id.desc()).first()
+
+
+def latest_buy_decision(user_id: int, company_id: int) -> Optional[DecisionJournal]:
+    """The newest BUY for the company, top-ups included: the latest confidence."""
+    return _buy_decisions_query(user_id, company_id).order_by(
+        DecisionJournal.decision_date.desc(), DecisionJournal.id.desc()
+    ).first()

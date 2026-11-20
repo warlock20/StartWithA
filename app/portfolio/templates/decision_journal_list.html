@@ -27,7 +27,7 @@
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon green"><i class="bi bi-cart-plus"></i></div>
                 <div class="portfolio-metric-label">Buy Decisions</div>
-                <div class="portfolio-metric-value">{{ buy_decisions }}</div>
+                <div class="portfolio-metric-value">{{ buy_decisions }}{% if top_up_decisions %} <small class="text-muted">+{{ top_up_decisions }} top-up{{ 's' if top_up_decisions != 1 }}</small>{% endif %}</div>
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon gray"><i class="bi bi-exclamation-triangle"></i></div>

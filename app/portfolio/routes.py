@@ -574,7 +574,7 @@ def analytics_decisions():
     # Get all BUY journals with confidence scores and actual returns
     journals_with_confidence = []
     for journal in all_journals:
-        if journal.confidence_score and journal.decision_type == 'BUY':
+        if journal.confidence_score is not None and journal.decision_type == 'BUY' and not journal.is_top_up:
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
             if position and position_return_pct(position) is not None:
                 journals_with_confidence.append({
@@ -589,7 +589,7 @@ def analytics_decisions():
     # Get all journals with expected returns and compare to actual
     expectations_analysis = []
     for journal in all_journals:
-        if journal.expected_return and journal.decision_type == 'BUY':
+        if journal.expected_return is not None and journal.decision_type == 'BUY' and not journal.is_top_up:
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
             pos_return = position_return_pct(position) if position else None
             if position and pos_return is not None:
