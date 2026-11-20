@@ -296,6 +296,17 @@
         else if (type === 'research') url = `/journal/entry/${id}/delete`;
         else return;
 
+        if (type === 'research') {
+            // A real form post, so a refused delete (the last exit rule of a
+            // held company) lands on the entry page with its message
+            const f = document.createElement('form');
+            f.method = 'POST';
+            f.action = url;
+            document.body.appendChild(f);
+            f.submit();
+            return;
+        }
+
         fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
             .then(() => location.reload());
     }

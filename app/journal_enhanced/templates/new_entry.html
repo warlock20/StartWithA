@@ -24,6 +24,17 @@
         <!-- Entry Form -->
         <div class="action-card">
             <div class="action-card-body">
+                {# form_data re-fills the form after a validation error (empty on a fresh form) #}
+                {% set form_data = form_data or {} %}
+                {% set entry_type_options = [
+                    ('observation', 'Observation'), ('question', 'Question'), ('insight', 'Insight'),
+                    ('lesson_learned', 'Lesson Learned'), ('market_thought', 'Market Thought'),
+                    ('meeting_notes', 'Meeting Notes'), ('earnings_reaction', 'Earnings Reaction'),
+                    ('news_analysis', 'News Analysis'), ('accounting_note', 'Accounting Note'),
+                    ('finance_tip', 'Finance Tip'), ('industry_analysis', 'Industry Analysis'),
+                    ('custom', 'Custom'),
+                ] %}
+                {% set posted_entry_type = form_data.get('entry_type', '') %}
                 <form method="POST" action="{{ url_for('journal_enhanced.new_entry') }}" enctype="multipart/form-data" id="journalEntryForm">
                     {% if return_url %}
                     <input type="hidden" name="return_url" value="{{ return_url }}">
@@ -73,25 +84,22 @@
                             <div class="col-md-8">
                                 <label for="title" class="form-label">Title</label>
                                 <input type="text" class="form-control" id="title" name="title"
+                                    value="{{ form_data.get('title', '') }}"
                                     placeholder="Optional - summarize your entry">
                             </div>
                             <div class="col-md-4 cat-block cat-research">
                                 <label for="entry_type" class="form-label">Entry Type</label>
                                 <select class="form-select" id="entry_type" name="entry_type" onchange="toggleCustomEntryType()">
-                                    <option value="observation">Observation</option>
-                                    <option value="question">Question</option>
-                                    <option value="insight">Insight</option>
-                                    <option value="lesson_learned">Lesson Learned</option>
-                                    <option value="market_thought">Market Thought</option>
-                                    <option value="meeting_notes">Meeting Notes</option>
-                                    <option value="earnings_reaction">Earnings Reaction</option>
-                                    <option value="news_analysis">News Analysis</option>
-                                    <option value="accounting_note">Accounting Note</option>
-                                    <option value="finance_tip">Finance Tip</option>
-                                    <option value="industry_analysis">Industry Analysis</option>
-                                    <option value="custom">Custom</option>
+                                    {% for value, label in entry_type_options %}
+                                    <option value="{{ value }}" {{ 'selected' if posted_entry_type == value }}>{{ label }}</option>
+                                    {% endfor %}
+                                    {% if posted_entry_type and posted_entry_type not in entry_type_options|map('first') %}
+                                    {# A type set by a template, e.g. must_exit #}
+                                    <option value="{{ posted_entry_type }}" selected>{{ posted_entry_type|replace('_', ' ')|title }}</option>
+                                    {% endif %}
                                 </select>
                                 <input type="text" class="form-control mt-2" id="custom_entry_type" name="custom_entry_type"
+                                       value="{{ form_data.get('custom_entry_type', '') }}"
                                        placeholder="Enter custom type" style="display: none;">
                             </div>
                         </div>
@@ -118,6 +126,7 @@
                             <div class="col-md-6 cat-block cat-research" id="sourceField">
                                 <label for="source" class="form-label">Source</label>
                                 <input type="text" class="form-control" id="source" name="source"
+                                    value="{{ form_data.get('source', '') }}"
                                     placeholder="e.g., Q3 Earnings Call, WSJ Article">
                             </div>
                         </div>
@@ -144,15 +153,15 @@
                                 <label for="sentiment" class="form-label">Sentiment</label>
                                 <select class="form-select" id="sentiment" name="sentiment">
                                     <option value="">Select sentiment</option>
-                                    <option value="bullish">Bullish</option>
-                                    <option value="neutral">Neutral</option>
-                                    <option value="bearish">Bearish</option>
-                                    <option value="uncertain">Uncertain</option>
+                                    {% for value in ('bullish', 'neutral', 'bearish', 'uncertain') %}
+                                    <option value="{{ value }}" {{ 'selected' if form_data.get('sentiment') == value }}>{{ value|title }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6">
                                 <label for="conviction" class="form-label">Conviction Level (1-10)</label>
                                 <input type="number" class="form-control" id="conviction" name="conviction"
+                                    value="{{ form_data.get('conviction', '') }}"
                                     min="1" max="10" placeholder="How confident are you?">
                             </div>
                         </div>
@@ -171,6 +180,7 @@
                             <div class="mb-3">
                                 <label for="key_insight" class="form-label">Key Insight</label>
                                 <input type="text" class="form-control" id="key_insight" name="key_insight"
+                                    value="{{ form_data.get('key_insight', '') }}"
                                     placeholder="What's the main takeaway?">
                             </div>
 
@@ -180,12 +190,12 @@
                                 <div class="col-md-6">
                                     <label for="action_items" class="form-label">Action Items</label>
                                     <textarea class="form-control" id="action_items" name="action_items" rows="3"
-                                        placeholder="One per line"></textarea>
+                                        placeholder="One per line">{{ form_data.get('action_items', '') }}</textarea>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="questions_raised" class="form-label">Questions Raised</label>
                                     <textarea class="form-control" id="questions_raised" name="questions_raised" rows="3"
-                                        placeholder="One per line"></textarea>
+                                        placeholder="One per line">{{ form_data.get('questions_raised', '') }}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -425,7 +435,9 @@
             // Initialize BlockNote for journal content
             journalEditorInstance = window.initBlockNoteEditor('journalContentEditor', {
                 placeholder: 'Write your journal entry here... Type "/" for commands',
-                onSave: null // Manual save via form submission
+                onSave: null, // Manual save via form submission
+                // What was typed before a validation error sent the form back
+                initialContent: {{ (form_data or {}).get('content', '')|tojson }}
             });
 
             console.log('Journal BlockNote editor initialized');
@@ -475,6 +487,7 @@
 
     // Initialize form based on default selection
     document.addEventListener('DOMContentLoaded', function() {
+        toggleCustomEntryType();
         const entryType = document.getElementById('entry_type').value;
         if (entryType !== 'observation') {
             document.getElementById('advancedFields').style.display = 'none';

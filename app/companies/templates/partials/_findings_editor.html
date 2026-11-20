@@ -4,6 +4,8 @@
    Optional: findings_stacked, one list under the other for narrow sidebars;
    findings_limit, show only the latest N per list; findings_all_url, link to the full lists.
    Long details are clamped; the shared detail card (detail-card.js) shows them in full.
+   Deleting the last Must Exit of a held company is refused; the form then opens in
+   replace mode and saves through companies.api_replace_finding.
    Behaviour: static/js/findings-editor.js #}
 {% set finding_columns = [
     ('red_flag', 'red', 'exclamation-triangle-fill', 'Red Flags', 'What counts against investing?'),
@@ -40,6 +42,8 @@
             {% endfor %}
         </ul>
         <form class="finding-add-form" hidden>
+            {# Replace mode (last exit rule of a held company): names the rule being replaced #}
+            <small class="finding-replace-hint text-muted text-break" hidden></small>
             <input type="text" class="finding-signal-input" list="finding-signals" maxlength="200"
                    placeholder="Signal: search or add, e.g. Financial engineering" autocomplete="off">
             <textarea class="finding-add-input" rows="3" placeholder="{{ placeholder }}"></textarea>

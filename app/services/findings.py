@@ -31,7 +31,7 @@ import json
 from typing import Optional
 
 from app import db
-from app.models import JournalEntry, ResearchProject
+from app.models import JournalEntry, PortfolioPosition, ResearchProject
 from app.models.journal import DEFAULT_FINDING_SIGNAL
 from app.utils.blocknote_utils import blocknote_to_text
 
@@ -47,6 +47,17 @@ FINDING_LABELS = {
 }
 
 DEFAULT_SIGNAL = DEFAULT_FINDING_SIGNAL
+
+LAST_EXIT_RULE_MESSAGE = ("This is the last exit rule for a company you hold. "
+                          "Replace it with a new rule instead of removing it.")
+MUST_EXIT_NEEDS_COMPANY_MESSAGE = 'A must-exit rule needs a company'
+
+
+class LastExitRuleError(ValueError):
+    """Removing this rule would leave a held company without an exit rule."""
+
+    def __init__(self, message: str = LAST_EXIT_RULE_MESSAGE):
+        super().__init__(message)
 
 _TYPE_ALIASES = {
     'red': RED_FLAG, 'red_flag': RED_FLAG, 'red-flag': RED_FLAG,
@@ -124,6 +135,64 @@ def _expire_cached_findings(user_id: int, company_id: int) -> None:
         if (isinstance(obj, ResearchProject) and obj.user_id == user_id
                 and obj.company_id == company_id):
             db.session.expire(obj, ['finding_journal_entries'])
+
+
+def holds_company(user_id: int, company_id: int) -> bool:
+    """True when the user still has shares in the company."""
+    return db.session.query(
+        PortfolioPosition.query.filter(
+            PortfolioPosition.user_id == user_id,
+            PortfolioPosition.company_id == company_id,
+            PortfolioPosition.total_shares > 0,
+        ).exists()
+    ).scalar()
+
+
+def assert_can_remove_must_exit(entry: JournalEntry) -> None:
+    """Raise LastExitRuleError if `entry` is the last live exit rule of a held company.
+
+    Call it before anything takes a rule away from its company: archiving,
+    deleting, retyping it or moving it to another company.
+    """
+    if (entry.entry_type != MUST_EXIT or entry.is_archived or not entry.company_id
+            or not holds_company(entry.user_id, entry.company_id)):
+        return
+    others = JournalEntry.query.filter(
+        JournalEntry.user_id == entry.user_id,
+        JournalEntry.company_id == entry.company_id,
+        JournalEntry.entry_type == MUST_EXIT,
+        JournalEntry.is_archived.is_(False),
+        JournalEntry.id != entry.id,
+    )
+    if not db.session.query(others.exists()).scalar():
+        raise LastExitRuleError()
+
+
+def _archive_finding(entry: JournalEntry) -> None:
+    entry.is_archived = True
+    _expire_cached_findings(entry.user_id, entry.company_id)
+
+
+def replace_must_exit(entry: JournalEntry, new_text: str,
+                      signal: Optional[str] = None) -> JournalEntry:
+    """Swap a must-exit rule for a new one in one step and return the new rule.
+
+    The new rule is added before the old one is archived, inside a savepoint,
+    so the company is never left without a rule: if either step fails, both
+    are undone. The signal defaults to the old rule's.
+    """
+    if not (new_text or '').strip():
+        raise ValueError('Rule text is required')
+    with db.session.begin_nested():
+        new_entry = add_finding(
+            entry.user_id, entry.company_id, MUST_EXIT, new_text,
+            project_id=entry.project_id,
+            signal=signal if (signal or '').strip() else entry.title,
+        )
+        db.session.flush()
+        _archive_finding(entry)
+        db.session.flush()
+    return new_entry
 
 
 def delete_finding(entry: JournalEntry) -> None:

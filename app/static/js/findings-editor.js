@@ -2,6 +2,8 @@
 // green flags and must-exit criteria. Each finding has a signal; the signal
 // field suggests the user's existing signals and accepts any new one. Long
 // details are clamped to a few lines and open in full in the detail card.
+// The last must-exit rule of a held company can't be deleted (409,
+// code 'last_exit_rule'); the Must Exit form then opens in replace mode.
 (function () {
     var LONG_TEXT_CHARS = 150;
     var LONG_TEXT_LINES = 3;
@@ -135,6 +137,26 @@
         function closeForm(form) {
             form.reset();
             form.hidden = true;
+            delete form.dataset.replaceId;
+            var hint = form.querySelector('.finding-replace-hint');
+            hint.textContent = '';
+            hint.hidden = true;
+        }
+
+        // Swap `li` for a new rule: same form, but it saves to the replace endpoint
+        function openReplaceForm(li) {
+            var col = li.closest('[data-finding-type]');
+            var form = col.querySelector('.finding-add-form');
+            form.reset();
+            form.dataset.replaceId = li.dataset.findingId;
+            var hint = form.querySelector('.finding-replace-hint');
+            hint.textContent = 'Replacing: ' + li.querySelector('.finding-text').textContent;
+            hint.hidden = false;
+            form.querySelector('.finding-signal-input').value =
+                li.querySelector('.finding-signal').textContent;
+            form.hidden = false;
+            loadSignals();
+            form.querySelector('.finding-add-input').focus();
         }
 
         grid.addEventListener('click', function (e) {
@@ -159,6 +181,11 @@
             fetch(baseUrl + '/' + li.dataset.findingId, { method: 'DELETE' })
                 .then(function (r) { return readJson(r, 'Could not delete'); })
                 .then(function (data) {
+                    if (data.code === 'last_exit_rule') {
+                        notify(data.error, 'error');
+                        openReplaceForm(li);
+                        return;
+                    }
                     if (!data.success) throw new Error(data.error || 'Could not delete');
                     li.remove();
                     addToTotal(-1);
@@ -190,18 +217,31 @@
             }
             var button = form.querySelector('button[type="submit"]');
             button.disabled = true;
-            fetch(baseUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: col.dataset.findingType, signal: signal, text: text })
-            })
+            var replaceId = form.dataset.replaceId;
+            var request = replaceId
+                ? fetch(baseUrl + '/' + replaceId + '/replace', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ signal: signal, text: text })
+                })
+                : fetch(baseUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: col.dataset.findingType, signal: signal, text: text })
+                });
+            request
                 .then(function (r) { return readJson(r, 'Could not save'); })
                 .then(function (data) {
                     if (!data.success) throw new Error(data.error || 'Could not save');
                     var list = col.querySelector('.findings-list');
-                    list.appendChild(findingItem(data.finding));
-                    if (limit && list.children.length > limit) list.firstElementChild.remove();
-                    addToTotal(1);
+                    var old = replaceId && list.querySelector('li[data-finding-id="' + replaceId + '"]');
+                    if (old) {
+                        old.replaceWith(findingItem(data.finding));
+                    } else {
+                        list.appendChild(findingItem(data.finding));
+                        if (limit && list.children.length > limit) list.firstElementChild.remove();
+                        if (!replaceId) addToTotal(1);
+                    }
                     rememberSignal(data.finding.signal);
                     closeForm(form);
                 })
