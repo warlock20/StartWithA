@@ -187,15 +187,17 @@ def backfill_imported_transactions(bind) -> int:
 
 
 def mark_imported_decisions(bind) -> None:
-    """Mark imported decisions (the importer's BUY thesis, or linked to an imported
-    transaction), then clear the importer's made-up values one field at a time,
-    so a value the user changed stays."""
+    """Mark imported decisions (the importer's BUY thesis, or a SELL linked to an
+    imported transaction), then clear the importer's made-up values one field at a
+    time, so a value the user changed stays. A BUY is never marked for its link alone:
+    fix-imported-decisions links imported buys to the user's own opening decision."""
     bind.execute(sa.text("""
         UPDATE decision_journal SET is_imported = true
         WHERE is_imported = false
           AND (lower(btrim(investment_thesis)) = lower(:thesis)
-               OR id IN (SELECT decision_journal_id FROM "transaction"
-                         WHERE is_imported AND decision_journal_id IS NOT NULL))
+               OR (decision_type = 'SELL'
+                   AND id IN (SELECT decision_journal_id FROM "transaction"
+                              WHERE is_imported AND decision_journal_id IS NOT NULL)))
     """), {'thesis': IMPORTED_BUY_THESIS})
     for column, placeholder in PLACEHOLDER_VALUES:
         bind.execute(sa.text(

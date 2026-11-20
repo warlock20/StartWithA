@@ -26,7 +26,7 @@ from app.models.journal import DecisionJournal
 from app.models.research import ResearchProject
 from app.services.financial_data import FinancialDataService
 from app.services.cash_service import CashService
-from app.services.decision_journals import ensure_import_decisions, snapshot_exit_plan
+from app.services.decision_journals import safe_ensure_import_decisions, snapshot_exit_plan
 from app.services.outcome_tracking import safe_sync_outcomes
 from app.services.currency_service import CurrencyService
 from app.services.company_lookup import get_or_create_company_by_ticker
@@ -436,7 +436,8 @@ class PortfolioImporter:
                 user_id=self.user.id,
                 last_transaction_date=last_date
             )
-            ensure_import_decisions(self.user.id, comp_id)
+            # Savepoints: a failure in either step must not lose the position updates
+            safe_ensure_import_decisions(self.user.id, comp_id)
             safe_sync_outcomes(self.user.id, comp_id)
             print(f"✓ Updated portfolio for {ticker}")
 

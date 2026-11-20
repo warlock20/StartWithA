@@ -49,7 +49,7 @@ try:
 except ImportError:
     FINANCIAL_SERVICE_AVAILABLE = False
 
-from app.models import PortfolioPosition, Company, DecisionJournal, ResearchProject, ChecklistAnalysis, Transaction
+from app.models import PortfolioPosition, Company, ResearchProject, ChecklistAnalysis, Transaction
 from app.utils.financial_utils import calculate_cagr
 from sqlalchemy.orm import joinedload
 from app.services.decision_journals import latest_buy_decision, opening_buy_decision
@@ -58,6 +58,12 @@ from app.services.config_service import get_config
 from app import cache
 
 logger = logging.getLogger(__name__)
+
+
+def _has_own_thesis(journal) -> bool:
+    """True when the decision carries the user's thesis. An imported decision's text is
+    the importer's label, not a thesis, so it is never analysed as one."""
+    return bool(journal and journal.investment_thesis and not journal.is_imported)
 
 
 @dataclass
@@ -236,7 +242,7 @@ class IntelligenceEngine:
         if self.ENABLED_RULES.get('thesis_quality'):
             journal = opening_buy_decision(self.user_id, company.id)
             
-            if journal and journal.investment_thesis:
+            if _has_own_thesis(journal):
                 warning = self._check_thesis_quality(company, journal.investment_thesis_text)
                 if warning:
                     warnings.append(warning)
@@ -519,7 +525,7 @@ class IntelligenceEngine:
         # Get the thesis for the company being purchased
         new_thesis_journal = opening_buy_decision(self.user_id, company.id)
         
-        if not new_thesis_journal or not new_thesis_journal.investment_thesis:
+        if not _has_own_thesis(new_thesis_journal):
             return None
         
         new_thesis = new_thesis_journal.investment_thesis_text.lower()
@@ -536,7 +542,7 @@ class IntelligenceEngine:
             # Get thesis for existing position
             existing_journal = opening_buy_decision(self.user_id, position.company_id)
             
-            if not existing_journal or not existing_journal.investment_thesis:
+            if not _has_own_thesis(existing_journal):
                 continue
             
             existing_thesis = existing_journal.investment_thesis_text.lower()
@@ -925,7 +931,7 @@ class IntelligenceEngine:
                     'days_held': days_held,
                     'loser_threshold': loser_threshold,
                     'hold_days_warning': hold_days_warning,
-                    'has_thesis': bool(journal and journal.investment_thesis)
+                    'has_thesis': _has_own_thesis(journal)
                 },
                 action_url=f'/portfolio/position/{position.id}'
             )
@@ -1149,7 +1155,7 @@ class IntelligenceEngine:
         # Get current thesis
         journal = opening_buy_decision(self.user_id, company.id)
 
-        if not journal or not journal.investment_thesis:
+        if not _has_own_thesis(journal):
             return warnings
 
         thesis = journal.investment_thesis_text

@@ -31,7 +31,7 @@ from app.models import (
 )
 from app.services.currency_service import CurrencyService
 from app.services.cash_service import CashService
-from app.services.decision_journals import current_opening_decision, inherited_thesis, snapshot_exit_plan
+from app.services.decision_journals import inherited_thesis, opening_decision_for_buy, snapshot_exit_plan
 from app.services.outcome_tracking import safe_sync_outcomes
 from app.services.findings import MUST_EXIT, add_finding, has_exit_plan
 from app.services.intelligence_engine import IntelligenceEngine
@@ -619,7 +619,7 @@ class TransactionService:
         if transaction_type == 'BUY':
             if is_add_to_position:
                 journal = TransactionService._top_up_journal(
-                    user_id, company_id, transaction_date, form_data)
+                    user_id, company_id, transaction, transaction_date, form_data)
             else:
                 if bought_without_research:
                     investment_thesis = form_data.get('investment_thesis', '').strip()
@@ -706,14 +706,15 @@ class TransactionService:
         return journal
 
     @staticmethod
-    def _top_up_journal(user_id: int, company_id: int, transaction_date,
-                        form_data: Dict) -> DecisionJournal:
+    def _top_up_journal(user_id: int, company_id: int, transaction: Transaction,
+                        transaction_date, form_data: Dict) -> DecisionJournal:
         """
         A top-up's own BUY decision. It copies the current thesis unchanged (a changed
-        reason goes through the thesis-version page) and links to the holding period's
-        opening decision. The "why add now" note stays on the transaction.
+        reason goes through the thesis-version page) and links to the opening decision
+        of the holding period the (flushed) transaction lands in, which for a backdated
+        buy can be an earlier one. The "why add now" note stays on the transaction.
         """
-        parent = current_opening_decision(user_id, company_id)
+        parent = opening_decision_for_buy(transaction)
         investment_thesis = inherited_thesis(user_id, company_id, parent)
 
         return DecisionJournal(

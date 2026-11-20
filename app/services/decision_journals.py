@@ -40,7 +40,9 @@ from app import db
 from app.models import DecisionJournal, ThesisEvolution, Transaction
 from app.models.portfolio import RoundTrip, get_round_trips
 from app.services.findings import active_must_exits
-from app.services.outcome_tracking import IMPORTED_BUY_THESIS, sync_outcomes_for_company, trip_buy_journal
+from app.services.outcome_tracking import (
+    IMPORTED_BUY_THESIS, opening_decision_for_trip, sync_outcomes_for_company,
+)
 from app.utils.time_utils import datetime, ensure_timezone_aware, now_utc
 
 logger = logging.getLogger(__name__)
@@ -96,57 +98,23 @@ def exit_plan_view(value) -> Optional[ExitPlanView]:
     return ExitPlanView(rules=list(value.get('rules') or []), captured_at=captured_at)
 
 
-def opening_decision_for_trip(trip: RoundTrip) -> Optional[DecisionJournal]:
-    """
-    The opening decision of a round trip: its opening BUY journal, or that journal's
-    parent if it is a top-up.
-
-    A trip opened without a decision (a merger or spin-off handed over the shares, or a
-    pre-#434 re-buy got no journal) has its first top-up saved as the opening instead,
-    so that one is returned: the first parentless BUY decision made inside the trip.
-    """
-    journal = trip_buy_journal(trip)
-    if journal is not None:
-        return journal.parent_decision if journal.is_top_up else journal
-    return _first_decision_made_in_trip(trip)
-
-
-def _trip_transactions(trip: RoundTrip) -> list:
-    """The trip's transactions in FIFO (date, id) order, opening to closing."""
-    opening = trip.opening_transaction
-    transactions = Transaction.query.filter_by(
-        user_id=opening.user_id, company_id=opening.company_id,
-    ).order_by(Transaction.date.asc(), Transaction.id.asc()).all()
-    ids = [txn.id for txn in transactions]
-    start = ids.index(opening.id)
-    end = ids.index(trip.closing_transaction.id) + 1 if trip.closing_transaction else len(ids)
-    return transactions[start:end]
-
-
-def _first_decision_made_in_trip(trip: RoundTrip) -> Optional[DecisionJournal]:
-    """
-    The first parentless BUY decision whose own first transaction lies in the trip.
-    The first-transaction check skips a pre-#434 journal that an earlier trip shares
-    with this trip's top-ups.
-    """
-    transactions = _trip_transactions(trip)
-    trip_ids = {txn.id for txn in transactions}
-    for txn in transactions:
-        journal = txn.decision_journal
-        if txn.type != 'BUY' or journal is None or journal.decision_type != 'BUY' or journal.is_top_up:
-            continue
-        first = journal.transactions.order_by(Transaction.date.asc(), Transaction.id.asc()).first()
-        if first is not None and first.id in trip_ids:
-            return journal
-    return None
-
-
 def current_opening_decision(user_id: int, company_id: int) -> Optional[DecisionJournal]:
     """The opening decision of the company's latest round trip, or None (no trips, or none recorded)."""
     trips = get_round_trips(company_id, user_id)
     if not trips:
         return None
     return opening_decision_for_trip(trips[-1])
+
+
+def opening_decision_for_buy(transaction: Transaction) -> Optional[DecisionJournal]:
+    """
+    The opening decision of the round trip whose buys include this (flushed) BUY, or
+    None. A backdated buy can land in an earlier trip than the latest one.
+    """
+    for trip in get_round_trips(transaction.company_id, transaction.user_id):
+        if any(buy.id == transaction.id for buy in trip.buys):
+            return opening_decision_for_trip(trip)
+    return None
 
 
 def current_thesis(user_id: int, company_id: int) -> Optional[ThesisEvolution]:
@@ -162,10 +130,11 @@ def inherited_thesis(user_id: int, company_id: int, opening: Optional[DecisionJo
     the opening decision's date (or there is no opening decision), else the opening
     decision's own thesis. A re-buy writes no new version, so an older current version
     belongs to an earlier holding period. An empty choice falls back to the other one.
+    An imported opening decision has no thesis of its own: its text is the importer's label.
     """
     version = current_thesis(user_id, company_id)
     version_text = version.thesis if version is not None else None
-    opening_text = opening.investment_thesis if opening is not None else None
+    opening_text = opening.investment_thesis if opening is not None and not opening.is_imported else None
     version_is_fresh = version is not None and (
         opening is None or version.created_at is None
         or ensure_timezone_aware(version.created_at).date() >= opening.decision_date)
@@ -267,6 +236,20 @@ class ImportFixReport:
     linked: int = 0
     failed: bool = False
     error: Optional[str] = None
+
+
+def safe_ensure_import_decisions(user_id: int, company_id: int) -> Optional[EnsureStats]:
+    """
+    Run ensure_import_decisions inside a savepoint. A failure rolls back only its own
+    writes, is logged with a traceback, and returns None, so the importer's position
+    updates are kept; fix-imported-decisions can add the decisions later.
+    """
+    try:
+        with db.session.begin_nested():
+            return ensure_import_decisions(user_id, company_id)
+    except Exception:
+        logger.warning(f"Imported-decision step failed for company {company_id}", exc_info=True)
+        return None
 
 
 def fix_imported_decisions(user_id: Optional[int] = None, dry_run: bool = False) -> List[ImportFixReport]:

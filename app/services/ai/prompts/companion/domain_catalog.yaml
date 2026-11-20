@@ -105,7 +105,7 @@ entities:
   decision:
     ui_name: "Decision journal entry"
     model: DecisionJournal
-    description: "Written by the portfolio when the user buys or sells: one for the first buy of a company (later adds reuse it) and one per sell."
+    description: "Written by the portfolio when the user buys or sells. Every buy is its own BUY decision: the one that opens a holding period (0 shares to 0 shares) is the opening decision, and each later buy in that period is a top-up pointing to it. One per sell."
     owner: {column: user_id}
     fields:
       decision_type:
@@ -113,7 +113,9 @@ entities:
         values: [BUY, SELL]
         values_from: app.models.journal.DECISION_TYPES
       decision_date: {type: date, meaning: "Trade date of the transaction that wrote it"}
-      confidence_score: {type: int, meaning: "1-10 conviction entered on the buy form. Empty on sells"}
+      confidence_score: {type: int, meaning: "1-10 conviction entered on the buy form. Empty on sells and imported decisions"}
+      parent_decision_id: {type: int, meaning: "Set on a top-up: the holding period's opening decision. Empty on an opening BUY and on sells"}
+      is_imported: {type: bool, meaning: "Made by the bulk importer: its thesis is a label, and confidence and expected return are empty. Leave it out when judging the user's decisions"}
       non_research_source:
         type: str
         values: [external_research, professional_tip, friend_family, social_media, news_article, gut_feeling, other]
@@ -121,6 +123,7 @@ entities:
         meaning: "Where the idea came from, asked only on a first buy without research. Empty otherwise"
     relations:
       company: company
+      parent_decision: decision
 
   transaction:
     ui_name: "Transaction"
@@ -140,6 +143,7 @@ entities:
         type: bool
         meaning: "True on a first buy when the company had no research project at all. It does not say whether research was finished; compare date with the company's research project for that"
       is_add_to_position: {type: bool, meaning: "A buy into a company already held"}
+      is_imported: {type: bool, meaning: "Came in through the bulk importer"}
       add_position_reason:
         type: str
         values: [price_drop, extra_cash, increased_confidence, averaging_down, rebalancing, other]

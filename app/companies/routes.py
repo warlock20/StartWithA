@@ -22,7 +22,7 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from app.utils.time_utils import now_utc
-from app.services.decision_journals import opening_buy_decision
+from app.services.decision_journals import exit_plan_view, opening_buy_decision
 from app.services.conviction_service import current_theses
 from app.utils.auth_utils import owned_or_404
 from flask import render_template, request, redirect, url_for, flash, current_app, jsonify, Response, Response
@@ -66,7 +66,6 @@ from app.services.background_tasks import BackgroundTaskService
 from app.models import PortfolioPosition
 from app.services.currency_service import CurrencyService
 from app.services.company_state import company_state, company_states
-from app.services.decision_journals import exit_plan_view
 from app.services.company_isin import check_company_isin, set_company_isin
 from app.services.competitors import link_competitors, list_competitors, unlink_competitors
 from app.services.research_reopen_service import ReopenNotAllowed, ResearchReopenService
