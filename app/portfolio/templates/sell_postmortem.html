@@ -38,7 +38,7 @@
                             <div class="mb-2">{{ buy_journal.investment_thesis|blocknote_to_html|safe }}</div>
                             {% if buy_journal.expected_return %}
                             <div class="small text-muted">
-                                <strong>Expected Return:</strong> {{ buy_journal.expected_return }}%
+                                <strong>Expected CAGR:</strong> {{ buy_journal.expected_return }}% a year
                                 {% if buy_journal.expected_timeframe %}over {{ buy_journal.expected_timeframe }} months{% endif %}
                             </div>
                             {% endif %}

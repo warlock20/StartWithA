@@ -300,12 +300,12 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="expected_return_main" class="form-label fw-semibold">
-                                    Expected Return (%)
+                                    Expected CAGR (% a year)
                                 </label>
                                 <input type="number" class="form-control" id="expected_return_main"
-                                    name="expected_return" step="0.1" placeholder="e.g., 25"
+                                    name="expected_return" step="0.1" placeholder="e.g., 15"
                                     value="{% if form_data %}{{ form_data.getlist('expected_return')|first }}{% endif %}">
-                                <div class="form-text">Optional - your target return</div>
+                                <div class="form-text">Optional - the annual return you expect</div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="expected_timeframe_main" class="form-label fw-semibold">
@@ -401,11 +401,11 @@
                             <div class="form-text">1 = Low confidence, 10 = Very high confidence</div>
                         </div>
 
-                        <!-- Expected Return -->
+                        <!-- Expected CAGR -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="expected_return" class="form-label fw-semibold">
-                                    Expected Return (%)
+                                    Expected CAGR (% a year)
                                 </label>
                                 <input type="number" class="form-control" id="expected_return"
                                     name="expected_return" step="0.1" placeholder="e.g., 15"

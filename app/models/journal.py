@@ -67,7 +67,7 @@ class DecisionJournal(db.Model):
 
     # Pre-mortem (filled when making decision)
     investment_thesis = db.Column(db.Text)
-    expected_return = db.Column(db.Float)  # Percentage
+    expected_return = db.Column(db.Float)  # Expected CAGR, % a year
     expected_timeframe = db.Column(db.Integer)  # Months
     key_assumptions = db.Column(db.JSON)  # List of assumptions
     biggest_risks = db.Column(db.JSON)  # List of risks
@@ -293,12 +293,12 @@ class ThesisEvolution(db.Model):
 
     @property
     def expected_return(self):
-        """Total return % expected from purchase, as revised in this version."""
+        """Expected CAGR (% a year) from purchase, as revised in this version."""
         return self._key_metric('expected_return')
 
     @property
     def expected_timeframe(self):
-        """Months from purchase over which expected_return is expected."""
+        """Months from purchase the position is expected to be held."""
         return self._key_metric('expected_timeframe')
 
     def __repr__(self):

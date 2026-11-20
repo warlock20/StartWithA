@@ -210,7 +210,7 @@
             {% elif event.type == 'decision' %}
                 <dl class="tl-facts">
                     {% if d.expected_return %}
-                    <div><dt>Expected return</dt><dd>{{ "%.0f"|format(d.expected_return) }}%{% if d.expected_timeframe %} over {{ d.expected_timeframe }}mo{% endif %}</dd></div>
+                    <div><dt>Expected CAGR</dt><dd>{{ "%.0f"|format(d.expected_return) }}%/yr{% if d.expected_timeframe %} for {{ d.expected_timeframe }}mo{% endif %}</dd></div>
                     {% endif %}
                     {% if event.exit_plan %}
                     <div><dt>Exit plan at time of decision</dt><dd>

@@ -176,12 +176,12 @@
         </div>
 
         <!-- Performance vs Expectations (conditional) -->
-        {% if portfolio_decision_journal and portfolio_decision_journal.expected_return and
-        position.unrealized_gain_loss_pct %}
-        <div
-            class="position-expectation-bar {% if position.unrealized_gain_loss_pct < portfolio_decision_journal.expected_return %}below{% endif %}">
+        {% if return_vs_expected %}
+        {% set rve = return_vs_expected %}
+        {% set ahead = rve.actual >= rve.expected %}
+        <div class="position-expectation-bar {% if not ahead %}below{% endif %}">
             <div class="position-expectation-icon">
-                {% if position.unrealized_gain_loss_pct >= portfolio_decision_journal.expected_return %}
+                {% if ahead %}
                 <i class="bi bi-check-lg"></i>
                 {% else %}
                 <i class="bi bi-exclamation"></i>
@@ -190,19 +190,15 @@
             <div class="position-expectation-content">
                 <div class="position-expectation-title">Performance vs Expectations</div>
                 <div class="position-expectation-details">
-                    <span>Expected: <strong>+{{ "%.0f"|format(portfolio_decision_journal.expected_return)
-                            }}%</strong></span>
-                    <span>Actual: <strong
-                            class="{% if position.unrealized_gain_loss_pct >= 0 %}gain{% else %}loss{% endif %}"
-                            style="color: {% if position.unrealized_gain_loss_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %}">
-                            {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{
-                            "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                    <span>Expected CAGR: <strong>{{ "%+.1f"|format(portfolio_decision_journal.expected_return) }}%</strong>{% if not rve.annualized %} ({{ "%+.1f"|format(rve.expected) }}% due so far){% endif %}</span>
+                    <span>{% if rve.annualized %}Actual CAGR{% else %}Actual so far{% endif %}: <strong
+                            class="{% if rve.actual >= 0 %}gain{% else %}loss{% endif %}"
+                            style="color: {% if rve.actual >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %}">
+                            {{ "%+.1f"|format(rve.actual) }}%
                         </strong></span>
                     <span>Difference: <strong
-                            style="color: {% if position.unrealized_gain_loss_pct|float >= portfolio_decision_journal.expected_return %}var(--success-500){% else %}var(--warning-500){% endif %}">
-                            {% if position.unrealized_gain_loss_pct|float >= portfolio_decision_journal.expected_return
-                            %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct|float -
-                            portfolio_decision_journal.expected_return) }}pp
+                            style="color: {% if ahead %}var(--success-500){% else %}var(--warning-500){% endif %}">
+                            {{ "%+.1f"|format(rve.actual - rve.expected) }}pp
                         </strong></span>
                 </div>
             </div>

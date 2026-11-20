@@ -24,6 +24,7 @@ from sqlalchemy.orm import joinedload
 from app.utils.time_utils import now_utc
 from app.services.decision_journals import exit_plan_view, opening_buy_decision
 from app.services.conviction_service import current_theses
+from app.services.portfolio_intelligence import compare_to_expected_cagr
 from app.utils.auth_utils import owned_or_404
 from flask import render_template, request, redirect, url_for, flash, current_app, jsonify, Response, Response
 from flask_login import current_user, login_required
@@ -593,10 +594,18 @@ def _gather_journey_data(company, user_id):
     # Portfolio-specific: decision journal and price staleness
     portfolio_decision_journal = None
     price_stale = False
+    return_vs_expected = None
     if company_state == 'portfolio':
         portfolio_decision_journal = opening_buy_decision(user_id, company.id)
         if position:
             price_stale = PriceService.should_update_price(position)
+            if (portfolio_decision_journal
+                    and portfolio_decision_journal.expected_return is not None
+                    and position.unrealized_gain_loss_pct is not None):
+                return_vs_expected = compare_to_expected_cagr(
+                    portfolio_decision_journal.expected_return,
+                    float(position.unrealized_gain_loss_pct),
+                    position.days_held or 0)
 
     return {
         'company_state': company_state,
@@ -618,6 +627,7 @@ def _gather_journey_data(company, user_id):
         'standalone_research_questions': standalone_research_questions,
         'transactions': transactions,
         'portfolio_decision_journal': portfolio_decision_journal,
+        'return_vs_expected': return_vs_expected,
         'price_stale': price_stale,
     }
 
@@ -744,6 +754,7 @@ def company_detail(company_id):
         # Position / transactions data
         transactions=journey_data['transactions'],
         portfolio_decision_journal=journey_data['portfolio_decision_journal'],
+        return_vs_expected=journey_data['return_vs_expected'],
         price_stale=journey_data['price_stale'],
         title=f"{company.name}"
     )

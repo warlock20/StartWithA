@@ -57,40 +57,44 @@ logger = logging.getLogger(__name__)
 SHORT_HOLD_THRESHOLD_DAYS = 90
 # Minimum data points needed for confidence-return correlation
 MIN_CONFIDENCE_RETURN_SAMPLES = 3
-# Horizon assumed when a BUY decision has an expected return but no timeframe
-DEFAULT_EXPECTED_TIMEFRAME_MONTHS = 12
-# Below this many days held, compare total return to a pro-rated expectation,
-# since annualizing a few days' move is meaningless
+# Below this many days held, compare total return to the return the expected
+# CAGR implies by now, since annualizing a few days' move is meaningless
 MIN_DAYS_FOR_ANNUALIZED_COMPARISON = 30
-DAYS_PER_MONTH = 365 / 12
+DAYS_PER_YEAR = 365
 
 
-def annualize_expected_return(
-    expected_return: Optional[float],
-    expected_timeframe_months: Optional[int]
-) -> Optional[float]:
-    """Convert an expected total return over a horizon to an annual rate (CAGR).
+def expected_return_to_date(expected_cagr: float, days_held: int) -> float:
+    """Total return % a position compounding at expected_cagr should have after days_held."""
+    growth = max(1 + float(expected_cagr) / 100, 0.0)
+    return (growth ** (days_held / DAYS_PER_YEAR) - 1) * 100
 
-    The buy form asks for "Expected Return (%)" over "Expected Timeframe (months)",
-    so 50% over 36 months is about 14.5% a year. Without a timeframe the expected
-    return is taken as a 12-month target.
+
+@dataclass
+class ReturnComparison:
+    """A position's return next to its expected CAGR, both on the same basis."""
+    actual: float
+    expected: float
+    annualized: bool  # False for short holds, where both are totals to date
+
+
+def compare_to_expected_cagr(
+    expected_cagr: float,
+    total_return: float,
+    days_held: int,
+    annualized_return: Optional[float] = None
+) -> ReturnComparison:
+    """Put a position's return and its expected CAGR on the same basis.
+
+    Below MIN_DAYS_FOR_ANNUALIZED_COMPARISON days, annualizing would blow a small
+    move up, so the total return is set against what the expected CAGR implies
+    by now. After that the position's CAGR is set against the expected CAGR.
     """
-    if expected_return is None:
-        return None
-    months = expected_timeframe_months or DEFAULT_EXPECTED_TIMEFRAME_MONTHS
-    growth = max(1 + float(expected_return) / 100, 0.0)
-    return (growth ** (12 / months) - 1) * 100
-
-
-def expected_return_to_date(
-    expected_return: float,
-    expected_timeframe_months: Optional[int],
-    days_held: int
-) -> float:
-    """Share of the expected total return a position should have earned after days_held, compounding."""
-    months = expected_timeframe_months or DEFAULT_EXPECTED_TIMEFRAME_MONTHS
-    growth = max(1 + float(expected_return) / 100, 0.0)
-    return (growth ** (days_held / (months * DAYS_PER_MONTH)) - 1) * 100
+    if days_held < MIN_DAYS_FOR_ANNUALIZED_COMPARISON:
+        return ReturnComparison(float(total_return),
+                                expected_return_to_date(expected_cagr, days_held), False)
+    if annualized_return is None:
+        annualized_return = calculate_cagr(total_return, days_held)
+    return ReturnComparison(float(annualized_return), float(expected_cagr), True)
 
 
 @dataclass
@@ -151,8 +155,8 @@ class CheckpointReminder:
 @dataclass
 class ReturnTarget:
     """The expected return a position is measured against."""
-    expected_return: Optional[float]  # Total return % expected from purchase
-    expected_timeframe_months: Optional[int]
+    expected_cagr: Optional[float]  # Annual return % (CAGR) expected from purchase
+    expected_timeframe_months: Optional[int]  # Holding period the CAGR is expected over
     source: Optional[str]  # 'thesis' (revised in a thesis version), 'purchase', or None
     thesis_version: Optional[int]  # Version that set it, when source == 'thesis'
 
@@ -185,9 +189,8 @@ class ThesisReality:
 
     # Original thesis
     investment_thesis: str
-    expected_return: Optional[float]  # Total return expected over the timeframe
-    expected_timeframe_months: Optional[int]
-    expected_annualized_return: Optional[float]  # expected_return as a CAGR
+    expected_cagr: Optional[float]  # Annual return % (CAGR) expected
+    expected_timeframe_months: Optional[int]  # Holding period the CAGR is expected over
     target_source: Optional[str]  # 'thesis', 'purchase', or None (no target)
     target_version: Optional[int]  # Thesis version that set the target
     confidence_score: Optional[int]
@@ -524,8 +527,7 @@ class PortfolioIntelligenceService:
 
             # Determine status (using annualized return for fair comparison)
             status = self._assess_thesis_status(
-                expected_return=target.expected_return,
-                expected_timeframe=target.expected_timeframe_months,
+                expected_cagr=target.expected_cagr,
                 annualized_return=annualized_return,
                 total_return=actual_return,
                 days_held=days_held
@@ -537,10 +539,8 @@ class PortfolioIntelligenceService:
                 company_id=position.company_id,
                 position_id=position.id,
                 investment_thesis=journal.investment_thesis if journal else 'No thesis recorded',
-                expected_return=target.expected_return,
+                expected_cagr=target.expected_cagr,
                 expected_timeframe_months=target.expected_timeframe_months,
-                expected_annualized_return=annualize_expected_return(
-                    target.expected_return, target.expected_timeframe_months),
                 target_source=target.source,
                 target_version=target.thesis_version,
                 confidence_score=journal.confidence_score if journal else None,
@@ -560,8 +560,7 @@ class PortfolioIntelligenceService:
     
     def _assess_thesis_status(
         self,
-        expected_return: Optional[float],
-        expected_timeframe: Optional[int],
+        expected_cagr: Optional[float],
         annualized_return: float,
         total_return: float,
         days_held: int
@@ -570,8 +569,7 @@ class PortfolioIntelligenceService:
         Assess how the position is tracking vs the expectation set at purchase.
 
         Args:
-            expected_return: Total return % expected over expected_timeframe
-            expected_timeframe: Expected timeframe in months (12 assumed if missing)
+            expected_cagr: Annual return % (CAGR) expected
             annualized_return: CAGR of the position
             total_return: Total return % (for short-term positions)
             days_held: Days the position has been held
@@ -581,21 +579,15 @@ class PortfolioIntelligenceService:
             'no_target' when no expected return was recorded
         """
 
-        if expected_return is None:
+        if expected_cagr is None:
             # Without a target there is no plan to be ahead of or behind.
             # A loss still needs a look, as it does when a target exists.
             return 'needs_attention' if total_return < 0 else 'no_target'
 
-        if days_held < MIN_DAYS_FOR_ANNUALIZED_COMPARISON:
-            # Annualized returns are misleading for very short periods, so compare
-            # the total return with the part of the target due by now
-            comparison_return = total_return
-            expected_comparison = expected_return_to_date(
-                expected_return, expected_timeframe, days_held)
-        else:
-            # Compare like with like: actual CAGR vs the target expressed as a CAGR
-            comparison_return = annualized_return
-            expected_comparison = annualize_expected_return(expected_return, expected_timeframe)
+        comparison = compare_to_expected_cagr(
+            expected_cagr, total_return, days_held, annualized_return)
+        comparison_return = comparison.actual
+        expected_comparison = comparison.expected
 
         # Compare actual to expected
         if comparison_return >= expected_comparison * 1.2:

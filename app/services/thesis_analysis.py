@@ -279,7 +279,7 @@ class ThesisAnalyzer:
         if sector:
             context_parts.append(f"Sector: {sector}")
         if expected_return:
-            context_parts.append(f"Expected Return: {expected_return}%")
+            context_parts.append(f"Expected CAGR: {expected_return}% a year")
         if expected_timeframe:
             context_parts.append(f"Timeframe: {expected_timeframe} months")
         if confidence_score:
@@ -406,7 +406,7 @@ class ThesisAnalyzer:
         
         # Check for unrealistic expectations
         if expected_return and expected_return > 50:
-            risk_flags.append(f"Expected return of {expected_return}% is very aggressive")
+            risk_flags.append(f"Expected CAGR of {expected_return}% a year is very aggressive")
             suggested_questions.append("Is this return expectation realistic based on historical data?")
         
         if confidence_score and confidence_score >= 9 and not has_risks:

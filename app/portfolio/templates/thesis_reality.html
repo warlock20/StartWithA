@@ -92,7 +92,7 @@
     {% set first_section = (sections | selectattr('rows') | first).id %}
 
     {% macro expected_summary(p) -%}
-        {{ "%+.1f"|format(p.expected_return) }}%{% if p.expected_timeframe_months %} over {{ p.expected_timeframe_months }}mo{% endif %}{% if p.target_source == 'thesis' %} (revised in V{{ p.target_version }}){% endif %}
+        {{ "%+.1f"|format(p.expected_cagr) }}%/yr{% if p.expected_timeframe_months %} for {{ p.expected_timeframe_months }}mo{% endif %}{% if p.target_source == 'thesis' %} (revised in V{{ p.target_version }}){% endif %}
     {%- endmacro %}
 
     {% macro position_section(section, is_active) %}
@@ -100,7 +100,7 @@
         <div class="tr-positions-panel">
             {% if section.id == 'notarget' %}
             <p class="tr-section-note" style="color:var(--text-muted);font-size:0.85rem;margin:0 0 0.75rem;">
-                No expected return was recorded for these, so there is nothing to compare them against. Use Update Thesis to set one.
+                No expected CAGR was recorded for these, so there is nothing to compare them against. Use Update Thesis to set one.
             </p>
             {% endif %}
             <table class="tr-positions-table">
@@ -122,10 +122,10 @@
                             <span class="tr-ticker-badge">{{ p.company_ticker }}</span>
                             <div class="tr-company-cell">
                                 {{ p.company_name }}
-                                {% if p.expected_return is not none %}
-                                <div class="tr-company-sub">Expected: {{ expected_summary(p) }}</div>
+                                {% if p.expected_cagr is not none %}
+                                <div class="tr-company-sub">Expected CAGR: {{ expected_summary(p) }}</div>
                                 {% else %}
-                                <div class="tr-company-sub">No expected return set</div>
+                                <div class="tr-company-sub">No expected CAGR set</div>
                                 {% endif %}
                             </div>
                         </td>
@@ -181,19 +181,13 @@
                                     </div>
                                     <div class="tr-detail-metrics">
                                         <div class="tr-detail-metric">
-                                            <div class="tr-detail-metric-label">Expected</div>
-                                            {% if p.expected_return is not none %}
+                                            <div class="tr-detail-metric-label">Expected CAGR</div>
+                                            {% if p.expected_cagr is not none %}
                                             <div class="tr-detail-metric-value" style="color:var(--success-500);">{{ expected_summary(p) }}</div>
                                             {% else %}
                                             <div class="tr-detail-metric-value" style="color:var(--text-muted);">Not set</div>
                                             {% endif %}
                                         </div>
-                                        {% if p.expected_annualized_return is not none %}
-                                        <div class="tr-detail-metric">
-                                            <div class="tr-detail-metric-label">Expected CAGR{% if not p.expected_timeframe_months %} (12mo assumed){% endif %}</div>
-                                            <div class="tr-detail-metric-value">{{ "%+.1f"|format(p.expected_annualized_return) }}%</div>
-                                        </div>
-                                        {% endif %}
                                         <div class="tr-detail-metric">
                                             <div class="tr-detail-metric-label">Actual CAGR</div>
                                             <div class="tr-detail-metric-value" style="color:{% if p.annualized_return_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %};">{% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%</div>

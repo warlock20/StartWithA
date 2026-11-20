@@ -39,6 +39,7 @@ from typing import Dict, Any, List, Optional, Set
 import logging
 
 from app import db
+from app.utils.financial_utils import calculate_cagr
 from app.utils.time_utils import date, days_between, now_utc
 from app.models.ai_intelligence import ResearchOutcome
 from app.models.checklist import DestinationCheckpoint
@@ -83,17 +84,17 @@ class OutcomeTracker:
         Calculate how accurate the initial thesis was.
         
         Based on:
-        - Expected return vs actual (40%)
+        - Expected CAGR vs realized CAGR (40%)
         - Hold period accuracy (30%)
         - Checkpoint hit rate (30%)
         """
         scores = []
         weights = []
         
-        # 1. Return expectation accuracy (40%)
+        # 1. Return expectation accuracy (40%): both sides as annual rates
         if outcome.expected_return_pct is not None:
             expected = float(outcome.expected_return_pct)
-            actual = realized_return
+            actual = calculate_cagr(realized_return, outcome.actual_hold_days or 0)
             
             # Same direction = partial credit
             if (expected > 0 and actual > 0) or (expected < 0 and actual < 0):
