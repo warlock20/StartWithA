@@ -26,18 +26,24 @@ from sqlalchemy.orm import joinedload
 from app.portfolio import portfolio_bp
 from app.models import (
                         Company, CorporateAction, Transaction, PortfolioPosition,
-                        ResearchProject, ResearchOutcome, update_portfolio_position)
+                        JournalEntry, ResearchProject, ResearchOutcome, ThesisEvolution,
+                        update_portfolio_position)
 from app import db
 from app.models.portfolio import CORPORATE_LEG_LABELS
 from app.services.background_tasks import BackgroundTaskService
 from app.services.currency_service import CurrencyService
 from app.services.transaction_service import TransactionService, corporate_action_guard_error
 from app.services.cash_service import CashService
+from app.services.findings import MUST_EXIT
 from app.services.corporate_action_display import row_fields as corporate_row_fields
 from app.services.outcome_tracking import safe_sync_outcomes
+from app.utils.blocknote_utils import blocknote_preview
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 
 logger = logging.getLogger(__name__)
+
+# The top-up form's read-only "Current thesis" preview, in characters
+THESIS_PREVIEW_CHARS = 400
 
 
 @portfolio_bp.route('/transactions')
@@ -291,8 +297,33 @@ def _add_transaction_context():
     for rp in research_projects:
         companies_with_research.add(rp.company_id)
 
+    # The user's live must-exit rules per company, for the buy form's exit plan
+    exit_rules_by_company = {}
+    rules = JournalEntry.query.filter(
+        JournalEntry.user_id == current_user.id,
+        JournalEntry.entry_type == MUST_EXIT,
+        JournalEntry.is_archived.is_(False),
+        JournalEntry.company_id.isnot(None),
+    ).order_by(JournalEntry.id).all()
+    for rule in rules:
+        exit_rules_by_company.setdefault(rule.company_id, []).append(
+            {'signal': rule.title, 'text': rule.content})
+
+    # The current thesis per company as plain text, shown read-only on a top-up.
+    # Highest version wins if more than one row is marked current.
+    current_theses = {}
+    theses = ThesisEvolution.query.filter_by(
+        user_id=current_user.id, is_current=True,
+    ).order_by(ThesisEvolution.version.asc(), ThesisEvolution.id.asc()).all()
+    for thesis in theses:
+        # blocknote_preview adds '...' when it cuts, so leave room for it
+        current_theses[thesis.company_id] = blocknote_preview(
+            thesis.thesis, max_length=THESIS_PREVIEW_CHARS - 3)
+
     return {
         'companies': companies,
+        'exit_rules_by_company': exit_rules_by_company,
+        'current_theses': current_theses,
         'existing_positions': existing_positions,
         # Dividends need a company held at some point; sells need shares now.
         'held_company_ids': held_company_ids,
@@ -327,18 +358,20 @@ def add_transaction():
             # Redirect based on transaction type
             if 'sell_postmortem' in result.redirect_url:
                 flash('Please complete a post-mortem analysis for this sale', 'info')
+            elif result.redirect_url == 'portfolio.add_thesis_version':
+                flash('Record what changed in a new thesis version', 'info')
 
             return redirect(url_for(result.redirect_url, **result.redirect_kwargs))
         else:
             flash(result.error, 'error')
-            # Re-render form with warnings if validation failed
-            if result.warnings:
-                return render_template('add_transaction.html',
-                                      warnings=result.warnings,
-                                      show_warning=True,
-                                      form_data=request.form,
-                                      **_add_transaction_context())
-            return redirect(url_for('portfolio.add_transaction'))
+            # Re-render the form so nothing typed is lost
+            return render_template('add_transaction.html',
+                                  warnings=result.warnings,
+                                  # Keep the decision-journal section when the posted form carried it, so a
+                                  # thesis typed there survives an unrelated failure
+                                  show_warning=bool(result.warnings) or 'non_research_source' in request.form,
+                                  form_data=request.form,
+                                  **_add_transaction_context())
 
     # GET request - show form
     return render_template('add_transaction.html',

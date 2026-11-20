@@ -301,7 +301,8 @@ def _run_journey(client, user_id):
         'type': 'BUY', 'company_id': company_id,
         'date': (today - timedelta(days=1)).isoformat(),
         'quantity': '10', 'price_per_share': '700', 'fees': '5',
-        'currency': 'USD', 'notes': 'Starter position'})
+        'currency': 'USD', 'notes': 'Starter position',
+        'new_exit_rule_signal': 'Moat', 'new_exit_rule_text': 'Sell if EUV share is lost'})
     _lands_on(resp, '/portfolio/')
     assert Transaction.query.filter_by(user_id=user_id, company_id=company_id).count() == 1
     position = PortfolioPosition.query.filter_by(user_id=user_id, company_id=company_id).one()
