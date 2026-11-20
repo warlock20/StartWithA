@@ -367,9 +367,9 @@ def add_transaction():
             # Re-render the form so nothing typed is lost
             return render_template('add_transaction.html',
                                   warnings=result.warnings,
-                                  # Keep the decision-journal section when the posted form carried it, so a
-                                  # thesis typed there survives an unrelated failure
-                                  show_warning=bool(result.warnings) or 'non_research_source' in request.form,
+                                  # Show the decision-journal section when the gate asks for it, or when
+                                  # the posted form carried it, so a thesis typed there survives a failure
+                                  show_warning=result.decision_journal_required or 'non_research_source' in request.form,
                                   form_data=request.form,
                                   **_add_transaction_context())
 

@@ -35,10 +35,16 @@ from app.services.decision_journals import inherited_thesis, opening_decision_fo
 from app.services.outcome_tracking import safe_sync_outcomes
 from app.services.findings import MUST_EXIT, add_finding, has_exit_plan
 from app.services.intelligence_engine import IntelligenceEngine
+from app.models.journal import NON_RESEARCH_SOURCES
+from app.utils.blocknote_utils import blocknote_to_text
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 
 logger = logging.getLogger(__name__)
 
+NO_RESEARCH_THESIS_MIN_WORDS = 20
+NO_RESEARCH_THESIS_MESSAGE = ('Buying {ticker} without research needs an investment thesis of at least '
+                              f'{NO_RESEARCH_THESIS_MIN_WORDS} words.')
+NO_RESEARCH_SOURCE_MESSAGE = 'Buying {ticker} without research needs to say where the idea came from.'
 NO_EXIT_PLAN_MESSAGE = 'Add at least one must-exit rule for {ticker} before buying. Every buy needs an exit plan.'
 
 
@@ -98,6 +104,11 @@ def corporate_action_guard_error(user_id: int, company_id: int, transaction_type
     return None
 
 
+def thesis_word_count(thesis):
+    """Words in a posted thesis. It arrives as BlockNote JSON, so count the text, not the raw string."""
+    return len(blocknote_to_text(thesis or '').split())
+
+
 @dataclass
 class TransactionValidationResult:
     """Result of transaction validation"""
@@ -120,6 +131,7 @@ class TransactionCreationResult:
     message: Optional[str] = None
     error: Optional[str] = None
     warnings: List = None
+    decision_journal_required: bool = False
 
     def __post_init__(self):
         if self.warnings is None:
@@ -443,6 +455,20 @@ class TransactionService:
 
                     if not research_project:
                         bought_without_research = True
+                        # An unresearched opening buy must say why: a thesis and where the idea came from
+                        error = None
+                        if thesis_word_count(form_data.get('investment_thesis', '')) < NO_RESEARCH_THESIS_MIN_WORDS:
+                            error = NO_RESEARCH_THESIS_MESSAGE
+                        elif form_data.get('non_research_source', '').strip() not in NON_RESEARCH_SOURCES:
+                            error = NO_RESEARCH_SOURCE_MESSAGE
+                        if error:
+                            # Also throws away the inline exit rules added above
+                            db.session.rollback()
+                            return TransactionCreationResult(
+                                success=False,
+                                error=error.format(ticker=company.ticker_symbol),
+                                decision_journal_required=True
+                            )
 
             # Create transaction
             transaction = Transaction(
@@ -623,7 +649,7 @@ class TransactionService:
             else:
                 if bought_without_research:
                     investment_thesis = form_data.get('investment_thesis', '').strip()
-                    word_count = len(investment_thesis.split())
+                    word_count = thesis_word_count(investment_thesis)
                     thesis_depth = 'comprehensive' if word_count > 100 else ('brief' if word_count >= 50 else 'minimal')
 
                     journal = DecisionJournal(
