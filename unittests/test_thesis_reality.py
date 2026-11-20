@@ -23,7 +23,7 @@ import pytest
 from app import db
 from app.models import DecisionJournal, ThesisEvolution
 from app.models.ai_intelligence import ResearchOutcome
-from app.models.portfolio import PortfolioPosition
+from app.models.portfolio import PortfolioPosition, Transaction
 from app.services.outcome_tracking import OutcomeTracker
 from app.services.portfolio_intelligence import (
     PortfolioIntelligenceService,
@@ -333,3 +333,25 @@ def test_thesis_accuracy_compares_realized_cagr_with_expected_cagr():
     outcome = ResearchOutcome(expected_return_pct=15, actual_hold_days=1096)
     # 52% over three years is ~15% a year: a perfect call, not 37pp short of 52%
     assert OutcomeTracker()._calculate_thesis_accuracy(outcome, 52.09) == pytest.approx(100, abs=0.5)
+
+
+def test_decisions_page_compares_closed_position_cagr_up_to_last_sale(app_context, _app):
+    user = _make_user()
+    company = _make_company(user.id)
+    bought = now_utc().date() - timedelta(days=1500)
+    # Held three years (1096 days) for 52.09%, ~15% a year, then sold 404 days ago
+    db.session.add(PortfolioPosition(
+        user_id=user.id, company_id=company.id, is_active=False, total_shares=0,
+        realized_gain_loss=520.9, realized_gain_loss_pct=52.09, first_purchase_date=bought))
+    db.session.add(Transaction(
+        user_id=user.id, company_id=company.id, type='SELL', date=bought + timedelta(days=1096),
+        quantity=10, price_per_share=152.09))
+    _seed_buy(user.id, company.id, expected_return=15, expected_timeframe=36)
+    client = _logged_in(_app, user)
+
+    html = client.get('/portfolio/analytics/decisions').get_data(as_text=True)
+
+    # Annualized over the 1096 days held, not the 1500 to today, nor the 52% total
+    assert 'Expected CAGR' in html
+    assert '+15.0%' in html
+    assert '1 of 1 positions' in html

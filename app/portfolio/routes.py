@@ -20,6 +20,7 @@ import logging
 from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from app import db
 
@@ -36,7 +37,7 @@ from app.models import (
 )
 from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
-from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.utils.time_utils import days_between, now_utc, ensure_timezone_aware
 from app.utils.response_utils import json_error
 from app.utils.portfolio_utils import (
     calculate_holding_period_stats,
@@ -53,6 +54,7 @@ from app.constants import (
 )
 from app.services.portfolio_intelligence import (
     get_thesis_reality_check, get_return_target, PortfolioIntelligenceService,
+    compare_to_expected_cagr,
     get_learning_insights, get_correlation_data, outcome_hold_days
     )
 from app.services.intelligence_engine import get_portfolio_warnings
@@ -239,7 +241,7 @@ def add_thesis_version(company_id):
                 flash('Expected timeframe must be at least 1 month', 'error')
                 return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
             if expected_timeframe is not None and expected_return is None:
-                flash('Add the expected return that goes with the timeframe', 'error')
+                flash('Add the expected CAGR that goes with the timeframe', 'error')
                 return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
 
             key_metrics = {}
@@ -594,25 +596,31 @@ def analytics_decisions():
     # Calculate confidence calibration stats using utility
     confidence_stats = calculate_confidence_stats(journals_with_confidence)
 
-    # Performance vs Expectations Analysis
-    # Get all journals with expected returns and compare to actual
+    # Performance vs Expectations Analysis: the expected return is a CAGR, so
+    # each position's CAGR is set against it (closed positions up to their last sale)
+    last_sale_dates = dict(db.session.query(
+        Transaction.company_id, func.max(Transaction.date)
+    ).filter(
+        Transaction.user_id == current_user.id, Transaction.type == 'SELL'
+    ).group_by(Transaction.company_id).all())
     expectations_analysis = []
     for journal in latest_openings:
         if journal.expected_return is not None:
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
             pos_return = position_return_pct(position) if position else None
             if position and pos_return is not None:
-                expected = journal.expected_return
-                actual = pos_return
-                diff = actual - expected
-                met_expectation = actual >= expected
+                exit_date = None if position.is_active else last_sale_dates.get(position.company_id)
+                hold_days = (days_between(position.first_purchase_date, exit_date)
+                             if exit_date and position.first_purchase_date else position.days_held)
+                vs_target = compare_to_expected_cagr(journal.expected_return, pos_return, hold_days)
 
                 expectations_analysis.append({
                     'company': position.company,
-                    'expected': expected,
-                    'actual': actual,
-                    'diff': diff,
-                    'met': met_expectation
+                    'expected': vs_target.expected,
+                    'actual': vs_target.actual,
+                    'annualized': vs_target.annualized,
+                    'diff': vs_target.actual - vs_target.expected,
+                    'met': vs_target.actual >= vs_target.expected
                 })
 
     # Calculate summary stats

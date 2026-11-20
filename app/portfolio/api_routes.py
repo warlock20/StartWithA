@@ -118,8 +118,8 @@ def analyze_investment_thesis():
         {
             "thesis": "My investment thesis text...",
             "company_id": 123,  // optional
-            "expected_return": 25.0,  // optional
-            "expected_timeframe": 12,  // optional (months)
+            "expected_return": 15.0,  // optional, expected CAGR (% a year)
+            "expected_timeframe": 12,  // optional, expected holding period (months)
             "confidence_score": 8  // optional (1-10)
         }
     

@@ -188,8 +188,8 @@ class ThesisAnalyzer:
             company_name: Name of the company (optional)
             ticker: Stock ticker (optional)
             sector: Company sector (optional)
-            expected_return: Expected return % (optional)
-            expected_timeframe: Expected timeframe in months (optional)
+            expected_return: Expected CAGR, % a year (optional)
+            expected_timeframe: Expected holding period in months (optional)
             confidence_score: User's confidence 1-10 (optional)
         
         Returns:
@@ -281,7 +281,7 @@ class ThesisAnalyzer:
         if expected_return:
             context_parts.append(f"Expected CAGR: {expected_return}% a year")
         if expected_timeframe:
-            context_parts.append(f"Timeframe: {expected_timeframe} months")
+            context_parts.append(f"Expected holding period: {expected_timeframe} months")
         if confidence_score:
             context_parts.append(f"Investor Confidence: {confidence_score}/10")
 

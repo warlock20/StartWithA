@@ -317,8 +317,8 @@
                         <thead>
                             <tr>
                                 <th style="text-align: left;">Company</th>
-                                <th>Expected</th>
-                                <th>Actual</th>
+                                <th>Expected CAGR</th>
+                                <th>Actual CAGR</th>
                                 <th>Diff</th>
                                 <th style="text-align: center;">Met?</th>
                             </tr>
@@ -330,7 +330,7 @@
                                     <span class="di-mono" style="color: #374151;">{{ item.company.ticker_symbol }}</span>
                                     <span class="checkpoints-company-name"> &middot; {{ item.company.name }}</span>
                                 </td>
-                                <td style="text-align: right; font-family: var(--font-mono); font-weight: 600; color: #6b7280;">{{ "%.1f"|format(item.expected) }}%</td>
+                                <td style="text-align: right; font-family: var(--font-mono); font-weight: 600; color: #6b7280;">{{ "%.1f"|format(item.expected) }}%{% if not item.annualized %}<span title="Held under 30 days: total return so far against the return due so far">*</span>{% endif %}</td>
                                 <td style="text-align: right; font-family: var(--font-mono); font-weight: 700; color: {% if item.actual >= 0 %}#10b981{% else %}#ef4444{% endif %};">
                                     {% if item.actual >= 0 %}+{% endif %}{{ "%.1f"|format(item.actual) }}%
                                 </td>
