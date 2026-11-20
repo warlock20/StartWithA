@@ -457,6 +457,8 @@ class SimilarMistakesService:
             DecisionJournal.user_id == self.user_id,
             DecisionJournal.decision_type == 'BUY',
             DecisionJournal.is_portfolio_decision == True,
+            DecisionJournal.parent_decision_id.is_(None),
+            DecisionJournal.is_imported.is_(False),
             DecisionJournal.investment_thesis.isnot(None),
             DecisionJournal.investment_thesis != ''
         )
@@ -592,6 +594,8 @@ class SimilarMistakesService:
             DecisionJournal.user_id == self.user_id,
             DecisionJournal.decision_type == 'BUY',
             DecisionJournal.is_portfolio_decision == True,
+            DecisionJournal.parent_decision_id.is_(None),
+            DecisionJournal.is_imported.is_(False),
             DecisionJournal.investment_thesis.isnot(None)
         ).all()
         

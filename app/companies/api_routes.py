@@ -36,7 +36,8 @@ from app.utils.response_utils import json_error, json_not_found
 from app.utils.time_utils import format_for_javascript, now_utc
 from app.utils.blocknote_utils import append_note, blocknote_to_text
 from app.services.findings import (
-    FINDING_TYPES, add_finding, delete_finding, normalize_finding_type, signal_suggestions,
+    FINDING_TYPES, MUST_EXIT, LastExitRuleError, add_finding, assert_can_remove_must_exit,
+    delete_finding, normalize_finding_type, replace_must_exit, signal_suggestions,
 )
 
 logger = logging.getLogger(__name__)
@@ -736,13 +737,21 @@ def api_add_finding(company_id):
                         signal=data.get('signal'))
     db.session.commit()
 
-    return jsonify({'success': True, 'finding': {
+    return jsonify({'success': True, 'finding': _finding_json(entry)})
+
+
+def _finding_json(entry):
+    return {
         'id': entry.id,
         'type': entry.entry_type,
         'signal': entry.title,
         'text': entry.content,
         'date': entry.created_at.strftime('%b %d, %Y') if entry.created_at else '',
-    }})
+    }
+
+
+def _last_exit_rule_error(err):
+    return json_error(str(err), status_code=409, code='last_exit_rule')
 
 
 @companies_bp.route('/api/<int:company_id>/findings/<int:entry_id>', methods=['DELETE'])
@@ -757,9 +766,38 @@ def api_delete_finding(company_id, entry_id):
     if not entry:
         return json_not_found('Finding not found')
 
+    try:
+        assert_can_remove_must_exit(entry)
+    except LastExitRuleError as e:
+        return _last_exit_rule_error(e)
+
     delete_finding(entry)
     db.session.commit()
     return jsonify({'success': True})
+
+
+@companies_bp.route('/api/<int:company_id>/findings/<int:entry_id>/replace', methods=['POST'])
+@login_required
+def api_replace_finding(company_id, entry_id):
+    """Swap a must-exit rule for a new one: the new rule is added, the old archived."""
+    entry = JournalEntry.query.filter(
+        JournalEntry.id == entry_id,
+        JournalEntry.user_id == current_user.id,
+        JournalEntry.company_id == company_id,
+        JournalEntry.entry_type == MUST_EXIT,
+        JournalEntry.is_archived.is_(False),
+    ).first()
+    if not entry:
+        return json_not_found('Exit rule')
+
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()
+    if not text:
+        return json_error('Rule text is required')
+
+    new_entry = replace_must_exit(entry, text, signal=data.get('signal'))
+    db.session.commit()
+    return jsonify({'success': True, 'finding': _finding_json(new_entry)})
 
 
 # ===================================================================

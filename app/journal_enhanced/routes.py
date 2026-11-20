@@ -31,7 +31,10 @@ from app.services.kill_criterion_suggester import default_kill_checklist, mistak
 from app.services.mistake_log_view import build_mistake_view
 from app.utils.decorators import json_errors
 from app.utils.auth_utils import owned_or_404
-from app.services.findings import FINDING_TYPES, finding_signal, finding_text_from_editor
+from app.services.findings import (
+    FINDING_TYPES, MUST_EXIT, MUST_EXIT_NEEDS_COMPANY_MESSAGE, LastExitRuleError,
+    assert_can_remove_must_exit, finding_signal, finding_text_from_editor, replace_must_exit,
+)
 from sqlalchemy.orm import contains_eager
 import os
 from werkzeug.utils import secure_filename
@@ -219,6 +222,11 @@ def new_entry():
         conviction = request.form.get('conviction', type=int)
         company_id = request.form.get('company_id', type=int)
 
+        if entry_type == MUST_EXIT and not company_id:
+            # The DB refuses a rule without a company; keep what was typed
+            flash(MUST_EXIT_NEEDS_COMPANY_MESSAGE, 'error')
+            return _render_new_entry_form(form_data=request.form)
+
         if not content:
             flash('Content is required', 'error')
             return redirect(url_for('journal_enhanced.new_entry'))
@@ -315,7 +323,14 @@ def new_entry():
             current_app.logger.exception('Error creating entry')
             db.session.rollback()
             flash('Error creating entry. Please try again.', 'error')
-    
+
+    return _render_new_entry_form()
+
+
+def _render_new_entry_form(form_data=None):
+    """The new-entry form; form_data re-fills it after a validation error."""
+    form_data = form_data or {}
+
     # Get templates
     templates = JournalTemplate.query.filter(
         db.or_(
@@ -342,10 +357,10 @@ def new_entry():
     if company_id:
         preset_company = Company.query.filter_by(id=company_id, user_id=current_user.id).first()
 
-    return_url = request.args.get('return_url')
+    return_url = form_data.get('return_url') or request.args.get('return_url')
 
     # Allow deep-linking straight into a category, e.g. ?category=wisdom
-    preset_category = request.args.get('category', 'research')
+    preset_category = form_data.get('entry_category') or request.args.get('category', 'research')
     if preset_category not in ('research', 'wisdom', 'mistake'):
         preset_category = 'research'
 
@@ -357,7 +372,8 @@ def new_entry():
                           preset_company_id=company_id,
                           preset_company=preset_company,
                           preset_category=preset_category,
-                          return_url=return_url)
+                          return_url=return_url,
+                          form_data=form_data)
 
 @journal_enhanced_bp.route('/entry/<int:entry_id>')
 @login_required
@@ -386,45 +402,31 @@ def edit_entry(entry_id):
    entry = owned_or_404(JournalEntry, entry_id)
 
    if request.method == 'POST':
-       entry.title = request.form.get('title')
-       entry.entry_type = request.form.get('entry_type', entry.entry_type)
-       entry.content = request.form.get('content')
-       if entry.entry_type in FINDING_TYPES:
-           entry.title = finding_signal(entry.title)
-           # Findings are read as plain text (Findings tab, exports, companion)
-           entry.content = finding_text_from_editor(entry.content)
-       entry.key_insight = request.form.get('key_insight')
-       entry.sentiment = request.form.get('sentiment')
-       entry.conviction_level = request.form.get('conviction', type=int)
-       entry.source = request.form.get('source')
-
-       # Update company association
+       new_type = request.form.get('entry_type', entry.entry_type)
        company_id = request.form.get('company_id')
-       entry.company_id = int(company_id) if company_id else None
+       new_company_id = int(company_id) if company_id else None
 
-       # Update tags
-       auto_tags = extract_tags_from_content(entry.content)
+       if new_type == MUST_EXIT and new_company_id is None:
+           # The DB refuses a rule without a company. Show the form with what
+           # was typed, without flushing it, then drop the unsaved changes.
+           flash(MUST_EXIT_NEEDS_COMPANY_MESSAGE, 'error')
+           with db.session.no_autoflush:
+               _apply_entry_form(entry, new_type, new_company_id)
+               page = _render_edit_entry_form(entry)
+           db.session.rollback()
+           return page
 
-       # Parse hashtags
-       hashtags_str = request.form.get('hashtags', '').strip()
-       hashtags = []
-       if hashtags_str:
-           # Split by spaces and commas, remove # prefix (store without #)
-           raw_tags = hashtags_str.replace(',', ' ').split()
-           hashtags = [tag.lstrip('#') for tag in raw_tags if tag.strip()]
+       # Retyping a rule, or moving it to another company, takes it away
+       # from its company, so it can't be the last rule of a held one
+       if entry.entry_type == MUST_EXIT and (
+               new_type != MUST_EXIT or new_company_id != entry.company_id):
+           try:
+               assert_can_remove_must_exit(entry)
+           except LastExitRuleError as e:
+               flash(str(e), 'error')
+               return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry.id))
 
-       # Merge auto-extracted tags with user-provided hashtags (all without # prefix)
-       all_tags = auto_tags + hashtags
-       entry.tags = list(set(tag.lstrip('#') for tag in all_tags))
-
-       # Update action items and questions
-       action_items = request.form.get('action_items', '').split('\n')
-       entry.action_items = [item.strip() for item in action_items if item.strip()]
-
-       questions = request.form.get('questions_raised', '').split('\n')
-       entry.questions_raised = [q.strip() for q in questions if q.strip()]
-
-       entry.updated_at = now_utc()
+       _apply_entry_form(entry, new_type, new_company_id)
 
        try:
            db.session.commit()
@@ -434,13 +436,59 @@ def edit_entry(entry_id):
            current_app.logger.exception('Error updating entry')
            db.session.rollback()
            flash('Error updating entry. Please try again.', 'error')
-   
+
+   return _render_edit_entry_form(entry)
+
+
+def _render_edit_entry_form(entry):
    companies = current_user.companies.order_by(Company.name).all()
-   
    return render_template('edit_entry.html',
                          title="Edit Entry",
                          entry=entry,
                          companies=companies)
+
+
+def _apply_entry_form(entry, entry_type, company_id):
+   """Copy the edit form onto the entry."""
+   entry.title = request.form.get('title')
+   entry.entry_type = entry_type
+   entry.content = request.form.get('content')
+   if entry.entry_type in FINDING_TYPES:
+       entry.title = finding_signal(entry.title)
+       # Findings are read as plain text (Findings tab, exports, companion)
+       entry.content = finding_text_from_editor(entry.content)
+   entry.key_insight = request.form.get('key_insight')
+   entry.sentiment = request.form.get('sentiment')
+   entry.conviction_level = request.form.get('conviction', type=int)
+   entry.source = request.form.get('source')
+
+   # Update company association
+   entry.company_id = company_id
+
+   # Update tags
+   auto_tags = extract_tags_from_content(entry.content)
+
+   # Parse hashtags
+   hashtags_str = request.form.get('hashtags', '').strip()
+   hashtags = []
+   if hashtags_str:
+       # Split by spaces and commas, remove # prefix (store without #)
+       raw_tags = hashtags_str.replace(',', ' ').split()
+       hashtags = [tag.lstrip('#') for tag in raw_tags if tag.strip()]
+
+   # Merge auto-extracted tags with user-provided hashtags (all without # prefix)
+   all_tags = auto_tags + hashtags
+   entry.tags = list(set(tag.lstrip('#') for tag in all_tags))
+
+   # Update action items and questions
+   action_items = request.form.get('action_items', '').split('\n')
+   entry.action_items = [item.strip() for item in action_items if item.strip()]
+
+   questions = request.form.get('questions_raised', '').split('\n')
+   entry.questions_raised = [q.strip() for q in questions if q.strip()]
+
+   entry.updated_at = now_utc()
+
 
 @journal_enhanced_bp.route('/entry/<int:entry_id>/star', methods=['POST'])
 @login_required
@@ -460,8 +508,14 @@ def archive_entry(entry_id):
    """Archive a journal entry"""
    entry = owned_or_404(JournalEntry, entry_id)
 
+   try:
+       assert_can_remove_must_exit(entry)
+   except LastExitRuleError as e:
+       flash(str(e), 'error')
+       return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry.id))
+
    entry.is_archived = True
-   
+
    try:
        db.session.commit()
        flash('Entry archived', 'info')
@@ -471,6 +525,35 @@ def archive_entry(entry_id):
        flash('Error archiving entry. Please try again.', 'error')
 
    return redirect(url_for('journal_enhanced.knowledge_hub', type='research'))
+
+
+@journal_enhanced_bp.route('/entry/<int:entry_id>/replace-must-exit', methods=['POST'])
+@login_required
+def replace_must_exit_entry(entry_id):
+    """Swap a must-exit rule for a new one: the new rule is added, the old archived."""
+    entry = owned_or_404(JournalEntry, entry_id)
+    if entry.entry_type != MUST_EXIT or entry.is_archived:
+        flash('Only an active must-exit rule can be replaced', 'error')
+        return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry.id))
+
+    try:
+        new_entry = replace_must_exit(entry, finding_text_from_editor(request.form.get('text')),
+                                      signal=request.form.get('signal'))
+    except ValueError:
+        flash('Write the new rule to replace this one', 'error')
+        return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry.id))
+
+    try:
+        db.session.commit()
+    except Exception:
+        current_app.logger.exception('Error replacing must-exit rule')
+        db.session.rollback()
+        flash('Error replacing the rule. Please try again.', 'error')
+        return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
+
+    flash('Exit rule replaced', 'success')
+    return redirect(url_for('journal_enhanced.entry_detail', entry_id=new_entry.id))
+
 
 @journal_enhanced_bp.route('/thesis-evolution/<int:company_id>')
 @login_required
@@ -930,6 +1013,12 @@ def download_attachment(attachment_id):
 def delete_entry(entry_id):
     """Delete a journal entry"""
     entry = owned_or_404(JournalEntry, entry_id)
+
+    try:
+        assert_can_remove_must_exit(entry)
+    except LastExitRuleError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
 
     try:
         # Delete associated attachments and their files

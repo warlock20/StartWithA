@@ -47,7 +47,8 @@ def decision_journal_list():
 
     # Calculate statistics
     total_decisions = len(journals)
-    buy_decisions = sum(1 for j in journals if j.decision_type == 'BUY')
+    buy_decisions = sum(1 for j in journals if j.decision_type == 'BUY' and not j.is_top_up)
+    top_up_decisions = sum(1 for j in journals if j.decision_type == 'BUY' and j.is_top_up)
 
     # Count non-research purchases
     non_research_purchases = sum(1 for j in journals if j.non_research_source is not None)
@@ -66,6 +67,7 @@ def decision_journal_list():
                           pagination=pagination,
                           total_decisions=total_decisions,
                           buy_decisions=buy_decisions,
+                          top_up_decisions=top_up_decisions,
                           non_research_purchases=non_research_purchases,
                           avg_confidence=round(avg_confidence, 1),
                           win_rate=round(win_rate, 1))

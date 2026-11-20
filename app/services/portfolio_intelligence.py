@@ -49,6 +49,7 @@ from app.utils.grading import score_to_grade
 
 from app.models.ai_intelligence import ResearchOutcome
 from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company, ThesisEvolution
+from app.services.decision_journals import opening_buy_decision
 
 logger = logging.getLogger(__name__)
 
@@ -493,9 +494,10 @@ class PortfolioIntelligenceService:
             DecisionJournal.user_id == self.user_id,
             DecisionJournal.company_id.in_(company_ids),
             DecisionJournal.decision_type == 'BUY',
-            DecisionJournal.is_portfolio_decision == True
-        ).order_by(DecisionJournal.decision_date.desc()).all()
-        # Keep most recent journal per company
+            DecisionJournal.is_portfolio_decision == True,
+            DecisionJournal.parent_decision_id.is_(None)
+        ).order_by(DecisionJournal.decision_date.desc(), DecisionJournal.id.desc()).all()
+        # Keep the most recent opening decision per company (top-ups don't restate the thesis)
         journals_map = {}
         for j in all_journals:
             if j.company_id not in journals_map:
@@ -823,12 +825,7 @@ def get_upcoming_checkpoints(user_id: int, days_ahead: int = 30) -> Dict[str, Li
 @cache.memoize(timeout=300)  # 5 min — position data changes with price refreshes
 def get_return_target(user_id: int, company_id: int) -> ReturnTarget:
     """The return target in effect for one company (see _resolve_return_target)."""
-    journal = DecisionJournal.query.filter_by(
-        user_id=user_id,
-        company_id=company_id,
-        decision_type='BUY',
-        is_portfolio_decision=True
-    ).order_by(DecisionJournal.decision_date.desc()).first()
+    journal = opening_buy_decision(user_id, company_id)
     theses = ThesisEvolution.query.filter_by(
         user_id=user_id,
         company_id=company_id

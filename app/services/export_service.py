@@ -36,6 +36,7 @@ from app.models import (
 from app.models.portfolio import CORPORATE_LEG_TYPES, LOT_ADDING_TYPES
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
 from app.services.corporate_action_display import has_corporate_leg
+from app.services.decision_journals import exit_plan_view
 # Aliased: this module's own functions take a `company_state` parameter (the
 # 3-way portfolio/watchlist/new bucket used to gate export components), which
 # would otherwise shadow this import inside every function that has it.
@@ -597,10 +598,20 @@ def build_decision_journals_md(journals, company_name):
                 lines.append(f"- {risk}")
             lines.append("")
 
-        if dj.exit_criteria:
-            lines.append("### Exit Criteria")
+        plan = exit_plan_view(dj.exit_criteria)
+        if plan:
+            lines.append("### Exit plan at time of decision")
             lines.append("")
-            lines.append(dj.exit_criteria)
+            if plan.legacy_text:
+                lines.append(blocknote_to_markdown(plan.legacy_text))
+            elif plan.rules:
+                if plan.captured_at:
+                    lines.append(f"Captured {_format_date(plan.captured_at)}")
+                    lines.append("")
+                for rule in plan.rules:
+                    lines.append(f"- {rule['text']}")
+            else:
+                lines.append("No exit rules at the time.")
             lines.append("")
 
         # Post-mortem / outcome section

@@ -397,7 +397,9 @@ class CompanionMixin:
                     'severity': severity,
                     'title': f'Past {j.decision_type} decision on {company.name}',
                     'message': lesson,
-                    'detail': f'Confidence: {j.confidence_score}/10' + (f', Return: {j.actual_return:.1f}%' if j.actual_return is not None else ''),
+                    'detail': ', '.join(
+                        ([f'Confidence: {j.confidence_score}/10'] if j.confidence_score is not None else [])
+                        + ([f'Return: {j.actual_return:.1f}%'] if j.actual_return is not None else [])),
                     'icon': 'bi-journal-text',
                     'source_id': j.id,
                 })
@@ -495,8 +497,12 @@ class CompanionMixin:
             return 'No prior decisions for this company'
         parts = []
         for e in entries[:5]:
-            outcome = f', outcome: {e.actual_return:.1f}%' if e.actual_return is not None else ''
-            parts.append(f"- {e.decision_type} (confidence: {e.confidence_score}/10{outcome})")
+            details = []
+            if e.confidence_score is not None:
+                details.append(f'confidence: {e.confidence_score}/10')
+            if e.actual_return is not None:
+                details.append(f'outcome: {e.actual_return:.1f}%')
+            parts.append(f"- {e.decision_type}" + (f" ({', '.join(details)})" if details else ''))
         return '\n'.join(parts)
 
     def _build_mistake_summary(self, company_id: int, sector_name: str) -> str:

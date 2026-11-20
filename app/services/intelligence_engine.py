@@ -49,14 +49,21 @@ try:
 except ImportError:
     FINANCIAL_SERVICE_AVAILABLE = False
 
-from app.models import PortfolioPosition, Company, DecisionJournal, ResearchProject, ChecklistAnalysis, Transaction
+from app.models import PortfolioPosition, Company, ResearchProject, ChecklistAnalysis, Transaction
 from app.utils.financial_utils import calculate_cagr
 from sqlalchemy.orm import joinedload
+from app.services.decision_journals import latest_buy_decision, opening_buy_decision
 from app.services.similar_mistakes import get_similar_mistakes_warnings
 from app.services.config_service import get_config
 from app import cache
 
 logger = logging.getLogger(__name__)
+
+
+def _has_own_thesis(journal) -> bool:
+    """True when the decision carries the user's thesis. An imported decision's text is
+    the importer's label, not a thesis, so it is never analysed as one."""
+    return bool(journal and journal.investment_thesis and not journal.is_imported)
 
 
 @dataclass
@@ -233,14 +240,9 @@ class IntelligenceEngine:
                 warnings.append(warning)
         
         if self.ENABLED_RULES.get('thesis_quality'):
-            journal = DecisionJournal.query.filter_by(
-                user_id=self.user_id,
-                company_id=company.id,
-                decision_type='BUY',
-                is_portfolio_decision=True
-            ).order_by(DecisionJournal.created_at.desc()).first()
+            journal = opening_buy_decision(self.user_id, company.id)
             
-            if journal and journal.investment_thesis:
+            if _has_own_thesis(journal):
                 warning = self._check_thesis_quality(company, journal.investment_thesis_text)
                 if warning:
                     warnings.append(warning)
@@ -521,14 +523,9 @@ class IntelligenceEngine:
         positions = self._get_portfolio_positions()
         
         # Get the thesis for the company being purchased
-        new_thesis_journal = DecisionJournal.query.filter_by(
-            user_id=self.user_id,
-            company_id=company.id,
-            decision_type='BUY',
-            is_portfolio_decision=True
-        ).order_by(DecisionJournal.created_at.desc()).first()
+        new_thesis_journal = opening_buy_decision(self.user_id, company.id)
         
-        if not new_thesis_journal or not new_thesis_journal.investment_thesis:
+        if not _has_own_thesis(new_thesis_journal):
             return None
         
         new_thesis = new_thesis_journal.investment_thesis_text.lower()
@@ -543,14 +540,9 @@ class IntelligenceEngine:
                 continue  # Skip same company
             
             # Get thesis for existing position
-            existing_journal = DecisionJournal.query.filter_by(
-                user_id=self.user_id,
-                company_id=position.company_id,
-                decision_type='BUY',
-                is_portfolio_decision=True
-            ).order_by(DecisionJournal.created_at.desc()).first()
+            existing_journal = opening_buy_decision(self.user_id, position.company_id)
             
-            if not existing_journal or not existing_journal.investment_thesis:
+            if not _has_own_thesis(existing_journal):
                 continue
             
             existing_thesis = existing_journal.investment_thesis_text.lower()
@@ -866,12 +858,7 @@ class IntelligenceEngine:
         )
 
         if is_overconfident:
-            current_journal = DecisionJournal.query.filter_by(
-                user_id=self.user_id,
-                company_id=company.id,
-                decision_type='BUY',
-                is_portfolio_decision=True
-            ).order_by(DecisionJournal.created_at.desc()).first()
+            current_journal = latest_buy_decision(self.user_id, company.id)
 
             current_confidence = current_journal.confidence_score if current_journal else None
             severity = 'medium' if high_conf_poor_rate > 0.5 else 'low'
@@ -920,12 +907,7 @@ class IntelligenceEngine:
         severe_pct = self.THRESHOLDS['loser_severe_pct']
 
         if loss_pct <= loser_threshold and days_held >= hold_days_warning:
-            journal = DecisionJournal.query.filter_by(
-                user_id=self.user_id,
-                company_id=company.id,
-                decision_type='BUY',
-                is_portfolio_decision=True
-            ).order_by(DecisionJournal.created_at.desc()).first()
+            journal = opening_buy_decision(self.user_id, company.id)
 
             if loss_pct <= severe_pct and days_held >= severe_days:
                 severity = 'high'
@@ -949,7 +931,7 @@ class IntelligenceEngine:
                     'days_held': days_held,
                     'loser_threshold': loser_threshold,
                     'hold_days_warning': hold_days_warning,
-                    'has_thesis': bool(journal and journal.investment_thesis)
+                    'has_thesis': _has_own_thesis(journal)
                 },
                 action_url=f'/portfolio/position/{position.id}'
             )
@@ -1171,14 +1153,9 @@ class IntelligenceEngine:
         warnings = []
 
         # Get current thesis
-        journal = DecisionJournal.query.filter_by(
-            user_id=self.user_id,
-            company_id=company.id,
-            decision_type='BUY',
-            is_portfolio_decision=True
-        ).order_by(DecisionJournal.created_at.desc()).first()
+        journal = opening_buy_decision(self.user_id, company.id)
 
-        if not journal or not journal.investment_thesis:
+        if not _has_own_thesis(journal):
             return warnings
 
         thesis = journal.investment_thesis_text

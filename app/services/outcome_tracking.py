@@ -52,7 +52,8 @@ from .research_quality import calculate_research_quality
 
 logger = logging.getLogger(__name__)
 
-# Thesis text the bulk importer writes on its placeholder BUY journals.
+# Thesis label the bulk importer writes on its opening BUY decisions. A label only:
+# imports are recognised by is_imported, never by this text.
 IMPORTED_BUY_THESIS = 'Imported via bulk uploader'
 
 
@@ -216,8 +217,8 @@ class OutcomeSyncStats:
 
 
 def is_placeholder_journal(journal: Optional[DecisionJournal]) -> bool:
-    """True for the importer's made-up journal (thesis, confidence 5, expected return 15)."""
-    return journal is not None and (journal.investment_thesis or '').strip() == IMPORTED_BUY_THESIS
+    """True for a decision the importer made: it carries no thesis, confidence or expectations."""
+    return journal is not None and journal.is_imported
 
 
 def research_project_for_trade(
@@ -277,12 +278,58 @@ def trip_buy_journal(trip: RoundTrip) -> Optional[DecisionJournal]:
     return journal
 
 
+def opening_decision_for_trip(trip: RoundTrip) -> Optional[DecisionJournal]:
+    """
+    The opening decision of a round trip: its opening BUY journal, or that journal's
+    parent if it is a top-up.
+
+    A trip opened without a decision (a merger or spin-off handed over the shares, or a
+    pre-#434 re-buy got no journal) has its first top-up saved as the opening instead,
+    so that one is returned: the first parentless BUY decision made inside the trip.
+    """
+    journal = trip_buy_journal(trip)
+    if journal is not None:
+        return journal.parent_decision if journal.is_top_up else journal
+    return _first_decision_made_in_trip(trip)
+
+
+def _trip_transactions(trip: RoundTrip) -> list:
+    """The trip's transactions in FIFO (date, id) order, opening to closing."""
+    opening = trip.opening_transaction
+    transactions = Transaction.query.filter_by(
+        user_id=opening.user_id, company_id=opening.company_id,
+    ).order_by(Transaction.date.asc(), Transaction.id.asc()).all()
+    ids = [txn.id for txn in transactions]
+    start = ids.index(opening.id)
+    end = ids.index(trip.closing_transaction.id) + 1 if trip.closing_transaction else len(ids)
+    return transactions[start:end]
+
+
+def _first_decision_made_in_trip(trip: RoundTrip) -> Optional[DecisionJournal]:
+    """
+    The first parentless BUY decision whose own first transaction lies in the trip.
+    The first-transaction check skips a pre-#434 journal that an earlier trip shares
+    with this trip's top-ups.
+    """
+    transactions = _trip_transactions(trip)
+    trip_ids = {txn.id for txn in transactions}
+    for txn in transactions:
+        journal = txn.decision_journal
+        if txn.type != 'BUY' or journal is None or journal.decision_type != 'BUY' or journal.is_top_up:
+            continue
+        first = journal.transactions.order_by(Transaction.date.asc(), Transaction.id.asc()).first()
+        if first is not None and first.id in trip_ids:
+            return journal
+    return None
+
+
 def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company_id: int,
                            checkpoints: List[DestinationCheckpoint],
                            quality_cache: Dict[int, Any]) -> bool:
     """Write the trip onto the outcome. Returns True when any field actually changed."""
     tracker = OutcomeTracker()
-    journal = trip_buy_journal(trip)
+    # The holding period's opening decision, even when a top-up's row now opens the trip
+    journal = opening_decision_for_trip(trip)
 
     outcome.decision_date = trip.entry_date
     outcome.entry_price = trip.entry_price

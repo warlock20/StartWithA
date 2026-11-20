@@ -26,7 +26,8 @@ from app.models.journal import DecisionJournal
 from app.models.research import ResearchProject
 from app.services.financial_data import FinancialDataService
 from app.services.cash_service import CashService
-from app.services.outcome_tracking import IMPORTED_BUY_THESIS, safe_sync_outcomes
+from app.services.decision_journals import safe_ensure_import_decisions, snapshot_exit_plan
+from app.services.outcome_tracking import safe_sync_outcomes
 from app.services.currency_service import CurrencyService
 from app.services.company_lookup import get_or_create_company_by_ticker
 from app.services.transaction_service import corporate_action_guard_error
@@ -52,9 +53,6 @@ class PortfolioImporter:
         self.company_cache = {}
         self._load_company_cache()
 
-        # Track companies that already have a BUY decision journal
-        self.companies_with_buy_journal = self._load_existing_buy_journals()
-
         # User's base currency for conversion
         self.user_base_currency = self.user.base_currency
 
@@ -66,15 +64,6 @@ class PortfolioImporter:
         for c in companies:
             if c.ticker_symbol:  # Skip companies without ticker symbols
                 self.company_cache[c.ticker_symbol.upper()] = c.id
-
-    def _load_existing_buy_journals(self):
-        """Load company IDs that already have a BUY decision journal."""
-        existing = DecisionJournal.query.filter_by(
-            user_id=self.user.id,
-            decision_type='BUY',
-            is_portfolio_decision=True
-        ).with_entities(DecisionJournal.company_id).all()
-        return {row.company_id for row in existing}
 
     def _get_or_create_company(self, ticker):
         ticker = ticker.upper().strip()
@@ -387,13 +376,15 @@ class PortfolioImporter:
             exchange_rate_date=transaction_date,
             notes=f"Imported via Bulk Uploader. Row {row_index+2}",
             currency=currency,
-            bought_without_research=imported_without_research
+            bought_without_research=imported_without_research,
+            is_imported=True,
         )
         
         db.session.add(txn)
         db.session.flush()
 
-        # Create Decision Journal entry for BUY (first purchase) and SELL
+        # SELLs get their decision here; BUY openings are made per holding period
+        # by ensure_import_decisions once the whole file is in
         self._create_import_decision_journal(
             company_id=company_id,
             transaction=txn,
@@ -404,39 +395,18 @@ class PortfolioImporter:
         return True
 
     def _create_import_decision_journal(self, company_id, transaction, db_type, transaction_date):
-        """Create a Decision Journal entry for imported transactions."""
-        if db_type == 'BUY':
-            if company_id in self.companies_with_buy_journal:
-                return  # Already has a BUY journal (existing or from earlier row)
-
-            journal = DecisionJournal(
-                user_id=self.user.id,
-                company_id=company_id,
-                decision_type='BUY',
-                decision_date=transaction_date,
-                investment_thesis=IMPORTED_BUY_THESIS,
-                confidence_score=5,
-                expected_return=15.0,
-                expected_timeframe=60,
-                is_portfolio_decision=True,
-                thesis_depth='minimal',
-                non_research_source='other'
-            )
-            db.session.add(journal)
-            db.session.flush()
-            transaction.decision_journal_id = journal.id
-            self.companies_with_buy_journal.add(company_id)
-            logger.info(f"Created BUY Decision Journal for company {company_id} (imported)")
-
-        elif db_type == 'SELL':
+        """Create the Decision Journal entry for an imported SELL."""
+        if db_type == 'SELL':
             journal = DecisionJournal(
                 user_id=self.user.id,
                 company_id=company_id,
                 decision_type='SELL',
                 decision_date=transaction_date,
                 investment_thesis=f'Selling {transaction.quantity} shares at ${transaction.price_per_share}',
-                is_portfolio_decision=True
+                is_portfolio_decision=True,
+                is_imported=True,
             )
+            snapshot_exit_plan(journal)
             db.session.add(journal)
             db.session.flush()
             transaction.decision_journal_id = journal.id
@@ -466,6 +436,8 @@ class PortfolioImporter:
                 user_id=self.user.id,
                 last_transaction_date=last_date
             )
+            # Savepoints: a failure in either step must not lose the position updates
+            safe_ensure_import_decisions(self.user.id, comp_id)
             safe_sync_outcomes(self.user.id, comp_id)
             print(f"✓ Updated portfolio for {ticker}")
 

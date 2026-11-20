@@ -31,11 +31,15 @@ from app.models import (
 )
 from app.services.currency_service import CurrencyService
 from app.services.cash_service import CashService
+from app.services.decision_journals import inherited_thesis, opening_decision_for_buy, snapshot_exit_plan
 from app.services.outcome_tracking import safe_sync_outcomes
+from app.services.findings import MUST_EXIT, add_finding, has_exit_plan
 from app.services.intelligence_engine import IntelligenceEngine
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 
 logger = logging.getLogger(__name__)
+
+NO_EXIT_PLAN_MESSAGE = 'Add at least one must-exit rule for {ticker} before buying. Every buy needs an exit plan.'
 
 
 def corporate_action_guard_error(user_id: int, company_id: int, transaction_type: str,
@@ -222,6 +226,13 @@ class TransactionService:
         if guard_error:
             return TransactionValidationResult(is_valid=False, error_message=guard_error)
 
+        # Every buy, opening or top-up, needs an active must-exit rule on the company
+        if transaction_type == 'BUY' and not has_exit_plan(user_id, company_id):
+            return TransactionValidationResult(
+                is_valid=False,
+                error_message=NO_EXIT_PLAN_MESSAGE.format(ticker=company.ticker_symbol)
+            )
+
         # Parse numeric values
         try:
             price_decimal = Decimal(price_per_share)
@@ -341,6 +352,18 @@ class TransactionService:
             notes = form_data.get('notes', '').strip()
             currency = form_data.get('currency', 'USD').strip().upper()
 
+            # Rules typed on the buy form count towards the exit plan, so they are added
+            # before validation (the check sees them through autoflush) and thrown away
+            # again if the buy is refused.
+            if transaction_type == 'BUY' and hasattr(form_data, 'getlist'):
+                if Company.query.filter_by(id=company_id, user_id=user_id).first():
+                    signals = form_data.getlist('new_exit_rule_signal')
+                    texts = form_data.getlist('new_exit_rule_text')
+                    for index, text in enumerate(texts):
+                        if text.strip():
+                            add_finding(user_id, company_id, MUST_EXIT, text,
+                                        signal=signals[index] if index < len(signals) else None)
+
             # Validate
             validation = TransactionService.validate_transaction_data(
                 user_id=user_id,
@@ -353,6 +376,7 @@ class TransactionService:
             )
 
             if not validation.is_valid:
+                db.session.rollback()
                 return TransactionCreationResult(
                     success=False,
                     error=validation.error_message
@@ -481,6 +505,10 @@ class TransactionService:
             if transaction_type == 'SELL' and decision_journal:
                 redirect_url = 'portfolio.sell_postmortem'
                 redirect_kwargs = {'journal_id': decision_journal.id}
+            elif is_add_to_position and thesis_updated:
+                # "My reason has changed": record it as a new thesis version
+                redirect_url = 'portfolio.add_thesis_version'
+                redirect_kwargs = {'company_id': company_id}
 
             return TransactionCreationResult(
                 success=True,
@@ -580,19 +608,19 @@ class TransactionService:
         bought_without_research: bool,
         is_add_to_position: bool
     ) -> Optional[DecisionJournal]:
-        """Create decision journal entry for transaction"""
+        """
+        Create the decision journal for a BUY or SELL and snapshot the exit plan onto it.
 
+        Every BUY is its own decision. One that opens a holding period is an opening
+        decision (no parent); a top-up links to the period's opening decision, or
+        becomes the opening itself when the period has none (opened by a merger or
+        spin-off, or a pre-#434 re-buy that got no journal).
+        """
         if transaction_type == 'BUY':
-            existing_journal = DecisionJournal.query.filter_by(
-                company_id=company_id,
-                user_id=user_id,
-                decision_type='BUY',
-                is_portfolio_decision=True
-            ).first()
-
-            if existing_journal and is_add_to_position:
-                return existing_journal
-            elif not existing_journal:
+            if is_add_to_position:
+                journal = TransactionService._top_up_journal(
+                    user_id, company_id, transaction, transaction_date, form_data)
+            else:
                 if bought_without_research:
                     investment_thesis = form_data.get('investment_thesis', '').strip()
                     word_count = len(investment_thesis.split())
@@ -659,12 +687,8 @@ class TransactionService:
                     else:
                         return None
 
-                db.session.add(journal)
-                db.session.flush()
-                return journal
-
         elif transaction_type == 'SELL':
-            sell_journal = DecisionJournal(
+            journal = DecisionJournal(
                 user_id=user_id,
                 company_id=company_id,
                 decision_type='SELL',
@@ -672,8 +696,37 @@ class TransactionService:
                 investment_thesis=f'Selling {transaction.quantity} shares at ${transaction.price_per_share}',
                 is_portfolio_decision=True
             )
-            db.session.add(sell_journal)
-            db.session.flush()
-            return sell_journal
 
-        return None
+        else:
+            return None
+
+        snapshot_exit_plan(journal)
+        db.session.add(journal)
+        db.session.flush()
+        return journal
+
+    @staticmethod
+    def _top_up_journal(user_id: int, company_id: int, transaction: Transaction,
+                        transaction_date, form_data: Dict) -> DecisionJournal:
+        """
+        A top-up's own BUY decision. It copies the current thesis unchanged (a changed
+        reason goes through the thesis-version page) and links to the opening decision
+        of the holding period the (flushed) transaction lands in, which for a backdated
+        buy can be an earlier one. The "why add now" note stays on the transaction.
+        """
+        parent = opening_decision_for_buy(transaction)
+        investment_thesis = inherited_thesis(user_id, company_id, parent)
+
+        return DecisionJournal(
+            user_id=user_id,
+            company_id=company_id,
+            decision_type='BUY',
+            decision_date=transaction_date,
+            investment_thesis=investment_thesis,
+            confidence_score=form_data.get('confidence_score', type=int),
+            expected_return=form_data.get('expected_return', type=float),
+            expected_timeframe=form_data.get('expected_timeframe', type=int),
+            is_portfolio_decision=True,
+            parent_decision_id=parent.id if parent is not None else None,
+            linked_research_id=parent.linked_research_id if parent is not None else None,
+        )

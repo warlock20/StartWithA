@@ -435,6 +435,21 @@ details[open] > summary .tl-preview--keep {
     text-decoration: none;
 }
 
+.tl-exit-rules {
+    margin: 0 0 0.25rem;
+    padding-left: 1.125rem;
+}
+
+.tl-exit-rules li + li {
+    margin-top: 0.125rem;
+}
+
+.tl-captured {
+    font-size: 0.6875rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
 .tl-cases {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));

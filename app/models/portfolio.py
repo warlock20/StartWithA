@@ -152,6 +152,9 @@ class Transaction(db.Model):
     # Additional context
     notes = db.Column(db.Text, nullable=True)
 
+    # Created by the portfolio importer. Imports are recognised by this, never by the note text.
+    is_imported = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false(), index=True)
+
     # Pattern tracking: Buying without research
     bought_without_research = db.Column(db.Boolean, default=False, index=True)
 
@@ -385,6 +388,7 @@ class RoundTrip:
     exit_date: Optional[date] = None
     exit_price: Optional[Decimal] = None
     sales: List[SaleMatch] = field(default_factory=list)  # oldest first
+    buys: List[Transaction] = field(default_factory=list)  # BUY rows, oldest first, the opening included
 
     @property
     def is_closed(self) -> bool:
@@ -470,6 +474,8 @@ def _walk_fifo(transactions):
         total_cost += cost
         if trip is not None:
             trip.buy_cost += cost
+            if txn.type == 'BUY':
+                trip.buys.append(txn)
 
         if first_purchase_date is None:
             first_purchase_date = txn.date

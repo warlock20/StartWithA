@@ -570,11 +570,20 @@ def analytics_decisions():
         Transaction.type.in_(['BUY', 'SELL'])
     ).order_by(Transaction.date.desc()).limit(RECENT_DECISIONS_LIMIT).all()
 
+    # Both analyses pair a decision with the company's single lifetime position, so a
+    # company counts once: through its latest opening decision (top-ups repeat the same
+    # position outcome, and so would the openings of earlier holding periods).
+    latest_openings = {}
+    for journal in sorted((j for j in all_journals if j.decision_type == 'BUY' and not j.is_top_up),
+                          key=lambda j: (j.decision_date, j.id)):
+        latest_openings[journal.company_id] = journal
+    latest_openings = list(latest_openings.values())
+
     # Confidence Calibration Analysis
-    # Get all BUY journals with confidence scores and actual returns
+    # Get the latest opening BUY journals with confidence scores and actual returns
     journals_with_confidence = []
-    for journal in all_journals:
-        if journal.confidence_score and journal.decision_type == 'BUY':
+    for journal in latest_openings:
+        if journal.confidence_score is not None:
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
             if position and position_return_pct(position) is not None:
                 journals_with_confidence.append({
@@ -588,8 +597,8 @@ def analytics_decisions():
     # Performance vs Expectations Analysis
     # Get all journals with expected returns and compare to actual
     expectations_analysis = []
-    for journal in all_journals:
-        if journal.expected_return and journal.decision_type == 'BUY':
+    for journal in latest_openings:
+        if journal.expected_return is not None:
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
             pos_return = position_return_pct(position) if position else None
             if position and pos_return is not None:

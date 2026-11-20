@@ -48,27 +48,27 @@
                         <label class="form-label fw-semibold">Transaction Type <span
                                 class="text-danger">*</span></label>
                         <div class="tx-type-group">
-                            <input type="radio" class="btn-check" name="type" id="type_buy" value="BUY" checked style="display:none;">
-                            <label class="tx-type-btn active" for="type_buy" style="--btn-active: #2d6a4f;">
+                            <input type="radio" class="btn-check" name="type" id="type_buy" value="BUY" {% if not form_data or form_data.type == 'BUY' %}checked{% endif %} style="display:none;">
+                            <label class="tx-type-btn" for="type_buy" style="--btn-active: #2d6a4f;">
                                 <i class="bi bi-arrow-down-circle"></i><span>Buy</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_sell" value="SELL" style="display:none;">
+                            <input type="radio" class="btn-check" name="type" id="type_sell" value="SELL" {% if form_data and form_data.type == 'SELL' %}checked{% endif %} style="display:none;">
                             <label class="tx-type-btn" for="type_sell" style="--btn-active: #dc3545;">
                                 <i class="bi bi-arrow-up-circle"></i><span>Sell</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_dividend" value="DIVIDEND" style="display:none;">
+                            <input type="radio" class="btn-check" name="type" id="type_dividend" value="DIVIDEND" {% if form_data and form_data.type == 'DIVIDEND' %}checked{% endif %} style="display:none;">
                             <label class="tx-type-btn" for="type_dividend" style="--btn-active: #198754;">
                                 <i class="bi bi-cash-coin"></i><span>Dividend</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_deposit" value="DEPOSIT" style="display:none;">
+                            <input type="radio" class="btn-check" name="type" id="type_deposit" value="DEPOSIT" {% if form_data and form_data.type == 'DEPOSIT' %}checked{% endif %} style="display:none;">
                             <label class="tx-type-btn" for="type_deposit" style="--btn-active: #3b82f6;">
                                 <i class="bi bi-box-arrow-in-down"></i><span>Deposit</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_withdrawal" value="WITHDRAWAL" style="display:none;">
+                            <input type="radio" class="btn-check" name="type" id="type_withdrawal" value="WITHDRAWAL" {% if form_data and form_data.type == 'WITHDRAWAL' %}checked{% endif %} style="display:none;">
                             <label class="tx-type-btn" for="type_withdrawal" style="--btn-active: #f59e0b;">
                                 <i class="bi bi-box-arrow-up"></i><span>Withdraw</span>
                             </label>
@@ -81,7 +81,8 @@
                         <div class="input-group">
                             <span class="input-group-text" id="currencySymbolCash">{{ currency_symbol }}</span>
                             <input type="number" class="form-control" id="cash_amount" name="cash_amount"
-                                min="0.01" step="0.01" placeholder="0.00">
+                                min="0.01" step="0.01" placeholder="0.00"
+                                value="{% if form_data %}{{ form_data.cash_amount }}{% endif %}">
                         </div>
                         <div class="form-text">Amount to <span id="cashActionLabel">deposit</span></div>
                     </div>
@@ -124,20 +125,20 @@
                         <label for="currency" class="form-label fw-semibold">Currency <span
                                 class="text-danger">*</span></label>
                         <select class="form-select" id="currency" name="currency" required>
-                            <option value="USD" {% if user_currency == 'USD' %}selected{% endif %}>USD - US Dollar ($)</option>
-                            <option value="EUR" {% if user_currency == 'EUR' %}selected{% endif %}>EUR - Euro (€)</option>
-                            <option value="GBP" {% if user_currency == 'GBP' %}selected{% endif %}>GBP - British Pound (£)</option>
-                            <option value="JPY" {% if user_currency == 'JPY' %}selected{% endif %}>JPY - Japanese Yen (¥)</option>
-                            <option value="CAD" {% if user_currency == 'CAD' %}selected{% endif %}>CAD - Canadian Dollar (C$)</option>
-                            <option value="AUD" {% if user_currency == 'AUD' %}selected{% endif %}>AUD - Australian Dollar (A$)</option>
-                            <option value="CHF" {% if user_currency == 'CHF' %}selected{% endif %}>CHF - Swiss Franc</option>
-                            <option value="CNY" {% if user_currency == 'CNY' %}selected{% endif %}>CNY - Chinese Yuan (¥)</option>
-                            <option value="HKD" {% if user_currency == 'HKD' %}selected{% endif %}>HKD - Hong Kong Dollar (HK$)</option>
-                            <option value="INR" {% if user_currency == 'INR' %}selected{% endif %}>INR - Indian Rupee (₹)</option>
-                            <option value="KRW" {% if user_currency == 'KRW' %}selected{% endif %}>KRW - South Korean Won (₩)</option>
-                            <option value="SEK" {% if user_currency == 'SEK' %}selected{% endif %}>SEK - Swedish Krona (kr)</option>
-                            <option value="NOK" {% if user_currency == 'NOK' %}selected{% endif %}>NOK - Norwegian Krone (kr)</option>
-                            <option value="DKK" {% if user_currency == 'DKK' %}selected{% endif %}>DKK - Danish Krone (kr)</option>
+                            <option value="USD" {% if (form_data.currency if form_data else user_currency) == 'USD' %}selected{% endif %}>USD - US Dollar ($)</option>
+                            <option value="EUR" {% if (form_data.currency if form_data else user_currency) == 'EUR' %}selected{% endif %}>EUR - Euro (€)</option>
+                            <option value="GBP" {% if (form_data.currency if form_data else user_currency) == 'GBP' %}selected{% endif %}>GBP - British Pound (£)</option>
+                            <option value="JPY" {% if (form_data.currency if form_data else user_currency) == 'JPY' %}selected{% endif %}>JPY - Japanese Yen (¥)</option>
+                            <option value="CAD" {% if (form_data.currency if form_data else user_currency) == 'CAD' %}selected{% endif %}>CAD - Canadian Dollar (C$)</option>
+                            <option value="AUD" {% if (form_data.currency if form_data else user_currency) == 'AUD' %}selected{% endif %}>AUD - Australian Dollar (A$)</option>
+                            <option value="CHF" {% if (form_data.currency if form_data else user_currency) == 'CHF' %}selected{% endif %}>CHF - Swiss Franc</option>
+                            <option value="CNY" {% if (form_data.currency if form_data else user_currency) == 'CNY' %}selected{% endif %}>CNY - Chinese Yuan (¥)</option>
+                            <option value="HKD" {% if (form_data.currency if form_data else user_currency) == 'HKD' %}selected{% endif %}>HKD - Hong Kong Dollar (HK$)</option>
+                            <option value="INR" {% if (form_data.currency if form_data else user_currency) == 'INR' %}selected{% endif %}>INR - Indian Rupee (₹)</option>
+                            <option value="KRW" {% if (form_data.currency if form_data else user_currency) == 'KRW' %}selected{% endif %}>KRW - South Korean Won (₩)</option>
+                            <option value="SEK" {% if (form_data.currency if form_data else user_currency) == 'SEK' %}selected{% endif %}>SEK - Swedish Krona (kr)</option>
+                            <option value="NOK" {% if (form_data.currency if form_data else user_currency) == 'NOK' %}selected{% endif %}>NOK - Norwegian Krone (kr)</option>
+                            <option value="DKK" {% if (form_data.currency if form_data else user_currency) == 'DKK' %}selected{% endif %}>DKK - Danish Krone (kr)</option>
                         </select>
                         <div class="form-text" id="currencyHint">
                             <i class="bi bi-info-circle me-1"></i>
@@ -163,31 +164,37 @@
                                 </label>
                                 <select class="form-select" id="add_position_reason" name="add_position_reason">
                                     <option value="">Select reason...</option>
-                                    <option value="price_drop">Attractive price drop / Buying the dip</option>
-                                    <option value="extra_cash">Extra cash available for deployment</option>
-                                    <option value="increased_confidence">Increased confidence in thesis</option>
-                                    <option value="averaging_down">Averaging down on losing position</option>
-                                    <option value="rebalancing">Portfolio rebalancing</option>
-                                    <option value="other">Other reason</option>
+                                    <option value="price_drop" {% if form_data and form_data.add_position_reason == 'price_drop' %}selected{% endif %}>Attractive price drop / Buying the dip</option>
+                                    <option value="extra_cash" {% if form_data and form_data.add_position_reason == 'extra_cash' %}selected{% endif %}>Extra cash available for deployment</option>
+                                    <option value="increased_confidence" {% if form_data and form_data.add_position_reason == 'increased_confidence' %}selected{% endif %}>Increased confidence in thesis</option>
+                                    <option value="averaging_down" {% if form_data and form_data.add_position_reason == 'averaging_down' %}selected{% endif %}>Averaging down on losing position</option>
+                                    <option value="rebalancing" {% if form_data and form_data.add_position_reason == 'rebalancing' %}selected{% endif %}>Portfolio rebalancing</option>
+                                    <option value="other" {% if form_data and form_data.add_position_reason == 'other' %}selected{% endif %}>Other reason</option>
                                 </select>
+                            </div>
+
+                            <div class="mb-3" id="add_position_thesis_block" style="display: none;">
+                                <div class="form-label fw-semibold">
+                                    <i class="bi bi-journal-text me-1"></i>Current thesis
+                                </div>
+                                <p class="form-text mb-0" id="add_position_current_thesis" style="white-space: pre-wrap;"></p>
                             </div>
 
                             <div class="mb-3">
                                 <label for="add_position_notes" class="form-label fw-semibold">
-                                    Additional context
+                                    Why add now? (optional)
                                 </label>
                                 <textarea class="form-control" id="add_position_notes" name="add_position_notes"
                                     rows="2"
-                                    placeholder="Any additional thoughts about adding to this position..."></textarea>
+                                    placeholder="Any additional thoughts about adding to this position...">{% if form_data %}{{ form_data.add_position_notes }}{% endif %}</textarea>
                             </div>
 
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="thesis_updated"
-                                    name="thesis_updated" value="true">
+                                    name="thesis_updated" value="true"
+                                    {% if form_data and form_data.thesis_updated == 'true' %}checked{% endif %}>
                                 <label class="form-check-label" for="thesis_updated">
-                                    <strong>I want to update my investment thesis</strong>
-                                    <div class="form-text">Check this if your thesis has evolved or you want to
-                                        document new insights</div>
+                                    <strong>My reason has changed: record a new thesis version after saving</strong>
                                 </label>
                             </div>
                         </div>
@@ -253,6 +260,36 @@
                             placeholder="Optional notes about this transaction...">{% if form_data %}{{ form_data.notes }}{% endif %}</textarea>
                     </div>
 
+                    <!-- Exit plan (BUY only): every buy needs at least one must-exit rule -->
+                    <div id="exit_plan_section" style="display: none;">
+                        <hr class="my-4">
+                        <h5 class="mb-1">Exit plan</h5>
+                        <p class="text-muted small mb-3">Every buy needs at least one must-exit rule: the
+                            facts that would make you sell.</p>
+                        <div id="exit_plan_existing" class="mb-3"></div>
+                        <div id="exit_plan_new_rows">
+                            {% if form_data and form_data.getlist %}
+                            {% set posted_signals = form_data.getlist('new_exit_rule_signal') %}
+                            {% for text in form_data.getlist('new_exit_rule_text') %}
+                            <div class="exit-rule-row border rounded p-2 mb-2">
+                                <input type="text" class="form-control mb-2" name="new_exit_rule_signal"
+                                    placeholder="Signal (optional), e.g. Margins" maxlength="100"
+                                    value="{{ posted_signals[loop.index0] if loop.index0 < posted_signals|length else '' }}">
+                                <textarea class="form-control mb-2" name="new_exit_rule_text" rows="2"
+                                    placeholder="Sell if...">{{ text }}</textarea>
+                                <button type="button" class="action-btn exit-rule-remove">
+                                    <i class="bi bi-x-lg"></i> Remove
+                                </button>
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <button type="button" class="action-btn" id="add_exit_rule_btn">
+                            <i class="bi bi-plus-lg"></i> Add must-exit rule
+                        </button>
+                        <div id="exit_plan_error" class="text-danger small mt-2" style="display: none;"></div>
+                    </div>
+
                     <!-- Investment Expectations (for BUY transactions only) -->
                     <div id="buy_expectations_section" style="display: none;">
                         <hr class="my-4">
@@ -266,7 +303,8 @@
                                     Expected Return (%)
                                 </label>
                                 <input type="number" class="form-control" id="expected_return_main"
-                                    name="expected_return" step="0.1" placeholder="e.g., 25">
+                                    name="expected_return" step="0.1" placeholder="e.g., 25"
+                                    value="{% if form_data %}{{ form_data.getlist('expected_return')|first }}{% endif %}">
                                 <div class="form-text">Optional - your target return</div>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -274,7 +312,8 @@
                                     Expected Timeframe (months)
                                 </label>
                                 <input type="number" class="form-control" id="expected_timeframe_main"
-                                    name="expected_timeframe" min="1" placeholder="e.g., 12">
+                                    name="expected_timeframe" min="1" placeholder="e.g., 12"
+                                    value="{% if form_data %}{{ form_data.getlist('expected_timeframe')|first }}{% endif %}">
                                 <div class="form-text">Optional - your investment horizon</div>
                             </div>
                         </div>
@@ -285,8 +324,9 @@
                             </label>
                             <div class="d-flex align-items-center">
                                 <input type="range" class="form-range flex-grow-1 me-3" id="confidence_score_main"
-                                    name="confidence_score" min="1" max="10" value="5">
-                                <span class="badge bg-primary" id="confidence_display_main">5</span>
+                                    name="confidence_score" min="1" max="10"
+                                    value="{{ (form_data.getlist('confidence_score')|first) if form_data and form_data.getlist('confidence_score') else 5 }}">
+                                <span class="badge bg-primary" id="confidence_display_main">{{ (form_data.getlist('confidence_score')|first) if form_data and form_data.getlist('confidence_score') else 5 }}</span>
                             </div>
                             <div class="form-text">1 = Low confidence, 10 = Very high confidence</div>
                         </div>
@@ -308,7 +348,8 @@
                             <label for="investment_thesis" class="form-label fw-semibold">
                                 Investment Thesis <span class="text-danger">*</span>
                             </label>
-                            <input type="hidden" id="investment_thesis" name="investment_thesis">
+                            <input type="hidden" id="investment_thesis" name="investment_thesis"
+                                value="{% if form_data %}{{ form_data.investment_thesis }}{% endif %}">
                             <div id="thesisEditor" class="blocknote-form-editor"></div>
                             <div class="form-text">
                                 <span id="thesis_word_count">0</span> words
@@ -335,14 +376,14 @@
                             <select class="form-select" id="non_research_source" name="non_research_source"
                                 required>
                                 <option value="">Select source...</option>
-                                <option value="external_research">External Research (Newsletter, Report, etc.)
+                                <option value="external_research" {% if form_data and form_data.non_research_source == 'external_research' %}selected{% endif %}>External Research (Newsletter, Report, etc.)
                                 </option>
-                                <option value="professional_tip">Professional/Mentor Recommendation</option>
-                                <option value="friend_family">Friend or Family Tip</option>
-                                <option value="social_media">Social Media / Forum</option>
-                                <option value="news_article">News Article</option>
-                                <option value="gut_feeling">Gut Feeling / Intuition</option>
-                                <option value="other">Other</option>
+                                <option value="professional_tip" {% if form_data and form_data.non_research_source == 'professional_tip' %}selected{% endif %}>Professional/Mentor Recommendation</option>
+                                <option value="friend_family" {% if form_data and form_data.non_research_source == 'friend_family' %}selected{% endif %}>Friend or Family Tip</option>
+                                <option value="social_media" {% if form_data and form_data.non_research_source == 'social_media' %}selected{% endif %}>Social Media / Forum</option>
+                                <option value="news_article" {% if form_data and form_data.non_research_source == 'news_article' %}selected{% endif %}>News Article</option>
+                                <option value="gut_feeling" {% if form_data and form_data.non_research_source == 'gut_feeling' %}selected{% endif %}>Gut Feeling / Intuition</option>
+                                <option value="other" {% if form_data and form_data.non_research_source == 'other' %}selected{% endif %}>Other</option>
                             </select>
                         </div>
 
@@ -353,8 +394,9 @@
                             </label>
                             <div class="d-flex align-items-center">
                                 <input type="range" class="form-range flex-grow-1 me-3" id="confidence_score"
-                                    name="confidence_score" min="1" max="10" value="5" required>
-                                <span class="badge bg-primary" id="confidence_display">5</span>
+                                    name="confidence_score" min="1" max="10" required
+                                    value="{{ (form_data.getlist('confidence_score')|last) if form_data and form_data.getlist('confidence_score') else 5 }}">
+                                <span class="badge bg-primary" id="confidence_display">{{ (form_data.getlist('confidence_score')|last) if form_data and form_data.getlist('confidence_score') else 5 }}</span>
                             </div>
                             <div class="form-text">1 = Low confidence, 10 = Very high confidence</div>
                         </div>
@@ -366,7 +408,8 @@
                                     Expected Return (%)
                                 </label>
                                 <input type="number" class="form-control" id="expected_return"
-                                    name="expected_return" step="0.1" placeholder="e.g., 15">
+                                    name="expected_return" step="0.1" placeholder="e.g., 15"
+                                    value="{% if form_data %}{{ form_data.getlist('expected_return')|last }}{% endif %}">
                                 <div class="form-text">Optional</div>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -374,7 +417,8 @@
                                     Expected Timeframe (months)
                                 </label>
                                 <input type="number" class="form-control" id="expected_timeframe"
-                                    name="expected_timeframe" min="1" placeholder="e.g., 12">
+                                    name="expected_timeframe" min="1" placeholder="e.g., 12"
+                                    value="{% if form_data %}{{ form_data.getlist('expected_timeframe')|last }}{% endif %}">
                                 <div class="form-text">Optional</div>
                             </div>
                         </div>
@@ -727,6 +771,8 @@
             expectationsSection.style.display = (transactionType === 'BUY') ? 'block' : 'none';
         }
 
+        if (typeof refreshExitPlan === 'function') refreshExitPlan();
+
         updateTransactionTotal();
     }
 
@@ -789,7 +835,7 @@
     });
 
     // BlockNote thesis editor — init + word count + form submit
-    let thesisEditorContent = '';
+    let thesisEditorContent = {{ (form_data.get('investment_thesis', '') if form_data else '')|tojson }};
 
     function blocknoteExtractText(json) {
         if (!json) return '';
@@ -808,18 +854,22 @@
     function updateThesisWordCount() {
         const text = blocknoteExtractText(thesisEditorContent);
         const words = text.length > 0 ? text.split(/\s+/).length : 0;
-        document.getElementById('thesis_word_count').textContent = words;
+        const counter = document.getElementById('thesis_word_count');
+        if (counter) counter.textContent = words;
         const warning = document.getElementById('thesis_warning');
         if (warning) {
             warning.style.display = (words < 20 && text.length > 0) ? 'inline' : 'none';
         }
     }
 
+    updateThesisWordCount();
+
     // Init BlockNote editor for thesis
     const checkThesisEditor = setInterval(() => {
         if (window.initBlockNoteEditor) {
             clearInterval(checkThesisEditor);
             window.initBlockNoteEditor('thesisEditor', {
+                initialContent: thesisEditorContent,
                 placeholder: 'Why are you buying this stock? What\'s your investment case? (Minimum 20 words)',
                 onChange: (json) => {
                     thesisEditorContent = json;
@@ -842,7 +892,8 @@
                 alert('Please provide at least 20 words for your investment thesis.');
                 return false;
             }
-            document.getElementById('investment_thesis').value = thesisEditorContent;
+            const thesisInput = document.getElementById('investment_thesis');
+            if (thesisInput) thesisInput.value = thesisEditorContent;
         });
     }
 
@@ -867,6 +918,18 @@
     const addPositionSection = document.getElementById('add_position_section');
     const addPositionReasonSelect = document.getElementById('add_position_reason');
 
+    // Read-only "Current thesis" on a top-up: a top-up copies it unchanged
+    const CURRENT_THESES = {{ current_theses|tojson }};
+
+    function showCurrentThesis(companyId) {
+        const block = document.getElementById('add_position_thesis_block');
+        const text = document.getElementById('add_position_current_thesis');
+        if (!block || !text) return;
+        const thesis = CURRENT_THESES[companyId] || '';
+        text.textContent = thesis;
+        block.style.display = thesis ? 'block' : 'none';
+    }
+
     function checkExistingPosition() {
         const selectedOption = companySelect.options[companySelect.selectedIndex];
         const transactionType = document.querySelector('input[name="type"]:checked').value;
@@ -887,6 +950,7 @@
 
             document.getElementById('current_shares').textContent = shares;
             document.getElementById('current_avg_cost').textContent = avgCost;
+            showCurrentThesis(selectedOption.value);
 
             addPositionSection.style.display = 'block';
             addPositionReasonSelect.setAttribute('required', 'required');
@@ -1261,7 +1325,8 @@ function renderThesisFeedback(data, container) {
     html += renderElementCheck('Valuation', data.has_valuation);
     html += renderElementCheck('Risks', data.has_risks);
     html += renderElementCheck('Catalysts', data.has_catalysts);
-    html += renderElementCheck('Exit Criteria', data.has_exit_criteria);
+    const exitRules = exitRuleCount();
+    html += renderElementCheck('Exit plan (' + exitRules + (exitRules === 1 ? ' rule)' : ' rules)'), exitRules > 0);
     html += '</div>';
 
     // Quick score
@@ -1280,6 +1345,99 @@ function renderElementCheck(name, hasIt) {
 }
 
 // checkThesisQuality is called from the BlockNote onChange handler via updateThesisWordCount
+</script>
+
+<!-- ============================================================
+     EXIT PLAN (BUY): existing must-exit rules, inline new rules, submit guard
+     ============================================================ -->
+<script>
+const EXIT_RULES_BY_COMPANY = {{ exit_rules_by_company|tojson }};
+
+function existingExitRules() {
+    const companyId = document.getElementById('company_id').value;
+    return EXIT_RULES_BY_COMPANY[companyId] || [];
+}
+
+function newExitRuleTexts() {
+    return Array.from(document.querySelectorAll('textarea[name="new_exit_rule_text"]'))
+        .map(el => el.value.trim()).filter(text => text !== '');
+}
+
+function exitRuleCount() {
+    return existingExitRules().length + newExitRuleTexts().length;
+}
+
+function isBuySelected() {
+    const checked = document.querySelector('input[name="type"]:checked');
+    return !!checked && checked.value === 'BUY';
+}
+
+function refreshExitPlan() {
+    const section = document.getElementById('exit_plan_section');
+    if (!section) return;
+    section.style.display = isBuySelected() ? 'block' : 'none';
+
+    const list = document.getElementById('exit_plan_existing');
+    list.innerHTML = '';
+    existingExitRules().forEach(rule => {
+        const row = document.createElement('div');
+        row.className = 'small mb-1';
+        const signal = document.createElement('strong');
+        signal.textContent = rule.signal + ': ';
+        row.appendChild(signal);
+        row.appendChild(document.createTextNode(rule.text));
+        list.appendChild(row);
+    });
+    if (exitRuleCount() > 0) hideExitPlanError();
+}
+
+function hideExitPlanError() {
+    document.getElementById('exit_plan_error').style.display = 'none';
+}
+
+function addExitRuleRow() {
+    const row = document.createElement('div');
+    row.className = 'exit-rule-row border rounded p-2 mb-2';
+    row.innerHTML =
+        '<input type="text" class="form-control mb-2" name="new_exit_rule_signal" ' +
+        'placeholder="Signal (optional), e.g. Margins" maxlength="100">' +
+        '<textarea class="form-control mb-2" name="new_exit_rule_text" rows="2" placeholder="Sell if..."></textarea>' +
+        '<button type="button" class="action-btn exit-rule-remove"><i class="bi bi-x-lg"></i> Remove</button>';
+    document.getElementById('exit_plan_new_rows').appendChild(row);
+    row.querySelector('textarea').focus();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('add_exit_rule_btn').addEventListener('click', addExitRuleRow);
+    document.getElementById('exit_plan_new_rows').addEventListener('click', function (event) {
+        const remove = event.target.closest('.exit-rule-remove');
+        if (remove) {
+            remove.closest('.exit-rule-row').remove();
+            refreshExitPlan();
+            checkThesisQuality();
+        }
+    });
+    document.getElementById('exit_plan_new_rows').addEventListener('input', function () {
+        refreshExitPlan();
+        checkThesisQuality();
+    });
+    document.getElementById('company_id').addEventListener('change', refreshExitPlan);
+    document.querySelectorAll('input[name="type"]').forEach(radio => {
+        radio.addEventListener('change', refreshExitPlan);
+    });
+
+    document.getElementById('transactionForm').addEventListener('submit', function (event) {
+        if (isBuySelected() && exitRuleCount() === 0) {
+            event.preventDefault();
+            const error = document.getElementById('exit_plan_error');
+            const ticker = document.getElementById('company_id').selectedOptions[0]?.dataset.ticker || 'this company';
+            error.textContent = 'Add at least one must-exit rule for ' + ticker + ' before buying. Every buy needs an exit plan.';
+            error.style.display = 'block';
+            error.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+    refreshExitPlan();
+});
 </script>
 
 <!-- ============================================================

@@ -22,6 +22,7 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from app.utils.time_utils import now_utc
+from app.services.decision_journals import exit_plan_view, opening_buy_decision
 from app.services.conviction_service import current_theses
 from app.utils.auth_utils import owned_or_404
 from flask import render_template, request, redirect, url_for, flash, current_app, jsonify, Response, Response
@@ -513,7 +514,8 @@ def _gather_journey_data(company, user_id):
             'type': 'decision',
             'date': decision.decision_date,
             'datetime': datetime.combine(decision.decision_date, datetime.min.time()),
-            'data': decision
+            'data': decision,
+            'exit_plan': exit_plan_view(decision.exit_criteria),
         })
 
     # Research findings
@@ -592,11 +594,7 @@ def _gather_journey_data(company, user_id):
     portfolio_decision_journal = None
     price_stale = False
     if company_state == 'portfolio':
-        portfolio_decision_journal = DecisionJournal.query.filter_by(
-            user_id=user_id,
-            company_id=company.id,
-            is_portfolio_decision=True
-        ).first()
+        portfolio_decision_journal = opening_buy_decision(user_id, company.id)
         if position:
             price_stale = PriceService.should_update_price(position)
 

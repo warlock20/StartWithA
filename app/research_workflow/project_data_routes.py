@@ -27,12 +27,11 @@ import traceback
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import current_user, login_required
 from app import db
-from app.models import ResearchProject, ChecklistAnalysis, Company, JournalEntry
+from app.models import ResearchProject, ChecklistAnalysis, JournalEntry
 from app.models.research import RESEARCH_DECISIONS
-from app.models.checklist import DestinationCheckpoint
 from app.models.research import FreeResearchQuestion
 from app.research_workflow import research_workflow_bp
-from app.utils.time_utils import now_utc, parse_date_to_date_object
+from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.decorators import json_errors
 from app.utils.auth_utils import owned_or_404
@@ -234,56 +233,6 @@ def save_project_decision(project_id):
             return json_error('Something went wrong. Please try again.', status_code=500)
         flash('Error saving decision. Please try again.', 'error')
         return redirect(url_for('research_workflow.project_summary', project_id=project_id))
-
-
-@research_workflow_bp.route('/projects/<int:project_id>/convert-exit-criteria', methods=['POST'])
-@login_required
-@json_errors
-def convert_exit_criteria(project_id):
-    """Convert must-exit criteria into Destination Analysis checkpoints"""
-    project = owned_or_404(ResearchProject, project_id)
-
-    if not project.company_id:
-        return json_error('Project must be linked to a company')
-
-    company = owned_or_404(Company, project.company_id)
-
-    data = request.get_json(silent=True) or {}
-    items = data.get('items', [])
-
-    if not items:
-        return json_error('No items to convert')
-
-    created_count = 0
-    for item in items:
-        text = item.get('text', '').strip()
-        target_date_str = item.get('target_date', '').strip()
-        metric = item.get('metric', text[:200]).strip()
-        expectation = item.get('expectation', text).strip()
-
-        if not text or not target_date_str:
-            continue
-
-        target_date = parse_date_to_date_object(target_date_str)
-        if not target_date:
-            continue
-
-        checkpoint = DestinationCheckpoint(
-            company_id=project.company_id,
-            user_id=current_user.id,
-            metric=metric,
-            expectation=expectation,
-            target_date=target_date,
-            description=f"From must-exit criteria during research: {project.project_name}"
-        )
-        db.session.add(checkpoint)
-        created_count += 1
-
-    db.session.commit()
-    return json_success(
-        f'{created_count} checkpoint(s) created',
-        data={'count': created_count}
-    )
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/update-summary', methods=['POST'])
