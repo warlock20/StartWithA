@@ -65,6 +65,7 @@ from app.services.background_tasks import BackgroundTaskService
 from app.models import PortfolioPosition
 from app.services.currency_service import CurrencyService
 from app.services.company_state import company_state, company_states
+from app.services.decision_journals import exit_plan_view
 from app.services.company_isin import check_company_isin, set_company_isin
 from app.services.competitors import link_competitors, list_competitors, unlink_competitors
 from app.services.research_reopen_service import ReopenNotAllowed, ResearchReopenService
@@ -513,7 +514,8 @@ def _gather_journey_data(company, user_id):
             'type': 'decision',
             'date': decision.decision_date,
             'datetime': datetime.combine(decision.decision_date, datetime.min.time()),
-            'data': decision
+            'data': decision,
+            'exit_plan': exit_plan_view(decision.exit_criteria),
         })
 
     # Research findings
