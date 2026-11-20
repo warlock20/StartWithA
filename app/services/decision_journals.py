@@ -21,7 +21,10 @@ A decision journal freezes the company's must-exit rules when it is created, so
 later edits or deletes of the rules do not rewrite what was decided. Every buy is
 its own decision: the one that opens a holding period (round trip) is the opening
 decision, and each later buy in the period is a top-up pointing to it through
-parent_decision_id. Nothing here commits; callers own the transaction.
+parent_decision_id. Imported holding periods get one opening decision each
+(ensure_import_decisions) and their later buys are linked to it, not given top-ups.
+Nothing here commits except the one-off repair fix_imported_decisions; callers own
+the transaction.
 
 Stored shape (v1):
     {"version": 1, "captured_at": "<UTC ISO, Z>",
@@ -29,14 +32,18 @@ Stored shape (v1):
 Rows from before snapshots hold {"legacy_text": str}.
 """
 
+import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Dict, List, Optional
 
+from app import db
 from app.models import DecisionJournal, ThesisEvolution, Transaction
 from app.models.portfolio import RoundTrip, get_round_trips
 from app.services.findings import active_must_exits
-from app.services.outcome_tracking import trip_buy_journal
+from app.services.outcome_tracking import IMPORTED_BUY_THESIS, sync_outcomes_for_company, trip_buy_journal
 from app.utils.time_utils import datetime, ensure_timezone_aware, now_utc
+
+logger = logging.getLogger(__name__)
 
 EXIT_PLAN_SNAPSHOT_VERSION = 1
 _TS_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
@@ -190,3 +197,112 @@ def latest_buy_decision(user_id: int, company_id: int) -> Optional[DecisionJourn
     return _buy_decisions_query(user_id, company_id).order_by(
         DecisionJournal.decision_date.desc(), DecisionJournal.id.desc()
     ).first()
+
+
+@dataclass
+class EnsureStats:
+    created: int = 0  # opening decisions created
+    linked: int = 0  # later buy rows linked to their opening decision
+
+
+def _imported_opening_decision(trip: RoundTrip) -> DecisionJournal:
+    """An honest opening decision for an imported trip: no confidence, return or timeframe."""
+    opening = trip.opening_transaction
+    journal = DecisionJournal(
+        user_id=opening.user_id,
+        company_id=opening.company_id,
+        decision_type='BUY',
+        decision_date=trip.entry_date,
+        investment_thesis=IMPORTED_BUY_THESIS,
+        is_portfolio_decision=True,
+        is_imported=True,
+        thesis_depth='minimal',
+        non_research_source='other',
+    )
+    snapshot_exit_plan(journal)
+    db.session.add(journal)
+    opening.decision_journal = journal
+    return journal
+
+
+def ensure_import_decisions(user_id: int, company_id: int) -> EnsureStats:
+    """
+    Give each imported holding period one opening decision and link its later buys.
+
+    A trip that already has an opening decision (on its opening row, or a manual one
+    made on a later buy, as a backdated import leaves it) gets no new one; its unlinked
+    BUYs, the opening row included, are linked to that decision, which is never edited.
+    Only a trip with no decision at all, whose opening BUY was imported, gets an imported
+    opening decision. Trips opened by a merger or spin-off are skipped, and a manual
+    opening without a journal never gets an imported decision. Running it twice changes
+    nothing. Flushes, never commits.
+    """
+    stats = EnsureStats()
+    for trip in get_round_trips(company_id, user_id):
+        if trip.opened_by_corporate_action:
+            continue
+        opening = trip.opening_transaction
+        decision = opening_decision_for_trip(trip)
+        created = None
+        if decision is None:
+            if opening.type != 'BUY' or not opening.is_imported:
+                continue
+            decision = created = _imported_opening_decision(trip)
+            stats.created += 1
+        for txn in trip.buys:
+            # A just-created opening is linked through the relationship; its id lands at flush
+            if (created is not None and txn is opening) or txn.decision_journal_id is not None:
+                continue
+            txn.decision_journal = decision
+            stats.linked += 1
+    db.session.flush()
+    return stats
+
+
+@dataclass
+class ImportFixReport:
+    user_id: int
+    companies: int = 0
+    created: int = 0
+    linked: int = 0
+    failed: bool = False
+    error: Optional[str] = None
+
+
+def fix_imported_decisions(user_id: Optional[int] = None, dry_run: bool = False) -> List[ImportFixReport]:
+    """
+    Run ensure_import_decisions, then the outcome sync, for every company with imported
+    transactions. Commits per user (rolls back per user when dry_run). A failure rolls
+    back that user only, is logged, and is recorded on the report.
+    """
+    query = db.session.query(Transaction.user_id, Transaction.company_id).filter(
+        Transaction.is_imported.is_(True), Transaction.company_id.isnot(None))
+    if user_id is not None:
+        query = query.filter(Transaction.user_id == user_id)
+    companies_by_user: Dict[int, List[int]] = {}
+    for uid, company_id in sorted(query.distinct().all()):
+        companies_by_user.setdefault(uid, []).append(company_id)
+
+    reports: List[ImportFixReport] = []
+    for uid, company_ids in sorted(companies_by_user.items()):
+        report = ImportFixReport(user_id=uid)
+        try:
+            report.companies = len(company_ids)
+            for company_id in company_ids:
+                stats = ensure_import_decisions(uid, company_id)
+                report.created += stats.created
+                report.linked += stats.linked
+                sync_outcomes_for_company(uid, company_id)
+            if dry_run:
+                db.session.rollback()
+            else:
+                db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            logger.error(f"Imported-decision fix failed for user {uid}", exc_info=True)
+            # Nothing landed for this user, so don't let the totals count it
+            report.created = report.linked = 0
+            report.failed = True
+            report.error = str(exc)
+        reports.append(report)
+    return reports

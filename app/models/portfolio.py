@@ -388,6 +388,7 @@ class RoundTrip:
     exit_date: Optional[date] = None
     exit_price: Optional[Decimal] = None
     sales: List[SaleMatch] = field(default_factory=list)  # oldest first
+    buys: List[Transaction] = field(default_factory=list)  # BUY rows, oldest first, the opening included
 
     @property
     def is_closed(self) -> bool:
@@ -473,6 +474,8 @@ def _walk_fifo(transactions):
         total_cost += cost
         if trip is not None:
             trip.buy_cost += cost
+            if txn.type == 'BUY':
+                trip.buys.append(txn)
 
         if first_purchase_date is None:
             first_purchase_date = txn.date

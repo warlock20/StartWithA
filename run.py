@@ -28,6 +28,7 @@ from app.services.portfolio_importer import PortfolioImporter
 from app.services.financial_data import FinancialDataService
 from app.services.feature_unlock_service import seed_unlock_thresholds
 from app.services.outcome_tracking import rebuild_trade_outcomes
+from app.services.decision_journals import fix_imported_decisions
 from app.models.research import ResearchProject
 # 1. Create the Flask app instance FIRST.
 app = create_app()
@@ -249,6 +250,32 @@ def rebuild_trade_outcomes_command(user_id, dry_run):
             line = (f"user {r.user_id}: companies={r.companies} created={r.created} updated={r.updated} "
                     f"deleted={r.deleted} closed={r.closed} "
                     f"positions_with_realized_pct={r.positions_with_realized_pct}")
+            if r.failed:
+                line += f" FAILED: {r.error}"
+            click.echo(line)
+            for key in totals:
+                totals[key] += getattr(r, key)
+        failed = len([r for r in reports if r.failed])
+        click.echo(f"TOTAL: users={len(reports)} " + " ".join(f"{k}={v}" for k, v in totals.items())
+                   + f" failed={failed}")
+        if dry_run:
+            click.echo("DRY RUN — nothing written")
+        if failed:
+            sys.exit(1)
+
+
+@app.cli.command("fix-imported-decisions")
+@click.option('--user-id', type=int, default=None, help='Only fix this user.')
+@click.option('--dry-run', is_flag=True, help='Do the full fix, then roll back.')
+def fix_imported_decisions_command(user_id, dry_run):
+    """Gives imported holding periods their missing opening decisions and links their later buys."""
+    with app.app_context():
+        if dry_run:
+            click.echo("DRY RUN — nothing written")
+        reports = fix_imported_decisions(user_id=user_id, dry_run=dry_run)
+        totals = dict(companies=0, created=0, linked=0)
+        for r in reports:
+            line = f"user {r.user_id}: companies={r.companies} created={r.created} linked={r.linked}"
             if r.failed:
                 line += f" FAILED: {r.error}"
             click.echo(line)

@@ -52,7 +52,8 @@ from .research_quality import calculate_research_quality
 
 logger = logging.getLogger(__name__)
 
-# Thesis text the bulk importer writes on its placeholder BUY journals.
+# Thesis label the bulk importer writes on its opening BUY decisions. A label only:
+# imports are recognised by is_imported, never by this text.
 IMPORTED_BUY_THESIS = 'Imported via bulk uploader'
 
 
@@ -216,8 +217,8 @@ class OutcomeSyncStats:
 
 
 def is_placeholder_journal(journal: Optional[DecisionJournal]) -> bool:
-    """True for the importer's made-up journal (thesis, confidence 5, expected return 15)."""
-    return journal is not None and (journal.investment_thesis or '').strip() == IMPORTED_BUY_THESIS
+    """True for a decision the importer made: it carries no thesis, confidence or expectations."""
+    return journal is not None and journal.is_imported
 
 
 def research_project_for_trade(
