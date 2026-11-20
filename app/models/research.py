@@ -289,7 +289,7 @@ class ResearchProject(db.Model):
         primaryjoin="and_(foreign(JournalEntry.company_id) == ResearchProject.company_id, "
                     "foreign(JournalEntry.user_id) == ResearchProject.user_id, "
                     "JournalEntry.entry_type.in_(['red_flag', 'green_flag', 'must_exit']), "
-                    "or_(JournalEntry.is_archived.is_(False), JournalEntry.is_archived.is_(None)))",
+                    "JournalEntry.is_archived.is_(False))",
         order_by="[JournalEntry.created_at, JournalEntry.id]",
         viewonly=True,
     )

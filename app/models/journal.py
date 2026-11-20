@@ -16,6 +16,8 @@
 
 # app/models/journal.py
 
+from sqlalchemy.ext.hybrid import hybrid_property
+
 from app import db
 from app.utils.time_utils import now_utc
 from app.utils.blocknote_utils import blocknote_to_text
@@ -49,6 +51,14 @@ class DecisionJournal(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), index=True)
+    # A top-up is a BUY linked to the opening BUY of its holding period.
+    parent_decision_id = db.Column(
+        db.Integer,
+        db.ForeignKey('decision_journal.id', ondelete='SET NULL',
+                      name='fk_decision_journal_parent_decision_id'),
+        index=True)
+    # Created by the portfolio importer; carries no confidence, return or timeframe.
+    is_imported = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     # Decision details
     decision_type = db.Column(db.String(20), nullable=False)  # DECISION_TYPES
@@ -61,7 +71,9 @@ class DecisionJournal(db.Model):
     expected_timeframe = db.Column(db.Integer)  # Months
     key_assumptions = db.Column(db.JSON)  # List of assumptions
     biggest_risks = db.Column(db.JSON)  # List of risks
-    exit_criteria = db.Column(db.Text)  # What would make you sell?
+    # Read-only snapshot of the company's active must-exit rules when the decision
+    # was saved: {"version": 1, "captured_at", "rules": [...]}, or {"legacy_text"}.
+    exit_criteria = db.Column(db.JSON)
 
     # Post-mortem (filled later)
     actual_return = db.Column(db.Float)
@@ -93,6 +105,15 @@ class DecisionJournal(db.Model):
 
     # Relationships
     company = db.relationship('Company', backref='decision_journals')
+    parent_decision = db.relationship('DecisionJournal', remote_side=[id], backref='top_ups')
+
+    @hybrid_property
+    def is_top_up(self):
+        return self.parent_decision_id is not None
+
+    @is_top_up.expression
+    def is_top_up(cls):
+        return cls.parent_decision_id.isnot(None)
 
     @property
     def investment_thesis_text(self):
@@ -153,7 +174,7 @@ class JournalEntry(db.Model):
     review_count = db.Column(db.Integer, default=0)
     review_notes = db.Column(db.Text)  # Notes added during review process
     is_starred = db.Column(db.Boolean, default=False)
-    is_archived = db.Column(db.Boolean, default=False)
+    is_archived = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     # AI Intelligence fields
     ai_analysis_result = db.Column(db.JSON)  # Full AI analysis results
@@ -175,6 +196,13 @@ class JournalEntry(db.Model):
     company = db.relationship('Company', backref='journal_entries')
     attachments = db.relationship('JournalAttachment', backref='entry',
                                  lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        # A must-exit rule without a company is invisible to coverage and the buy check.
+        db.CheckConstraint("entry_type <> 'must_exit' OR company_id IS NOT NULL",
+                           name='ck_journal_entry_must_exit_company'),
+        db.Index('ix_journal_entry_user_company_type', 'user_id', 'company_id', 'entry_type'),
+    )
 
     @classmethod
     def is_note(cls):

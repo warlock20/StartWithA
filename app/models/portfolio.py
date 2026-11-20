@@ -152,6 +152,9 @@ class Transaction(db.Model):
     # Additional context
     notes = db.Column(db.Text, nullable=True)
 
+    # Created by the portfolio importer. Imports are recognised by this, never by the note text.
+    is_imported = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false(), index=True)
+
     # Pattern tracking: Buying without research
     bought_without_research = db.Column(db.Boolean, default=False, index=True)
 

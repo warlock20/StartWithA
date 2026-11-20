@@ -90,8 +90,25 @@ def finding_entries(user_id: int, company_id: int, finding_type: Optional[str] =
         JournalEntry.user_id == user_id,
         JournalEntry.company_id == company_id,
         JournalEntry.entry_type.in_(types),
-        db.or_(JournalEntry.is_archived.is_(False), JournalEntry.is_archived.is_(None)),
+        JournalEntry.is_archived.is_(False),
     ).order_by(JournalEntry.created_at.asc(), JournalEntry.id.asc()).all()
+
+
+def active_must_exits(user_id: int, company_id: int) -> list:
+    """The company's live must-exit rules, oldest first."""
+    return finding_entries(user_id, company_id, MUST_EXIT)
+
+
+def has_exit_plan(user_id: int, company_id: int) -> bool:
+    """True when the company has at least one live must-exit rule (one EXISTS query)."""
+    return db.session.query(
+        JournalEntry.query.filter(
+            JournalEntry.user_id == user_id,
+            JournalEntry.company_id == company_id,
+            JournalEntry.entry_type == MUST_EXIT,
+            JournalEntry.is_archived.is_(False),
+        ).exists()
+    ).scalar()
 
 
 def _project_id_for(user_id: int, company_id: int) -> Optional[int]:
@@ -158,7 +175,7 @@ def signal_suggestions(user_id: int, query: str = '', limit: int = 10) -> list:
         JournalEntry.entry_type.in_(FINDING_TYPES),
         JournalEntry.title.isnot(None),
         JournalEntry.title != DEFAULT_SIGNAL,
-        db.or_(JournalEntry.is_archived.is_(False), JournalEntry.is_archived.is_(None)),
+        JournalEntry.is_archived.is_(False),
     )
     query = (query or '').strip()
     if query:
