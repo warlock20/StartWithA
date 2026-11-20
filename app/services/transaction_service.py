@@ -31,7 +31,7 @@ from app.models import (
 )
 from app.services.currency_service import CurrencyService
 from app.services.cash_service import CashService
-from app.services.decision_journals import current_opening_decision, current_thesis, snapshot_exit_plan
+from app.services.decision_journals import current_opening_decision, inherited_thesis, snapshot_exit_plan
 from app.services.outcome_tracking import safe_sync_outcomes
 from app.services.findings import MUST_EXIT, add_finding, has_exit_plan
 from app.services.intelligence_engine import IntelligenceEngine
@@ -714,13 +714,7 @@ class TransactionService:
         opening decision. The "why add now" note stays on the transaction.
         """
         parent = current_opening_decision(user_id, company_id)
-        thesis = current_thesis(user_id, company_id)
-        if thesis is not None:
-            investment_thesis = thesis.thesis
-        elif parent is not None:
-            investment_thesis = parent.investment_thesis or ''
-        else:
-            investment_thesis = ''
+        investment_thesis = inherited_thesis(user_id, company_id, parent)
 
         return DecisionJournal(
             user_id=user_id,

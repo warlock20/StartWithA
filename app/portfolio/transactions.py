@@ -26,14 +26,14 @@ from sqlalchemy.orm import joinedload
 from app.portfolio import portfolio_bp
 from app.models import (
                         Company, CorporateAction, Transaction, PortfolioPosition,
-                        JournalEntry, ResearchProject, ResearchOutcome, ThesisEvolution,
-                        update_portfolio_position)
+                        JournalEntry, ResearchProject, ResearchOutcome, update_portfolio_position)
 from app import db
 from app.models.portfolio import CORPORATE_LEG_LABELS
 from app.services.background_tasks import BackgroundTaskService
 from app.services.currency_service import CurrencyService
 from app.services.transaction_service import TransactionService, corporate_action_guard_error
 from app.services.cash_service import CashService
+from app.services.decision_journals import current_opening_decision, inherited_thesis
 from app.services.findings import MUST_EXIT
 from app.services.corporate_action_display import row_fields as corporate_row_fields
 from app.services.outcome_tracking import safe_sync_outcomes
@@ -309,16 +309,16 @@ def _add_transaction_context():
         exit_rules_by_company.setdefault(rule.company_id, []).append(
             {'signal': rule.title, 'text': rule.content})
 
-    # The current thesis per company as plain text, shown read-only on a top-up.
-    # Highest version wins if more than one row is marked current.
+    # The thesis a top-up would copy, as plain text, shown read-only on a top-up.
+    # Only held companies can be topped up, so only they are looked up.
     current_theses = {}
-    theses = ThesisEvolution.query.filter_by(
-        user_id=current_user.id, is_current=True,
-    ).order_by(ThesisEvolution.version.asc(), ThesisEvolution.id.asc()).all()
-    for thesis in theses:
-        # blocknote_preview adds '...' when it cuts, so leave room for it
-        current_theses[thesis.company_id] = blocknote_preview(
-            thesis.thesis, max_length=THESIS_PREVIEW_CHARS - 3)
+    for company_id in existing_positions:
+        thesis = inherited_thesis(current_user.id, company_id,
+                                  current_opening_decision(current_user.id, company_id))
+        if thesis:
+            # blocknote_preview adds '...' when it cuts, so leave room for it
+            current_theses[company_id] = blocknote_preview(
+                thesis, max_length=THESIS_PREVIEW_CHARS - 3)
 
     return {
         'companies': companies,

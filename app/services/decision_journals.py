@@ -147,3 +147,23 @@ def current_thesis(user_id: int, company_id: int) -> Optional[ThesisEvolution]:
     return ThesisEvolution.query.filter_by(
         user_id=user_id, company_id=company_id, is_current=True,
     ).order_by(ThesisEvolution.version.desc(), ThesisEvolution.id.desc()).first()
+
+
+def inherited_thesis(user_id: int, company_id: int, opening: Optional[DecisionJournal]) -> str:
+    """
+    The thesis a top-up copies: the current thesis version if it was written on or after
+    the opening decision's date (or there is no opening decision), else the opening
+    decision's own thesis. A re-buy writes no new version, so an older current version
+    belongs to an earlier holding period. An empty choice falls back to the other one.
+    """
+    version = current_thesis(user_id, company_id)
+    version_text = version.thesis if version is not None else None
+    opening_text = opening.investment_thesis if opening is not None else None
+    version_is_fresh = version is not None and (
+        opening is None or version.created_at is None
+        or ensure_timezone_aware(version.created_at).date() >= opening.decision_date)
+    first, second = (version_text, opening_text) if version_is_fresh else (opening_text, version_text)
+    for text in (first, second):
+        if text and text.strip():
+            return text
+    return ''
