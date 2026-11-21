@@ -261,7 +261,7 @@ def test_update_thesis_saves_the_return_target(app_context, _app):
     client = _logged_in(_app, user)
 
     response = client.post(f'/portfolio/position/{company.id}/thesis/new',
-                           data=_thesis_form(expected_cagr='40', expected_timeframe='24'))
+                           data=_thesis_form(expected_return='40', expected_timeframe='24'))
 
     assert response.status_code == 302
     version = ThesisEvolution.query.filter_by(user_id=user.id, company_id=company.id).one()
@@ -276,7 +276,7 @@ def test_update_thesis_rejects_timeframe_below_one_month(app_context, _app):
     client = _logged_in(_app, user)
 
     client.post(f'/portfolio/position/{company.id}/thesis/new',
-                data=_thesis_form(expected_cagr='40', expected_timeframe='0'))
+                data=_thesis_form(expected_return='40', expected_timeframe='0'))
 
     assert ThesisEvolution.query.filter_by(user_id=user.id).count() == 0
 
@@ -301,10 +301,11 @@ def test_update_thesis_form_prefills_purchase_target(app_context, _app):
 
     html = client.get(f'/portfolio/position/{company.id}/thesis/new').get_data(as_text=True)
 
-    assert 'name="expected_cagr"' in html
+    assert 'name="expected_return"' in html
+    assert '<option value="cagr" selected>' in html
     assert 'value="25.0"' in html
     assert 'value="18"' in html
-    assert 'Set when you bought.' in html
+    assert 'Set when you bought' in html
 
 
 # ── company page and outcome accuracy use the same CAGR reading ──
@@ -355,3 +356,27 @@ def test_decisions_page_compares_closed_position_cagr_up_to_last_sale(app_contex
     assert 'Expected CAGR' in html
     assert '+15.0%' in html
     assert '1 of 1 positions' in html
+
+
+def test_update_thesis_converts_a_total_to_a_cagr(app_context, _app):
+    user = _make_user()
+    company = _make_company(user.id)
+    client = _logged_in(_app, user)
+
+    client.post(f'/portfolio/position/{company.id}/thesis/new',
+                data=_thesis_form(expected_return='50', expected_return_basis='total',
+                                  expected_timeframe='36'))
+
+    version = ThesisEvolution.query.filter_by(user_id=user.id, company_id=company.id).one()
+    assert version.key_metrics == {'expected_cagr': 14.47, 'expected_timeframe': 36}
+
+
+def test_update_thesis_rejects_a_total_without_timeframe(app_context, _app):
+    user = _make_user()
+    company = _make_company(user.id)
+    client = _logged_in(_app, user)
+
+    client.post(f'/portfolio/position/{company.id}/thesis/new',
+                data=_thesis_form(expected_return='50', expected_return_basis='total'))
+
+    assert ThesisEvolution.query.filter_by(user_id=user.id).count() == 0

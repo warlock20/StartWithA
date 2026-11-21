@@ -1,4 +1,5 @@
 {% extends "main/_base_portfolio.html" %}
+{% from 'components/expected_return_field.html' import expected_return_input %}
 
 {% block title %}Add Thesis Version - {{ company.ticker_symbol }}{% endblock %}
 
@@ -124,21 +125,15 @@
                     <!-- Return Target: what Thesis vs Reality measures the position against -->
                     <div class="thesis-form-row">
                         <div class="thesis-form-group">
-                            <label class="thesis-form-label" for="expected_cagr">Expected CAGR (% a year)</label>
-                            <input type="number"
-                                   class="form-control"
-                                   id="expected_cagr"
-                                   name="expected_cagr"
-                                   step="0.1"
-                                   {% if return_target.expected_cagr is not none %}value="{{ return_target.expected_cagr }}"{% endif %}
-                                   placeholder="e.g., 15">
+                            <label class="thesis-form-label" for="expected_return">Expected Return (%)</label>
+                            {{ expected_return_input('expected_return', timeframe_id='expected_timeframe', value=return_target.expected_cagr, hint_class='thesis-form-hint') }}
                             <div class="thesis-form-hint">
                                 {% if return_target.source == 'thesis' %}
-                                Set in V{{ return_target.thesis_version }}. Annual return (CAGR) you expect on the position, counted from your purchase.
+                                Set in V{{ return_target.thesis_version }} (shown as % a year). Counted from your purchase.
                                 {% elif return_target.source == 'purchase' %}
-                                Set when you bought. Annual return (CAGR) you expect on the position, counted from your purchase.
+                                Set when you bought (shown as % a year). Counted from your purchase.
                                 {% else %}
-                                No target set yet. Annual return (CAGR) you expect on the position, counted from your purchase.
+                                No target set yet. Enter it as % a year, or as a total over the timeframe. Counted from your purchase.
                                 {% endif %}
                             </div>
                         </div>
@@ -152,7 +147,7 @@
                                    min="1"
                                    {% if return_target.expected_timeframe_months %}value="{{ return_target.expected_timeframe_months }}"{% endif %}
                                    placeholder="e.g., 36">
-                            <div class="thesis-form-hint">How long you expect to hold, in months from purchase.</div>
+                            <div class="thesis-form-hint">How long you expect to hold, in months from purchase. Needed for a total return.</div>
                         </div>
                     </div>
 
@@ -373,6 +368,7 @@
 {{ super() }}
 {% include 'components/blocknote_editor_include.html' %}
 <script src="{{ url_for('static', filename='js/send-to-sector.js') }}"></script>
+<script src="{{ url_for('static', filename='js/expected-return.js') }}"></script>
 <script>
 let bullCaseCount = 1;
 let bearCaseCount = 1;

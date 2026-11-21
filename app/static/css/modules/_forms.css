@@ -49,3 +49,23 @@
 /* =============================================================================
    PROMOTED — Search input (Phase 3 split — shared across bundles)
    ============================================================================= */
+
+/* Expected return: value plus "% a year / % total" (components/expected_return_field.html) */
+.expected-return-field {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.expected-return-field > input {
+    flex: 1 1 6rem;
+    min-width: 0;
+}
+
+.expected-return-field > select {
+    flex: 0 0 auto;
+    width: auto;
+}
+
+.expected-return-preview:empty {
+    display: none;
+}

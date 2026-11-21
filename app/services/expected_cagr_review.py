@@ -31,6 +31,7 @@ from typing import Iterable, List, Optional
 
 from app import db
 from app.models import DecisionJournal, ExpectedCagrReview, ThesisEvolution
+from app.services.expected_return import cagr_from_total
 from app.services.outcome_tracking import safe_sync_outcomes
 from app.utils.time_utils import now_utc
 
@@ -44,12 +45,6 @@ SOURCE_NOTES = {
     BUY: 'buy form (did not say total or annual)',
     THESIS: 'Update Thesis (asked for a total return)',
 }
-
-
-def cagr_from_total(total_pct: float, months: int) -> float:
-    """The annual rate (CAGR, %) that compounds to total_pct over months."""
-    growth = max(1 + float(total_pct) / 100, 0.0)
-    return round((growth ** (12 / months) - 1) * 100, 2)
 
 
 def _load_entry(kind: str, entry_id: int):

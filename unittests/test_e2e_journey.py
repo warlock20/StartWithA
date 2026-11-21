@@ -43,7 +43,7 @@ from curl_cffi import requests as curl_requests
 
 from app import db
 from app.models import (
-    DestinationCheckpoint, IdeaPipeline, JournalEntry, KillChecklist,
+    DecisionJournal, DestinationCheckpoint, IdeaPipeline, JournalEntry, KillChecklist,
     LearningNote, MistakeLog, PortfolioPosition, ResearchProject,
     ResearchOutcome, ResearchTemplate, ThesisEvolution, Transaction, User,
 )
@@ -302,8 +302,12 @@ def _run_journey(client, user_id):
         'date': (today - timedelta(days=1)).isoformat(),
         'quantity': '10', 'price_per_share': '700', 'fees': '5',
         'currency': 'USD', 'notes': 'Starter position',
+        'expected_return': '50', 'expected_return_basis': 'total', 'expected_timeframe': '36',
         'new_exit_rule_signal': 'Moat', 'new_exit_rule_text': 'Sell if EUV share is lost'})
     _lands_on(resp, '/portfolio/')
+    # 50% total over 36 months is stored as the CAGR it works out to
+    buy = DecisionJournal.query.filter_by(user_id=user_id, company_id=company_id, decision_type='BUY').one()
+    assert (buy.expected_cagr, buy.expected_timeframe) == (14.47, 36)
     assert Transaction.query.filter_by(user_id=user_id, company_id=company_id).count() == 1
     position = PortfolioPosition.query.filter_by(user_id=user_id, company_id=company_id).one()
     assert position.total_shares == 10

@@ -61,6 +61,7 @@ from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_quality import compare_research, position_gain, position_return_pct
+from app.services.expected_return import ExpectedReturnError, expected_return_from_form
 from app.services.outcome_tracking import received_position_company_ids, research_backed_company_ids
 from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
@@ -234,14 +235,15 @@ def add_thesis_version(company_id):
 
             # Get key metrics
             target_price = request.form.get('target_price', type=float)
-            expected_cagr = request.form.get('expected_cagr', type=float)
-            expected_timeframe = request.form.get('expected_timeframe', type=int)
-
-            if expected_timeframe is not None and expected_timeframe < 1:
-                flash('Expected timeframe must be at least 1 month', 'error')
+            try:
+                expected = expected_return_from_form(request.form)
+            except ExpectedReturnError as e:
+                flash(str(e), 'error')
                 return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
+            expected_cagr = expected.cagr
+            expected_timeframe = expected.timeframe_months
             if expected_timeframe is not None and expected_cagr is None:
-                flash('Add the expected CAGR that goes with the timeframe', 'error')
+                flash('Add the expected return that goes with the timeframe', 'error')
                 return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
 
             key_metrics = {}
