@@ -1183,10 +1183,12 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0 0.5rem;
 }
 
 .findings-editable .finding-signal {
+    flex: 0 1 auto;
     font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
@@ -1213,6 +1215,12 @@
     white-space: nowrap;
 }
 
+.findings-editable .finding-reviewed {
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+}
+
+.findings-editable .finding-review,
 .findings-editable .finding-delete {
     display: inline-flex;
     align-items: center;
@@ -1227,8 +1235,21 @@
     cursor: pointer;
 }
 
+.findings-editable .finding-review {
+    width: auto;
+    gap: 0.25rem;
+    padding: 0 0.25rem;
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+}
+
 .findings-editable .finding-delete:hover {
     color: var(--danger-500);
+}
+
+.findings-editable .finding-review:hover,
+.findings-editable .finding-review.is-done {
+    color: var(--success-500);
 }
 
 .finding-add-form {
