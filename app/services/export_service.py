@@ -572,8 +572,8 @@ def build_decision_journals_md(journals, company_name):
 
         if dj.confidence_score:
             lines.append(f"**Confidence:** {dj.confidence_score}/10")
-        if dj.expected_return:
-            lines.append(f"**Expected Return:** {dj.expected_return}%")
+        if dj.expected_cagr:
+            lines.append(f"**Expected CAGR:** {dj.expected_cagr}% a year")
         if dj.expected_timeframe:
             lines.append(f"**Expected Timeframe:** {dj.expected_timeframe} months")
         lines.append("")

@@ -179,7 +179,7 @@ class ThesisAnalyzer:
         company_name: Optional[str] = None,
         ticker: Optional[str] = None,
         sector: Optional[str] = None,
-        expected_return: Optional[float] = None,
+        expected_cagr: Optional[float] = None,
         expected_timeframe: Optional[int] = None,
         confidence_score: Optional[int] = None
     ) -> ThesisAnalysisResult:
@@ -191,8 +191,8 @@ class ThesisAnalyzer:
             company_name: Name of the company (optional)
             ticker: Stock ticker (optional)
             sector: Company sector (optional)
-            expected_return: Expected return % (optional)
-            expected_timeframe: Expected timeframe in months (optional)
+            expected_cagr: Expected CAGR, % a year (optional)
+            expected_timeframe: Expected holding period in months (optional)
             confidence_score: User's confidence 1-10 (optional)
         
         Returns:
@@ -227,7 +227,7 @@ class ThesisAnalyzer:
                     company_name=company_name,
                     ticker=ticker,
                     sector=sector,
-                    expected_return=expected_return,
+                    expected_cagr=expected_cagr,
                     expected_timeframe=expected_timeframe,
                     confidence_score=confidence_score
                 )
@@ -258,7 +258,7 @@ class ThesisAnalyzer:
             has_catalysts=has_catalysts,
             has_exit_criteria=has_exit_criteria,
             detected_biases=detected_biases,
-            expected_return=expected_return,
+            expected_cagr=expected_cagr,
             confidence_score=confidence_score
         )
     
@@ -268,7 +268,7 @@ class ThesisAnalyzer:
         company_name: Optional[str],
         ticker: Optional[str],
         sector: Optional[str],
-        expected_return: Optional[float],
+        expected_cagr: Optional[float],
         expected_timeframe: Optional[int],
         confidence_score: Optional[int]
     ) -> ThesisAnalysisResult:
@@ -282,10 +282,10 @@ class ThesisAnalyzer:
             context_parts.append(f"Ticker: {ticker}")
         if sector:
             context_parts.append(f"Sector: {sector}")
-        if expected_return:
-            context_parts.append(f"Expected Return: {expected_return}%")
+        if expected_cagr:
+            context_parts.append(f"Expected CAGR: {expected_cagr}% a year")
         if expected_timeframe:
-            context_parts.append(f"Timeframe: {expected_timeframe} months")
+            context_parts.append(f"Expected holding period: {expected_timeframe} months")
         if confidence_score:
             context_parts.append(f"Investor Confidence: {confidence_score}/10")
 
@@ -339,7 +339,7 @@ class ThesisAnalyzer:
         has_catalysts: bool,
         has_exit_criteria: bool,
         detected_biases: List[Dict[str, str]],
-        expected_return: Optional[float],
+        expected_cagr: Optional[float],
         confidence_score: Optional[int]
     ) -> ThesisAnalysisResult:
         """Fallback rule-based analysis when AI is unavailable"""
@@ -409,8 +409,8 @@ class ThesisAnalyzer:
             suggested_questions.append("Under what conditions would you sell?")
         
         # Check for unrealistic expectations
-        if expected_return and expected_return > 50:
-            risk_flags.append(f"Expected return of {expected_return}% is very aggressive")
+        if expected_cagr and expected_cagr > 50:
+            risk_flags.append(f"Expected CAGR of {expected_cagr}% a year is very aggressive")
             suggested_questions.append("Is this return expectation realistic based on historical data?")
         
         if confidence_score and confidence_score >= 9 and not has_risks:

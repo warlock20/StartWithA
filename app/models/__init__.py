@@ -85,6 +85,7 @@ from .journal import (
     InvestmentPostMortem,
     PatternRecognition,
 )
+from .expected_cagr_review import ExpectedCagrReview
 from .portfolio import (
     ExchangeRate,
     CorporateAction,
@@ -141,6 +142,7 @@ def load_user(user_id):
 
 # Export all models for backward compatibility
 __all__ = [
+    'ExpectedCagrReview',
     # Database instance
     'db',
     # Association tables

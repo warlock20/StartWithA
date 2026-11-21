@@ -39,6 +39,7 @@ from typing import Dict, Any, List, Optional, Set
 import logging
 
 from app import db
+from app.utils.financial_utils import calculate_cagr
 from app.utils.time_utils import date, days_between, now_utc
 from app.models.ai_intelligence import ResearchOutcome
 from app.models.checklist import DestinationCheckpoint
@@ -83,17 +84,17 @@ class OutcomeTracker:
         Calculate how accurate the initial thesis was.
         
         Based on:
-        - Expected return vs actual (40%)
+        - Expected CAGR vs realized CAGR (40%)
         - Hold period accuracy (30%)
         - Checkpoint hit rate (30%)
         """
         scores = []
         weights = []
         
-        # 1. Return expectation accuracy (40%)
-        if outcome.expected_return_pct is not None:
-            expected = float(outcome.expected_return_pct)
-            actual = realized_return
+        # 1. Return expectation accuracy (40%): both sides as annual rates
+        if outcome.expected_cagr_pct is not None:
+            expected = float(outcome.expected_cagr_pct)
+            actual = calculate_cagr(realized_return, outcome.actual_hold_days or 0)
             
             # Same direction = partial credit
             if (expected > 0 and actual > 0) or (expected < 0 and actual < 0):
@@ -339,7 +340,7 @@ def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company
     real_journal = journal if journal is not None and not is_placeholder_journal(journal) else None
     outcome.initial_thesis = real_journal.investment_thesis_text if real_journal else None
     outcome.confidence_at_entry = real_journal.confidence_score if real_journal else None
-    outcome.expected_return_pct = real_journal.expected_return if real_journal else None
+    outcome.expected_cagr_pct = real_journal.expected_cagr if real_journal else None
     outcome.expected_hold_months = real_journal.expected_timeframe if real_journal else None
 
     # Known limitation: the quality score is the project's quality NOW, not on the
@@ -380,7 +381,7 @@ def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company
             outcome.outcome_recorded_at = now_utc()
         outcome.thesis_accuracy_score = (
             tracker._calculate_thesis_accuracy(outcome, realized)
-            if outcome.expected_return_pct is not None and realized is not None else None
+            if outcome.expected_cagr_pct is not None and realized is not None else None
         )
     else:
         outcome.exit_date = None

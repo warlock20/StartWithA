@@ -32,6 +32,7 @@ from app.models import (
 from app.services.currency_service import CurrencyService
 from app.services.cash_service import CashService
 from app.services.decision_journals import inherited_thesis, opening_decision_for_buy, snapshot_exit_plan
+from app.services.expected_return import ExpectedReturn, ExpectedReturnError, expected_return_from_form
 from app.services.outcome_tracking import safe_sync_outcomes
 from app.services.findings import MUST_EXIT, add_finding, has_exit_plan
 from app.services.intelligence_engine import IntelligenceEngine
@@ -394,6 +395,13 @@ class TransactionService:
                     error=validation.error_message
                 )
 
+            if transaction_type == 'BUY':
+                try:
+                    expected_return_from_form(form_data)
+                except ExpectedReturnError as e:
+                    db.session.rollback()
+                    return TransactionCreationResult(success=False, error=str(e))
+
             # Get company
             company = Company.query.filter_by(id=company_id, user_id=user_id).first()
 
@@ -644,9 +652,10 @@ class TransactionService:
         spin-off, or a pre-#434 re-buy that got no journal).
         """
         if transaction_type == 'BUY':
+            expected = expected_return_from_form(form_data)  # Checked in create_transaction
             if is_add_to_position:
                 journal = TransactionService._top_up_journal(
-                    user_id, company_id, transaction, transaction_date, form_data)
+                    user_id, company_id, transaction, transaction_date, form_data, expected)
             else:
                 if bought_without_research:
                     investment_thesis = form_data.get('investment_thesis', '').strip()
@@ -660,8 +669,8 @@ class TransactionService:
                         decision_date=transaction_date,
                         investment_thesis=investment_thesis,
                         confidence_score=form_data.get('confidence_score', type=int),
-                        expected_return=form_data.get('expected_return', type=float),
-                        expected_timeframe=form_data.get('expected_timeframe', type=int),
+                        expected_cagr=expected.cagr,
+                        expected_timeframe=expected.timeframe_months,
                         is_portfolio_decision=True,
                         thesis_depth=thesis_depth,
                         thesis_word_count=word_count,
@@ -705,8 +714,8 @@ class TransactionService:
                             decision_date=transaction_date,
                             investment_thesis=research_project.investment_thesis or 'Investment thesis from research',
                             confidence_score=form_data.get('confidence_score', type=int),
-                            expected_return=form_data.get('expected_return', type=float),
-                            expected_timeframe=form_data.get('expected_timeframe', type=int),
+                            expected_cagr=expected.cagr,
+                            expected_timeframe=expected.timeframe_months,
                             is_portfolio_decision=True,
                             linked_research_id=research_project.id,
                             thesis_depth='comprehensive'
@@ -734,7 +743,7 @@ class TransactionService:
 
     @staticmethod
     def _top_up_journal(user_id: int, company_id: int, transaction: Transaction,
-                        transaction_date, form_data: Dict) -> DecisionJournal:
+                        transaction_date, form_data: Dict, expected: ExpectedReturn) -> DecisionJournal:
         """
         A top-up's own BUY decision. It copies the current thesis unchanged (a changed
         reason goes through the thesis-version page) and links to the opening decision
@@ -751,8 +760,8 @@ class TransactionService:
             decision_date=transaction_date,
             investment_thesis=investment_thesis,
             confidence_score=form_data.get('confidence_score', type=int),
-            expected_return=form_data.get('expected_return', type=float),
-            expected_timeframe=form_data.get('expected_timeframe', type=int),
+            expected_cagr=expected.cagr,
+            expected_timeframe=expected.timeframe_months,
             is_portfolio_decision=True,
             parent_decision_id=parent.id if parent is not None else None,
             linked_research_id=parent.linked_research_id if parent is not None else None,

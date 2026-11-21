@@ -1,4 +1,5 @@
 {% extends "main/_base_portfolio.html" %}
+{% from 'components/expected_return_field.html' import expected_return_input %}
 
 {% block title %}Add Thesis Version - {{ company.ticker_symbol }}{% endblock %}
 
@@ -125,20 +126,14 @@
                     <div class="thesis-form-row">
                         <div class="thesis-form-group">
                             <label class="thesis-form-label" for="expected_return">Expected Return (%)</label>
-                            <input type="number"
-                                   class="form-control"
-                                   id="expected_return"
-                                   name="expected_return"
-                                   step="0.1"
-                                   {% if return_target.expected_return is not none %}value="{{ return_target.expected_return }}"{% endif %}
-                                   placeholder="e.g., 50">
+                            {{ expected_return_input('expected_return', timeframe_id='expected_timeframe', value=return_target.expected_cagr) }}
                             <div class="thesis-form-hint">
                                 {% if return_target.source == 'thesis' %}
-                                Set in V{{ return_target.thesis_version }}. Total return you expect on the position, counted from your purchase.
+                                Set in V{{ return_target.thesis_version }} (shown as % a year). Counted from your purchase.
                                 {% elif return_target.source == 'purchase' %}
-                                Set when you bought. Total return you expect on the position, counted from your purchase.
+                                Set when you bought (shown as % a year). Counted from your purchase.
                                 {% else %}
-                                No target set yet. Total return you expect on the position, counted from your purchase.
+                                No target set yet. Enter it as % a year, or as a total over the timeframe. Counted from your purchase.
                                 {% endif %}
                             </div>
                         </div>
@@ -152,7 +147,7 @@
                                    min="1"
                                    {% if return_target.expected_timeframe_months %}value="{{ return_target.expected_timeframe_months }}"{% endif %}
                                    placeholder="e.g., 36">
-                            <div class="thesis-form-hint">Months from purchase. 12 is assumed if left empty.</div>
+                            <div class="thesis-form-hint">How long you expect to hold, in months from purchase. Needed for a total return.</div>
                         </div>
                     </div>
 
@@ -373,6 +368,7 @@
 {{ super() }}
 {% include 'components/blocknote_editor_include.html' %}
 <script src="{{ url_for('static', filename='js/send-to-sector.js') }}"></script>
+<script src="{{ url_for('static', filename='js/expected-return.js') }}"></script>
 <script>
 let bullCaseCount = 1;
 let bearCaseCount = 1;

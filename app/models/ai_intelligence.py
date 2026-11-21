@@ -65,7 +65,7 @@ class ResearchOutcome(db.Model):
     position_size = db.Column(db.Numeric(15, 2), nullable=True)
     initial_thesis = db.Column(db.Text, nullable=True)
     confidence_at_entry = db.Column(db.Integer, nullable=True)  # 1-10 scale
-    expected_return_pct = db.Column(db.Float, nullable=True)
+    expected_cagr_pct = db.Column(db.Float, nullable=True)  # Expected CAGR, % a year
     expected_hold_months = db.Column(db.Integer, nullable=True)
 
     # ===== OUTCOME METRICS (updated over time) =====

@@ -85,12 +85,12 @@
                     </div>
                     {% endif %}
 
-                    {% if journal.expected_return or journal.expected_timeframe %}
+                    {% if journal.expected_cagr or journal.expected_timeframe %}
                     <div class="row">
-                        {% if journal.expected_return %}
+                        {% if journal.expected_cagr %}
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Expected Return</label>
-                            <div>{{ journal.expected_return }}%</div>
+                            <label class="form-label fw-semibold">Expected CAGR</label>
+                            <div>{{ journal.expected_cagr }}% a year</div>
                         </div>
                         {% endif %}
                         {% if journal.expected_timeframe %}
@@ -323,7 +323,7 @@ function analyzeThesis() {
         company_name: {{ journal.company.name|tojson }},
         ticker: {{ journal.company.ticker_symbol|tojson }},
         confidence_score: {{ journal.confidence_score or 'null' }},
-        expected_return: {{ journal.expected_return or 'null' }},
+        expected_cagr: {{ journal.expected_cagr or 'null' }},
         expected_timeframe: {{ journal.expected_timeframe or 'null' }}
     };
 

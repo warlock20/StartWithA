@@ -1,0 +1,22 @@
+{# Expected return input: a value plus whether it is a CAGR or a total over the timeframe.
+   The server stores it as a CAGR (app/services/expected_return.py); the "Saved as" box,
+   driven by js/expected-return.js, shows the CAGR that will be saved.
+
+   {% from 'components/expected_return_field.html' import expected_return_input %}
+   {{ expected_return_input('expected_return', timeframe_id='expected_timeframe', value=..., basis=...) }}
+#}
+{% macro expected_return_input(id, timeframe_id, value=None, basis=None, placeholder='e.g., 15') %}
+<div class="expected-return-field" data-expected-return data-timeframe-id="{{ timeframe_id }}">
+    <input type="number" class="form-control" id="{{ id }}" name="expected_return" step="0.1"
+        placeholder="{{ placeholder }}"{% if value is not none and value != '' %} value="{{ value }}"{% endif %}>
+    <select class="form-select" name="expected_return_basis" aria-label="Is this a yearly or a total return?">
+        <option value="cagr"{% if basis != 'total' %} selected{% endif %}>% a year (CAGR)</option>
+        <option value="total"{% if basis == 'total' %} selected{% endif %}>% total</option>
+    </select>
+</div>
+<div class="expected-return-saved" data-expected-return-preview role="status" aria-live="polite" hidden>
+    <span class="expected-return-saved-label"></span>
+    <span class="expected-return-saved-value"></span>
+    <span class="expected-return-saved-detail"></span>
+</div>
+{% endmacro %}

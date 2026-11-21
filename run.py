@@ -29,6 +29,7 @@ from app.services.financial_data import FinancialDataService
 from app.services.feature_unlock_service import seed_unlock_thresholds
 from app.services.outcome_tracking import rebuild_trade_outcomes
 from app.services.decision_journals import fix_imported_decisions
+from app.services.expected_cagr_review import KINDS, convert_totals, keep_values, review_entries, set_values
 from app.models.research import ResearchProject
 # 1. Create the Flask app instance FIRST.
 app = create_app()
@@ -288,6 +289,77 @@ def fix_imported_decisions_command(user_id, dry_run):
             click.echo("DRY RUN — nothing written")
         if failed:
             sys.exit(1)
+
+
+@app.cli.group("expected-cagr")
+def expected_cagr_group():
+    """Review and fix expected CAGRs that may have been entered as a total return."""
+
+
+def _parse_entry(text):
+    kind, _, entry_id = text.partition(':')
+    if kind not in KINDS or not entry_id.isdigit():
+        raise click.BadParameter(f"{text!r}: use buy:<id> or thesis:<id>")
+    return kind, int(entry_id)
+
+
+def _echo_fix_results(results, dry_run):
+    for r in results:
+        if r.error:
+            click.echo(f"{r.kind}:{r.id}  FAILED: {r.error}")
+        else:
+            click.echo(f"{r.kind}:{r.id}  {r.old} -> {r.new}")
+    if any(r.error for r in results):
+        click.echo("Nothing written: fix the failures and run again")
+        sys.exit(1)
+    click.echo("DRY RUN — nothing written" if dry_run else f"Saved {len(results)} entries")
+
+
+@expected_cagr_group.command("review")
+@click.option('--user-id', type=int, default=None, help='Only this user.')
+def expected_cagr_review_command(user_id):
+    """Lists expected returns saved before the CAGR change that may have been a total."""
+    with app.app_context():
+        entries = review_entries(user_id=user_id)
+        click.echo("entry\tuser\tcompany\tentered\tvalue\ttimeframe_mo\tcagr_if_total\tsource")
+        for e in entries:
+            value = e.original_value if e.current_value == e.original_value else \
+                f"{e.current_value} (was {e.original_value})"
+            click.echo(f"{e.kind}:{e.id}\t{e.user_id}\t{e.company}\t{e.entered_on}\t{value}\t"
+                       f"{e.timeframe_months}\t{e.cagr_if_total}\t{e.note}")
+        click.echo(f"{len(entries)} entries to review. Resolve each with convert, set or keep.")
+
+
+@expected_cagr_group.command("convert")
+@click.argument('entries', nargs=-1, required=True)
+@click.option('--dry-run', is_flag=True, help='Show the changes, then roll back.')
+def expected_cagr_convert_command(entries, dry_run):
+    """The value was a total over its timeframe: stores the CAGR it implies.
+
+    ENTRIES are buy:<id> or thesis:<id>, as `review` prints them.
+    """
+    with app.app_context():
+        _echo_fix_results(convert_totals([_parse_entry(e) for e in entries], dry_run=dry_run), dry_run)
+
+
+@expected_cagr_group.command("set")
+@click.argument('entry')
+@click.argument('value', type=float)
+@click.option('--dry-run', is_flag=True, help='Show the change, then roll back.')
+def expected_cagr_set_command(entry, value, dry_run):
+    """Sets one entry's expected CAGR (% a year), e.g. `set buy:12 15`."""
+    with app.app_context():
+        kind, entry_id = _parse_entry(entry)
+        _echo_fix_results(set_values([(kind, entry_id, value)], dry_run=dry_run), dry_run)
+
+
+@expected_cagr_group.command("keep")
+@click.argument('entries', nargs=-1, required=True)
+@click.option('--dry-run', is_flag=True, help='Show the changes, then roll back.')
+def expected_cagr_keep_command(entries, dry_run):
+    """The value was already a CAGR: leaves it and takes the entry off the list."""
+    with app.app_context():
+        _echo_fix_results(keep_values([_parse_entry(e) for e in entries], dry_run=dry_run), dry_run)
 
 
 @app.cli.command("init-db")

@@ -32,8 +32,8 @@
         {% if portfolio_decision_journal.confidence_score %}
         <span class="position-journal-compact-badge">{{ portfolio_decision_journal.confidence_score }}/10</span>
         {% endif %}
-        {% if portfolio_decision_journal.expected_return %}
-        <span class="position-journal-compact-badge gain">+{{ portfolio_decision_journal.expected_return }}%</span>
+        {% if portfolio_decision_journal.expected_cagr %}
+        <span class="position-journal-compact-badge gain">+{{ portfolio_decision_journal.expected_cagr }}%/yr</span>
         {% endif %}
     </div>
     <a href="{{ url_for('portfolio.view_decision_journal', journal_id=portfolio_decision_journal.id) }}"

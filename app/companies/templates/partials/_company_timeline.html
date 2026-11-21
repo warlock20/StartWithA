@@ -75,7 +75,7 @@
         {% set variant = 'decision' %}
         {% set icon = 'bi-signpost-fill' %}
         {% set decision_text = d.investment_thesis|blocknote_preview(2000) if d.investment_thesis else '' %}
-        {% set has_detail = d.expected_return or event.exit_plan or d.project_id %}
+        {% set has_detail = d.expected_cagr or event.exit_plan or d.project_id %}
         {% set expandable = has_detail or decision_text|length > 60 %}
     {% else %}
         {% set variant = 'finding ' ~ d.flag_type %}
@@ -209,8 +209,8 @@
 
             {% elif event.type == 'decision' %}
                 <dl class="tl-facts">
-                    {% if d.expected_return %}
-                    <div><dt>Expected return</dt><dd>{{ "%.0f"|format(d.expected_return) }}%{% if d.expected_timeframe %} over {{ d.expected_timeframe }}mo{% endif %}</dd></div>
+                    {% if d.expected_cagr %}
+                    <div><dt>Expected CAGR</dt><dd>{{ "%.0f"|format(d.expected_cagr) }}%/yr{% if d.expected_timeframe %} for {{ d.expected_timeframe }}mo{% endif %}</dd></div>
                     {% endif %}
                     {% if event.exit_plan %}
                     <div><dt>Exit plan at time of decision</dt><dd>

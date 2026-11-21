@@ -73,7 +73,7 @@ class SimilarDecision:
     decision_date: datetime
     thesis_snippet: str
     confidence_score: Optional[int]
-    expected_return: Optional[float]
+    expected_cagr: Optional[float]
     
     # Outcome (if available)
     has_outcome: bool = False
@@ -96,7 +96,7 @@ class SimilarDecision:
             'decision_date': self.decision_date.isoformat() if self.decision_date else None,
             'thesis_snippet': self.thesis_snippet,
             'confidence_score': self.confidence_score,
-            'expected_return': self.expected_return,
+            'expected_cagr': self.expected_cagr,
             'has_outcome': self.has_outcome,
             'actual_return_pct': round(self.actual_return_pct, 2) if self.actual_return_pct else None,
             'holding_days': self.holding_days,
@@ -491,7 +491,7 @@ class SimilarMistakesService:
                     'thesis': decision.investment_thesis_text,
                     'decision_date': decision.decision_date,
                     'confidence_score': decision.confidence_score,
-                    'expected_return': decision.expected_return,
+                    'expected_cagr': decision.expected_cagr,
                     'was_researched': was_researched,
                     'outcome': outcome
                 })
@@ -572,7 +572,7 @@ class SimilarMistakesService:
             decision_date=decision_data.get('decision_date'),
             thesis_snippet=decision_data['thesis'][:200] + '...' if len(decision_data['thesis']) > 200 else decision_data['thesis'],
             confidence_score=decision_data.get('confidence_score'),
-            expected_return=decision_data.get('expected_return'),
+            expected_cagr=decision_data.get('expected_cagr'),
             has_outcome=outcome is not None,
             actual_return_pct=outcome.get('return_pct') if outcome else None,
             holding_days=outcome.get('holding_days') if outcome else None,

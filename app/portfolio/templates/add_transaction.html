@@ -1,4 +1,5 @@
 {% extends "main/_base_portfolio.html" %}
+{% from 'components/expected_return_field.html' import expected_return_input %}
 
 {% block title %}Add Transaction{% endblock %}
 
@@ -303,10 +304,10 @@
                                 <label for="expected_return" class="form-label fw-semibold">
                                     Expected Return (%)
                                 </label>
-                                <input type="number" class="form-control" id="expected_return"
-                                    name="expected_return" step="0.1" placeholder="e.g., 25"
-                                    value="{% if form_data %}{{ form_data.get('expected_return', '') }}{% endif %}">
-                                <div class="form-text">Optional - your target return</div>
+                                {{ expected_return_input('expected_return', timeframe_id='expected_timeframe',
+                                    value=form_data.get('expected_return') if form_data else None,
+                                    basis=form_data.get('expected_return_basis') if form_data else None) }}
+                                <div class="form-text">Optional - % a year, or the total you expect over the timeframe</div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="expected_timeframe" class="form-label fw-semibold">
@@ -315,7 +316,7 @@
                                 <input type="number" class="form-control" id="expected_timeframe"
                                     name="expected_timeframe" min="1" placeholder="e.g., 12"
                                     value="{% if form_data %}{{ form_data.get('expected_timeframe', '') }}{% endif %}">
-                                <div class="form-text">Optional - your investment horizon</div>
+                                <div class="form-text">Optional - your investment horizon. Needed for a total return.</div>
                             </div>
                         </div>
 
@@ -448,6 +449,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/expected-return.js') }}"></script>
 {{ super() }}
 {% include 'components/blocknote_editor_include.html' %}
 <script defer src="{{ url_for('static', filename='js/dist/vendors-recharts.bundle.js') }}"></script>
@@ -1487,7 +1489,7 @@ async function runFullThesisAnalysis() {
             thesis: thesis,
             company_id: companySelect?.value,
             confidence_score: confidenceInput?.value ? parseInt(confidenceInput.value) : null,
-            expected_return: expectedReturnInput?.value ? parseFloat(expectedReturnInput.value) : null,
+            expected_cagr: expectedReturnInput ? ExpectedReturn.cagr(expectedReturnInput.closest('[data-expected-return]')) : null,
             expected_timeframe: expectedTimeframeInput?.value ? parseInt(expectedTimeframeInput.value) : null
         })
     })
