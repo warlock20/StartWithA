@@ -18,6 +18,7 @@
 API routes for portfolio-related AJAX calls.
 '''
 import logging
+from functools import wraps
 from flask import request, jsonify, url_for
 from flask_login import login_required, current_user
 from app.services.intelligence_engine import IntelligenceEngine
@@ -34,10 +35,26 @@ from app.services.price_service import PriceService
 from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_thesis
 from app.services.financial_data import FinancialDataService
 from app.utils.blocknote_utils import blocknote_to_html
-from app.utils.decorators import json_errors
+from app.utils.decorators import json_errors, require_ai_tokens
 from app.services.findings import FINDING_TYPES
 
 logger = logging.getLogger(__name__)
+
+# max_tokens 2000 for the reply, plus the thesis and context going in
+THESIS_ANALYSIS_TOKEN_ESTIMATE = 3000
+
+
+def _require_ai_consent(f):
+    """403 JSON unless the current user has AI features turned on."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.ai_consent_given:
+            return jsonify({
+                'success': False,
+                'error': 'AI analysis needs AI features turned on.'
+            }), 403
+        return f(*args, **kwargs)
+    return decorated
 
 @portfolio_bp.route('/api/check-warnings', methods=['POST'])
 @login_required
@@ -110,6 +127,8 @@ def check_transaction_warnings():
 @login_required
 @limiter.limit(RATELIMIT_AI)
 @json_errors('Failed to analyze thesis')
+@_require_ai_consent
+@require_ai_tokens(THESIS_ANALYSIS_TOKEN_ESTIMATE)
 def analyze_investment_thesis():
     """
     API endpoint to analyze investment thesis quality.
@@ -181,7 +200,11 @@ def analyze_investment_thesis():
         expected_timeframe=data.get('expected_timeframe'),
         confidence_score=data.get('confidence_score')
     )
-        
+
+    # Charge only when the LLM produced the result, not the rule-based fallback
+    if result.ai_generated:
+        current_user.increment_ai_tokens(THESIS_ANALYSIS_TOKEN_ESTIMATE)
+
     return jsonify({
         'success': True,
         'analysis': result.to_dict()
