@@ -126,7 +126,7 @@
                     <div class="thesis-form-row">
                         <div class="thesis-form-group">
                             <label class="thesis-form-label" for="expected_return">Expected Return (%)</label>
-                            {{ expected_return_input('expected_return', timeframe_id='expected_timeframe', value=return_target.expected_cagr, hint_class='thesis-form-hint') }}
+                            {{ expected_return_input('expected_return', timeframe_id='expected_timeframe', value=return_target.expected_cagr) }}
                             <div class="thesis-form-hint">
                                 {% if return_target.source == 'thesis' %}
                                 Set in V{{ return_target.thesis_version }} (shown as % a year). Counted from your purchase.

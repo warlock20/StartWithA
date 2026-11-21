@@ -64,15 +64,6 @@ def test_form_converts_a_total():
     assert (expected.cagr, expected.timeframe_months) == (pytest.approx(14.47), 36)
 
 
-def test_form_uses_the_first_filled_in_set_of_fields():
-    # The buy form's no-research section repeats the fields after the main section
-    form = MultiDict([
-        ('expected_return', ''), ('expected_return_basis', 'cagr'), ('expected_timeframe', ''),
-        ('expected_return', '21'), ('expected_return_basis', 'total'), ('expected_timeframe', '24'),
-    ])
-    assert expected_return_from_form(form).cagr == pytest.approx(10.0)
-
-
 def test_form_rejects_a_timeframe_below_one_month():
     with pytest.raises(ExpectedReturnError):
         expected_return_from_form(MultiDict({'expected_return': '10', 'expected_timeframe': '0'}))

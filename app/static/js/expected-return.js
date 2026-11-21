@@ -1,6 +1,6 @@
 /* Expected return fields (components/expected_return_field.html).
- * A total over the timeframe is stored as the CAGR it works out to, so this shows
- * that CAGR as the user types and makes the timeframe required for a total.
+ * A total over the timeframe is stored as the CAGR it works out to. The "Saved as"
+ * box shows the CAGR that will be saved, and the timeframe is required for a total.
  * ExpectedReturn.cagr(container) gives the CAGR for scripts that send the value. */
 (function () {
     'use strict';
@@ -33,6 +33,18 @@
         return months && months >= 1 ? Math.round(cagrFromTotal(value, months) * 100) / 100 : null;
     }
 
+    function signed(rate) {
+        return (rate >= 0 ? '+' : '') + rate.toFixed(1) + '%';
+    }
+
+    function show(box, state, label, value, detail) {
+        box.hidden = false;
+        box.dataset.state = state;
+        box.querySelector('.expected-return-saved-label').textContent = label;
+        box.querySelector('.expected-return-saved-value').textContent = value;
+        box.querySelector('.expected-return-saved-detail').textContent = detail;
+    }
+
     function update(container) {
         var p = parts(container);
         var isTotal = p.basis.value === 'total';
@@ -40,19 +52,25 @@
             if (isTotal) { p.timeframe.setAttribute('required', 'required'); }
             else { p.timeframe.removeAttribute('required'); }
         }
-        if (!p.preview) { return; }
-        if (!isTotal || number(p.value) === null) {
-            p.preview.textContent = isTotal ? 'Enter the total return you expect over the timeframe.' : '';
+        var box = p.preview;
+        if (!box) { return; }
+        var value = number(p.value);
+        if (value === null) {
+            box.hidden = true;
+            return;
+        }
+        if (!isTotal) {
+            show(box, 'ok', 'Saved as', signed(value) + ' a year', 'CAGR, compared with the position\'s CAGR');
             return;
         }
         var months = number(p.timeframe);
         if (!months || months < 1) {
-            p.preview.textContent = 'Enter the timeframe to work out the yearly rate (CAGR).';
+            show(box, 'missing', 'Timeframe needed', 'Add the expected timeframe',
+                 'to turn ' + signed(value) + ' total into a yearly rate (CAGR)');
             return;
         }
-        var rate = cagrFromTotal(number(p.value), months);
-        p.preview.textContent = '= ' + (rate >= 0 ? '+' : '') + rate.toFixed(1) +
-            '% a year over ' + months + ' months, which is what gets saved.';
+        show(box, 'ok', 'Saved as', signed(cagrFromTotal(value, months)) + ' a year',
+             'CAGR of ' + signed(value) + ' total over ' + months + ' months');
     }
 
     function init(container) {

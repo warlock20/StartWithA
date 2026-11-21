@@ -70,28 +70,9 @@ def _number(text, cast):
 
 
 def expected_return_from_form(form) -> ExpectedReturn:
-    """Read the expected return, its basis and timeframe from a submitted form.
-
-    The buy form can carry the fields twice (its expectations section and the
-    no-research section), so the first set with a value is used.
-    """
-    def getlist(field):
-        if hasattr(form, 'getlist'):
-            return form.getlist(field)
-        return [form[field]] if form.get(field) is not None else []
-
-    values = getlist(VALUE_FIELD)
-    bases = getlist(BASIS_FIELD)
-    timeframes = getlist(TIMEFRAME_FIELD)
-    index = next((i for i, v in enumerate(values) if v not in (None, '')), 0)
-
-    def pick(items):
-        return items[index] if index < len(items) else None
-
-    months = _number(pick(timeframes), int)
-    if months is None:
-        months = next((m for m in (_number(t, int) for t in timeframes) if m is not None), None)
+    """Read the expected return, its basis and timeframe from a submitted form."""
+    months = _number(form.get(TIMEFRAME_FIELD), int)
     if months is not None and months < 1:
         raise ExpectedReturnError('Expected timeframe must be at least 1 month')
-    cagr = to_expected_cagr(_number(pick(values), float), pick(bases), months)
+    cagr = to_expected_cagr(_number(form.get(VALUE_FIELD), float), form.get(BASIS_FIELD), months)
     return ExpectedReturn(cagr, months)
