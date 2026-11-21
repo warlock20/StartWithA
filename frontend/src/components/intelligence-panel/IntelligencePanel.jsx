@@ -55,7 +55,7 @@ export function IntelligencePanel() {
     const typeRadios = document.querySelectorAll('input[name="type"]');
     const priceInput = document.getElementById('price_per_share');
 
-    function onCompanyChange() {
+    function onCompanyChange(event) {
       const companyId = companySelect ? companySelect.value : null;
       setHasCompany(!!companyId);
 
@@ -65,7 +65,8 @@ export function IntelligencePanel() {
         setDataError(false);
         return;
       }
-      doFetch(companyId);
+      // A restored selection must not overwrite the price the user typed
+      doFetch(companyId, { prefill: !(event && event.detail && event.detail.restored) });
     }
 
     function onTypeChange() {
@@ -97,7 +98,7 @@ export function IntelligencePanel() {
   // ------------------------------------------------------------------
   // Fetch company intelligence data
   // ------------------------------------------------------------------
-  async function doFetch(companyId) {
+  async function doFetch(companyId, { prefill = true } = {}) {
     setIsLoading(true);
     setDataError(false);
     fetchCounterRef.current++;
@@ -109,7 +110,7 @@ export function IntelligencePanel() {
 
       if (data.success && data.data) {
         setCompanyData(data.data);
-        prefillPrice(data.data.current_price);
+        if (prefill) prefillPrice(data.data.current_price);
       } else {
         setCompanyData(null);
         setDataError(true);
