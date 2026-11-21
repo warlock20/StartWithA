@@ -32,8 +32,10 @@ from app.services.capital_timing import (
 )
 from app.services.config_service import ConfigService
 from app.services.currency_service import CurrencyService
-from app.services.monitor_registry import get_monitor
-from app.services.monitor_schedule import MonitorSettingError, monitor_rows, run_now, update_setting
+from app.services.monitor_registry import get_event, get_monitor
+from app.services.monitor_schedule import (
+    MonitorSettingError, event_rows, monitor_rows, run_now, update_event_setting, update_setting,
+)
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 
 logger = logging.getLogger(__name__)
@@ -113,6 +115,7 @@ def monitors():
         section_intro=('AI checks that run on a schedule or when you do something. '
                        'Each run uses AI tokens from your monthly budget.'),
         monitors=monitor_rows(current_user),
+        events=event_rows(current_user),
         ai_consent=current_user.ai_consent_given,
     )
 
@@ -144,3 +147,17 @@ def run_monitor_now(key):
     else:
         flash(f'{get_monitor(key).label} queued. Refresh in a minute to see the result.', 'success')
     return redirect(url_for('settings.monitors', _anchor=f'monitor-{key}'))
+
+
+@settings_bp.route('/monitors/events/<key>', methods=['POST'])
+@login_required
+def update_event(key):
+    """Switch one event check on or off."""
+    enabled = request.form.get('enabled') == 'on'
+    try:
+        update_event_setting(current_user, key, enabled)
+    except MonitorSettingError as error:
+        flash(str(error), 'danger')
+    else:
+        flash(f'{get_event(key).label}: {"on" if enabled else "off"}.', 'success')
+    return redirect(url_for('settings.monitors', _anchor=f'event-{key}'))

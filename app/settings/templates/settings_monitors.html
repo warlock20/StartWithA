@@ -89,4 +89,36 @@
     </div>
 </section>
 {% endfor %}
+
+<h3 class="h6 text-uppercase text-muted mb-2 mt-4" id="event-checks">Checks that run when you act</h3>
+{% for e in events %}
+<section class="settings-panel" id="event-{{ e.key }}">
+    <div class="settings-panel-head">
+        <h3><i class="bi bi-lightning me-1" aria-hidden="true"></i>{{ e.label }}</h3>
+        {% if e.locked %}
+        <span class="settings-chip settings-chip--muted">Pro</span>
+        {% elif not e.enabled %}
+        <span class="settings-chip settings-chip--muted">Off</span>
+        {% endif %}
+    </div>
+    <p class="settings-hint mb-3">{{ e.description }}</p>
+    {% if e.locked %}
+    <p class="settings-hint mb-3">Available on the Pro plan.</p>
+    {% endif %}
+    <form method="POST" action="{{ url_for('settings.update_event', key=e.key) }}">
+        <div class="settings-row">
+            <label class="settings-row-label" for="event-{{ e.key }}-enabled">
+                <strong>Allow this check</strong>
+            </label>
+            <div class="settings-row-control">
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="event-{{ e.key }}-enabled"
+                           name="enabled" {% if e.enabled %}checked{% endif %}{% if e.locked %} disabled{% endif %}>
+                </div>
+                <button type="submit" class="action-btn"{% if e.locked %} disabled{% endif %}>Save</button>
+            </div>
+        </div>
+    </form>
+</section>
+{% endfor %}
 {% endblock %}

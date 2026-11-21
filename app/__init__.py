@@ -17,7 +17,8 @@
 # In app/__init__.py
 import logging
 
-from flask import Flask, g, render_template, request, jsonify
+from flask import Flask, g, render_template, request, jsonify, url_for
+from markupsafe import Markup
 from sqlalchemy import inspect as sa_inspect, text as sa_text
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -263,6 +264,34 @@ def create_app(config_class=Config):
             return_url=return_url,
             context_label=context_label
         )
+
+    @app.context_processor
+    def inject_ai_event_switches():
+        """Make ai_event_on(key) available in templates (per-request cache, like has_feature)"""
+        from app.services.monitor_registry import EVENTS
+        from app.services.monitor_schedule import OFF_MESSAGE, SETTINGS_LINK_TEXT, event_enabled
+
+        def ai_event_on(key):
+            if not current_user.is_authenticated:
+                return True
+            cache = getattr(g, '_ai_event_cache', None)
+            if cache is None:
+                cache = {}
+                g._ai_event_cache = cache
+            if key not in cache:
+                cache[key] = event_enabled(current_user, key)
+            return cache[key]
+
+        def ai_event_off_message(key):
+            return OFF_MESSAGE.format(label=EVENTS[key].label, settings=SETTINGS_LINK_TEXT)
+
+        def ai_event_off_note(key):
+            link = Markup('<a href="{}">{}</a>').format(
+                url_for('settings.monitors', _anchor=f'event-{key}'), SETTINGS_LINK_TEXT)
+            return Markup(OFF_MESSAGE).format(label=EVENTS[key].label, settings=link)
+
+        return dict(ai_event_on=ai_event_on, ai_event_off_message=ai_event_off_message,
+                    ai_event_off_note=ai_event_off_note)
 
     @app.context_processor
     def inject_feature_access():

@@ -340,10 +340,14 @@
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">🤖 AI Intelligence</h6>
-                <button class="btn btn-sm btn-outline-primary" onclick="analyzeEntry({{ entry.id }})" id="analyze-btn">
-                    <i class="bi bi-lightning" id="analyze-icon"></i>
-                    <span id="analyze-text">Analyze</span>
-                </button>
+                {% set analyze_on = ai_event_on('journal_entry_analysis') %}
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="analyzeEntry({{ entry.id }})" id="analyze-btn"
+                            {% if not analyze_on %}disabled title="{{ ai_event_off_message('journal_entry_analysis') }}"{% endif %}>
+                        <i class="bi bi-lightning" id="analyze-icon"></i>
+                        <span id="analyze-text">Analyze</span>
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div id="ai-intelligence-content">
@@ -407,6 +411,9 @@
                             <i class="bi bi-exclamation-triangle"></i>
                             Analysis failed. Click Analyze to retry.
                         </div>
+                    {% elif not analyze_on %}
+                        <p class="text-muted small mb-0"><i class="bi bi-robot"></i>
+                            {{ ai_event_off_note('journal_entry_analysis') }}</p>
                     {% else %}
                         <div class="text-muted text-center">
                             <i class="bi bi-robot"></i>

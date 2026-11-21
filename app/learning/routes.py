@@ -25,6 +25,8 @@ from app.utils.decorators import json_errors
 from app.utils.auth_utils import owned_or_404
 from app.services.background_tasks import BackgroundTaskService
 from app.services.mistake_log_view import valid_mistake_type
+from app.services.monitor_registry import EVENTS
+from app.services.monitor_schedule import OFF_MESSAGE, SETTINGS_LINK_TEXT, event_enabled
 from app.services.kill_criterion_suggester import (
     KILL_CRITERION_TOKEN_ESTIMATE, CriterionInUse, DuplicateCriterion,
     add_suggested_criterion, default_kill_checklist,
@@ -88,6 +90,9 @@ def review_mistake(mistake_id):
 def suggest_criterion(mistake_id):
     """Start an AI suggestion of a kill question that would have caught this mistake."""
     mistake = owned_or_404(MistakeLog, mistake_id)
+    if not event_enabled(current_user, 'kill_criterion_suggestion'):
+        return jsonify({'error': OFF_MESSAGE.format(label=EVENTS['kill_criterion_suggestion'].label,
+                                                       settings=SETTINGS_LINK_TEXT)}), 403
     try:
         checklist_id = _parse_id(_json_object().get('checklist_id'))
     except ValueError:

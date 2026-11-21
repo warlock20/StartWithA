@@ -28,7 +28,9 @@ from app.features import user_has_feature
 from app.models import BackgroundTask, User
 from app.models.user_monitor_setting import UserMonitorSetting
 from app.services.background_tasks import BackgroundTaskService
-from app.services.monitor_registry import FREQUENCY_PERIODS, MONITORS, Monitor, get_monitor
+from app.services.monitor_registry import (
+    EVENTS, FREQUENCY_PERIODS, MONITORS, Monitor, get_event, get_monitor,
+)
 from app.utils.time_utils import datetime, ensure_timezone_aware, now_utc, timedelta, timezone
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,8 @@ EPOCH = datetime(2024, 1, 1, tzinfo=timezone.utc)
 _HOUR = timedelta(hours=1)
 MONITOR_RUN_STALL_SECONDS = MONITOR_RUN_SOFT_LIMIT * 2
 RUN_NOW_COOLDOWN = timedelta(minutes=10)
+SETTINGS_LINK_TEXT = 'Settings → Background AI'
+OFF_MESSAGE = '{label} is turned off. Turn it on in {settings}.'
 
 
 class MonitorSettingError(Exception):
@@ -120,6 +124,43 @@ def update_setting(user, monitor_key: str, enabled: bool, frequency: str,
         row.next_run_at = next_slot(user.id, monitor_key, frequency, now, inclusive=False)
     db.session.commit()
     return row
+
+
+def _event_locked(user, event) -> bool:
+    return bool(event.feature and not user_has_feature(user, event.feature))
+
+
+def event_enabled(user, key: str) -> bool:
+    """Whether the user's event check may run. KeyError for an unknown key."""
+    event = EVENTS[key]
+    if _event_locked(user, event):
+        return False
+    row = get_row(user.id, key)
+    return event.default_enabled if row is None or row.enabled is None else row.enabled
+
+
+def update_event_setting(user, key: str, enabled: bool) -> UserMonitorSetting:
+    """Switch an event check on or off. Only `enabled` is stored; there is no schedule."""
+    event = get_event(key)
+    if event is None:
+        raise MonitorSettingError('Unknown check.')
+    if _event_locked(user, event):
+        raise MonitorSettingError(f'{event.label} is available on the Pro plan.')
+    row = get_or_create_row(user.id, key)
+    row.enabled = enabled
+    db.session.commit()
+    return row
+
+
+def event_rows(user) -> list[dict]:
+    """One settings-page row per event check, in registry order."""
+    return [{
+        'key': event.key,
+        'label': event.label,
+        'description': event.description,
+        'enabled': event_enabled(user, event.key),
+        'locked': _event_locked(user, event),
+    } for event in EVENTS.values()]
 
 
 def _naive_utc(dt: datetime) -> datetime:

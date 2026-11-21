@@ -16,16 +16,21 @@
      data-usage-url="{{ url_for('settings.account') }}"
      data-suggest-for="{{ (suggest_mistake.id if suggest_mistake else None)|tojson|forceescape }}">
 
+    {% set suggest_on = ai_event_on('kill_criterion_suggestion') %}
     {% if suggest_mistake %}
     <div class="mistake-banner" id="mistake-suggest-banner" role="status">
         <div>
             <p class="mistake-banner-title">Mistake logged: “{{ suggest_mistake.title }}”</p>
             <p class="mistake-banner-text">Turn the lesson into a check that stops the next one?</p>
+            {% if not suggest_on %}
+            <p class="mistake-banner-text">{{ ai_event_off_note('kill_criterion_suggestion') }}</p>
+            {% endif %}
         </div>
         <div class="mistake-banner-actions">
             <button type="button" class="action-btn" id="mistake-banner-dismiss">Not now</button>
             <button type="button" class="action-btn primary" id="mistake-banner-suggest"
-                    data-mistake-id="{{ suggest_mistake.id }}">
+                    data-mistake-id="{{ suggest_mistake.id }}"
+                    {% if not suggest_on %}disabled data-event-off title="{{ ai_event_off_message('kill_criterion_suggestion') }}"{% endif %}>
                 <i class="bi bi-lightbulb"></i> Suggest kill criterion
             </button>
         </div>
@@ -233,12 +238,17 @@
                                 </button>
                                 <span class="text-danger small prevented-error" role="alert"></span>
                                 <button type="button" class="action-btn js-suggest-criterion"
-                                        data-mistake-id="{{ mistake.id }}">
+                                        data-mistake-id="{{ mistake.id }}"
+                                        {% if not suggest_on %}disabled data-event-off title="{{ ai_event_off_message('kill_criterion_suggestion') }}"{% endif %}>
                                     <i class="bi bi-lightbulb"></i> Suggest kill criterion
                                 </button>
                             </div>
                         </div>
+                        {% if suggest_on %}
                         <p class="mistake-ai-note">Uses AI (about 3k tokens). Nothing changes on your checklist until you confirm.</p>
+                        {% else %}
+                        <p class="mistake-ai-note">{{ ai_event_off_note('kill_criterion_suggestion') }}</p>
+                        {% endif %}
                         <div id="criterion-panel-{{ mistake.id }}" class="criterion-panel-slot" aria-live="polite"></div>
                     </div>
                 </div>

@@ -29,6 +29,8 @@ from app.utils.blocknote_utils import blocknote_to_text
 from app.models.idea_pipeline import KillChecklist
 from app.services.kill_criterion_suggester import default_kill_checklist, mistake_ids_with_criteria
 from app.services.mistake_log_view import build_mistake_view
+from app.services.monitor_registry import EVENTS
+from app.services.monitor_schedule import OFF_MESSAGE, SETTINGS_LINK_TEXT, event_enabled
 from app.utils.decorators import json_errors
 from app.utils.auth_utils import owned_or_404
 from app.services.findings import (
@@ -1050,6 +1052,13 @@ def analyze_entry(entry_id):
     """Run AI analysis on a journal entry"""
     entry = owned_or_404(JournalEntry, entry_id)
 
+    if not event_enabled(current_user, 'journal_entry_analysis'):
+        return jsonify({
+            'success': False,
+            'error': OFF_MESSAGE.format(label=EVENTS['journal_entry_analysis'].label,
+                                         settings=SETTINGS_LINK_TEXT),
+        }), 403
+
     try:
         # Set processing status
         entry.ai_processing_status = 'processing'
@@ -1067,7 +1076,8 @@ def analyze_entry(entry_id):
         entry.ai_processing_status = 'completed'
 
         # If thesis implications found, check for contradictions
-        if entry.company_id and analysis_result.get('thesis_implications'):
+        if (entry.company_id and analysis_result.get('thesis_implications')
+                and event_enabled(current_user, 'thesis_contradiction_check')):
             contradiction_result = detect_thesis_contradictions(entry, entry.company_id)
             if contradiction_result.get('contradiction_detected'):
                 entry.contradiction_flags = contradiction_result
@@ -1151,14 +1161,16 @@ def get_contradictions(entry_id):
     entry = owned_or_404(JournalEntry, entry_id)
 
     contradictions = entry.contradiction_flags or {}
-
-    if not contradictions and entry.company_id:
-        # Run real-time analysis
-        try:
-            contradictions = detect_thesis_contradictions(entry, entry.company_id)
-        except Exception as e:
-            logger.error(f"Error detecting contradictions: {e}")
+    if not contradictions:
+        if not event_enabled(current_user, 'thesis_contradiction_check'):
             contradictions = {'contradiction_detected': False}
+        elif entry.company_id:
+            # Run real-time analysis
+            try:
+                contradictions = detect_thesis_contradictions(entry, entry.company_id)
+            except Exception as e:
+                logger.error(f"Error detecting contradictions: {e}")
+                contradictions = {'contradiction_detected': False}
 
     return jsonify({
         'success': True,
