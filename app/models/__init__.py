@@ -96,6 +96,7 @@ from .portfolio import (
 )
 from .background_task import BackgroundTask
 from .scheduled_job_run import ScheduledJobRun
+from .user_monitor_setting import UserMonitorSetting
 from .ai_intelligence import (
     ResearchOutcome,
     AIInsight,
@@ -217,6 +218,7 @@ __all__ = [
     'BackgroundTask',
     # Scheduled (beat) job run history
     'ScheduledJobRun',
+    'UserMonitorSetting',
     # AI Intelligence models
     'ResearchOutcome',
     'AIInsight',
