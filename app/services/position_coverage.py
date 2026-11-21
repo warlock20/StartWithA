@@ -48,6 +48,20 @@ def exit_plan_stale_days() -> int:
     return int(days)
 
 
+def _rule_freshness(rule):
+    """When the rule was last reviewed or edited, whichever is later.
+
+    An edit after a review counts as attention too. A rule with neither date
+    falls back to created_at, and to None (never fresh) when nothing is set.
+    """
+    dates = [d for d in (rule.last_reviewed, rule.updated_at) if d is not None]
+    if not dates and rule.created_at is not None:
+        dates = [rule.created_at]
+    if not dates:
+        return None
+    return max(ensure_timezone_aware(d) for d in dates)
+
+
 GAP_TYPES = ('no_exit_plan', 'no_active_checkpoint', 'checkpoints_all_past', 'exit_plan_stale')
 GAP_SEVERITY = {
     'no_exit_plan': 'danger',
@@ -111,7 +125,7 @@ class PositionCoverageService:
         today = now_utc().date()
         stale_days = exit_plan_stale_days()
         cutoff = now_utc() - timedelta(days=stale_days)
-        rules = {cid: findings.active_must_exits(self.user_id, cid) for cid in company_ids}
+        rules = findings.active_must_exits_by_company(self.user_id, company_ids)
 
         rows = [
             self._coverage(p, rules[p.company_id], checkpoints.get(p.company_id, []),
@@ -131,9 +145,8 @@ class PositionCoverageService:
         has_exit_plan = bool(rules)
         has_active = bool(checkpoints)
         has_future = any(c.target_date >= today for c in checkpoints)
-        stale = has_exit_plan and not any(
-            ensure_timezone_aware(rule.last_reviewed or rule.updated_at) >= cutoff for rule in rules
-        )
+        fresh_dates = [_rule_freshness(rule) for rule in rules]
+        stale = has_exit_plan and not any(d is not None and d >= cutoff for d in fresh_dates)
 
         plan_link = url_for('companies.company_detail', company_id=company.id,
                             _anchor='research/findings')

@@ -37,7 +37,7 @@ from app.utils.time_utils import format_for_javascript, now_utc
 from app.utils.blocknote_utils import append_note, blocknote_to_text
 from app.services.findings import (
     FINDING_TYPES, MUST_EXIT, LastExitRuleError, add_finding, assert_can_remove_must_exit,
-    delete_finding, normalize_finding_type, replace_must_exit, signal_suggestions,
+    delete_finding, mark_reviewed, normalize_finding_type, replace_must_exit, signal_suggestions,
 )
 
 logger = logging.getLogger(__name__)
@@ -798,6 +798,18 @@ def api_replace_finding(company_id, entry_id):
     new_entry = replace_must_exit(entry, text, signal=data.get('signal'))
     db.session.commit()
     return jsonify({'success': True, 'finding': _finding_json(new_entry)})
+
+
+@companies_bp.route('/api/<int:company_id>/findings/<int:entry_id>/reviewed', methods=['POST'])
+@login_required
+def api_review_finding(company_id, entry_id):
+    """The user re-read a must-exit rule and it still stands: clears its stale warning."""
+    entry = mark_reviewed(current_user.id, company_id, entry_id)
+    if not entry:
+        return json_not_found('Exit rule')
+    db.session.commit()
+    return jsonify({'success': True,
+                    'last_reviewed': entry.last_reviewed.strftime('%b %d, %Y')})
 
 
 # ===================================================================

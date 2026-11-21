@@ -22,6 +22,7 @@ from app.services.research_priority import ResearchPriorityService
 from app.services.feature_unlock_service import FeatureUnlockService
 from app.services.company_state import company_states
 from app.services.watchlist_targets import active_hits, alert_item, near_target_pct, near_targets
+from app.features import user_has_feature
 from app.services.portfolio_alerts import PortfolioAlertsService
 from app.services.too_hard_service import overall_filter_rate
 from . import dashboard_bp
@@ -94,7 +95,10 @@ def index():
         ).order_by(DestinationCheckpoint.target_date.asc()).limit(5).all()
 
     # --- Portfolio alerts (same service as the Intelligence Hub) ---
-    alerts = PortfolioAlertsService(current_user.id).strip_alerts()
+    # Only for users who have Portfolio Intelligence; the others never see its page.
+    alerts = []
+    if user_has_feature(current_user, 'portfolio_intelligence'):
+        alerts = PortfolioAlertsService(current_user.id).strip_alerts()
 
     # --- Unlock Progress (free-tier users only) ---
     unlock_progress = []

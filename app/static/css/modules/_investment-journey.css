@@ -1213,6 +1213,11 @@
     white-space: nowrap;
 }
 
+.findings-editable .finding-reviewed {
+    font-size: var(--font-size-xs);
+}
+
+.findings-editable .finding-review,
 .findings-editable .finding-delete {
     display: inline-flex;
     align-items: center;
@@ -1229,6 +1234,11 @@
 
 .findings-editable .finding-delete:hover {
     color: var(--danger-500);
+}
+
+.findings-editable .finding-review:hover,
+.findings-editable .finding-review.is-done {
+    color: var(--success-500);
 }
 
 .finding-add-form {
