@@ -33,6 +33,7 @@ celery = Celery('app.celery_tasks',
                     'app.celery_tasks.tasks_data_retention',   # GDPR data retention tasks
                     'app.celery_tasks.tasks_import',           # Portfolio import tasks
                     'app.celery_tasks.tasks_monitors',              # Per-user background monitor runs
+                    'app.celery_tasks.tasks_monitor_dispatch',      # Hourly dispatcher for monitor runs
                     'app.celery_tasks.tasks_screening',             # Screening analysis tasks
                     'app.celery_tasks.tasks_companion',             # Companion agentic chat tasks
                     'app.celery_tasks.tasks_ai_check',              # AI check pipeline
@@ -60,6 +61,10 @@ celery.conf.update(
         'watchlist-target-check': {
             'task': 'app.celery_tasks.tasks_watchlist.check_watchlist_targets',
             'schedule': crontab(hour=21, minute=30),  # Daily at 21:30 UTC (after the US close in EST too)
+        },
+        'dispatch-user-monitors': {
+            'task': 'app.celery_tasks.tasks_monitor_dispatch.dispatch_user_monitors',
+            'schedule': crontab(minute=0),  # Hourly, on the hour
         },
         'ai-check-reap-stale-runs': {
             'task': 'app.celery_tasks.tasks_ai_check.ai_check_reap_task',

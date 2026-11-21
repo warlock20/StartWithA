@@ -16,18 +16,25 @@
 
 """Per-user schedule for background monitors: slot math and settings validation (#436)."""
 
+import logging
 import zlib
 
 from sqlalchemy.exc import IntegrityError
 
 from app import db
+from app.celery_tasks.tasks_monitors import MONITOR_RUN_SOFT_LIMIT
 from app.features import user_has_feature
+from app.models import BackgroundTask, User
 from app.models.user_monitor_setting import UserMonitorSetting
-from app.services.monitor_registry import FREQUENCY_PERIODS, Monitor, get_monitor
+from app.services.background_tasks import BackgroundTaskService
+from app.services.monitor_registry import FREQUENCY_PERIODS, MONITORS, Monitor, get_monitor
 from app.utils.time_utils import datetime, ensure_timezone_aware, now_utc, timedelta, timezone
+
+logger = logging.getLogger(__name__)
 
 EPOCH = datetime(2024, 1, 1, tzinfo=timezone.utc)
 _HOUR = timedelta(hours=1)
+MONITOR_RUN_STALL_SECONDS = MONITOR_RUN_SOFT_LIMIT * 2
 
 
 class MonitorSettingError(Exception):
@@ -111,3 +118,82 @@ def update_setting(user, monitor_key: str, enabled: bool, frequency: str,
         row.next_run_at = next_slot(user.id, monitor_key, frequency, now, inclusive=False)
     db.session.commit()
     return row
+
+
+def _naive_utc(dt: datetime) -> datetime:
+    """The naive UTC form the DateTime columns store."""
+    return ensure_timezone_aware(dt).astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _dispatch_one(user, monitor: Monitor, row: UserMonitorSetting | None, now: datetime) -> str:
+    """Decide and apply one user's step for one monitor. Returns the outcome name."""
+    if not is_active(monitor, row):
+        return 'inactive'
+    if monitor.feature and not user_has_feature(user, monitor.feature):
+        return 'locked'
+
+    _, frequency = effective(monitor, row)
+    if row is None:
+        row = get_or_create_row(user.id, monitor.key)
+    if row.next_run_at is None:
+        row.next_run_at = _naive_utc(next_slot(user.id, monitor.key, frequency, now, inclusive=True))
+        # Commit the slot even when it is due now: a broker failure below rolls back,
+        # and recomputing an hour later would jump a whole period.
+        db.session.commit()
+        if ensure_timezone_aware(row.next_run_at) > now:
+            return 'scheduled'
+    elif ensure_timezone_aware(row.next_run_at) > now:
+        return 'waiting'
+
+    next_run_at = _naive_utc(next_slot(user.id, monitor.key, frequency, now, inclusive=False))
+    if not user.can_use_ai_tokens(monitor.estimated_tokens):
+        row.next_run_at = next_run_at
+        db.session.commit()
+        return 'over_budget'
+    _fail_stalled_runs(user.id, monitor.key)
+    # Enqueue before touching the schedule: start_monitor_run commits, so advancing
+    # first would skip the user for a whole period if the broker is down. A failure
+    # now leaves the schedule alone and the next hourly dispatch retries. A failed
+    # final commit can run the monitor twice, which the monitor's dedup window absorbs.
+    BackgroundTaskService.start_monitor_run(user.id, monitor.key)
+    row.last_run_at = _naive_utc(now)
+    row.next_run_at = next_run_at
+    db.session.commit()
+    return 'enqueued'
+
+
+def _fail_stalled_runs(user_id: int, monitor_key: str) -> None:
+    """Fail an in-flight run whose worker died, so it cannot block every later dispatch."""
+    latest = (BackgroundTask.query
+              .filter(BackgroundTask.user_id == user_id,
+                      BackgroundTask.task_type == f'monitor:{monitor_key}',
+                      BackgroundTask.status.in_(('pending', 'running')))
+              .order_by(BackgroundTask.created_at.desc()).first())
+    if latest is not None:
+        BackgroundTaskService.fail_if_stalled(latest.id, user_id, MONITOR_RUN_STALL_SECONDS)
+
+
+def dispatch_due_monitors(now: datetime | None = None) -> dict:
+    """Queue every monitor run that is due, for users who consented to AI features.
+
+    Commits after each user so one user's failure cannot undo the others.
+    """
+    now = ensure_timezone_aware(now or now_utc())
+    counts = {'enqueued': 0, 'scheduled': 0, 'over_budget': 0, 'locked': 0, 'inactive': 0}
+    user_ids = [uid for (uid,) in db.session.query(User.id)
+                .filter(User.ai_consent_given.is_(True)).order_by(User.id)]
+
+    for monitor in MONITORS.values():
+        rows = {r.user_id: r for r in UserMonitorSetting.query.filter_by(monitor_key=monitor.key)}
+        for user_id in user_ids:
+            try:
+                user = db.session.get(User, user_id)
+                outcome = _dispatch_one(user, monitor, rows.get(user_id), now)
+            except Exception:
+                logger.exception('Monitor dispatch failed for user %s, monitor %s', user_id, monitor.key)
+                db.session.rollback()
+                rows = {r.user_id: r for r in UserMonitorSetting.query.filter_by(monitor_key=monitor.key)}
+                continue
+            if outcome in counts:
+                counts[outcome] += 1
+    return counts
