@@ -20,7 +20,7 @@ Checkpoint Analysis Service
 AI-powered analysis of DestinationCheckpoints. Evaluates whether investment
 milestones are on track based on the user's research context.
 
-Used by: Celery Beat task (daily), checkpoint_reminders view (display).
+Used by: the checkpoint_analysis background monitor, checkpoint_reminders view (display).
 """
 
 import logging
@@ -28,12 +28,12 @@ from datetime import date, timedelta
 from collections import defaultdict
 
 from app import db
-from app.models import DestinationCheckpoint, AIInsight
+from app.models import AIInsight, Company, DestinationCheckpoint, ResearchProject
 from app.services.ai import get_ai_service
 from app.services.ai.config import AITaskType
 from app.services.ai.prompt_service import prompt_service, resolve_model_provider
 from app.services.research_data_service import ResearchDataService
-from app.constants import CHECKPOINT_ANALYSIS_WINDOW_DAYS, CHECKPOINT_ANALYSIS_DEDUP_HOURS
+from app.constants import CHECKPOINT_ANALYSIS_WINDOW_DAYS
 from app.utils.time_utils import now_utc
 
 logger = logging.getLogger(__name__)
@@ -44,12 +44,12 @@ MAX_CONTEXT_LENGTH = 4000  # Truncate research context to control token usage
 class CheckpointAnalysisService:
 
     @staticmethod
-    def get_checkpoints_for_analysis(analysis_window_days=CHECKPOINT_ANALYSIS_WINDOW_DAYS):
+    def get_checkpoints_for_analysis(analysis_window_days=CHECKPOINT_ANALYSIS_WINDOW_DAYS, user_id: int | None = None):
         """
         Get active checkpoints grouped by user_id, within the analysis window.
 
         Returns checkpoints that are overdue (up to 30 days past) or upcoming
-        within the window.
+        within the window. With user_id, only that user's checkpoints.
 
         Returns:
             dict[int, list[DestinationCheckpoint]]: Checkpoints grouped by user_id
@@ -58,11 +58,14 @@ class CheckpointAnalysisService:
         earliest = today - timedelta(days=analysis_window_days)
         latest = today + timedelta(days=analysis_window_days)
 
-        checkpoints = DestinationCheckpoint.query.filter(
+        query = DestinationCheckpoint.query.filter(
             DestinationCheckpoint.status == 'Active',
             DestinationCheckpoint.target_date >= earliest,
             DestinationCheckpoint.target_date <= latest,
-        ).order_by(DestinationCheckpoint.target_date.asc()).all()
+        )
+        if user_id is not None:
+            query = query.filter(DestinationCheckpoint.user_id == user_id)
+        checkpoints = query.order_by(DestinationCheckpoint.target_date.asc()).all()
 
         grouped = defaultdict(list)
         for cp in checkpoints:
@@ -71,9 +74,9 @@ class CheckpointAnalysisService:
         return dict(grouped)
 
     @staticmethod
-    def has_recent_analysis(checkpoint_id, hours=CHECKPOINT_ANALYSIS_DEDUP_HOURS):
-        """Check if a checkpoint was analyzed recently (dedup)."""
-        cutoff = now_utc() - timedelta(hours=hours)
+    def has_recent_analysis(checkpoint_id: int, window: timedelta) -> bool:
+        """Check if a checkpoint was analyzed within window, a timedelta (dedup)."""
+        cutoff = now_utc() - window
         return db.session.query(
             AIInsight.query.filter(
                 AIInsight.context_type == 'checkpoint',
@@ -82,6 +85,84 @@ class CheckpointAnalysisService:
                 AIInsight.created_at > cutoff,
             ).exists()
         ).scalar()
+
+    @staticmethod
+    def analyze_user_checkpoints(user, dedup: timedelta, estimated_tokens: int) -> dict:
+        """
+        Analyze one user's active checkpoints within the analysis window.
+
+        Stops a user's remaining checkpoints once their token budget runs out.
+        Consent is the caller's check. A failing checkpoint is logged and
+        skipped so it cannot stop the rest. Commits once at the end.
+
+        Args:
+            user: User instance
+            dedup: timedelta; checkpoints analysed within it are skipped
+            estimated_tokens: tokens one analysis is expected to use
+
+        Returns:
+            dict with total, analyzed, skipped (dedup or missing company),
+            failed and over_budget counts
+        """
+        user_id = user.id
+        checkpoints = CheckpointAnalysisService.get_checkpoints_for_analysis(
+            user_id=user_id
+        ).get(user_id, [])
+        analyzed = skipped = failed = over_budget = 0
+
+        for position, checkpoint in enumerate(checkpoints):
+            if not user.can_use_ai_tokens(estimated_tokens):
+                over_budget += len(checkpoints) - position
+                break
+            try:
+                if CheckpointAnalysisService.has_recent_analysis(checkpoint.id, dedup):
+                    skipped += 1
+                    continue
+
+                company = db.session.get(Company, checkpoint.company_id)
+                if not company:
+                    skipped += 1
+                    continue
+
+                research_project = ResearchProject.query.filter_by(
+                    user_id=user_id,
+                    company_id=checkpoint.company_id,
+                ).first()
+
+                insight = CheckpointAnalysisService.analyze_checkpoint(
+                    checkpoint, company, research_project, user
+                )
+                if insight:
+                    analyzed += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                failed += 1
+                logger.error(
+                    f"Checkpoint analysis failed for checkpoint {checkpoint.id} "
+                    f"(user={user_id}, company={checkpoint.company_id}): {e}",
+                    exc_info=True,
+                )
+                db.session.rollback()
+
+        try:
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit for user {user_id}: {e}", exc_info=True)
+            db.session.rollback()
+
+        logger.info(
+            f"Checkpoint analysis for user {user_id}: {analyzed} analyzed, "
+            f"{skipped} skipped, {failed} failed, {over_budget} over token budget"
+        )
+
+        return {
+            'total': len(checkpoints),
+            'analyzed': analyzed,
+            'skipped': skipped,
+            'failed': failed,
+            'over_budget': over_budget,
+        }
 
     @staticmethod
     def _build_prompt_variables(checkpoint, company, research_project):
