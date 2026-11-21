@@ -184,3 +184,64 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Position coverage (issue #435) */
+.hub-coverage {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+}
+
+.hub-coverage-title {
+    margin: 0 0 0.25rem;
+    font-size: 1.125rem;
+}
+
+.hub-coverage-subtitle {
+    margin: 0 0 1rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.hub-coverage-scroll {
+    overflow-x: auto;
+}
+
+.hub-coverage-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.hub-coverage-table th,
+.hub-coverage-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.hub-coverage-table th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary, #6b7280);
+}
+
+.hub-coverage-fixes {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+}
+
+.hub-coverage-fixes .action-btn {
+    white-space: nowrap;
+}
+
+/* Fix column shrinks to its content so both buttons sit in one row */
+.hub-coverage-table th:last-child,
+.hub-coverage-table td:last-child {
+    width: 1%;
+    white-space: nowrap;
+}

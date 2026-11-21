@@ -49,15 +49,14 @@ from app.services.background_tasks import BackgroundTaskService
 from app.constants import (
     MIN_TRADES_FOR_INSIGHTS,
     RECENT_DECISIONS_LIMIT,
-    DEFAULT_CHECKPOINT_LOOKBACK_DAYS,
     MAX_DYNAMIC_FORM_FIELDS,
 )
 from app.services.portfolio_intelligence import (
-    get_thesis_reality_check, get_return_target, PortfolioIntelligenceService,
+    get_thesis_reality_check, get_return_target,
     compare_to_expected_cagr,
     get_learning_insights, get_correlation_data, outcome_hold_days
     )
-from app.services.intelligence_engine import get_portfolio_warnings
+from app.services.portfolio_alerts import PortfolioAlertsService
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_quality import compare_research, position_gain, position_return_pct
@@ -785,9 +784,6 @@ def intelligence_hub():
     Central dashboard linking all intelligence features with summary metrics
     """
 
-    # Initialize service
-    intel_service = PortfolioIntelligenceService(current_user.id)
-    
     # ========================================
     # HEALTH BAR - Quick overview metrics
     # ========================================
@@ -816,8 +812,10 @@ def intelligence_hub():
         ResearchOutcome.realized_return_pct.isnot(None)
     ).all()
     
-    # Checkpoints — fetch once, derive summary from the same data
-    checkpoints_data = intel_service.get_upcoming_checkpoints(days_ahead=DEFAULT_CHECKPOINT_LOOKBACK_DAYS)
+    # Alerts, checkpoints, theses and coverage all come from one service so the
+    # strip, the health bar and the cards agree (issue #435)
+    alerts_service = PortfolioAlertsService(current_user.id)
+    checkpoints_data = alerts_service.checkpoints_data
     checkpoint_summary = {
         'overdue_count': len(checkpoints_data.get('overdue', [])),
         'this_week_count': len(checkpoints_data.get('this_week', [])),
@@ -830,7 +828,7 @@ def intelligence_hub():
     }
 
     # Thesis reality
-    thesis_positions = intel_service.get_thesis_reality_check()
+    thesis_positions = alerts_service.thesis_positions
     needs_attention = len([p for p in thesis_positions if p.status == 'needs_attention'])
     
     health = {
@@ -840,68 +838,12 @@ def intelligence_hub():
         'wins': summary['wins'],
         'closed_count': closed_count,
         'overdue_checkpoints': checkpoint_summary.get('overdue_count', 0),
-        'below_thesis': needs_attention
+        'below_thesis': needs_attention,
+        'no_exit_plan': alerts_service.coverage_counts()['no_exit_plan'],
     }
     
-    # ========================================
-    # ALERTS - Action items
-    # ========================================
-    alerts = []
-    
-    # Overdue checkpoints (reuse checkpoints_data fetched above)
-    for cp in checkpoints_data.get('overdue', [])[:3]:
-        alerts.append({
-            'type': 'danger',
-            'icon': 'exclamation-triangle-fill',
-            'message': f'{cp.company_ticker}: {cp.metric} is overdue',
-            'action': 'Review',
-            'link': url_for('portfolio.checkpoint_reminders')
-        })
-    
-    # Positions needing attention
-    for pos in thesis_positions:
-        if pos.status == 'needs_attention':
-            alerts.append({
-                'type': 'warning',
-                'icon': 'exclamation-circle',
-                'message': f'{pos.company_ticker} thesis diverging ({pos.actual_return_pct:+.1f}%)',
-                'action': 'Check',
-                'link': url_for('portfolio.thesis_reality')
-            })
-    
-    # This week checkpoints
-    for cp in checkpoints_data.get('this_week', [])[:2]:
-        alerts.append({
-            'type': 'info',
-            'icon': 'calendar-event',
-            'message': f'{cp.company_ticker}: {cp.metric} due this week',
-            'action': 'View',
-            'link': url_for('portfolio.checkpoint_reminders')
-        })
-    
-    # Learning insight (if new patterns detected)
-    insights = get_learning_insights(current_user.id) if len(outcomes) >= MIN_TRADES_FOR_INSIGHTS else []
-    high_importance = [i for i in insights if i.importance == 'high']
-    if high_importance:
-        alerts.append({
-            'type': 'info',
-            'icon': 'lightbulb-fill',
-            'message': f'New insight: "{high_importance[0].title}"',
-            'action': 'View',
-            'link': url_for('portfolio.learning_insights')
-        })
-    
-    
-    portfolio_warnings = get_portfolio_warnings(current_user.id)
-    for warning in portfolio_warnings:
-        if warning.severity in ['high', 'medium']:
-            alerts.append({
-                'type': 'danger' if warning.severity == 'high' else 'warning',
-                'icon': 'shield-exclamation',
-                'message': f'{warning.title}: {warning.message[:50]}...',
-                'action': 'Review',
-                'link': url_for('portfolio.dashboard')
-            })
+    alerts = alerts_service.strip_alerts()
+
     # ========================================
     # CARD DATA - Individual sections
     # ========================================
@@ -970,7 +912,8 @@ def intelligence_hub():
         'needs_attention': needs_attention
     }
     
-    # Learning Card
+    # Learning Card — memoized, so this is the same call the alerts service made
+    insights = get_learning_insights(current_user.id) if len(outcomes) >= MIN_TRADES_FOR_INSIGHTS else []
     insights_by_cat = {'edge': [], 'winning_pattern': [], 'warning': [], 'improvement': []}
     for insight in insights:
         if insight.category in insights_by_cat:
@@ -989,6 +932,7 @@ def intelligence_hub():
     return render_template('intelligence_hub.html',
                           health=health,
                           alerts=alerts,
+                          coverage=alerts_service.coverage,
                           performance=performance,
                           decisions=decisions,
                           correlation=correlation,

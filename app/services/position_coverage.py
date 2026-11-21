@@ -17,8 +17,16 @@
 """Position coverage warnings: which open positions lack the plans they need."""
 
 import math
+from dataclasses import dataclass, field
 
+from flask import url_for
+from sqlalchemy.orm import joinedload
+
+from app.models import Company, DestinationCheckpoint
+from app.models.portfolio import PortfolioPosition
+from app.services import findings
 from app.services.config_service import ConfigKeys, get_config
+from app.utils.time_utils import ensure_timezone_aware, now_utc, timedelta
 
 DEFAULT_EXIT_PLAN_STALE_DAYS = 90
 MAX_EXIT_PLAN_STALE_DAYS = 3650  # keep in step with max_value in the seeding migration
@@ -38,3 +46,112 @@ def exit_plan_stale_days() -> int:
     if not math.isfinite(days) or not 1 <= days <= MAX_EXIT_PLAN_STALE_DAYS:
         return DEFAULT_EXIT_PLAN_STALE_DAYS
     return int(days)
+
+
+GAP_TYPES = ('no_exit_plan', 'no_active_checkpoint', 'checkpoints_all_past', 'exit_plan_stale')
+GAP_SEVERITY = {
+    'no_exit_plan': 'danger',
+    'no_active_checkpoint': 'warning',
+    'checkpoints_all_past': 'warning',
+    'exit_plan_stale': 'info',
+}
+_SEVERITY_RANK = {'danger': 0, 'warning': 1, 'info': 2}
+
+
+@dataclass
+class Gap:
+    type: str
+    severity: str
+    message: str
+    fix_label: str
+    fix_link: str
+
+
+@dataclass
+class PositionCoverage:
+    position: PortfolioPosition
+    company: Company
+    has_exit_plan: bool
+    has_active_checkpoint: bool
+    has_future_checkpoint: bool
+    exit_plan_stale: bool
+    gaps: list = field(default_factory=list)
+
+    @property
+    def has_problems(self) -> bool:
+        return bool(self.gaps)
+
+
+class PositionCoverageService:
+    """Which of a user's open positions lack an exit plan or a live checkpoint."""
+
+    def __init__(self, user_id: int):
+        self.user_id = user_id
+
+    def positions(self) -> list:
+        """One row per active position, problem rows (most severe gap first) then by name."""
+        positions = (
+            PortfolioPosition.query
+            .options(joinedload(PortfolioPosition.company))
+            .filter(PortfolioPosition.user_id == self.user_id,
+                    PortfolioPosition.is_active.is_(True))
+            .all()
+        )
+        if not positions:
+            return []
+
+        company_ids = {p.company_id for p in positions}
+        checkpoints = {}
+        for checkpoint in DestinationCheckpoint.query.filter(
+                DestinationCheckpoint.user_id == self.user_id,
+                DestinationCheckpoint.company_id.in_(company_ids),
+                DestinationCheckpoint.status == 'Active'):
+            checkpoints.setdefault(checkpoint.company_id, []).append(checkpoint)
+
+        today = now_utc().date()
+        stale_days = exit_plan_stale_days()
+        cutoff = now_utc() - timedelta(days=stale_days)
+        rules = {cid: findings.active_must_exits(self.user_id, cid) for cid in company_ids}
+
+        rows = [
+            self._coverage(p, rules[p.company_id], checkpoints.get(p.company_id, []),
+                           today, cutoff, stale_days)
+            for p in positions
+        ]
+        rows.sort(key=lambda r: (
+            not r.has_problems,
+            min((_SEVERITY_RANK[g.severity] for g in r.gaps), default=0),
+            (r.company.name or '').lower(),
+        ))
+        return rows
+
+    @staticmethod
+    def _coverage(position, rules, checkpoints, today, cutoff, stale_days) -> PositionCoverage:
+        company = position.company
+        has_exit_plan = bool(rules)
+        has_active = bool(checkpoints)
+        has_future = any(c.target_date >= today for c in checkpoints)
+        stale = has_exit_plan and not any(
+            ensure_timezone_aware(rule.last_reviewed or rule.updated_at) >= cutoff for rule in rules
+        )
+
+        plan_link = url_for('companies.company_detail', company_id=company.id,
+                            _anchor='research/findings')
+        checkpoint_link = url_for('companies.destination_analysis', company_id=company.id)
+        gaps = []
+        if not has_exit_plan:
+            gaps.append(Gap('no_exit_plan', GAP_SEVERITY['no_exit_plan'], 'No exit plan',
+                            'Add exit rule', plan_link))
+        if not has_active:
+            gaps.append(Gap('no_active_checkpoint', GAP_SEVERITY['no_active_checkpoint'],
+                            'No active checkpoint', 'Add checkpoint', checkpoint_link))
+        elif not has_future:
+            gaps.append(Gap('checkpoints_all_past', GAP_SEVERITY['checkpoints_all_past'],
+                            'All checkpoints are past', 'Add checkpoint', checkpoint_link))
+        if stale:
+            gaps.append(Gap('exit_plan_stale', GAP_SEVERITY['exit_plan_stale'],
+                            f'Exit plan not reviewed in {stale_days} days',
+                            'Review exit plan', plan_link))
+        gaps.sort(key=lambda g: _SEVERITY_RANK[g.severity])
+        return PositionCoverage(position, company, has_exit_plan, has_active, has_future,
+                                stale, gaps)

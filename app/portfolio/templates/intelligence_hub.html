@@ -3,6 +3,7 @@
 {% block title %}Investment Intelligence Hub{% endblock %}
 
 {% block content %}
+{% macro mark(ok) %}{% if ok %}<i class="bi bi-check-circle-fill text-success" title="Yes"></i><span class="visually-hidden">Yes</span>{% else %}<i class="bi bi-x-circle-fill text-danger" title="No"></i><span class="visually-hidden">No</span>{% endif %}{% endmacro %}
 <div class="portfolio-dashboard-container">
 
     <!-- ════════════════════════════════════════════════
@@ -72,43 +73,63 @@
                 <div class="portfolio-metric-value {% if health.below_thesis > 0 %}loss{% endif %}">{{ health.below_thesis }}</div>
                 <div class="portfolio-metric-subtext">Losing vs. thesis</div>
             </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon {% if health.no_exit_plan > 0 %}gray{% else %}green{% endif %}">
+                    <i class="bi bi-shield-exclamation"></i>
+                </div>
+                <div class="portfolio-metric-label">Without exit plan</div>
+                <div class="portfolio-metric-value {% if health.no_exit_plan > 0 %}loss{% endif %}">{{ health.no_exit_plan }}</div>
+                <div class="portfolio-metric-subtext">Open positions</div>
+            </div>
         </div>
 
-        {% if alerts %}
-        <div class="dashboard-alerts-strip" id="alerts-strip">
-            {% for alert in alerts[:2] %}
-            <div class="dashboard-alert-card dashboard-alert-card--{{ alert.type }}">
-                <i class="bi bi-{{ alert.icon }}"></i>
-                <span class="dashboard-alert-card__text">{{ alert.message }}</span>
-                <div class="dashboard-alert-card__actions">
-                    <a href="{{ alert.link }}" class="action-btn">{{ alert.action }}</a>
-                    {% if loop.last and alerts|length > 2 %}
-                    <div class="dashboard-alerts-more">
-                        +{{ alerts|length - 2 }} more
-                        <button onclick="toggleAlerts()">Show all</button>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
+        {% include 'components/portfolio_alerts_strip.html' %}
+    </div>
 
-            {% if alerts|length > 2 %}
-            <div class="dashboard-alerts-expanded" id="alerts-expanded">
-                {% for alert in alerts[2:] %}
-                <div class="dashboard-alert-card dashboard-alert-card--{{ alert.type }}">
-                    <i class="bi bi-{{ alert.icon }}"></i>
-                    <span class="dashboard-alert-card__text">{{ alert.message }}</span>
-                    <div class="dashboard-alert-card__actions">
-                        <a href="{{ alert.link }}" class="action-btn">{{ alert.action }}</a>
-                    </div>
-                </div>
+    <!-- Position coverage -->
+    <section class="hub-coverage" id="coverage">
+        <h2 class="hub-coverage-title font-poppins">Position coverage</h2>
+        <p class="hub-coverage-subtitle">Every open position should have an exit plan and a checkpoint still ahead of it.</p>
+        {% if coverage %}
+        <div class="hub-coverage-scroll">
+        <table class="hub-coverage-table">
+            <thead>
+                <tr>
+                    <th>Company</th>
+                    <th>Exit plan</th>
+                    <th>Active checkpoint</th>
+                    <th>Future checkpoint</th>
+                    <th>Plan fresh</th>
+                    <th>Fix</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in coverage %}
+                <tr>
+                    <td><a href="{{ url_for('companies.company_detail', company_id=row.company.id) }}">{{ row.company.name }}</a>{% if row.company.ticker_symbol %} <span class="text-muted">{{ row.company.ticker_symbol }}</span>{% endif %}</td>
+                    <td>{{ mark(row.has_exit_plan) }}</td>
+                    <td>{{ mark(row.has_active_checkpoint) }}</td>
+                    <td>{{ mark(row.has_future_checkpoint) }}</td>
+                    <td>{% if row.has_exit_plan %}{{ mark(not row.exit_plan_stale) }}{% else %}&mdash;{% endif %}</td>
+                    <td>
+                        <div class="hub-coverage-fixes">
+                        {% for gap in row.gaps %}
+                        <a href="{{ gap.fix_link }}" class="action-btn">{{ gap.fix_label }}</a>
+                        {% endfor %}
+                        </div>
+                    </td>
+                </tr>
                 {% endfor %}
-                <button class="dashboard-alerts-more" onclick="toggleAlerts()" style="align-self: flex-start;">Collapse</button>
-            </div>
-            {% endif %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="hub-intel-card-empty">
+            <i class="bi bi-briefcase"></i>
+            <p>No open positions to cover</p>
         </div>
         {% endif %}
-    </div>
+    </section>
 
     <!-- Intelligence Cards Grid -->
     <div class="priority-lane-grid">
@@ -436,13 +457,5 @@
 
 </div>
 
-<script>
-    function toggleAlerts() {
-        var expanded = document.getElementById('alerts-expanded');
-        if (expanded) {
-            expanded.classList.toggle('is-open');
-        }
-    }
-</script>
 {% endblock %}
 
