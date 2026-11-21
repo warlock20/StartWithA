@@ -57,6 +57,7 @@ from app.services.portfolio_intelligence import (
     get_learning_insights, get_correlation_data, outcome_hold_days
     )
 from app.services.portfolio_alerts import PortfolioAlertsService
+from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_quality import compare_research, position_gain, position_return_pct
@@ -932,7 +933,7 @@ def intelligence_hub():
     return render_template('intelligence_hub.html',
                           health=health,
                           alerts=alerts,
-                          coverage=alerts_service.coverage,
+                          coverage_rows=coverage_rows(alerts_service.coverage),
                           performance=performance,
                           decisions=decisions,
                           correlation=correlation,

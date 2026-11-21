@@ -197,9 +197,11 @@
                     .then(function (data) {
                         if (!data.success) throw new Error(data.error || 'Could not mark as reviewed');
                         var label = item.querySelector('.finding-reviewed');
-                        label.textContent = 'Reviewed today';
+                        label.textContent = 'Reviewed ' + data.reviewed_display;
                         label.hidden = false;
                         review.classList.add('is-done');
+                        clearTimeout(review.doneTimer);
+                        review.doneTimer = setTimeout(function () { review.classList.remove('is-done'); }, 2000);
                     })
                     .catch(function (err) { notify(err.message, 'error'); })
                     .finally(function () { review.disabled = false; });

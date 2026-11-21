@@ -1183,10 +1183,12 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0 0.5rem;
 }
 
 .findings-editable .finding-signal {
+    flex: 0 1 auto;
     font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
@@ -1215,6 +1217,7 @@
 
 .findings-editable .finding-reviewed {
     font-size: var(--font-size-xs);
+    white-space: nowrap;
 }
 
 .findings-editable .finding-review,

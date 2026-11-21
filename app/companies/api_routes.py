@@ -809,7 +809,7 @@ def api_review_finding(company_id, entry_id):
         return json_not_found('Exit rule')
     db.session.commit()
     return jsonify({'success': True,
-                    'last_reviewed': entry.last_reviewed.strftime('%b %d, %Y')})
+                    'reviewed_display': entry.last_reviewed.strftime('%b %d, %Y')})
 
 
 # ===================================================================

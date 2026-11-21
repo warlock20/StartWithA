@@ -168,3 +168,25 @@ class PositionCoverageService:
         gaps.sort(key=lambda g: _SEVERITY_RANK[g.severity])
         return PositionCoverage(position, company, has_exit_plan, has_active, has_future,
                                 stale, gaps)
+
+
+def coverage_rows(coverage) -> list:
+    """JSON-ready dicts for the hub's coverage table, in the order given."""
+    return [
+        {
+            'company_name': row.company.name,
+            'ticker': row.company.ticker_symbol or '',
+            'company_url': url_for('companies.company_detail', company_id=row.company.id),
+            'has_exit_plan': row.has_exit_plan,
+            'has_active_checkpoint': row.has_active_checkpoint,
+            'has_future_checkpoint': row.has_future_checkpoint,
+            'exit_plan_stale': row.exit_plan_stale,
+            'has_problems': row.has_problems,
+            'gaps': [
+                {'type': g.type, 'message': g.message, 'fix_label': g.fix_label,
+                 'fix_link': g.fix_link}
+                for g in row.gaps
+            ],
+        }
+        for row in coverage
+    ]

@@ -205,28 +205,17 @@
     color: var(--text-secondary, #6b7280);
 }
 
-.hub-coverage-scroll {
-    overflow-x: auto;
+.hub-coverage-summary {
+    margin: 0 0 0.75rem;
+    font-weight: 600;
 }
 
-.hub-coverage-table {
-    width: 100%;
-    border-collapse: collapse;
+.hub-coverage-toggle {
+    margin-top: 0.75rem;
 }
 
-.hub-coverage-table th,
-.hub-coverage-table td {
-    padding: 0.5rem 0.75rem;
-    text-align: left;
-    vertical-align: middle;
-    border-bottom: 1px solid var(--border-color, #e5e7eb);
-}
-
-.hub-coverage-table th {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-secondary, #6b7280);
+.hub-coverage-gaps {
+    display: none;
 }
 
 .hub-coverage-fixes {
@@ -239,9 +228,16 @@
     white-space: nowrap;
 }
 
-/* Fix column shrinks to its content so both buttons sit in one row */
-.hub-coverage-table th:last-child,
-.hub-coverage-table td:last-child {
-    width: 1%;
-    white-space: nowrap;
+@media (max-width: 767px) {
+    .hub-coverage-fixes {
+        flex-wrap: wrap;
+    }
+
+    /* Closed phone card: a muted line under the name says what is missing */
+    .hub-coverage-gaps {
+        display: block;
+        margin-top: 0.125rem;
+        font-size: 0.8125rem;
+        color: var(--text-secondary, #6b7280);
+    }
 }

@@ -2,8 +2,11 @@
 
 {% block title %}Investment Intelligence Hub{% endblock %}
 
+{% block head %}
+{% include 'components/_tabulator.html' %}
+{% endblock %}
+
 {% block content %}
-{% macro mark(ok) %}{% if ok %}<i class="bi bi-check-circle-fill text-success" title="Yes"></i><span class="visually-hidden">Yes</span>{% else %}<i class="bi bi-x-circle-fill text-danger" title="No"></i><span class="visually-hidden">No</span>{% endif %}{% endmacro %}
 <div class="portfolio-dashboard-container">
 
     <!-- ════════════════════════════════════════════════
@@ -87,42 +90,25 @@
     </div>
 
     <!-- Position coverage -->
+    {% set coverage_total = coverage_rows|length %}
+    {% set coverage_problems = coverage_rows|selectattr('has_problems')|list|length %}
+    {% set coverage_clean = coverage_total - coverage_problems %}
     <section class="hub-coverage" id="coverage">
         <h2 class="hub-coverage-title font-poppins">Position coverage</h2>
         <p class="hub-coverage-subtitle">Every open position should have an exit plan and a checkpoint still ahead of it.</p>
-        {% if coverage %}
-        <div class="hub-coverage-scroll">
-        <table class="hub-coverage-table">
-            <thead>
-                <tr>
-                    <th>Company</th>
-                    <th>Exit plan</th>
-                    <th>Active checkpoint</th>
-                    <th>Future checkpoint</th>
-                    <th>Plan fresh</th>
-                    <th>Fix</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in coverage %}
-                <tr>
-                    <td><a href="{{ url_for('companies.company_detail', company_id=row.company.id) }}">{{ row.company.name }}</a>{% if row.company.ticker_symbol %} <span class="text-muted">{{ row.company.ticker_symbol }}</span>{% endif %}</td>
-                    <td>{{ mark(row.has_exit_plan) }}</td>
-                    <td>{{ mark(row.has_active_checkpoint) }}</td>
-                    <td>{{ mark(row.has_future_checkpoint) }}</td>
-                    <td>{% if row.has_exit_plan %}{{ mark(not row.exit_plan_stale) }}{% else %}&mdash;{% endif %}</td>
-                    <td>
-                        <div class="hub-coverage-fixes">
-                        {% for gap in row.gaps %}
-                        <a href="{{ gap.fix_link }}" class="action-btn">{{ gap.fix_label }}</a>
-                        {% endfor %}
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        </div>
+        {% if coverage_rows %}
+        <p class="hub-coverage-summary" id="coverage-summary">
+            {% if coverage_problems %}
+            {{ coverage_problems }} of {{ coverage_total }} position{{ '' if coverage_total == 1 else 's' }} need{{ 's' if coverage_problems == 1 }} attention
+            {% else %}
+            <i class="bi bi-check-circle-fill text-success"></i> All {{ coverage_total }} position{{ '' if coverage_total == 1 else 's' }} {{ 'is' if coverage_total == 1 else 'are' }} covered
+            {% endif %}
+        </p>
+        <div id="coverage-table"></div>
+        {% if coverage_clean %}
+        <button type="button" class="action-btn hub-coverage-toggle" id="coverage-toggle" aria-expanded="false"
+                data-count="{{ coverage_clean }}">Show {{ coverage_clean }} covered position{{ '' if coverage_clean == 1 else 's' }}</button>
+        {% endif %}
         {% else %}
         <div class="hub-intel-card-empty">
             <i class="bi bi-briefcase"></i>
@@ -459,3 +445,153 @@
 
 {% endblock %}
 
+{% block scripts %}
+{{ super() }}
+{% if coverage_rows %}
+{% include 'components/_tabulator_js.html' %}
+<script defer src="{{ url_for('static', filename='js/dist/table-cards.bundle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script type="application/json" id="coverage-data">{{ coverage_rows|tojson }}</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var rows = JSON.parse(document.getElementById('coverage-data').textContent);
+    var anyProblems = rows.some(function(r) { return r.has_problems; });
+    var container = document.getElementById('coverage-table');
+
+    function el(tag, className, text) {
+        var node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    function mark(ok) {
+        var wrap = el('span');
+        wrap.appendChild(el('i', ok ? 'bi bi-check-circle-fill text-success' : 'bi bi-x-circle-fill text-danger'));
+        wrap.appendChild(el('span', 'visually-hidden', ok ? 'Yes' : 'No'));
+        return wrap;
+    }
+
+    function markColumn(title, field, priority, minWidth) {
+        return {
+            title: title,
+            field: field,
+            headerSort: false,
+            hozAlign: 'center',
+            headerHozAlign: 'center',
+            minWidth: minWidth || 90,
+            headerWordWrap: true,
+            responsive: priority,
+            formatter: function(cell) { return mark(cell.getValue()); }
+        };
+    }
+
+    var table = createDataTable('#coverage-table', {
+        data: rows,
+        columns: [
+            {
+                title: 'Company',
+                field: 'company_name',
+                cssClass: 'dt-card-title dt-cell-wrap',
+                headerSort: false,
+                minWidth: 140,
+                widthGrow: 2,
+                responsive: 0,
+                formatter: function(cell) {
+                    var row = cell.getRow().getData();
+                    var wrap = el('span');
+                    var link = el('a', '', row.company_name);
+                    link.href = row.company_url;
+                    wrap.appendChild(link);
+                    if (row.ticker) {
+                        wrap.appendChild(document.createTextNode(' '));
+                        wrap.appendChild(el('span', 'text-muted', row.ticker));
+                    }
+                    // Closed phone card: say what is wrong without a tap (CSS shows it on phones only)
+                    if (row.gaps.length) {
+                        wrap.appendChild(el('span', 'hub-coverage-gaps',
+                            row.gaps.map(function(g) { return g.message; }).join(' \u00b7 ')));
+                    }
+                    return wrap;
+                }
+            },
+            markColumn('Exit plan', 'has_exit_plan', 1),
+            markColumn('Active checkpoint', 'has_active_checkpoint', 2, 115),
+            markColumn('Future checkpoint', 'has_future_checkpoint', 3, 115),
+            {
+                title: 'Plan fresh',
+                field: 'exit_plan_stale',
+                headerSort: false,
+                hozAlign: 'center',
+                headerHozAlign: 'center',
+                minWidth: 90,
+                headerWordWrap: true,
+                responsive: 4,
+                formatter: function(cell) {
+                    var row = cell.getRow().getData();
+                    if (!row.has_exit_plan) return el('span', 'table-cell-muted', '\u2014');
+                    return mark(!row.exit_plan_stale);
+                }
+            },
+            {
+                title: 'Fix',
+                field: 'gaps',
+                cssClass: 'dt-card-actions',
+                headerSort: false,
+                minWidth: 290,
+                responsive: 0,
+                formatter: function(cell) {
+                    var wrap = el('div', 'hub-coverage-fixes');
+                    cell.getValue().forEach(function(gap) {
+                        // Visible text, not dt-action-label: that class hides the label on desktop
+                        var link = el('a', 'action-btn', gap.fix_label);
+                        link.href = gap.fix_link;
+                        wrap.appendChild(link);
+                    });
+                    return wrap;
+                }
+            }
+        ],
+        mobileCards: true,
+        foldColumns: true,
+        customConfig: {
+            layout: 'fitColumns',
+            pagination: rows.length > 25,
+            headerSort: false,
+            // Covered rows stay out until the toggle asks for them (set before build: no flash)
+            initialFilter: [{ field: 'has_problems', type: '=', value: true }]
+        }
+    });
+
+    // Rows with no gaps stay out of sight until the toggle asks for them.
+    var toggle = document.getElementById('coverage-toggle');
+    var showingCovered = false;
+
+    // With nothing to show (everything covered) the empty header row is noise
+    container.hidden = !anyProblems;
+
+    function applyFilter() {
+        if (showingCovered) {
+            table.clearFilter();
+        } else {
+            table.setFilter('has_problems', '=', true);
+        }
+        container.hidden = !showingCovered && !anyProblems;
+        if (!container.hidden) table.redraw(true);
+    }
+
+    if (toggle) {
+        toggle.addEventListener('click', function() {
+            showingCovered = !showingCovered;
+            var n = toggle.dataset.count;
+            toggle.textContent = showingCovered
+                ? 'Hide covered positions'
+                : 'Show ' + n + ' covered position' + (n === '1' ? '' : 's');
+            toggle.setAttribute('aria-expanded', showingCovered ? 'true' : 'false');
+            applyFilter();
+        });
+    }
+});
+</script>
+{% endif %}
+{% endblock %}
