@@ -36,10 +36,16 @@ from app.services.expected_return import ExpectedReturn, ExpectedReturnError, ex
 from app.services.outcome_tracking import safe_sync_outcomes
 from app.services.findings import MUST_EXIT, add_finding, has_exit_plan
 from app.services.intelligence_engine import IntelligenceEngine
+from app.models.journal import NON_RESEARCH_SOURCES
+from app.utils.blocknote_utils import blocknote_to_text
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 
 logger = logging.getLogger(__name__)
 
+NO_RESEARCH_THESIS_MIN_WORDS = 20
+NO_RESEARCH_THESIS_MESSAGE = ('Buying {ticker} without research needs an investment thesis of at least '
+                              f'{NO_RESEARCH_THESIS_MIN_WORDS} words.')
+NO_RESEARCH_SOURCE_MESSAGE = 'Buying {ticker} without research needs to say where the idea came from.'
 NO_EXIT_PLAN_MESSAGE = 'Add at least one must-exit rule for {ticker} before buying. Every buy needs an exit plan.'
 
 
@@ -99,6 +105,11 @@ def corporate_action_guard_error(user_id: int, company_id: int, transaction_type
     return None
 
 
+def thesis_word_count(thesis):
+    """Words in a posted thesis. It arrives as BlockNote JSON, so count the text, not the raw string."""
+    return len(blocknote_to_text(thesis or '').split())
+
+
 @dataclass
 class TransactionValidationResult:
     """Result of transaction validation"""
@@ -121,6 +132,7 @@ class TransactionCreationResult:
     message: Optional[str] = None
     error: Optional[str] = None
     warnings: List = None
+    decision_journal_required: bool = False
 
     def __post_init__(self):
         if self.warnings is None:
@@ -393,6 +405,50 @@ class TransactionService:
             # Get company
             company = Company.query.filter_by(id=company_id, user_id=user_id).first()
 
+            # Handle BUY-specific logic. This gate runs before anything that can commit
+            # (the FX lookup caches its rate), so a refusal still rolls back the inline rules.
+            bought_without_research = False
+            is_add_to_position = False
+            add_position_reason = None
+            add_position_notes = None
+            thesis_updated = False
+
+            if transaction_type == 'BUY':
+                # Check for existing position
+                existing_position = PortfolioPosition.query.filter_by(
+                    user_id=user_id,
+                    company_id=company_id
+                ).first()
+
+                if existing_position and existing_position.total_shares > 0:
+                    is_add_to_position = True
+                    add_position_reason = form_data.get('add_position_reason')
+                    add_position_notes = form_data.get('add_position_notes', '').strip()
+                    thesis_updated = form_data.get('thesis_updated') == 'true'
+                else:
+                    # Check for research
+                    research_project = ResearchProject.query.filter_by(
+                        company_id=company_id,
+                        user_id=user_id
+                    ).first()
+
+                    if not research_project:
+                        bought_without_research = True
+                        # An unresearched opening buy must say why: a thesis and where the idea came from
+                        error = None
+                        if thesis_word_count(form_data.get('investment_thesis', '')) < NO_RESEARCH_THESIS_MIN_WORDS:
+                            error = NO_RESEARCH_THESIS_MESSAGE
+                        elif form_data.get('non_research_source', '').strip() not in NON_RESEARCH_SOURCES:
+                            error = NO_RESEARCH_SOURCE_MESSAGE
+                        if error:
+                            # Also throws away the inline exit rules added above
+                            db.session.rollback()
+                            return TransactionCreationResult(
+                                success=False,
+                                error=error.format(ticker=company.ticker_symbol),
+                                decision_journal_required=True
+                            )
+
             # Parse values
             transaction_date = parse_date_to_date_object(date_str)
             price_per_share_decimal = Decimal(price_per_share)
@@ -422,35 +478,6 @@ class TransactionService:
                 logger.debug(f"Currency conversion: {currency} → {user_base_currency}")
                 logger.debug(f"Exchange rate: {exchange_rate}")
                 logger.debug(f"Price: {currency} {price_per_share_decimal} → {user_base_currency} {price_per_share_base}")
-
-            # Handle BUY-specific logic
-            bought_without_research = False
-            is_add_to_position = False
-            add_position_reason = None
-            add_position_notes = None
-            thesis_updated = False
-
-            if transaction_type == 'BUY':
-                # Check for existing position
-                existing_position = PortfolioPosition.query.filter_by(
-                    user_id=user_id,
-                    company_id=company_id
-                ).first()
-
-                if existing_position and existing_position.total_shares > 0:
-                    is_add_to_position = True
-                    add_position_reason = form_data.get('add_position_reason')
-                    add_position_notes = form_data.get('add_position_notes', '').strip()
-                    thesis_updated = form_data.get('thesis_updated') == 'true'
-                else:
-                    # Check for research
-                    research_project = ResearchProject.query.filter_by(
-                        company_id=company_id,
-                        user_id=user_id
-                    ).first()
-
-                    if not research_project:
-                        bought_without_research = True
 
             # Create transaction
             transaction = Transaction(
@@ -632,7 +659,7 @@ class TransactionService:
             else:
                 if bought_without_research:
                     investment_thesis = form_data.get('investment_thesis', '').strip()
-                    word_count = len(investment_thesis.split())
+                    word_count = thesis_word_count(investment_thesis)
                     thesis_depth = 'comprehensive' if word_count > 100 else ('brief' if word_count >= 50 else 'minimal')
 
                     journal = DecisionJournal(

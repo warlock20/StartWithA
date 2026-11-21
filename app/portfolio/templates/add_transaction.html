@@ -102,6 +102,7 @@
                                 data-ever-held="{% if company.id in held_company_ids %}true{% else %}false{% endif %}"
                                 data-position-shares="{% if company.id in existing_positions %}{{ existing_positions[company.id].shares }}{% endif %}"
                                 data-position-cost="{% if company.id in existing_positions %}{{ existing_positions[company.id].avg_cost }}{% endif %}"
+                                data-needs-journal="{% if (company.id not in existing_positions and company.id not in companies_with_research) or (show_warning and form_data and form_data.company_id|int == company.id) %}true{% else %}false{% endif %}"
                                 data-ticker="{{ company.ticker_symbol }}">
                                 {{ company.ticker_symbol }} - {{ company.name }}{% if company.id in
                                 existing_positions %} ({{ existing_positions[company.id].shares }} shares){% endif
@@ -163,7 +164,7 @@
                                 <label for="add_position_reason" class="form-label fw-semibold">
                                     Why are you adding to this position? <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select" id="add_position_reason" name="add_position_reason">
+                                <select class="form-select" id="add_position_reason" name="add_position_reason" disabled>
                                     <option value="">Select reason...</option>
                                     <option value="price_drop" {% if form_data and form_data.add_position_reason == 'price_drop' %}selected{% endif %}>Attractive price drop / Buying the dip</option>
                                     <option value="extra_cash" {% if form_data and form_data.add_position_reason == 'extra_cash' %}selected{% endif %}>Extra cash available for deployment</option>
@@ -185,14 +186,14 @@
                                 <label for="add_position_notes" class="form-label fw-semibold">
                                     Why add now? (optional)
                                 </label>
-                                <textarea class="form-control" id="add_position_notes" name="add_position_notes"
+                                <textarea class="form-control" id="add_position_notes" name="add_position_notes" disabled
                                     rows="2"
                                     placeholder="Any additional thoughts about adding to this position...">{% if form_data %}{{ form_data.add_position_notes }}{% endif %}</textarea>
                             </div>
 
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="thesis_updated"
-                                    name="thesis_updated" value="true"
+                                    name="thesis_updated" value="true" disabled
                                     {% if form_data and form_data.thesis_updated == 'true' %}checked{% endif %}>
                                 <label class="form-check-label" for="thesis_updated">
                                     <strong>My reason has changed: record a new thesis version after saving</strong>
@@ -300,42 +301,42 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="expected_return_main" class="form-label fw-semibold">
+                                <label for="expected_return" class="form-label fw-semibold">
                                     Expected Return (%)
                                 </label>
-                                {{ expected_return_input('expected_return_main', timeframe_id='expected_timeframe_main',
-                                    value=(form_data.getlist('expected_return')|first) if form_data else None,
-                                    basis=(form_data.getlist('expected_return_basis')|first) if form_data else None) }}
+                                {{ expected_return_input('expected_return', timeframe_id='expected_timeframe',
+                                    value=form_data.get('expected_return') if form_data else None,
+                                    basis=form_data.get('expected_return_basis') if form_data else None) }}
                                 <div class="form-text">Optional - % a year, or the total you expect over the timeframe</div>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="expected_timeframe_main" class="form-label fw-semibold">
+                                <label for="expected_timeframe" class="form-label fw-semibold">
                                     Expected Timeframe (months)
                                 </label>
-                                <input type="number" class="form-control" id="expected_timeframe_main"
+                                <input type="number" class="form-control" id="expected_timeframe"
                                     name="expected_timeframe" min="1" placeholder="e.g., 12"
-                                    value="{% if form_data %}{{ form_data.getlist('expected_timeframe')|first }}{% endif %}">
+                                    value="{% if form_data %}{{ form_data.get('expected_timeframe', '') }}{% endif %}">
                                 <div class="form-text">Optional - your investment horizon. Needed for a total return.</div>
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label for="confidence_score_main" class="form-label fw-semibold">
+                            <label for="confidence_score" class="form-label fw-semibold">
                                 Confidence Level
                             </label>
                             <div class="d-flex align-items-center">
-                                <input type="range" class="form-range flex-grow-1 me-3" id="confidence_score_main"
+                                <input type="range" class="form-range flex-grow-1 me-3" id="confidence_score"
                                     name="confidence_score" min="1" max="10"
-                                    value="{{ (form_data.getlist('confidence_score')|first) if form_data and form_data.getlist('confidence_score') else 5 }}">
-                                <span class="badge bg-primary" id="confidence_display_main">{{ (form_data.getlist('confidence_score')|first) if form_data and form_data.getlist('confidence_score') else 5 }}</span>
+                                    value="{{ (form_data.get('confidence_score') or 5) if form_data else 5 }}">
+                                <span class="badge bg-primary" id="confidence_display">{{ (form_data.get('confidence_score') or 5) if form_data else 5 }}</span>
                             </div>
                             <div class="form-text">1 = Low confidence, 10 = Very high confidence</div>
                         </div>
                     </div>
 
-                    <!-- Warning Modal Content (shown when buying without research) -->
-                    {% if show_warning %}
-                    <div class="alert alert-warning border-warning mb-4">
+                    <!-- Decision journal (shown client-side when buying an unresearched company) -->
+                    <div class="alert alert-warning border-warning mb-4" id="no_research_journal_section"
+                        style="display: none;">
                         <h5 class="alert-heading">
                             <i class="bi bi-exclamation-triangle me-2"></i>Decision Journal Required
                         </h5>
@@ -349,7 +350,7 @@
                             <label for="investment_thesis" class="form-label fw-semibold">
                                 Investment Thesis <span class="text-danger">*</span>
                             </label>
-                            <input type="hidden" id="investment_thesis" name="investment_thesis"
+                            <input type="hidden" id="investment_thesis" name="investment_thesis" disabled
                                 value="{% if form_data %}{{ form_data.investment_thesis }}{% endif %}">
                             <div id="thesisEditor" class="blocknote-form-editor"></div>
                             <div class="form-text">
@@ -375,7 +376,7 @@
                                 Where did this idea come from? <span class="text-danger">*</span>
                             </label>
                             <select class="form-select" id="non_research_source" name="non_research_source"
-                                required>
+                                required disabled>
                                 <option value="">Select source...</option>
                                 <option value="external_research" {% if form_data and form_data.non_research_source == 'external_research' %}selected{% endif %}>External Research (Newsletter, Report, etc.)
                                 </option>
@@ -388,51 +389,14 @@
                             </select>
                         </div>
 
-                        <!-- Confidence Level -->
-                        <div class="mb-3">
-                            <label for="confidence_score" class="form-label fw-semibold">
-                                Confidence Level <span class="text-danger">*</span>
-                            </label>
-                            <div class="d-flex align-items-center">
-                                <input type="range" class="form-range flex-grow-1 me-3" id="confidence_score"
-                                    name="confidence_score" min="1" max="10" required
-                                    value="{{ (form_data.getlist('confidence_score')|last) if form_data and form_data.getlist('confidence_score') else 5 }}">
-                                <span class="badge bg-primary" id="confidence_display">{{ (form_data.getlist('confidence_score')|last) if form_data and form_data.getlist('confidence_score') else 5 }}</span>
-                            </div>
-                            <div class="form-text">1 = Low confidence, 10 = Very high confidence</div>
-                        </div>
-
-                        <!-- Expected Return -->
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="expected_return" class="form-label fw-semibold">
-                                    Expected Return (%)
-                                </label>
-                                {{ expected_return_input('expected_return', timeframe_id='expected_timeframe',
-                                    value=(form_data.getlist('expected_return')|last) if form_data else None,
-                                    basis=(form_data.getlist('expected_return_basis')|last) if form_data else None) }}
-                                <div class="form-text">Optional - % a year, or the total over the timeframe</div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="expected_timeframe" class="form-label fw-semibold">
-                                    Expected Timeframe (months)
-                                </label>
-                                <input type="number" class="form-control" id="expected_timeframe"
-                                    name="expected_timeframe" min="1" placeholder="e.g., 12"
-                                    value="{% if form_data %}{{ form_data.getlist('expected_timeframe')|last }}{% endif %}">
-                                <div class="form-text">Optional</div>
-                            </div>
-                        </div>
-
                         <div class="form-check mt-3">
-                            <input class="form-check-input" type="checkbox" id="acknowledge_risk" required>
+                            <input class="form-check-input" type="checkbox" id="acknowledge_risk" required disabled>
                             <label class="form-check-label" for="acknowledge_risk">
                                 I acknowledge this purchase is outside my standard research process and will be
                                 tracked for pattern analysis
                             </label>
                         </div>
                     </div>
-                    {% endif %}
 
                     <!-- Action Buttons -->
                 </form>
@@ -515,6 +479,7 @@
             option.setAttribute('data-ticker', company.ticker_symbol);
             option.setAttribute('data-has-position', 'false');
             option.setAttribute('data-ever-held', 'false');
+            option.setAttribute('data-needs-journal', 'true');
             option.selected = true;
             companySelect.add(option);
 
@@ -703,6 +668,16 @@
         }
     }
 
+    // Show or hide a section and disable its fields together, so a hidden
+    // section never posts stale values.
+    function setSectionActive(section, active) {
+        if (!section) return;
+        section.style.display = active ? 'block' : 'none';
+        section.querySelectorAll('input, select, textarea').forEach(el => {
+            el.disabled = !active;
+        });
+    }
+
     function updateLabels() {
         const transactionType = document.querySelector('input[name="type"]:checked').value;
         filterCompaniesByType();
@@ -725,8 +700,7 @@
             quantityRow.style.display = 'none';
             feesSection.style.display = 'none';
             cashSection.style.display = 'block';
-            addPositionSection.style.display = 'none';
-            expectationsSection.style.display = 'none';
+            setSectionActive(addPositionSection, false);
 
             // Update cash label
             document.getElementById('cashActionLabel').textContent =
@@ -769,10 +743,12 @@
                 priceLabel.textContent = 'Price Per Share';
             }
 
-            // Show expectations section only for BUY transactions
-            expectationsSection.style.display = (transactionType === 'BUY') ? 'block' : 'none';
         }
 
+        // Only a BUY shows and posts the expectation fields
+        setSectionActive(expectationsSection, transactionType === 'BUY');
+
+        refreshNoResearchJournal();
         if (typeof refreshExitPlan === 'function') refreshExitPlan();
 
         updateTransactionTotal();
@@ -839,17 +815,35 @@
     // BlockNote thesis editor — init + word count + form submit
     let thesisEditorContent = {{ (form_data.get('investment_thesis', '') if form_data else '')|tojson }};
 
+    // Mirrors blocknote_to_text on the server: walks link content and nested children, joins with ' '
     function blocknoteExtractText(json) {
         if (!json) return '';
         try {
             const blocks = JSON.parse(json);
             if (!Array.isArray(blocks)) return json;
-            return blocks.map(b => {
-                if (b.content && Array.isArray(b.content)) {
-                    return b.content.map(c => c.text || '').join('');
-                }
-                return '';
-            }).join(' ').trim();
+            const parts = [];
+            const collect = items => {
+                if (!Array.isArray(items)) return;
+                items.forEach(item => {
+                    if (!item || typeof item !== 'object') return;
+                    if (item.type === 'text') {
+                        if (item.text) parts.push(item.text);
+                    } else if (Array.isArray(item.content)) {
+                        collect(item.content);
+                    } else if (typeof item.content === 'string' && item.content) {
+                        parts.push(item.content);
+                    }
+                });
+            };
+            const walk = list => {
+                list.forEach(block => {
+                    if (!block || typeof block !== 'object') return;
+                    collect(block.content);
+                    if (Array.isArray(block.children)) walk(block.children);
+                });
+            };
+            walk(blocks);
+            return parts.join(' ').trim();
         } catch { return json; }
     }
 
@@ -882,11 +876,38 @@
         }
     }, 100);
 
+    // Decision-journal block: shown (and its inputs enabled) only when buying an unresearched company
+    function noResearchJournalActive() {
+        const checkedType = document.querySelector('input[name="type"]:checked');
+        if (!checkedType || checkedType.value !== 'BUY') return false;
+        const select = document.getElementById('company_id');
+        const option = select.options[select.selectedIndex];
+        return !!option && option.getAttribute('data-needs-journal') === 'true';
+    }
+
+    function refreshNoResearchJournal() {
+        const section = document.getElementById('no_research_journal_section');
+        if (!section) return;
+        const active = noResearchJournalActive();
+        section.style.display = active ? 'block' : 'none';
+        section.querySelectorAll('input, select').forEach(el => {
+            el.disabled = !active;
+        });
+        if (active) {
+            const select = document.getElementById('company_id');
+            const option = select.options[select.selectedIndex];
+            document.getElementById('warning_company_name').textContent =
+                option.getAttribute('data-ticker') || '';
+        }
+    }
+
+    document.getElementById('company_id').addEventListener('change', refreshNoResearchJournal);
+
     // Validate on form submit
     const txForm = document.getElementById('transactionForm');
     if (txForm) {
         txForm.addEventListener('submit', function (e) {
-            if (!thesisEditorContent) return; // No thesis section visible (researched buy)
+            if (!noResearchJournalActive()) return;
             const text = blocknoteExtractText(thesisEditorContent);
             const words = text.length > 0 ? text.split(/\s+/).length : 0;
             if (words < 20) {
@@ -899,19 +920,11 @@
         });
     }
 
-    // Confidence slider display (for non-research warning section)
+    // Confidence slider display
     const confidenceSlider = document.getElementById('confidence_score');
     if (confidenceSlider) {
         confidenceSlider.addEventListener('input', function () {
             document.getElementById('confidence_display').textContent = this.value;
-        });
-    }
-
-    // Confidence slider display (for main BUY section)
-    const confidenceSliderMain = document.getElementById('confidence_score_main');
-    if (confidenceSliderMain) {
-        confidenceSliderMain.addEventListener('input', function () {
-            document.getElementById('confidence_display_main').textContent = this.value;
         });
     }
 
@@ -938,7 +951,7 @@
 
         // Only show for BUY transactions
         if (transactionType !== 'BUY') {
-            addPositionSection.style.display = 'none';
+            setSectionActive(addPositionSection, false);
             addPositionReasonSelect.removeAttribute('required');
             return;
         }
@@ -954,10 +967,10 @@
             document.getElementById('current_avg_cost').textContent = avgCost;
             showCurrentThesis(selectedOption.value);
 
-            addPositionSection.style.display = 'block';
+            setSectionActive(addPositionSection, true);
             addPositionReasonSelect.setAttribute('required', 'required');
         } else {
-            addPositionSection.style.display = 'none';
+            setSectionActive(addPositionSection, false);
             addPositionReasonSelect.removeAttribute('required');
         }
     }
@@ -1446,7 +1459,7 @@ document.addEventListener('DOMContentLoaded', function () {
      FULL THESIS ANALYSIS (AI-powered comprehensive analysis)
      ============================================================ -->
 <script>
-function runFullThesisAnalysis() {
+async function runFullThesisAnalysis() {
     const companySelect = document.getElementById('company_id');
     const confidenceInput = document.getElementById('confidence_score');
     const expectedReturnInput = document.getElementById('expected_return');
@@ -1458,6 +1471,10 @@ function runFullThesisAnalysis() {
     if (!thesis || thesis.split(/\s+/).length < 20) {
         alert('Please enter at least 20 words for your thesis.');
         return;
+    }
+
+    if (typeof checkAIConsent === 'function') {
+        if (!(await checkAIConsent())) return;
     }
 
     // Show loading
@@ -1484,7 +1501,7 @@ function runFullThesisAnalysis() {
         if (data.success) {
             renderFullAnalysis(data.analysis, resultDiv);
         } else {
-            resultDiv.innerHTML = `<div class="alert alert-danger">${data.error || 'Analysis failed'}</div>`;
+            resultDiv.innerHTML = `<div class="alert alert-danger">${escapeHtml(data.message || data.error || 'Analysis failed')}</div>`;
         }
     })
     .catch(err => {
@@ -1506,7 +1523,7 @@ function renderFullAnalysis(analysis, container) {
                 <span class="badge bg-${gradeColor} fs-6">${analysis.quality_grade} - ${analysis.quality_score}/100</span>
             </div>
             <div class="card-body">
-                <p class="mb-3">${analysis.summary}</p>
+                <p class="mb-3">${escapeHtml(analysis.summary)}</p>
     `;
 
     // Strengths

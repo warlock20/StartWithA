@@ -438,3 +438,11 @@ def ai_check_client(seed_ai_check, _app):
         session['_user_id'] = str(seed_ai_check.user_id)
         session['_fresh'] = True
     return client, seed_ai_check
+
+
+# What an opening buy of an unresearched company must post (#446): a thesis of 20+ words and a source
+NO_RESEARCH_BUY_FIELDS = [
+    ('investment_thesis', 'I think this company has a durable moat, a strong balance sheet, and a '
+                          'management team that allocates capital well over the long run.'),
+    ('non_research_source', 'external_research'),
+]

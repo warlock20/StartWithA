@@ -77,6 +77,9 @@ class ThesisAnalysisResult:
     has_risks: bool = False
     has_catalysts: bool = False
     has_exit_criteria: bool = False
+
+    # True when the LLM produced this result, False for the rule-based fallback
+    ai_generated: bool = False
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dictionary"""
@@ -231,6 +234,7 @@ class ThesisAnalyzer:
                 
                 # Merge AI results with local detection
                 ai_result.word_count = word_count
+                ai_result.ai_generated = True
                 ai_result.has_valuation = ai_result.has_valuation or has_valuation
                 ai_result.has_risks = ai_result.has_risks or has_risks
                 ai_result.has_catalysts = ai_result.has_catalysts or has_catalysts
