@@ -110,7 +110,7 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <div class="form-text">
+                        <div class="form-text" id="companyAddLink">
                             Don't see your company? <a href="#"
                                 onclick="event.preventDefault(); openCompanyModal(handleCompanySelection);"
                                 class="text-primary">Add a new company</a>
@@ -455,42 +455,19 @@
 <script defer src="{{ url_for('static', filename='js/dist/vendors-recharts.bundle.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/dist/intelligence-panel.bundle.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
+<script src="{{ url_for('static', filename='js/company-type-filter.js') }}"></script>
 <script>
+    const companyFilter = window.CompanyTypeFilter.create(document.getElementById('company_id'), {
+        hint: document.getElementById('companyFilterHint'),
+        hintText: document.getElementById('companyFilterHintText')
+    });
+
     // Handle company selection from modal
     function handleCompanySelection(company) {
         // Add the new company to the select dropdown
         const companySelect = document.getElementById('company_id');
 
-        // Check if company already exists in dropdown
-        let optionExists = false;
-        for (let i = 0; i < companySelect.options.length; i++) {
-            if (companySelect.options[i].value == company.id) {
-                optionExists = true;
-                companySelect.selectedIndex = i;
-                break;
-            }
-        }
-
-        // If not exists, add new option
-        if (!optionExists) {
-            const option = document.createElement('option');
-            option.value = company.id;
-            option.text = `${company.ticker_symbol} - ${company.name}`;
-            option.setAttribute('data-ticker', company.ticker_symbol);
-            option.setAttribute('data-has-position', 'false');
-            option.setAttribute('data-ever-held', 'false');
-            option.setAttribute('data-needs-journal', 'true');
-            option.selected = true;
-            companySelect.add(option);
-
-            // Keep the filter snapshot in sync, or the next type change drops it
-            if (allCompanyOptions !== null) {
-                allCompanyOptions.push(option);
-            }
-        }
-
-        // Trigger change event to update currency and other related fields
-        companySelect.dispatchEvent(new Event('change'));
+        companyFilter.addCompany(company);
 
         // Show success message
         const formText = companySelect.parentElement.querySelector('.form-text');
@@ -591,7 +568,9 @@
     }
 
     // Update currency when company is selected
-    function updateCurrencyFromCompany() {
+    function updateCurrencyFromCompany(event) {
+        // A restored selection keeps the currency the user already chose
+        if (event && event.detail && event.detail.restored) return;
         const companySelect = document.getElementById('company_id');
         const selectedOption = companySelect.options[companySelect.selectedIndex];
         const ticker = selectedOption.getAttribute('data-ticker');
@@ -617,57 +596,6 @@
     // you currently own can be sold. Watchlist companies are hidden for those
     // types so the list shows what is actually actionable.
 
-    let allCompanyOptions = null;
-
-    function companyAllowedForType(option, transactionType) {
-        if (!option.value) return true;  // keep the "Select a company..." placeholder
-        if (transactionType === 'DIVIDEND') return option.dataset.everHeld === 'true';
-        if (transactionType === 'SELL') return option.dataset.hasPosition === 'true';
-        return true;
-    }
-
-    function filterCompaniesByType() {
-        const companySelect = document.getElementById('company_id');
-        const checkedType = document.querySelector('input[name="type"]:checked');
-        if (!companySelect || !checkedType) return;
-
-        // Snapshot the full list once, before any filtering removes options
-        if (allCompanyOptions === null) {
-            allCompanyOptions = Array.from(companySelect.options);
-        }
-
-        const transactionType = checkedType.value;
-        const previousValue = companySelect.value;
-        const allowed = allCompanyOptions.filter(o => companyAllowedForType(o, transactionType));
-
-        // Rebuild rather than hide: browsers disagree on whether a hidden
-        // <option> remains selectable.
-        companySelect.replaceChildren(...allowed);
-
-        // Drop a selection the new type does not permit
-        const stillValid = allowed.some(o => o.value === previousValue);
-        companySelect.value = stillValid ? previousValue : '';
-
-        const hint = document.getElementById('companyFilterHint');
-        const hintText = document.getElementById('companyFilterHintText');
-        const hiddenCount = allCompanyOptions.length - allowed.length;
-
-        if (hiddenCount > 0) {
-            const shown = allowed.length - 1;  // exclude the placeholder
-            hintText.textContent = (transactionType === 'DIVIDEND')
-                ? `Showing ${shown} ${shown === 1 ? 'company' : 'companies'} you have held — only these can pay a dividend.`
-                : `Showing ${shown} ${shown === 1 ? 'company' : 'companies'} you currently own — only these can be sold.`;
-            hint.style.display = 'block';
-        } else {
-            hint.style.display = 'none';
-        }
-
-        // Let currency/position handlers react to a cleared selection
-        if (!stillValid && previousValue) {
-            companySelect.dispatchEvent(new Event('change'));
-        }
-    }
-
     // Show or hide a section and disable its fields together, so a hidden
     // section never posts stale values.
     function setSectionActive(section, active) {
@@ -680,7 +608,8 @@
 
     function updateLabels() {
         const transactionType = document.querySelector('input[name="type"]:checked').value;
-        filterCompaniesByType();
+        companyFilter.apply(transactionType);
+        document.getElementById('companyAddLink').style.display = transactionType === 'BUY' ? '' : 'none';
         const quantityLabel = document.getElementById('quantityLabel');
         const priceLabel = document.getElementById('priceLabel');
         const expectationsSection = document.getElementById('buy_expectations_section');
