@@ -32,6 +32,8 @@ from app.services.capital_timing import (
 )
 from app.services.config_service import ConfigService
 from app.services.currency_service import CurrencyService
+from app.services.monitor_registry import get_monitor
+from app.services.monitor_schedule import MonitorSettingError, monitor_rows, run_now, update_setting
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 
 logger = logging.getLogger(__name__)
@@ -98,3 +100,47 @@ def update_capital_timing():
 def privacy():
     """Data export and account deletion."""
     return render_template('settings_privacy.html', active_section='privacy')
+
+
+@settings_bp.route('/monitors')
+@login_required
+def monitors():
+    """Background AI: scheduled monitors, with the checks that fire on events."""
+    return render_template(
+        'settings_monitors.html',
+        active_section='monitors',
+        section_title='Background AI',
+        section_intro=('AI checks that run on a schedule or when you do something. '
+                       'Each run uses AI tokens from your monthly budget.'),
+        monitors=monitor_rows(current_user),
+        ai_consent=current_user.ai_consent_given,
+    )
+
+
+@settings_bp.route('/monitors/<key>', methods=['POST'])
+@login_required
+def update_monitor(key):
+    """Save one monitor's on/off and frequency."""
+    enabled = request.form.get('enabled') == 'on'
+    frequency = request.form.get('frequency', '')
+    try:
+        update_setting(current_user, key, enabled, frequency)
+    except MonitorSettingError as error:
+        flash(str(error), 'danger')
+    else:
+        label = get_monitor(key).label
+        flash(f'{label}: {"on, " + frequency if enabled else "off"}.', 'success')
+    return redirect(url_for('settings.monitors', _anchor=f'monitor-{key}'))
+
+
+@settings_bp.route('/monitors/<key>/run', methods=['POST'])
+@login_required
+def run_monitor_now(key):
+    """Queue a monitor run now, outside its schedule."""
+    try:
+        run_now(current_user, key)
+    except MonitorSettingError as error:
+        flash(str(error), 'danger')
+    else:
+        flash(f'{get_monitor(key).label} queued. Refresh in a minute to see the result.', 'success')
+    return redirect(url_for('settings.monitors', _anchor=f'monitor-{key}'))

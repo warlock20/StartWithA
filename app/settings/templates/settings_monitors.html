@@ -1,0 +1,92 @@
+{% extends "settings_layout.html" %}
+
+{% set status_labels = {'pending': 'Queued', 'running': 'Running', 'completed': 'Completed', 'failed': 'Failed'} %}
+{% set frequency_labels = {'daily': 'Daily', 'weekly': 'Weekly', 'monthly': 'Monthly'} %}
+{% set when_format = '%d %b %Y, %H:%M UTC' %}
+
+{% block settings_content %}
+<h3 class="h6 text-uppercase text-muted mb-2" id="background-monitors">Background monitors</h3>
+{% for m in monitors %}
+{% set task = m.last_task %}
+<section class="settings-panel" id="monitor-{{ m.key }}">
+    <div class="settings-panel-head">
+        <h3><i class="bi bi-alarm me-1" aria-hidden="true"></i>{{ m.label }}</h3>
+        {% if m.locked %}
+        <span class="settings-chip settings-chip--muted">Pro</span>
+        {% elif not m.enabled %}
+        <span class="settings-chip settings-chip--muted">Off</span>
+        {% elif task and task.status == 'failed' %}
+        <span class="settings-chip settings-chip--warn">Failed</span>
+        {% endif %}
+    </div>
+    <p class="settings-hint mb-3">{{ m.description }}</p>
+    {% if m.locked %}
+    <p class="settings-hint mb-3">Available on the Pro plan.</p>
+    {% endif %}
+    {% if not ai_consent %}
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>Paused: AI features are off</strong>
+            <span><a href="{{ url_for('ai_models.ai_model_settings') }}">Turn on AI features</a> for this to run.</span>
+        </div>
+    </div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('settings.update_monitor', key=m.key) }}">
+        <div class="settings-row">
+            <label class="settings-row-label" for="monitor-{{ m.key }}-enabled">
+                <strong>Run this monitor</strong>
+                {% if m.uses_default_frequency %}<span>Default: {{ frequency_labels.get(m.default_frequency, m.default_frequency)|lower }}</span>{% endif %}
+            </label>
+            <div class="settings-row-control">
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="monitor-{{ m.key }}-enabled"
+                           name="enabled" {% if m.enabled %}checked{% endif %}{% if m.locked %} disabled{% endif %}>
+                </div>
+                <select class="form-select form-select-sm w-auto" name="frequency" aria-label="How often"{% if m.locked %} disabled{% endif %}>
+                    {% for f in m.allowed_frequencies %}
+                    <option value="{{ f }}"{% if f == m.frequency %} selected{% endif %}>{{ frequency_labels.get(f, f) }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="action-btn"{% if m.locked %} disabled{% endif %}>Save</button>
+            </div>
+        </div>
+    </form>
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>Last run</strong>
+            <span>{{ m.last_run_at.strftime(when_format) if m.last_run_at else 'Not yet' }}</span>
+        </div>
+    </div>
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>Next run</strong>
+            <span>{% if m.next_run_at %}{{ m.next_run_at.strftime(when_format) }}{% elif m.locked %}Not available on your plan{% elif not ai_consent %}Paused (AI features are off){% else %}Off{% endif %}</span>
+        </div>
+    </div>
+    <div class="settings-row">
+        <div class="settings-row-label">
+            <strong>Last status</strong>
+            {% if not task %}
+            <span>No runs yet</span>
+            {% else %}
+            <span>{{ status_labels.get(task.status, task.status) }}
+                {%- if task.status == 'completed' and task.result and task.result.analyzed is defined %}
+                 · {{ task.result.analyzed }} analysed, {{ task.result.skipped }} already up to date
+                {%- if task.result.over_budget %}, {{ task.result.over_budget }} skipped (token budget){% endif %}
+                {%- endif %}</span>
+            {% if task.status == 'failed' and task.error %}
+            <span class="text-danger">{{ task.error }}</span>
+            {% endif %}
+            {% endif %}
+        </div>
+        <div class="settings-row-control">
+            <form method="POST" action="{{ url_for('settings.run_monitor_now', key=m.key) }}">
+                <button type="submit" class="action-btn primary"{% if m.locked or not ai_consent %} disabled{% endif %}>
+                    <i class="bi bi-play-fill" aria-hidden="true"></i>Run now
+                </button>
+            </form>
+        </div>
+    </div>
+</section>
+{% endfor %}
+{% endblock %}

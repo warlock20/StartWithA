@@ -17,6 +17,7 @@
 """Per-user schedule for background monitors: slot math and settings validation (#436)."""
 
 import logging
+import math
 import zlib
 
 from sqlalchemy.exc import IntegrityError
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 EPOCH = datetime(2024, 1, 1, tzinfo=timezone.utc)
 _HOUR = timedelta(hours=1)
 MONITOR_RUN_STALL_SECONDS = MONITOR_RUN_SOFT_LIMIT * 2
+RUN_NOW_COOLDOWN = timedelta(minutes=10)
 
 
 class MonitorSettingError(Exception):
@@ -171,6 +173,97 @@ def _fail_stalled_runs(user_id: int, monitor_key: str) -> None:
               .order_by(BackgroundTask.created_at.desc()).first())
     if latest is not None:
         BackgroundTaskService.fail_if_stalled(latest.id, user_id, MONITOR_RUN_STALL_SECONDS)
+
+
+def _minutes(delta: timedelta) -> int:
+    return max(1, math.ceil(delta.total_seconds() / 60))
+
+
+def _last_task(user_id: int, monitor_key: str) -> dict | None:
+    """The user's latest run of a monitor, with a dead in-flight run reconciled first."""
+    _fail_stalled_runs(user_id, monitor_key)
+    task = (BackgroundTask.query
+            .filter_by(user_id=user_id, task_type=f'monitor:{monitor_key}')
+            .order_by(BackgroundTask.created_at.desc()).first())
+    if task is None:
+        return None
+    return {
+        'status': task.status,
+        'error': task.error_message,
+        'created_at': task.created_at,
+        'completed_at': task.completed_at,
+        'result': BackgroundTaskService.stored_result(task),
+    }
+
+
+def monitor_rows(user, now: datetime | None = None) -> list[dict]:
+    """One settings-page row per registry monitor, in registry order."""
+    now = ensure_timezone_aware(now or now_utc())
+    rows = []
+    for monitor in MONITORS.values():
+        row = get_row(user.id, monitor.key)
+        enabled, frequency = effective(monitor, row)
+        active = is_active(monitor, row)
+        locked = bool(monitor.feature and not user_has_feature(user, monitor.feature))
+        if not active or locked or not user.ai_consent_given:
+            next_run_at = None
+        elif row is not None and row.next_run_at is not None:
+            next_run_at = row.next_run_at
+        else:
+            next_run_at = _naive_utc(next_slot(user.id, monitor.key, frequency, now, inclusive=True))
+        rows.append({
+            'key': monitor.key,
+            'label': monitor.label,
+            'description': monitor.description,
+            'locked': locked,
+            'enabled': enabled,
+            'frequency': frequency,
+            'allowed_frequencies': monitor.allowed_frequencies,
+            'default_frequency': monitor.default_frequency,
+            'uses_default_frequency': row is None or row.frequency is None,
+            'last_run_at': row.last_run_at if row is not None else None,
+            'next_run_at': next_run_at,
+            'last_task': _last_task(user.id, monitor.key),
+        })
+    return rows
+
+
+def run_now(user, monitor_key: str, now: datetime | None = None) -> str:
+    """Queue a run on the user's request. Returns the task id."""
+    monitor = get_monitor(monitor_key)
+    if monitor is None:
+        raise MonitorSettingError('Unknown monitor.')
+    if monitor.feature and not user_has_feature(user, monitor.feature):
+        raise MonitorSettingError(f'{monitor.label} is available on the Pro plan.')
+    if not user.ai_consent_given:
+        raise MonitorSettingError('Turn on AI features in Settings → AI first.')
+    if not user.can_use_ai_tokens(monitor.estimated_tokens):
+        raise MonitorSettingError('Not enough AI tokens left this month to run it.')
+
+    now = ensure_timezone_aware(now or now_utc())
+    naive_now = _naive_utc(now)
+    task_type = f'monitor:{monitor_key}'
+    _fail_stalled_runs(user.id, monitor_key)
+    in_flight = (BackgroundTask.query
+                 .filter(BackgroundTask.user_id == user.id, BackgroundTask.task_type == task_type,
+                         BackgroundTask.status.in_(('pending', 'running'))).first())
+    if in_flight is not None:
+        raise MonitorSettingError('It is already running. Refresh in a minute to see the result.')
+    latest = (BackgroundTask.query
+              .filter(BackgroundTask.user_id == user.id, BackgroundTask.task_type == task_type,
+                      BackgroundTask.status != 'failed')
+              .order_by(BackgroundTask.created_at.desc()).first())
+    elapsed = max(naive_now - latest.created_at, timedelta(0)) if latest is not None else None
+    if elapsed is not None and elapsed < RUN_NOW_COOLDOWN:
+        raise MonitorSettingError(
+            f'It ran {_minutes(elapsed)} min ago. '
+            f'Try again in {_minutes(RUN_NOW_COOLDOWN - elapsed)} min.')
+
+    task_id = BackgroundTaskService.start_monitor_run(user.id, monitor_key)
+    row = get_or_create_row(user.id, monitor_key)
+    row.last_run_at = naive_now
+    db.session.commit()
+    return task_id
 
 
 def dispatch_due_monitors(now: datetime | None = None) -> dict:
