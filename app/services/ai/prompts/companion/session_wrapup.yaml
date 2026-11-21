@@ -2,6 +2,7 @@ name: "session_wrapup"
 description: "Summarize a research session: accomplishments, gaps, next steps"
 version: "1.0"
 category: "companion"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 6000

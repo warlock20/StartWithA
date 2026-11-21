@@ -3,6 +3,7 @@ name: "ai_check_extract"
 description: "Extracts cited figures from a single document or URL"
 version: "1.0"
 category: "research"
+kind: "internal"
 model: "claude-sonnet-5"
 max_tokens: 16000
 effort: "medium"

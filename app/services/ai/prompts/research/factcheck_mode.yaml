@@ -5,6 +5,7 @@ name: "factcheck_mode"
 description: "Verifies claims in user research with evidence-based verdicts"
 version: "2.0"
 category: "research"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 10000

@@ -3,6 +3,7 @@ name: "ai_check_tool_reminder"
 description: "Reminds Claude to report its result through the required tool"
 version: "1.0"
 category: "research"
+kind: "internal"
 last_modified: "2026-09-27"
 
 template: |

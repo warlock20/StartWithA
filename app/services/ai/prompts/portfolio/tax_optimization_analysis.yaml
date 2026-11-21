@@ -6,6 +6,7 @@ name: "tax_optimization_analysis"
 description: "Tax optimization analysis adapted to investor's tax residence, with harvest opportunities and wash sale detection"
 version: "1.0"
 category: "portfolio"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 10000

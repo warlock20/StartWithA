@@ -5,6 +5,7 @@ name: "sector_momentum_analysis"
 description: "Detect sector momentum chasing patterns using AI knowledge of historical market conditions"
 version: "1.0"
 category: "portfolio"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 10000

@@ -5,6 +5,7 @@ name: "checkpoint_analysis"
 description: "Evaluate whether an investment checkpoint is on track based on the investor's research context"
 version: "1.0"
 category: "checkpoint"
+kind: "monitor"
 
 # AI Provider Configuration
 model: "quality"

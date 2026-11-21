@@ -74,7 +74,7 @@ Deployment is on Railway with the Dockerfile. `railway.toml` is the web service 
 
 ### AI layer (`app/services/ai/`)
 - `ai_service.py` is the single entry point for LLM calls: `generate_text`, `generate_json`, `generate_with_tools`, and `generate_embeddings`. Provider adapters live in `providers/` (`claude.py`, `gemini.py`, `deepseek.py`, `embeddings/`).
-- **Prompts live in YAML** under `prompts/<category>/<name>.yaml` and are loaded by `prompt_service.PromptService` through `get_prompt(category, name, **vars)`. Each YAML file declares `system_context`, `template` (with `{var}` placeholders), and `model` (a `quality`/`fast` alias or a concrete model), plus `max_tokens` and `temperature`. Never write prompts as inline f-strings in Python.
+- **Prompts live in YAML** under `prompts/<category>/<name>.yaml` and are loaded by `prompt_service.PromptService` through `get_prompt(category, name, **vars)`. Each YAML file declares `kind` (internal / assistant / event / monitor; see `app/services/monitor_registry.py`), `system_context`, `template` (with `{var}` placeholders), and `model` (a `quality`/`fast` alias or a concrete model), plus `max_tokens` and `temperature`. Never write prompts as inline f-strings in Python.
 - Model resolution: the prompt's default is used first, then `prompts/ai_routing.yaml` `task_overrides`, then the user's AI preferences (`settings/ai_model_routes.py`, `models/user_ai_preferences.py`). The `AI_QUALITY_MODEL` and `AI_FAST_MODEL` env vars set the aliases (see `ai/config.py`).
 - `tool_calling.py` has a provider-agnostic tool loop (`run_tool_loop`), which the companion agent uses.
 - `embedding_service.py` handles embeddings stored in pgvector (`models/knowledge_chunk.py`).

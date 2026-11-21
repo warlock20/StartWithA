@@ -4,6 +4,7 @@ name: "ai_check_search_phase"
 description: "Search-first then structured-answer instructions for split web-search calls"
 version: "1.0"
 category: "research"
+kind: "internal"
 last_modified: "2026-10-14"
 
 # Appended to the stage's request in the search-only step. {search_cap}: the call's search budget

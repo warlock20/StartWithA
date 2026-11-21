@@ -2,6 +2,7 @@ name: "verbs"
 description: "Composer verbs — the stance a question is asked in. The user supplies the subject."
 version: "1.0"
 category: "companion"
+kind: "internal"
 
 # Picking a verb prefixes the composer with its `stance`, and the user types what
 # they want it applied to. The combined text goes to the companion agent as an

@@ -5,6 +5,7 @@ name: "challenge_mode"
 description: "Generates counter-arguments and critical questions to test user's reasoning"
 version: "1.0"
 category: "research"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 10000

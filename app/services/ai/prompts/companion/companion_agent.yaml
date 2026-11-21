@@ -2,6 +2,7 @@ name: "companion_agent"
 description: "Global agentic companion — answers grounded in the user's own account via tools"
 version: "1.2"
 category: "companion"
+kind: "assistant"
 
 model: "quality"
 # Per-turn output budget. Tool-call turns are naturally short; this headroom is for

@@ -6,6 +6,7 @@ name: "thesis_contradiction_detection"
 description: "Check whether a journal entry contradicts the investor's thesis history for a company"
 version: "1.0"
 category: "research_journal"
+kind: "event"
 
 model: "quality"
 max_tokens: 1500

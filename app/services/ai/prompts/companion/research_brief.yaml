@@ -2,6 +2,7 @@ name: "research_brief"
 description: "Generate a pre-session research brief for a research step"
 version: "1.0"
 category: "companion"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 8000

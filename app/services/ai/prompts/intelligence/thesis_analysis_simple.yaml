@@ -5,6 +5,7 @@ name: "thesis_analysis_simple"
 description: "Analyze investment thesis quality without full research context"
 version: "1.0"
 category: "intelligence"
+kind: "assistant"
 
 # AI Provider Configuration
 model: "claude-sonnet-5"

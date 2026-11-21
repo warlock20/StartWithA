@@ -3,6 +3,7 @@ name: "ai_check_gather"
 description: "Finds filings and primary sources for one checklist question and company"
 version: "1.0"
 category: "research"
+kind: "assistant"
 model: "claude-sonnet-5"
 max_tokens: 16000
 effort: "medium"

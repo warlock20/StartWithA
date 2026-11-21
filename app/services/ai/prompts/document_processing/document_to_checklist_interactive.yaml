@@ -6,6 +6,7 @@ name: "document_to_checklist_interactive"
 description: "Convert a document into a fuller candidate list the user reviews and prunes"
 version: "1.0"
 category: "document_processing"
+kind: "internal"
 
 model: "quality"
 max_tokens: 8000

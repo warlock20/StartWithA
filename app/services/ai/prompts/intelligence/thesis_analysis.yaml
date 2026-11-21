@@ -5,6 +5,7 @@ name: "thesis_analysis"
 description: "Analyze investment thesis quality, identify strengths/weaknesses, and suggest improvements"
 version: "1.0"
 category: "intelligence"
+kind: "assistant"
 
 # AI Provider Configuration
 model: "claude-sonnet-5"

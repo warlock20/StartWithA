@@ -2,6 +2,7 @@ name: "counter_evidence"
 description: "Surface disconfirming evidence and questions that challenge a research finding"
 version: "1.0"
 category: "companion"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 6000

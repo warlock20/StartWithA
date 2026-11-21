@@ -2,6 +2,7 @@ name: "live_companion"
 description: "Answer research questions during a session, surfacing facts not opinions"
 version: "1.0"
 category: "companion"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 6000

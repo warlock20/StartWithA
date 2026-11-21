@@ -5,6 +5,7 @@ name: "entry_analysis"
 description: "Analyze journal entries to extract themes, tags, and connection opportunities"
 version: "1.0"
 category: "research_journal"
+kind: "event"
 max_tokens: 800
 temperature: 0.7
 last_modified: "2024-12-22"

@@ -5,6 +5,7 @@ name: "warning_generation"
 description: "Create helpful, non-judgmental warnings based on behavioral patterns and historical data"
 version: "1.0"
 category: "intelligence"
+kind: "assistant"
 
 # AI Provider Configuration
 model: "claude-sonnet-5"
