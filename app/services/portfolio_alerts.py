@@ -16,7 +16,7 @@
 
 """One source of portfolio alerts, shared by the intelligence hub and the dashboard."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Optional
 
@@ -48,8 +48,14 @@ class Alert:
     icon: str
     message: str
     action: str
-    link: str
+    link_endpoint: str
+    link_values: dict = field(default_factory=dict)
     company_id: Optional[int] = None
+
+    @property
+    def link(self) -> str:
+        """The alert URL, resolved on read, so it needs a request context."""
+        return url_for(self.link_endpoint, **self.link_values)
 
 
 def _coverage_message(gap_type: str, count: int) -> str:
@@ -103,23 +109,23 @@ class PortfolioAlertsService:
             if counts[gap_type]:
                 alerts.append(Alert(gap_type, GAP_SEVERITY[gap_type], _COVERAGE_ICONS[gap_type],
                                     _coverage_message(gap_type, counts[gap_type]), 'Fix',
-                                    url_for('portfolio.intelligence_hub') + '#coverage'))
+                                    'portfolio.intelligence_hub', {'_anchor': 'coverage'}))
 
         for cp in self.checkpoints_data.get('overdue', [])[:OVERDUE_LIMIT]:
             alerts.append(Alert('checkpoint_overdue', 'danger', 'exclamation-triangle-fill',
                                 f'{cp.company_ticker}: {cp.metric} is overdue', 'Review',
-                                url_for('portfolio.checkpoint_reminders'), cp.company_id))
+                                'portfolio.checkpoint_reminders', {}, cp.company_id))
 
         diverging = [p for p in self.thesis_positions if p.status == 'needs_attention']
         for pos in diverging[:DIVERGING_LIMIT]:
             alerts.append(Alert('thesis_diverging', 'warning', 'exclamation-circle',
                                 f'{pos.company_ticker} thesis diverging ({pos.actual_return_pct:+.1f}%)',
-                                'Check', url_for('portfolio.thesis_reality'), pos.company_id))
+                                'Check', 'portfolio.thesis_reality', {}, pos.company_id))
 
         for cp in self.checkpoints_data.get('this_week', [])[:THIS_WEEK_LIMIT]:
             alerts.append(Alert('checkpoint_this_week', 'info', 'calendar-event',
                                 f'{cp.company_ticker}: {cp.metric} due this week', 'View',
-                                url_for('portfolio.checkpoint_reminders'), cp.company_id))
+                                'portfolio.checkpoint_reminders', {}, cp.company_id))
 
         alerts.extend(self._insight_alerts())
         alerts.extend(self._warning_alerts())
@@ -139,7 +145,7 @@ class PortfolioAlertsService:
             return []
         return [Alert('learning_insight', 'info', 'lightbulb-fill',
                       f'New insight: "{high[0].title}"', 'View',
-                      url_for('portfolio.learning_insights'))]
+                      'portfolio.learning_insights')]
 
     def _warning_alerts(self) -> list:
         alerts = []
@@ -150,5 +156,5 @@ class PortfolioAlertsService:
                                 'danger' if warning.severity == 'high' else 'warning',
                                 'shield-exclamation',
                                 f'{warning.title}: {warning.message[:50]}...', 'Review',
-                                url_for('portfolio.dashboard')))
+                                'portfolio.dashboard'))
         return alerts

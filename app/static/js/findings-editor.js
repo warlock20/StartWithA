@@ -57,13 +57,15 @@
             var reviewed = document.createElement('small');
             reviewed.className = 'finding-reviewed text-muted';
             reviewed.hidden = true;
+            reviewed.setAttribute('role', 'status');
+            reviewed.setAttribute('aria-live', 'polite');
             body.insertBefore(reviewed, text);
             var review = document.createElement('button');
             review.type = 'button';
             review.className = 'finding-review';
             review.title = 'Still valid';
             review.setAttribute('aria-label', 'Mark as still valid');
-            review.innerHTML = '<i class="bi bi-check2-circle"></i>';
+            review.innerHTML = '<i class="bi bi-check2-circle"></i> Still valid';
             li.append(review);
         }
         var del = document.createElement('button');
@@ -192,7 +194,11 @@
             if (review) {
                 var item = review.closest('li');
                 review.disabled = true;
-                fetch(baseUrl + '/' + item.dataset.findingId + '/reviewed', { method: 'POST' })
+                fetch(baseUrl + '/' + item.dataset.findingId + '/reviewed', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                })
                     .then(function (r) { return readJson(r, 'Could not mark as reviewed'); })
                     .then(function (data) {
                         if (!data.success) throw new Error(data.error || 'Could not mark as reviewed');

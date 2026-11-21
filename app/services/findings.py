@@ -95,14 +95,20 @@ def finding_signal(raw: Optional[str]) -> str:
     return (raw or '').strip() or DEFAULT_SIGNAL
 
 
-def finding_entries(user_id: int, company_id: int, finding_type: Optional[str] = None):
-    """Findings for a company, oldest first."""
-    types = [finding_type] if finding_type else list(FINDING_TYPES)
+def _live_findings(user_id: int, finding_types):
+    """Base query: the user's unarchived findings of the given types."""
     return JournalEntry.query.filter(
         JournalEntry.user_id == user_id,
-        JournalEntry.company_id == company_id,
-        JournalEntry.entry_type.in_(types),
+        JournalEntry.entry_type.in_(list(finding_types)),
         JournalEntry.is_archived.is_(False),
+    )
+
+
+def finding_entries(user_id: int, company_id: int, finding_type: Optional[str] = None):
+    """Findings for a company, oldest first."""
+    types = [finding_type] if finding_type else FINDING_TYPES
+    return _live_findings(user_id, types).filter(
+        JournalEntry.company_id == company_id,
     ).order_by(JournalEntry.created_at.asc(), JournalEntry.id.asc()).all()
 
 
@@ -119,11 +125,8 @@ def active_must_exits_by_company(user_id: int, company_ids) -> dict:
     rules = {company_id: [] for company_id in company_ids}
     if not rules:
         return rules
-    entries = JournalEntry.query.filter(
-        JournalEntry.user_id == user_id,
+    entries = _live_findings(user_id, [MUST_EXIT]).filter(
         JournalEntry.company_id.in_(list(rules)),
-        JournalEntry.entry_type == MUST_EXIT,
-        JournalEntry.is_archived.is_(False),
     ).order_by(JournalEntry.created_at.asc(), JournalEntry.id.asc()).all()
     for entry in entries:
         rules[entry.company_id].append(entry)
@@ -136,26 +139,21 @@ def mark_reviewed(user_id: int, company_id: int, entry_id: int) -> Optional[Jour
     Returns the rule, or None when the user has no such live must-exit rule on
     that company. Does not commit.
     """
-    entry = JournalEntry.query.filter(
+    entry = _live_findings(user_id, [MUST_EXIT]).filter(
         JournalEntry.id == entry_id,
-        JournalEntry.user_id == user_id,
         JournalEntry.company_id == company_id,
-        JournalEntry.entry_type == MUST_EXIT,
-        JournalEntry.is_archived.is_(False),
     ).first()
     if entry:
         entry.last_reviewed = now_utc()
+        entry.review_count = (entry.review_count or 0) + 1
     return entry
 
 
 def has_exit_plan(user_id: int, company_id: int) -> bool:
     """True when the company has at least one live must-exit rule (one EXISTS query)."""
     return db.session.query(
-        JournalEntry.query.filter(
-            JournalEntry.user_id == user_id,
+        _live_findings(user_id, [MUST_EXIT]).filter(
             JournalEntry.company_id == company_id,
-            JournalEntry.entry_type == MUST_EXIT,
-            JournalEntry.is_archived.is_(False),
         ).exists()
     ).scalar()
 

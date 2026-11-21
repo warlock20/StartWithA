@@ -804,6 +804,8 @@ def api_replace_finding(company_id, entry_id):
 @login_required
 def api_review_finding(company_id, entry_id):
     """The user re-read a must-exit rule and it still stands: clears its stale warning."""
+    if not request.is_json:
+        return json_error('A JSON request body is required')
     entry = mark_reviewed(current_user.id, company_id, entry_id)
     if not entry:
         return json_not_found('Exit rule')

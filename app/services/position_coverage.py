@@ -78,7 +78,13 @@ class Gap:
     severity: str
     message: str
     fix_label: str
-    fix_link: str
+    fix_endpoint: str
+    fix_values: dict = field(default_factory=dict)
+
+    @property
+    def fix_link(self) -> str:
+        """The fix URL, resolved on read, so it needs a request context."""
+        return url_for(self.fix_endpoint, **self.fix_values)
 
 
 @dataclass
@@ -148,30 +154,33 @@ class PositionCoverageService:
         fresh_dates = [_rule_freshness(rule) for rule in rules]
         stale = has_exit_plan and not any(d is not None and d >= cutoff for d in fresh_dates)
 
-        plan_link = url_for('companies.company_detail', company_id=company.id,
-                            _anchor='research/findings')
-        checkpoint_link = url_for('companies.destination_analysis', company_id=company.id)
+        plan_target = ('companies.company_detail',
+                       {'company_id': company.id, '_anchor': 'research/findings'})
+        checkpoint_target = ('companies.destination_analysis', {'company_id': company.id})
         gaps = []
         if not has_exit_plan:
             gaps.append(Gap('no_exit_plan', GAP_SEVERITY['no_exit_plan'], 'No exit plan',
-                            'Add exit rule', plan_link))
+                            'Add exit rule', *plan_target))
         if not has_active:
             gaps.append(Gap('no_active_checkpoint', GAP_SEVERITY['no_active_checkpoint'],
-                            'No active checkpoint', 'Add checkpoint', checkpoint_link))
+                            'No active checkpoint', 'Add checkpoint', *checkpoint_target))
         elif not has_future:
             gaps.append(Gap('checkpoints_all_past', GAP_SEVERITY['checkpoints_all_past'],
-                            'All checkpoints are past', 'Add checkpoint', checkpoint_link))
+                            'All checkpoints are past', 'Add checkpoint', *checkpoint_target))
         if stale:
             gaps.append(Gap('exit_plan_stale', GAP_SEVERITY['exit_plan_stale'],
                             f'Exit plan not reviewed in {stale_days} days',
-                            'Review exit plan', plan_link))
+                            'Review exit plan', *plan_target))
         gaps.sort(key=lambda g: _SEVERITY_RANK[g.severity])
         return PositionCoverage(position, company, has_exit_plan, has_active, has_future,
                                 stale, gaps)
 
 
 def coverage_rows(coverage) -> list:
-    """JSON-ready dicts for the hub's coverage table, in the order given."""
+    """JSON-ready dicts for the hub's coverage table, in the order given.
+
+    Resolves URLs, so it needs a request context.
+    """
     return [
         {
             'company_name': row.company.name,

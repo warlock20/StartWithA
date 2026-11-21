@@ -36,13 +36,13 @@
                         <span class="finding-date">{{ entry.created_at.strftime('%b %d, %Y') if entry.created_at }}</span>
                     </div>
                     {% if ftype == 'must_exit' %}
-                    <small class="finding-reviewed text-muted"{% if not entry.last_reviewed %} hidden{% endif %}>Reviewed {{ entry.last_reviewed.strftime('%b %d, %Y') if entry.last_reviewed }}</small>
+                    <small class="finding-reviewed text-muted" role="status" aria-live="polite"{% if not entry.last_reviewed %} hidden{% endif %}>Reviewed {{ entry.last_reviewed.strftime('%b %d, %Y') if entry.last_reviewed }}</small>
                     {% endif %}
                     <span class="finding-text">{{ entry.content }}</span>
                 </div>
                 {% if ftype == 'must_exit' %}
                 <button type="button" class="finding-review" title="Still valid" aria-label="Mark as still valid">
-                    <i class="bi bi-check2-circle"></i>
+                    <i class="bi bi-check2-circle"></i> Still valid
                 </button>
                 {% endif %}
                 <button type="button" class="finding-delete" title="Delete" aria-label="Delete">
