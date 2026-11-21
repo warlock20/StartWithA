@@ -106,3 +106,10 @@ def dedup_window(monitor: Monitor) -> timedelta:
     """Shortest allowed period minus slack, so a run is never skipped as a duplicate."""
     periods = [FREQUENCY_PERIODS[f] for f in monitor.allowed_frequencies if f != 'off']
     return min(periods) - DEDUP_SLACK
+
+
+def expiry_window(monitor: Monitor) -> timedelta:
+    """How long a monitor's output stays visible: its longest period plus slack, so the
+    next run replaces it before it expires."""
+    periods = [FREQUENCY_PERIODS[f] for f in monitor.allowed_frequencies if f != 'off']
+    return max(periods) + DEDUP_SLACK

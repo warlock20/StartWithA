@@ -14,6 +14,8 @@ This skill guides the implementation of background tasks for AI operations in th
 - Tasks that users might trigger multiple times (need duplicate prevention)
 - Operations where results should be cached for reuse
 
+Per-user scheduled AI work is a monitor, not a new beat job: add a `MONITORS` entry in `app/services/monitor_registry.py` plus a runner in `MONITOR_RUNNERS` (`app/celery_tasks/tasks_monitors.py`). The hourly `dispatch-user-monitors` beat job runs it, and users configure it under Settings → Background AI.
+
 ---
 
 ## Key Architecture

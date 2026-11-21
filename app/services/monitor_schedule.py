@@ -194,6 +194,11 @@ def _dispatch_one(user, monitor: Monitor, row: UserMonitorSetting | None, now: d
         db.session.commit()
         return 'over_budget'
     _fail_stalled_runs(user.id, monitor.key)
+    if _in_flight(user.id, monitor.key) is not None:
+        # Run now got there first: don't double up, just move the schedule on.
+        row.next_run_at = next_run_at
+        db.session.commit()
+        return 'in_flight'
     # Enqueue before touching the schedule: start_monitor_run commits, so advancing
     # first would skip the user for a whole period if the broker is down. A failure
     # now leaves the schedule alone and the next hourly dispatch retries. A failed
@@ -203,6 +208,13 @@ def _dispatch_one(user, monitor: Monitor, row: UserMonitorSetting | None, now: d
     row.next_run_at = next_run_at
     db.session.commit()
     return 'enqueued'
+
+
+def _in_flight(user_id: int, monitor_key: str) -> BackgroundTask | None:
+    return (BackgroundTask.query
+            .filter(BackgroundTask.user_id == user_id,
+                    BackgroundTask.task_type == f'monitor:{monitor_key}',
+                    BackgroundTask.status.in_(('pending', 'running'))).first())
 
 
 def _fail_stalled_runs(user_id: int, monitor_key: str) -> None:
@@ -246,17 +258,26 @@ def monitor_rows(user, now: datetime | None = None) -> list[dict]:
         enabled, frequency = effective(monitor, row)
         active = is_active(monitor, row)
         locked = bool(monitor.feature and not user_has_feature(user, monitor.feature))
+        over_budget = False
         if not active or locked or not user.ai_consent_given:
+            next_run_at = None
+        elif not user.can_use_ai_tokens(monitor.estimated_tokens):
+            over_budget = True
             next_run_at = None
         elif row is not None and row.next_run_at is not None:
             next_run_at = row.next_run_at
         else:
-            next_run_at = _naive_utc(next_slot(user.id, monitor.key, frequency, now, inclusive=True))
+            # The dispatcher runs on the hour: a slot already inside this hour has passed.
+            slot = next_slot(user.id, monitor.key, frequency, now, inclusive=True)
+            if slot <= now:
+                slot = next_slot(user.id, monitor.key, frequency, now, inclusive=False)
+            next_run_at = _naive_utc(slot)
         rows.append({
             'key': monitor.key,
             'label': monitor.label,
             'description': monitor.description,
             'locked': locked,
+            'over_budget': over_budget,
             'enabled': enabled,
             'frequency': frequency,
             'allowed_frequencies': monitor.allowed_frequencies,
@@ -285,10 +306,7 @@ def run_now(user, monitor_key: str, now: datetime | None = None) -> str:
     naive_now = _naive_utc(now)
     task_type = f'monitor:{monitor_key}'
     _fail_stalled_runs(user.id, monitor_key)
-    in_flight = (BackgroundTask.query
-                 .filter(BackgroundTask.user_id == user.id, BackgroundTask.task_type == task_type,
-                         BackgroundTask.status.in_(('pending', 'running'))).first())
-    if in_flight is not None:
+    if _in_flight(user.id, monitor_key) is not None:
         raise MonitorSettingError('It is already running. Refresh in a minute to see the result.')
     latest = (BackgroundTask.query
               .filter(BackgroundTask.user_id == user.id, BackgroundTask.task_type == task_type,
@@ -313,7 +331,8 @@ def dispatch_due_monitors(now: datetime | None = None) -> dict:
     Commits after each user so one user's failure cannot undo the others.
     """
     now = ensure_timezone_aware(now or now_utc())
-    counts = {'enqueued': 0, 'scheduled': 0, 'over_budget': 0, 'locked': 0, 'inactive': 0}
+    counts = {'enqueued': 0, 'scheduled': 0, 'over_budget': 0, 'locked': 0, 'inactive': 0,
+              'in_flight': 0}
     user_ids = [uid for (uid,) in db.session.query(User.id)
                 .filter(User.ai_consent_given.is_(True)).order_by(User.id)]
 

@@ -15,7 +15,7 @@
         <span class="settings-chip settings-chip--muted">Pro</span>
         {% elif not m.enabled %}
         <span class="settings-chip settings-chip--muted">Off</span>
-        {% elif task and task.status == 'failed' %}
+        {% elif task and (task.status == 'failed' or (task.status == 'completed' and task.result and task.result.analyzed == 0 and task.result.failed)) %}
         <span class="settings-chip settings-chip--warn">Failed</span>
         {% endif %}
     </div>
@@ -60,7 +60,7 @@
     <div class="settings-row">
         <div class="settings-row-label">
             <strong>Next run</strong>
-            <span>{% if m.next_run_at %}{{ m.next_run_at.strftime(when_format) }}{% elif m.locked %}Not available on your plan{% elif not ai_consent %}Paused (AI features are off){% else %}Off{% endif %}</span>
+            <span>{% if m.next_run_at %}{{ m.next_run_at.strftime(when_format) }}{% elif m.locked %}Not available on your plan{% elif not ai_consent %}Paused (AI features are off){% elif m.over_budget %}Paused (token budget used up this month){% else %}Off{% endif %}</span>
         </div>
     </div>
     <div class="settings-row">
@@ -69,10 +69,16 @@
             {% if not task %}
             <span>No runs yet</span>
             {% else %}
-            <span>{{ status_labels.get(task.status, task.status) }}
-                {%- if task.status == 'completed' and task.result and task.result.analyzed is defined %}
-                 · {{ task.result.analyzed }} analysed, {{ task.result.skipped }} already up to date
-                {%- if task.result.over_budget %}, {{ task.result.over_budget }} skipped (token budget){% endif %}
+            {% set res = task.result if task.status == 'completed' and task.result and task.result.analyzed is defined else none %}
+            <span{% if res and res.analyzed == 0 and res.failed %} class="text-danger"{% endif %}>{{ status_labels.get(task.status, task.status) }}
+                {%- if res %}
+                {%- if res.total == 0 %}
+                 · No checkpoints due soon or overdue.
+                {%- else %}
+                 · {{ res.analyzed }} analysed, {{ res.skipped }} already up to date
+                {%- if res.failed %}, {{ res.failed }} failed{% endif %}
+                {%- if res.over_budget %}, {{ res.over_budget }} skipped (token budget){% endif %}
+                {%- endif %}
                 {%- endif %}</span>
             {% if task.status == 'failed' and task.error %}
             <span class="text-danger">{{ task.error }}</span>

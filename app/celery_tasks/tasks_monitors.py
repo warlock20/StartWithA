@@ -29,7 +29,7 @@ from app import db
 from app.celery_tasks.base import TaskFailed, background_task
 from app.models import User
 from app.services.checkpoint_analysis_service import CheckpointAnalysisService
-from app.services.monitor_registry import dedup_window, get_monitor
+from app.services.monitor_registry import dedup_window, expiry_window, get_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ MONITOR_RUN_SOFT_LIMIT = 900
 
 def _run_checkpoint_analysis(user, monitor):
     return CheckpointAnalysisService.analyze_user_checkpoints(
-        user, dedup_window(monitor), monitor.estimated_tokens
+        user, dedup_window(monitor), monitor.estimated_tokens, expiry_window(monitor)
     )
 
 

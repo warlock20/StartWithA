@@ -87,7 +87,8 @@ class CheckpointAnalysisService:
         ).scalar()
 
     @staticmethod
-    def analyze_user_checkpoints(user, dedup: timedelta, estimated_tokens: int) -> dict:
+    def analyze_user_checkpoints(user, dedup: timedelta, estimated_tokens: int,
+                                 expires_after: timedelta) -> dict:
         """
         Analyze one user's active checkpoints within the analysis window.
 
@@ -99,6 +100,7 @@ class CheckpointAnalysisService:
             user: User instance
             dedup: timedelta; checkpoints analysed within it are skipped
             estimated_tokens: tokens one analysis is expected to use
+            expires_after: timedelta; how long a stored insight stays active
 
         Returns:
             dict with total, analyzed, skipped (dedup or missing company),
@@ -130,7 +132,7 @@ class CheckpointAnalysisService:
                 ).first()
 
                 insight = CheckpointAnalysisService.analyze_checkpoint(
-                    checkpoint, company, research_project, user
+                    checkpoint, company, research_project, user, expires_after
                 )
                 if insight:
                     analyzed += 1
@@ -206,7 +208,7 @@ class CheckpointAnalysisService:
         }
 
     @staticmethod
-    def analyze_checkpoint(checkpoint, company, research_project, user):
+    def analyze_checkpoint(checkpoint, company, research_project, user, expires_after):
         """
         Run AI analysis on a single checkpoint and store as AIInsight.
 
@@ -215,6 +217,7 @@ class CheckpointAnalysisService:
             company: Company instance
             research_project: ResearchProject instance (can be None)
             user: User instance (for token tracking)
+            expires_after: timedelta; how long the insight stays active
 
         Returns:
             AIInsight or None if analysis fails
@@ -282,7 +285,7 @@ class CheckpointAnalysisService:
             confidence=result.get('confidence', 0.0),
             ai_provider='gemini',
             is_active=True,
-            expires_at=now_utc() + timedelta(hours=25),
+            expires_at=now_utc() + expires_after,
         )
 
         db.session.add(insight)

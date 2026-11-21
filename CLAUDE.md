@@ -41,7 +41,7 @@ Local development runs natively, not in Docker: `flask run`, a Celery worker, an
 flask db upgrade                                   # apply migrations
 flask run                                          # web app
 celery -A celery_app worker --loglevel=info        # background worker (needed for AI tasks and imports)
-celery -A celery_app beat                          # scheduled jobs (GDPR anonymisation, daily checkpoint analysis)
+celery -A celery_app beat                          # scheduled jobs (GDPR anonymisation, hourly background-monitor dispatch)
 flask db migrate -m "msg"                          # new migration after model changes
 
 # Python tests (pytest; no config file, run from repo root)
@@ -89,6 +89,8 @@ Long or token-consuming AI work runs in Celery. The pattern:
 2. The route checks the token budget (`User.can_use_ai_tokens`), enqueues `task.delay(task_id, ...)`, and returns straight away.
 3. The Celery task in `app/celery_tasks/tasks_*.py` builds its own app with `create_app()` and updates the row's status and result.
 4. The frontend polls a status endpoint.
+
+Per-user scheduled AI work is a monitor: a `MONITORS` entry in `app/services/monitor_registry.py` plus a runner in `MONITOR_RUNNERS` (`app/celery_tasks/tasks_monitors.py`), run by the hourly `dispatch-user-monitors` beat job. Users configure it under Settings → Background AI.
 
 New task modules must be added to the `include=[...]` list in `celery_app.py`. The full checklist is in `.claude/skills/background_task.md`.
 

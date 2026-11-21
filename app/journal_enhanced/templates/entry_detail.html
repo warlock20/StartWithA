@@ -406,14 +406,14 @@
                             <div class="spinner-border spinner-border-sm me-2"></div>
                             AI analysis in progress...
                         </div>
+                    {% elif not analyze_on %}
+                        <p class="text-muted small mb-0"><i class="bi bi-robot"></i>
+                            {{ ai_event_off_note('journal_entry_analysis') }}</p>
                     {% elif entry.ai_processing_status == 'failed' %}
                         <div class="text-warning">
                             <i class="bi bi-exclamation-triangle"></i>
                             Analysis failed. Click Analyze to retry.
                         </div>
-                    {% elif not analyze_on %}
-                        <p class="text-muted small mb-0"><i class="bi bi-robot"></i>
-                            {{ ai_event_off_note('journal_entry_analysis') }}</p>
                     {% else %}
                         <div class="text-muted text-center">
                             <i class="bi bi-robot"></i>
