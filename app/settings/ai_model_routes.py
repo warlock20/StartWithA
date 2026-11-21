@@ -63,8 +63,6 @@ CATEGORY_LABELS = {
     'checkpoint': 'Checkpoint Analysis',
     'intelligence': 'AI Intelligence',
     'portfolio': 'Portfolio Analytics',
-    'argos': 'Argos Insights',
-    'document_processing': 'Document Processing',
     'kill_checklist': 'Kill Criterion Suggestions',
 }
 
@@ -76,8 +74,6 @@ CATEGORY_ICONS = {
     'checkpoint': 'bi-flag',
     'intelligence': 'bi-lightbulb',
     'portfolio': 'bi-pie-chart',
-    'argos': 'bi-eye',
-    'document_processing': 'bi-file-earmark-text',
     'kill_checklist': 'bi-lightbulb',
 }
 
@@ -140,7 +136,7 @@ def _get_categories_with_defaults():
 
     for category in sorted(all_prompts):
         prompt_names = prompt_service.list_templates(category)
-        if not prompt_names:
+        if not prompt_names or prompt_service.is_internal_category(category):
             continue
         # Use the first prompt in the category to get default model info
         try:
@@ -160,13 +156,19 @@ def _get_categories_with_defaults():
     return categories
 
 
+def _visible_preferences(user_id):
+    """The user's overrides, minus orphaned ones for internal-only categories."""
+    return {name: pref for name, pref in UserAIPreference.get_user_preferences(user_id).items()
+            if not prompt_service.is_internal_category(name)}
+
+
 @ai_model_bp.route('/')
 @login_required
 def ai_model_settings():
     """Main AI model settings page."""
     categories = _get_categories_with_defaults()
     available_models = _get_available_models()
-    user_prefs = UserAIPreference.get_user_preferences(current_user.id)
+    user_prefs = _visible_preferences(current_user.id)
 
     # Merge user overrides into category data
     for cat in categories:
@@ -202,6 +204,10 @@ def set_model_preference():
 
     if not category:
         flash('Invalid category', 'error')
+        return redirect(url_for('ai_models.ai_model_settings'))
+
+    if prompt_service.is_internal_category(category):
+        flash('Unknown category', 'error')
         return redirect(url_for('ai_models.ai_model_settings'))
 
     if not model_id or model_id == 'default':
@@ -326,7 +332,7 @@ def reset_all_model_preferences():
 @login_required
 def api_get_preferences():
     """Get user's current AI model preferences."""
-    prefs = UserAIPreference.get_user_preferences(current_user.id)
+    prefs = _visible_preferences(current_user.id)
     return jsonify({
         'preferences': {k: v.to_dict() for k, v in prefs.items()}
     })
@@ -342,6 +348,9 @@ def api_set_preference():
 
     if not category:
         return jsonify({'success': False, 'error': 'Missing category'}), 400
+
+    if prompt_service.is_internal_category(category):
+        return jsonify({'success': False, 'error': 'Unknown category'}), 400
 
     if not model_id or model_id == 'default':
         UserAIPreference.clear_preference(current_user.id, category)
