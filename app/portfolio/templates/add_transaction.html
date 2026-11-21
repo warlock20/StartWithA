@@ -110,7 +110,7 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <div class="form-text">
+                        <div class="form-text" id="companyAddLink">
                             Don't see your company? <a href="#"
                                 onclick="event.preventDefault(); openCompanyModal(handleCompanySelection);"
                                 class="text-primary">Add a new company</a>
@@ -472,10 +472,7 @@
         // Show success message
         const formText = companySelect.parentElement.querySelector('.form-text');
         const originalText = formText.innerHTML;
-        const visible = companySelect.value === String(company.id);
-        formText.innerHTML = visible
-            ? `<span class="text-success"><i class="bi bi-check-circle"></i> Company "${company.name}" added successfully!</span>`
-            : `<span class="text-success"><i class="bi bi-check-circle"></i> Company "${company.name}" added. Switch to Buy to select it.</span>`;
+        formText.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> Company "${company.name}" added successfully!</span>`;
         setTimeout(() => {
             formText.innerHTML = originalText;
         }, 3000);
@@ -612,6 +609,7 @@
     function updateLabels() {
         const transactionType = document.querySelector('input[name="type"]:checked').value;
         companyFilter.apply(transactionType);
+        document.getElementById('companyAddLink').style.display = transactionType === 'BUY' ? '' : 'none';
         const quantityLabel = document.getElementById('quantityLabel');
         const priceLabel = document.getElementById('priceLabel');
         const expectationsSection = document.getElementById('buy_expectations_section');
