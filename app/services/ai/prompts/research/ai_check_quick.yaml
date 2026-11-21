@@ -3,6 +3,7 @@ name: "ai_check_quick"
 description: "Answers one checklist question in one call from the attached documents and/or web search"
 version: "1.0"
 category: "research"
+kind: "assistant"
 model: "claude-sonnet-5"
 max_tokens: 16000
 effort: "medium"

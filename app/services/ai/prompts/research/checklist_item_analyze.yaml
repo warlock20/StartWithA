@@ -5,6 +5,7 @@ name: "checklist_item_analyze"
 description: "Analyzes financial documents and available sources to answer a specific checklist research question"
 version: "1.0"
 category: "research"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 10000

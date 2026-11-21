@@ -100,7 +100,10 @@
 
     function setBusy(mistakeId, busy) {
         var buttons = suggestButtons(mistakeId);
-        for (var i = 0; i < buttons.length; i++) buttons[i].disabled = busy;
+        for (var i = 0; i < buttons.length; i++) {
+            if (buttons[i].hasAttribute('data-event-off')) continue;
+            buttons[i].disabled = busy;
+        }
     }
 
     // Renders node into the mistake's live-region slot, then moves focus to the new panel's

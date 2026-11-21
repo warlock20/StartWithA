@@ -217,6 +217,7 @@ class PromptService:
             'description': prompt_data.get('description', ''),
             'version': prompt_data.get('version', '1.0'),
             'category': category,
+            'kind': prompt_data.get('kind'),
             'max_tokens': prompt_data.get('max_tokens', 2000),
             'temperature': prompt_data.get('temperature', 0.7),
             'preferred_provider': _provider_for_display(prompt_data),
@@ -273,6 +274,12 @@ class PromptService:
     def list_all_prompts(self) -> Dict[str, List[str]]:
         """List all prompts organized by category."""
         return {cat: list(prompts.keys()) for cat, prompts in self._cache.items()}
+
+    def is_internal_category(self, category: str) -> bool:
+        """True when the category has prompts and every one is `kind: internal`."""
+        names = self.list_templates(category)
+        return bool(names) and all(
+            self._cache[category][name].get('kind') == 'internal' for name in names)
 
     def test_prompt(self, category: str, name: str, **kwargs) -> Dict[str, Any]:
         """
@@ -348,7 +355,7 @@ def resolve_model_provider(
     # ------------------------------------------------------------------
     # Priority 1: User override (UserAIPreference table)
     # ------------------------------------------------------------------
-    if user_id and prompt_category:
+    if user_id and prompt_category and metadata.get('kind') != 'internal':
         pref = UserAIPreference.get_preference(user_id, prompt_category)
         if pref and pref.model_override:
             try:
@@ -441,8 +448,8 @@ def get_effective_model_display(
     Returns:
         Human-readable model name string.
     """
-    # Priority 1: user override
-    if user_id:
+    # Priority 1: user override (internal-only categories are not user-configurable)
+    if user_id and not prompt_service.is_internal_category(prompt_category):
         pref = UserAIPreference.get_preference(user_id, prompt_category)
         if pref and pref.model_override:
             try:

@@ -5,6 +5,7 @@ name: "screening_analysis"
 description: "Analyze kill checklist history to surface patterns and improvement suggestions"
 version: "1.0"
 category: "screening"
+kind: "assistant"
 
 model: "fast"
 max_tokens: 4000

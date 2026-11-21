@@ -38,6 +38,7 @@ from app.celery_tasks import screening_analysis_task
 from app.celery_tasks import suggest_kill_criterion_task
 from app.celery_tasks import companion_ask_task
 from app.celery_tasks import reindex_knowledge_task
+from app.celery_tasks import run_monitor_task
 from app.services.argos.knowledge_index import TASK_TYPE as KNOWLEDGE_INDEX_TASK_TYPE
 
 logger = logging.getLogger(__name__)
@@ -304,6 +305,12 @@ class BackgroundTaskService:
         """Companion knowledge Re-index now. Reuses the user's in-flight run, scheduled or manual."""
         return BackgroundTaskService._enqueue(
             user_id, KNOWLEDGE_INDEX_TASK_TYPE, reindex_knowledge_task, user_id)
+
+    @staticmethod
+    def start_monitor_run(user_id: int, monitor_key: str) -> str:
+        """One background monitor run. Reuses the user's in-flight run of the same monitor."""
+        return BackgroundTaskService._enqueue(
+            user_id, f'monitor:{monitor_key}', run_monitor_task, user_id, monitor_key)
 
     @staticmethod
     def start_kill_criterion_suggestion(user_id, mistake_id, checklist_id):

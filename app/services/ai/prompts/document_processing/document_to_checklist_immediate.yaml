@@ -6,6 +6,7 @@ name: "document_to_checklist_immediate"
 description: "Convert a document into a checklist that is created straight away"
 version: "1.0"
 category: "document_processing"
+kind: "internal"
 
 model: "quality"
 max_tokens: 8000

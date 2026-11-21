@@ -5,6 +5,7 @@ name: "elaboration_mode"
 description: "Generates follow-up questions and suggests deeper areas to explore"
 version: "1.0"
 category: "research"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 10000

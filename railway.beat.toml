@@ -2,7 +2,7 @@
 # https://docs.railway.com/reference/config-as-code
 #
 # Beat is the clock that enqueues the jobs in celery_app.py `beat_schedule`
-# (GDPR anonymisation, checkpoint analysis, the AI-check reaper, ...). It only
+# (GDPR anonymisation, the hourly monitor dispatcher, the AI-check reaper, ...). It only
 # publishes messages; the worker service executes them. Without this service
 # no scheduled job ever runs.
 #

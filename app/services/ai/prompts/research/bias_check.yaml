@@ -5,6 +5,7 @@ name: "bias_check"
 description: "Analyze investment thesis for cognitive biases (Munger framework)"
 version: "1.0"
 category: "research"
+kind: "assistant"
 
 model: "quality"
 max_tokens: 10000

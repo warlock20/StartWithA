@@ -2,6 +2,7 @@ name: "chunk_context"
 description: "Place one piece of a user's note in its note, so the piece can be found by companion search (contextual retrieval)"
 version: "1.0"
 category: "companion"
+kind: "internal"
 
 model: "fast"
 max_tokens: 1024

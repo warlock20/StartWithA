@@ -4,6 +4,7 @@
 name: "ai_check_presets"
 description: "Named model setups for AI check runs"
 category: "research"
+kind: "internal"
 last_modified: "2026-10-30"
 
 presets:

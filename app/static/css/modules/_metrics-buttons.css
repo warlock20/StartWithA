@@ -143,6 +143,28 @@
     border-color: var(--primary-700);
 }
 
+.action-btn:disabled,
+.action-btn[disabled],
+.action-btn:disabled:hover,
+.action-btn[disabled]:hover {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.action-btn:disabled:hover,
+.action-btn[disabled]:hover {
+    background: var(--background-white);
+    border-color: var(--border-medium);
+    color: var(--text-secondary);
+}
+
+.action-btn.primary:disabled:hover,
+.action-btn.primary[disabled]:hover {
+    background: var(--primary-600);
+    border-color: var(--primary-600);
+    color: white;
+}
+
 /* =============================================================================
    METRIC CONTENT STYLES - Used inside dashboard-metrics-strip
    ============================================================================= */

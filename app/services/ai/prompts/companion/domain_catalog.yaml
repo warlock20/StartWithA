@@ -2,6 +2,7 @@ name: "domain_catalog"
 description: "Hand-written description of the user-facing data, in the words the UI uses. Rendered into the companion prompt and used by query_my_data as its allowlist."
 version: "1.0"
 category: "companion"
+kind: "internal"
 
 # Loaded by app/services/argos/domain_catalog.py, which documents the format.
 # In short, per entity:

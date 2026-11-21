@@ -5,6 +5,7 @@ name: "argos_relevance_scoring"
 description: "Scores insight candidates for relevance to current research"
 version: "1.0"
 category: "argos"
+kind: "internal"
 
 model: "quality"
 max_tokens: 7000

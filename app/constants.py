@@ -74,9 +74,6 @@ DEFAULT_CHECKPOINT_LOOKBACK_DAYS = 30
 CHECKPOINT_ANALYSIS_WINDOW_DAYS = 30
 """Days ahead to include checkpoints for AI analysis (overdue + this window)"""
 
-CHECKPOINT_ANALYSIS_DEDUP_HOURS = 24
-"""Minimum hours between AI analyses of the same checkpoint"""
-
 # ============================================================================
 # GDPR DATA RETENTION
 # ============================================================================

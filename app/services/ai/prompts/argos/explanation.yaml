@@ -5,6 +5,7 @@ name: "argos_explanation"
 description: "Generates detailed explanation for a specific Argos insight"
 version: "1.0"
 category: "argos"
+kind: "internal"
 
 model: "quality"
 max_tokens: 5500

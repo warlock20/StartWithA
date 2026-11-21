@@ -5,6 +5,7 @@ name: "pattern_explanation"
 description: "Translate ML-detected behavioral patterns into clear, actionable insights"
 version: "1.0"
 category: "intelligence"
+kind: "assistant"
 
 # AI Provider Configuration
 model: "claude-sonnet-5"

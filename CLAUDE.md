@@ -41,7 +41,7 @@ Local development runs natively, not in Docker: `flask run`, a Celery worker, an
 flask db upgrade                                   # apply migrations
 flask run                                          # web app
 celery -A celery_app worker --loglevel=info        # background worker (needed for AI tasks and imports)
-celery -A celery_app beat                          # scheduled jobs (GDPR anonymisation, daily checkpoint analysis)
+celery -A celery_app beat                          # scheduled jobs (GDPR anonymisation, hourly background-monitor dispatch)
 flask db migrate -m "msg"                          # new migration after model changes
 
 # Python tests (pytest; no config file, run from repo root)
@@ -74,7 +74,7 @@ Deployment is on Railway with the Dockerfile. `railway.toml` is the web service 
 
 ### AI layer (`app/services/ai/`)
 - `ai_service.py` is the single entry point for LLM calls: `generate_text`, `generate_json`, `generate_with_tools`, and `generate_embeddings`. Provider adapters live in `providers/` (`claude.py`, `gemini.py`, `deepseek.py`, `embeddings/`).
-- **Prompts live in YAML** under `prompts/<category>/<name>.yaml` and are loaded by `prompt_service.PromptService` through `get_prompt(category, name, **vars)`. Each YAML file declares `system_context`, `template` (with `{var}` placeholders), and `model` (a `quality`/`fast` alias or a concrete model), plus `max_tokens` and `temperature`. Never write prompts as inline f-strings in Python.
+- **Prompts live in YAML** under `prompts/<category>/<name>.yaml` and are loaded by `prompt_service.PromptService` through `get_prompt(category, name, **vars)`. Each YAML file declares `kind` (internal / assistant / event / monitor; see `app/services/monitor_registry.py`), `system_context`, `template` (with `{var}` placeholders), and `model` (a `quality`/`fast` alias or a concrete model), plus `max_tokens` and `temperature`. Never write prompts as inline f-strings in Python.
 - Model resolution: the prompt's default is used first, then `prompts/ai_routing.yaml` `task_overrides`, then the user's AI preferences (`settings/ai_model_routes.py`, `models/user_ai_preferences.py`). The `AI_QUALITY_MODEL` and `AI_FAST_MODEL` env vars set the aliases (see `ai/config.py`).
 - `tool_calling.py` has a provider-agnostic tool loop (`run_tool_loop`), which the companion agent uses.
 - `embedding_service.py` handles embeddings stored in pgvector (`models/knowledge_chunk.py`).
@@ -89,6 +89,8 @@ Long or token-consuming AI work runs in Celery. The pattern:
 2. The route checks the token budget (`User.can_use_ai_tokens`), enqueues `task.delay(task_id, ...)`, and returns straight away.
 3. The Celery task in `app/celery_tasks/tasks_*.py` builds its own app with `create_app()` and updates the row's status and result.
 4. The frontend polls a status endpoint.
+
+Per-user scheduled AI work is a monitor: a `MONITORS` entry in `app/services/monitor_registry.py` plus a runner in `MONITOR_RUNNERS` (`app/celery_tasks/tasks_monitors.py`), run by the hourly `dispatch-user-monitors` beat job. Users configure it under Settings → Background AI.
 
 New task modules must be added to the `include=[...]` list in `celery_app.py`. The full checklist is in `.claude/skills/background_task.md`.
 
