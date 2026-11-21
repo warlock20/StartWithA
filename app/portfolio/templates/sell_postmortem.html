@@ -36,9 +36,9 @@
                         <div class="mb-4 p-3 bg-light rounded">
                             <h6 class="fw-semibold mb-3">Original Investment Thesis</h6>
                             <div class="mb-2">{{ buy_journal.investment_thesis|blocknote_to_html|safe }}</div>
-                            {% if buy_journal.expected_return %}
+                            {% if buy_journal.expected_cagr %}
                             <div class="small text-muted">
-                                <strong>Expected CAGR:</strong> {{ buy_journal.expected_return }}% a year
+                                <strong>Expected CAGR:</strong> {{ buy_journal.expected_cagr }}% a year
                                 {% if buy_journal.expected_timeframe %}for {{ buy_journal.expected_timeframe }} months{% endif %}
                             </div>
                             {% endif %}

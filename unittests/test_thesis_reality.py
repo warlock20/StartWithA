@@ -69,12 +69,12 @@ def test_short_hold_comparison_uses_totals_to_date():
 # ── status when no expected return was recorded ──
 
 @pytest.mark.parametrize('annualized_return', [35.0, 8.0])
-def test_no_expected_return_and_gaining_is_no_target(annualized_return):
+def test_no_expected_cagr_and_gaining_is_no_target(annualized_return):
     # Used to be 'exceeding' / 'on_track' against an invented 20%/0% plan
     assert _assess(None, annualized_return, annualized_return, 400) == 'no_target'
 
 
-def test_no_expected_return_and_small_loss_needs_attention():
+def test_no_expected_cagr_and_small_loss_needs_attention():
     # Used to be 'behind' (a plan that doesn't exist)
     assert _assess(None, -4.0, -4.0, 400) == 'needs_attention'
 
@@ -113,11 +113,11 @@ def _seed_position(user_id, company_id, gain_pct, days_held):
         first_purchase_date=now_utc().date() - timedelta(days=days_held)))
 
 
-def _seed_buy(user_id, company_id, expected_return, expected_timeframe):
+def _seed_buy(user_id, company_id, expected_cagr, expected_timeframe):
     db.session.add(DecisionJournal(
         user_id=user_id, company_id=company_id, decision_type='BUY',
         decision_date=now_utc().date(), is_portfolio_decision=True,
-        investment_thesis='Thesis', expected_return=expected_return,
+        investment_thesis='Thesis', expected_cagr=expected_cagr,
         expected_timeframe=expected_timeframe))
 
 
@@ -125,7 +125,7 @@ def test_reality_check_without_target_reports_no_target(app_context):
     user = _make_user()
     company = _make_company(user.id)
     _seed_position(user.id, company.id, gain_pct=30, days_held=400)
-    _seed_buy(user.id, company.id, expected_return=None, expected_timeframe=None)
+    _seed_buy(user.id, company.id, expected_cagr=None, expected_timeframe=None)
     db.session.commit()
 
     [result] = PortfolioIntelligenceService(user.id).get_thesis_reality_check()
@@ -139,7 +139,7 @@ def test_reality_check_compares_position_cagr_with_expected_cagr(app_context):
     company = _make_company(user.id)
     # 32% over two years is ~14.9% a year: on track for 15% a year
     _seed_position(user.id, company.id, gain_pct=32, days_held=730)
-    _seed_buy(user.id, company.id, expected_return=15, expected_timeframe=36)
+    _seed_buy(user.id, company.id, expected_cagr=15, expected_timeframe=36)
     db.session.commit()
 
     [result] = PortfolioIntelligenceService(user.id).get_thesis_reality_check()
@@ -171,7 +171,7 @@ def test_page_lists_positions_without_target_separately(app_context, _app):
     with_target = _make_company(user.id, name='Target Co', ticker='TGT')
     without_target = _make_company(user.id, name='Plain Co', ticker='PLN')
     _seed_position(user.id, with_target.id, gain_pct=32, days_held=730)
-    _seed_buy(user.id, with_target.id, expected_return=15, expected_timeframe=36)
+    _seed_buy(user.id, with_target.id, expected_cagr=15, expected_timeframe=36)
     _seed_position(user.id, without_target.id, gain_pct=30, days_held=400)
     db.session.commit()
     client = _app.test_client()
@@ -197,8 +197,8 @@ def test_thesis_version_target_overrides_purchase_target(app_context):
     company = _make_company(user.id)
     _seed_position(user.id, company.id, gain_pct=32, days_held=730)
     # Bought expecting 40% a year; later revised to 15% a year
-    _seed_buy(user.id, company.id, expected_return=40, expected_timeframe=12)
-    _seed_thesis(user.id, company.id, 1, {'expected_return': 15, 'expected_timeframe': 36})
+    _seed_buy(user.id, company.id, expected_cagr=40, expected_timeframe=12)
+    _seed_thesis(user.id, company.id, 1, {'expected_cagr': 15, 'expected_timeframe': 36})
     db.session.commit()
 
     [result] = PortfolioIntelligenceService(user.id).get_thesis_reality_check()
@@ -214,7 +214,7 @@ def test_thesis_version_target_works_without_a_buy_journal(app_context):
     user = _make_user()
     company = _make_company(user.id)
     _seed_position(user.id, company.id, gain_pct=30, days_held=400)
-    _seed_thesis(user.id, company.id, 1, {'expected_return': 25, 'expected_timeframe': 12})
+    _seed_thesis(user.id, company.id, 1, {'expected_cagr': 25, 'expected_timeframe': 12})
     db.session.commit()
 
     [result] = PortfolioIntelligenceService(user.id).get_thesis_reality_check()
@@ -226,8 +226,8 @@ def test_thesis_version_target_works_without_a_buy_journal(app_context):
 def test_later_version_without_target_keeps_the_revised_one(app_context):
     user = _make_user()
     company = _make_company(user.id)
-    _seed_buy(user.id, company.id, expected_return=100, expected_timeframe=12)
-    _seed_thesis(user.id, company.id, 1, {'expected_return': 50, 'expected_timeframe': 36})
+    _seed_buy(user.id, company.id, expected_cagr=100, expected_timeframe=12)
+    _seed_thesis(user.id, company.id, 1, {'expected_cagr': 50, 'expected_timeframe': 36})
     _seed_thesis(user.id, company.id, 2, {'target_price': 120.0})
     db.session.commit()
 
@@ -239,7 +239,7 @@ def test_later_version_without_target_keeps_the_revised_one(app_context):
 def test_purchase_target_is_used_when_no_version_revises_it(app_context):
     user = _make_user()
     company = _make_company(user.id)
-    _seed_buy(user.id, company.id, expected_return=20, expected_timeframe=24)
+    _seed_buy(user.id, company.id, expected_cagr=20, expected_timeframe=24)
     _seed_thesis(user.id, company.id, 1)
     db.session.commit()
 
@@ -261,11 +261,11 @@ def test_update_thesis_saves_the_return_target(app_context, _app):
     client = _logged_in(_app, user)
 
     response = client.post(f'/portfolio/position/{company.id}/thesis/new',
-                           data=_thesis_form(expected_return='40', expected_timeframe='24'))
+                           data=_thesis_form(expected_cagr='40', expected_timeframe='24'))
 
     assert response.status_code == 302
     version = ThesisEvolution.query.filter_by(user_id=user.id, company_id=company.id).one()
-    assert version.key_metrics == {'expected_return': 40.0, 'expected_timeframe': 24}
+    assert version.key_metrics == {'expected_cagr': 40.0, 'expected_timeframe': 24}
     [result] = PortfolioIntelligenceService(user.id).get_thesis_reality_check()
     assert (result.expected_cagr, result.target_source) == (40.0, 'thesis')
 
@@ -276,7 +276,7 @@ def test_update_thesis_rejects_timeframe_below_one_month(app_context, _app):
     client = _logged_in(_app, user)
 
     client.post(f'/portfolio/position/{company.id}/thesis/new',
-                data=_thesis_form(expected_return='40', expected_timeframe='0'))
+                data=_thesis_form(expected_cagr='40', expected_timeframe='0'))
 
     assert ThesisEvolution.query.filter_by(user_id=user.id).count() == 0
 
@@ -296,12 +296,12 @@ def test_update_thesis_form_prefills_purchase_target(app_context, _app):
     user = _make_user()
     company = _make_company(user.id)
     _seed_position(user.id, company.id, gain_pct=30, days_held=400)
-    _seed_buy(user.id, company.id, expected_return=25, expected_timeframe=18)
+    _seed_buy(user.id, company.id, expected_cagr=25, expected_timeframe=18)
     client = _logged_in(_app, user)
 
     html = client.get(f'/portfolio/position/{company.id}/thesis/new').get_data(as_text=True)
 
-    assert 'name="expected_return"' in html
+    assert 'name="expected_cagr"' in html
     assert 'value="25.0"' in html
     assert 'value="18"' in html
     assert 'Set when you bought.' in html
@@ -319,7 +319,7 @@ def test_company_page_compares_position_cagr_with_expected_cagr(app_context, _ap
     position.average_cost_basis = 100
     position.total_cost_basis = 1000
     position.current_price = 132
-    _seed_buy(user.id, company.id, expected_return=15, expected_timeframe=36)
+    _seed_buy(user.id, company.id, expected_cagr=15, expected_timeframe=36)
     client = _logged_in(_app, user)
 
     html = client.get(f'/companies/{company.id}').get_data(as_text=True)
@@ -330,7 +330,7 @@ def test_company_page_compares_position_cagr_with_expected_cagr(app_context, _ap
 
 
 def test_thesis_accuracy_compares_realized_cagr_with_expected_cagr():
-    outcome = ResearchOutcome(expected_return_pct=15, actual_hold_days=1096)
+    outcome = ResearchOutcome(expected_cagr_pct=15, actual_hold_days=1096)
     # 52% over three years is ~15% a year: a perfect call, not 37pp short of 52%
     assert OutcomeTracker()._calculate_thesis_accuracy(outcome, 52.09) == pytest.approx(100, abs=0.5)
 
@@ -346,7 +346,7 @@ def test_decisions_page_compares_closed_position_cagr_up_to_last_sale(app_contex
     db.session.add(Transaction(
         user_id=user.id, company_id=company.id, type='SELL', date=bought + timedelta(days=1096),
         quantity=10, price_per_share=152.09))
-    _seed_buy(user.id, company.id, expected_return=15, expected_timeframe=36)
+    _seed_buy(user.id, company.id, expected_cagr=15, expected_timeframe=36)
     client = _logged_in(_app, user)
 
     html = client.get('/portfolio/analytics/decisions').get_data(as_text=True)

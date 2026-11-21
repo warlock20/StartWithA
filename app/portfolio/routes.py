@@ -234,21 +234,21 @@ def add_thesis_version(company_id):
 
             # Get key metrics
             target_price = request.form.get('target_price', type=float)
-            expected_return = request.form.get('expected_return', type=float)
+            expected_cagr = request.form.get('expected_cagr', type=float)
             expected_timeframe = request.form.get('expected_timeframe', type=int)
 
             if expected_timeframe is not None and expected_timeframe < 1:
                 flash('Expected timeframe must be at least 1 month', 'error')
                 return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
-            if expected_timeframe is not None and expected_return is None:
+            if expected_timeframe is not None and expected_cagr is None:
                 flash('Add the expected CAGR that goes with the timeframe', 'error')
                 return redirect(url_for('portfolio.add_thesis_version', company_id=company_id))
 
             key_metrics = {}
             if target_price:
                 key_metrics['target_price'] = target_price
-            if expected_return is not None:
-                key_metrics['expected_return'] = expected_return
+            if expected_cagr is not None:
+                key_metrics['expected_cagr'] = expected_cagr
                 if expected_timeframe:
                     key_metrics['expected_timeframe'] = expected_timeframe
 
@@ -605,14 +605,14 @@ def analytics_decisions():
     ).group_by(Transaction.company_id).all())
     expectations_analysis = []
     for journal in latest_openings:
-        if journal.expected_return is not None:
+        if journal.expected_cagr is not None:
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
             pos_return = position_return_pct(position) if position else None
             if position and pos_return is not None:
                 exit_date = None if position.is_active else last_sale_dates.get(position.company_id)
                 hold_days = (days_between(position.first_purchase_date, exit_date)
                              if exit_date and position.first_purchase_date else position.days_held)
-                vs_target = compare_to_expected_cagr(journal.expected_return, pos_return, hold_days)
+                vs_target = compare_to_expected_cagr(journal.expected_cagr, pos_return, hold_days)
 
                 expectations_analysis.append({
                     'company': position.company,

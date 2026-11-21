@@ -600,10 +600,10 @@ def _gather_journey_data(company, user_id):
         if position:
             price_stale = PriceService.should_update_price(position)
             if (portfolio_decision_journal
-                    and portfolio_decision_journal.expected_return is not None
+                    and portfolio_decision_journal.expected_cagr is not None
                     and position.unrealized_gain_loss_pct is not None):
                 return_vs_expected = compare_to_expected_cagr(
-                    portfolio_decision_journal.expected_return,
+                    portfolio_decision_journal.expected_cagr,
                     float(position.unrealized_gain_loss_pct),
                     position.days_held or 0)
 

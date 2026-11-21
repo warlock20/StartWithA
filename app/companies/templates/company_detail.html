@@ -190,7 +190,7 @@
             <div class="position-expectation-content">
                 <div class="position-expectation-title">Performance vs Expectations</div>
                 <div class="position-expectation-details">
-                    <span>Expected CAGR: <strong>{{ "%+.1f"|format(portfolio_decision_journal.expected_return) }}%</strong>{% if not rve.annualized %} ({{ "%+.1f"|format(rve.expected) }}% due so far){% endif %}</span>
+                    <span>Expected CAGR: <strong>{{ "%+.1f"|format(portfolio_decision_journal.expected_cagr) }}%</strong>{% if not rve.annualized %} ({{ "%+.1f"|format(rve.expected) }}% due so far){% endif %}</span>
                     <span>{% if rve.annualized %}Actual CAGR{% else %}Actual so far{% endif %}: <strong
                             class="{% if rve.actual >= 0 %}gain{% else %}loss{% endif %}"
                             style="color: {% if rve.actual >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %}">

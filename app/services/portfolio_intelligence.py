@@ -170,11 +170,11 @@ def _resolve_return_target(journal, theses) -> ReturnTarget:
     ``theses`` are the company's thesis versions, newest first.
     """
     for thesis in theses:
-        if thesis.expected_return is not None:
-            return ReturnTarget(thesis.expected_return, thesis.expected_timeframe,
+        if thesis.expected_cagr is not None:
+            return ReturnTarget(thesis.expected_cagr, thesis.expected_timeframe,
                                 'thesis', thesis.version)
-    if journal is not None and journal.expected_return is not None:
-        return ReturnTarget(journal.expected_return, journal.expected_timeframe,
+    if journal is not None and journal.expected_cagr is not None:
+        return ReturnTarget(journal.expected_cagr, journal.expected_timeframe,
                             'purchase', None)
     return NO_RETURN_TARGET
 

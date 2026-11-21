@@ -124,11 +124,11 @@
                     <!-- Return Target: what Thesis vs Reality measures the position against -->
                     <div class="thesis-form-row">
                         <div class="thesis-form-group">
-                            <label class="thesis-form-label" for="expected_return">Expected CAGR (% a year)</label>
+                            <label class="thesis-form-label" for="expected_cagr">Expected CAGR (% a year)</label>
                             <input type="number"
                                    class="form-control"
-                                   id="expected_return"
-                                   name="expected_return"
+                                   id="expected_cagr"
+                                   name="expected_cagr"
                                    step="0.1"
                                    {% if return_target.expected_cagr is not none %}value="{{ return_target.expected_cagr }}"{% endif %}
                                    placeholder="e.g., 15">

@@ -299,12 +299,12 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="expected_return_main" class="form-label fw-semibold">
+                                <label for="expected_cagr_main" class="form-label fw-semibold">
                                     Expected CAGR (% a year)
                                 </label>
-                                <input type="number" class="form-control" id="expected_return_main"
-                                    name="expected_return" step="0.1" placeholder="e.g., 15"
-                                    value="{% if form_data %}{{ form_data.getlist('expected_return')|first }}{% endif %}">
+                                <input type="number" class="form-control" id="expected_cagr_main"
+                                    name="expected_cagr" step="0.1" placeholder="e.g., 15"
+                                    value="{% if form_data %}{{ form_data.getlist('expected_cagr')|first }}{% endif %}">
                                 <div class="form-text">Optional - the annual return you expect</div>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -404,12 +404,12 @@
                         <!-- Expected CAGR -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="expected_return" class="form-label fw-semibold">
+                                <label for="expected_cagr" class="form-label fw-semibold">
                                     Expected CAGR (% a year)
                                 </label>
-                                <input type="number" class="form-control" id="expected_return"
-                                    name="expected_return" step="0.1" placeholder="e.g., 15"
-                                    value="{% if form_data %}{{ form_data.getlist('expected_return')|last }}{% endif %}">
+                                <input type="number" class="form-control" id="expected_cagr"
+                                    name="expected_cagr" step="0.1" placeholder="e.g., 15"
+                                    value="{% if form_data %}{{ form_data.getlist('expected_cagr')|last }}{% endif %}">
                                 <div class="form-text">Optional</div>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -1447,7 +1447,7 @@ document.addEventListener('DOMContentLoaded', function () {
 function runFullThesisAnalysis() {
     const companySelect = document.getElementById('company_id');
     const confidenceInput = document.getElementById('confidence_score');
-    const expectedReturnInput = document.getElementById('expected_return');
+    const expectedCagrInput = document.getElementById('expected_cagr');
     const expectedTimeframeInput = document.getElementById('expected_timeframe');
     const resultDiv = document.getElementById('full-thesis-analysis');
     const btn = document.getElementById('analyze-thesis-btn');
@@ -1470,7 +1470,7 @@ function runFullThesisAnalysis() {
             thesis: thesis,
             company_id: companySelect?.value,
             confidence_score: confidenceInput?.value ? parseInt(confidenceInput.value) : null,
-            expected_return: expectedReturnInput?.value ? parseFloat(expectedReturnInput.value) : null,
+            expected_cagr: expectedCagrInput?.value ? parseFloat(expectedCagrInput.value) : null,
             expected_timeframe: expectedTimeframeInput?.value ? parseInt(expectedTimeframeInput.value) : null
         })
     })
