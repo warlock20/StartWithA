@@ -397,37 +397,8 @@ class TransactionService:
             # Get company
             company = Company.query.filter_by(id=company_id, user_id=user_id).first()
 
-            # Parse values
-            transaction_date = parse_date_to_date_object(date_str)
-            price_per_share_decimal = Decimal(price_per_share)
-            fees_decimal = Decimal(fees) if fees else Decimal('0.00')
-
-            # Check for intelligence warnings
-            warnings = TransactionService.check_intelligence_warnings(
-                user_id=user_id,
-                company_id=company_id,
-                transaction_type=transaction_type,
-                quantity=quantity,
-                price_per_share=price_per_share_decimal
-            )
-
-            # Currency conversion
-            exchange_rate = CurrencyService.get_exchange_rate(
-                from_currency=currency,
-                to_currency=user_base_currency,
-                rate_date=transaction_date
-            )
-
-            price_per_share_base = price_per_share_decimal * exchange_rate
-            fees_base = fees_decimal * exchange_rate
-
-            # Log currency conversion
-            if currency != user_base_currency:
-                logger.debug(f"Currency conversion: {currency} → {user_base_currency}")
-                logger.debug(f"Exchange rate: {exchange_rate}")
-                logger.debug(f"Price: {currency} {price_per_share_decimal} → {user_base_currency} {price_per_share_base}")
-
-            # Handle BUY-specific logic
+            # Handle BUY-specific logic. This gate runs before anything that can commit
+            # (the FX lookup caches its rate), so a refusal still rolls back the inline rules.
             bought_without_research = False
             is_add_to_position = False
             add_position_reason = None
@@ -469,6 +440,36 @@ class TransactionService:
                                 error=error.format(ticker=company.ticker_symbol),
                                 decision_journal_required=True
                             )
+
+            # Parse values
+            transaction_date = parse_date_to_date_object(date_str)
+            price_per_share_decimal = Decimal(price_per_share)
+            fees_decimal = Decimal(fees) if fees else Decimal('0.00')
+
+            # Check for intelligence warnings
+            warnings = TransactionService.check_intelligence_warnings(
+                user_id=user_id,
+                company_id=company_id,
+                transaction_type=transaction_type,
+                quantity=quantity,
+                price_per_share=price_per_share_decimal
+            )
+
+            # Currency conversion
+            exchange_rate = CurrencyService.get_exchange_rate(
+                from_currency=currency,
+                to_currency=user_base_currency,
+                rate_date=transaction_date
+            )
+
+            price_per_share_base = price_per_share_decimal * exchange_rate
+            fees_base = fees_decimal * exchange_rate
+
+            # Log currency conversion
+            if currency != user_base_currency:
+                logger.debug(f"Currency conversion: {currency} → {user_base_currency}")
+                logger.debug(f"Exchange rate: {exchange_rate}")
+                logger.debug(f"Price: {currency} {price_per_share_decimal} → {user_base_currency} {price_per_share_base}")
 
             # Create transaction
             transaction = Transaction(
