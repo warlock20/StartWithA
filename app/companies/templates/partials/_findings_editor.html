@@ -6,6 +6,8 @@
    Long details are clamped; the shared detail card (detail-card.js) shows them in full.
    Deleting the last Must Exit of a held company is refused; the form then opens in
    replace mode and saves through companies.api_replace_finding.
+   Must Exit rows have a "Still valid" button (companies.api_review_finding) that sets
+   last_reviewed, which clears the exit-plan-stale warning.
    Behaviour: static/js/findings-editor.js #}
 {% set finding_columns = [
     ('red_flag', 'red', 'exclamation-triangle-fill', 'Red Flags', 'What counts against investing?'),
@@ -33,8 +35,16 @@
                         <span class="finding-signal">{{ entry.title }}</span>
                         <span class="finding-date">{{ entry.created_at.strftime('%b %d, %Y') if entry.created_at }}</span>
                     </div>
+                    {% if ftype == 'must_exit' %}
+                    <small class="finding-reviewed text-muted" role="status" aria-live="polite"{% if not entry.last_reviewed %} hidden{% endif %}>Reviewed {{ entry.last_reviewed.strftime('%b %d, %Y') if entry.last_reviewed }}</small>
+                    {% endif %}
                     <span class="finding-text">{{ entry.content }}</span>
                 </div>
+                {% if ftype == 'must_exit' %}
+                <button type="button" class="finding-review" title="Still valid" aria-label="Mark as still valid">
+                    <i class="bi bi-check2-circle"></i> Still valid
+                </button>
+                {% endif %}
                 <button type="button" class="finding-delete" title="Delete" aria-label="Delete">
                     <i class="bi bi-x"></i>
                 </button>

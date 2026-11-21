@@ -516,6 +516,7 @@ class ConfigKeys:
     INDUSTRY_CONCENTRATION_PCT = 'industry_concentration_pct'
     CORRELATION_THRESHOLD = 'correlation_threshold'
     MIN_RESEARCH_SCORE = 'min_research_score'
+    EXIT_PLAN_STALE_DAYS = 'exit_plan_stale_days'
     
     # Behavioral Patterns
     MIN_HOLD_DAYS_FOR_PATTERN = 'min_hold_days_for_pattern'

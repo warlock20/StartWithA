@@ -4,6 +4,7 @@
 // details are clamped to a few lines and open in full in the detail card.
 // The last must-exit rule of a held company can't be deleted (409,
 // code 'last_exit_rule'); the Must Exit form then opens in replace mode.
+// Must-exit rows have a "Still valid" button that stamps last_reviewed.
 (function () {
     var LONG_TEXT_CHARS = 150;
     var LONG_TEXT_LINES = 3;
@@ -52,6 +53,21 @@
         body.append(meta, text);
         li.append(body);
         markLong(text);
+        if (finding.type === 'must_exit') {
+            var reviewed = document.createElement('small');
+            reviewed.className = 'finding-reviewed text-muted';
+            reviewed.hidden = true;
+            reviewed.setAttribute('role', 'status');
+            reviewed.setAttribute('aria-live', 'polite');
+            body.insertBefore(reviewed, text);
+            var review = document.createElement('button');
+            review.type = 'button';
+            review.className = 'finding-review';
+            review.title = 'Still valid';
+            review.setAttribute('aria-label', 'Mark as still valid');
+            review.innerHTML = '<i class="bi bi-check2-circle"></i> Still valid';
+            li.append(review);
+        }
         var del = document.createElement('button');
         del.type = 'button';
         del.className = 'finding-delete';
@@ -171,6 +187,30 @@
             var cancel = e.target.closest('.finding-add-cancel');
             if (cancel) {
                 closeForm(cancel.closest('.finding-add-form'));
+                return;
+            }
+
+            var review = e.target.closest('.finding-review');
+            if (review) {
+                var item = review.closest('li');
+                review.disabled = true;
+                fetch(baseUrl + '/' + item.dataset.findingId + '/reviewed', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                })
+                    .then(function (r) { return readJson(r, 'Could not mark as reviewed'); })
+                    .then(function (data) {
+                        if (!data.success) throw new Error(data.error || 'Could not mark as reviewed');
+                        var label = item.querySelector('.finding-reviewed');
+                        label.textContent = 'Reviewed ' + data.reviewed_display;
+                        label.hidden = false;
+                        review.classList.add('is-done');
+                        clearTimeout(review.doneTimer);
+                        review.doneTimer = setTimeout(function () { review.classList.remove('is-done'); }, 2000);
+                    })
+                    .catch(function (err) { notify(err.message, 'error'); })
+                    .finally(function () { review.disabled = false; });
                 return;
             }
 

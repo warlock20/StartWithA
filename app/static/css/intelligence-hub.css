@@ -184,3 +184,60 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Position coverage (issue #435) */
+.hub-coverage {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+}
+
+.hub-coverage-title {
+    margin: 0 0 0.25rem;
+    font-size: 1.125rem;
+}
+
+.hub-coverage-subtitle {
+    margin: 0 0 1rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.hub-coverage-summary {
+    margin: 0 0 0.75rem;
+    font-weight: 600;
+}
+
+.hub-coverage-toggle {
+    margin-top: 0.75rem;
+}
+
+.hub-coverage-gaps {
+    display: none;
+}
+
+.hub-coverage-fixes {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+}
+
+.hub-coverage-fixes .action-btn {
+    white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+    .hub-coverage-fixes {
+        flex-wrap: wrap;
+    }
+
+    /* Closed phone card: a muted line under the name says what is missing */
+    .hub-coverage-gaps {
+        display: block;
+        margin-top: 0.125rem;
+        font-size: 0.8125rem;
+        color: var(--text-secondary, #6b7280);
+    }
+}
