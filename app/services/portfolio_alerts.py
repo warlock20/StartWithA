@@ -49,7 +49,7 @@ LANE_KINDS = {
 }
 _AT_RISK_ASSESSMENTS = ('at_risk', 'likely_missed')
 _LANE_DATE = '%d %b %Y'
-_REVIEWED_DATE = '%d %b'
+_REVIEWED_DATE = '%d %b %Y'
 
 _SEVERITY_RANK = {'danger': 0, 'warning': 1, 'info': 2}
 _COVERAGE_ICONS = {

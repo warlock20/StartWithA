@@ -1,5 +1,5 @@
 // Checkpoints page (portfolio/checkpoint_reminders.html): resolve a checkpoint
-// (Met / Not met), Hold anyway, Still valid, and the "positions with no
+// (Met / Not met), Hold anyway, Still valid, the tab URL sync and the "positions with no
 // issues" toggle. Every successful action reloads the page so the server
 // stays the single source of truth for what needs action.
 (function () {
@@ -97,7 +97,10 @@
     root.addEventListener('click', function (e) {
         var status = e.target.closest('.cp-status-btn');
         if (status) {
-            act([status], function () {
+            var siblings = Array.prototype.filter.call(root.querySelectorAll('.cp-status-btn'), function (b) {
+                return b.dataset.statusUrl === status.dataset.statusUrl;
+            });
+            act(siblings, function () {
                 return postJson(status.dataset.statusUrl, { status: status.dataset.status });
             });
             return;
@@ -129,6 +132,15 @@
         act(controls, function () {
             return postJson(form.dataset.holdUrl, { reason: reason });
         });
+    });
+
+    // Keep the chosen tab in the URL so a reload or a shared link lands on it
+    root.addEventListener('shown.bs.tab', function (e) {
+        var tab = e.target.dataset.tab;
+        if (!tab) return;
+        var params = new URLSearchParams(window.location.search);
+        params.set('tab', tab);
+        window.history.replaceState(null, '', window.location.pathname + '?' + params.toString() + (window.location.hash || ''));
     });
 
     root.addEventListener('keydown', function (e) {

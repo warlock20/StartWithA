@@ -1,9 +1,5 @@
 {% set items = page.lane() %}
-<section id="needs-action" class="cp-panel" aria-labelledby="cp-lane-title">
-    <div class="cp-lane-header">
-        <h2 id="cp-lane-title" class="cp-section-title font-poppins">Needs action <span class="cp-count">· {{ items | length }}</span></h2>
-        <span class="cp-hint">Same items as the alerts on the dashboard and Intelligence Hub</span>
-    </div>
+<section id="needs-action" class="cp-panel">
     {% if items %}
     <ul class="cp-lane-list">
         {% for item in items %}
@@ -11,7 +7,7 @@
         <li class="cp-lane-item" data-kind="{{ item.kind }}">
             <span class="cp-pill cp-kind cp-kind--{{ item.kind }}">{{ item.label }}</span>
             <div class="cp-lane-text">
-                <div class="cp-lane-title"><span class="cp-ticker">{{ item.ticker }}</span> <span class="cp-lane-name">{{ item.title }}</span></div>
+                <div class="cp-lane-title"><span class="cp-ticker">{{ item.ticker }}</span> <span class="cp-lane-name cp-clamp" title="{{ item.title }}">{{ item.title }}</span></div>
                 <div class="cp-lane-detail">{{ item.detail }}</div>
             </div>
             <div class="cp-lane-actions">

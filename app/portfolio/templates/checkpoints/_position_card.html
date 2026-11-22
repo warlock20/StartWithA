@@ -55,7 +55,7 @@
         <div class="cp-rule">
             <span class="cp-pill cp-rule-status cp-rule--{{ r.status }}">{{ r.label }}</span>
             <div class="cp-rule-text">
-                <div>{{ r.text }}</div>
+                <div class="cp-clamp" title="{{ r.text }}">{{ r.text }}</div>
                 {% if r.detail %}<div class="cp-rule-detail">{{ r.detail }}</div>{% endif %}
             </div>
         </div>

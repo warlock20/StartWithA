@@ -30,20 +30,44 @@
         </div>
     </div>
 
-    {% include 'checkpoints/_lane.html' %}
+    {% set lane_count = page.lane() | length %}
+    {% set cards = page.cards() %}
+    <ul class="nav nav-tabs rcl-nav-tabs cp-tabs" id="cp-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link{% if tab == 'action' %} active{% endif %}" id="cp-tab-action" data-bs-toggle="tab"
+                    data-bs-target="#cp-pane-action" type="button" role="tab" data-tab="action"
+                    aria-controls="cp-pane-action" aria-selected="{{ 'true' if tab == 'action' else 'false' }}">
+                <i class="bi bi-lightning-charge"></i> Needs action
+                <span class="rcl-tab-badge">{{ lane_count }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link{% if tab == 'positions' %} active{% endif %}" id="cp-tab-positions" data-bs-toggle="tab"
+                    data-bs-target="#cp-pane-positions" type="button" role="tab" data-tab="positions"
+                    aria-controls="cp-pane-positions" aria-selected="{{ 'true' if tab == 'positions' else 'false' }}">
+                <i class="bi bi-briefcase"></i> Your positions
+                <span class="rcl-tab-badge">{{ cards | length }}</span>
+            </button>
+        </li>
+    </ul>
 
+    <div class="tab-content cp-tab-content">
+    <div class="tab-pane fade{% if tab == 'action' %} show active{% endif %}" id="cp-pane-action" role="tabpanel" aria-labelledby="cp-tab-action" tabindex="0">
+    {% include 'checkpoints/_lane.html' %}
+    </div>
+
+    <div class="tab-pane fade{% if tab == 'positions' %} show active{% endif %}" id="cp-pane-positions" role="tabpanel" aria-labelledby="cp-tab-positions" tabindex="0">
     <div class="cp-section-header">
         <h2 class="cp-section-title font-poppins">{% if view == 'date' %}All checkpoints by date{% else %}Your positions{% endif %}</h2>
         <div class="cp-view-switch" role="group" aria-label="Group checkpoints by">
-            <a href="?view=position" class="cp-view-link{% if view == 'position' %} is-current{% endif %}"{% if view == 'position' %} aria-current="page"{% endif %}>By position</a>
-            <a href="?view=date" class="cp-view-link{% if view == 'date' %} is-current{% endif %}"{% if view == 'date' %} aria-current="page"{% endif %}>By date</a>
+            <a href="?tab=positions&amp;view=position" class="cp-view-link{% if view == 'position' %} is-current{% endif %}"{% if view == 'position' %} aria-current="page"{% endif %}>By position</a>
+            <a href="?tab=positions&amp;view=date" class="cp-view-link{% if view == 'date' %} is-current{% endif %}"{% if view == 'date' %} aria-current="page"{% endif %}>By date</a>
         </div>
     </div>
 
     {% if view == 'date' %}
         {% include 'checkpoints/_date_view.html' %}
     {% else %}
-    {% set cards = page.cards() %}
     {% if not cards %}
         <div class="cp-empty">No open positions yet. Checkpoints appear here once you hold a company.</div>
     {% elif page.collapse_healthy() %}
@@ -66,6 +90,8 @@
     {% endif %}
 
     {% include 'checkpoints/_not_held.html' %}
+    </div>
+    </div>
 
 </div>
 <script src="{{ url_for('static', filename='js/checkpoints-page.js') }}"></script>

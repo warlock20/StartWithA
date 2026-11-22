@@ -42,7 +42,6 @@
     color: var(--text-secondary);
 }
 
-.cp-hint,
 .cp-held,
 .cp-rule-detail {
     font-size: var(--font-size-xs);
@@ -157,15 +156,49 @@ h3.cp-ticker {
     color: var(--success-600);
 }
 
-/* Needs action lane */
-.cp-lane-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: var(--space-sm);
-    margin-bottom: var(--space-sm);
+/* Tabs: one row at every width; each tab takes half, label and badge may shrink */
+.cp-tabs {
+    flex-wrap: nowrap;
 }
+
+.cp-tabs .nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.cp-tabs .nav-link {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    .cp-tabs .nav-link {
+        gap: var(--space-xs);
+        padding-left: var(--space-sm);
+        padding-right: var(--space-sm);
+    }
+}
+
+.cp-tab-content {
+    margin-top: var(--space-md);
+}
+
+.cp-tab-content > .tab-pane > * + * {
+    margin-top: var(--space-md);
+}
+
+/* Long exit-rule titles stop at three lines; the full text is in the title attribute */
+.cp-clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+
+/* Needs action lane */
 
 .cp-lane-list {
     list-style: none;

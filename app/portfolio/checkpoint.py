@@ -22,7 +22,7 @@ from app import db
 from app.portfolio import portfolio_bp
 from app.models import DestinationCheckpoint
 from app.utils.response_utils import json_success, json_error, json_not_found
-from app.utils.decorators import json_errors
+from app.utils.decorators import json_errors, require_feature
 
 from app.services.checkpoints_page import CheckpointsPageService
 from app.services.exit_watch import episodes as exit_episodes
@@ -59,6 +59,7 @@ def update_checkpoint_status(checkpoint_id):
 
 @portfolio_bp.route('/checkpoints')
 @login_required
+@require_feature('portfolio_intelligence')
 def checkpoint_reminders():
     """Checkpoints page: what needs action, then every position or every checkpoint by date."""
     # Exit-rule episodes first, committing only on a change, so the loads below stay loaded
@@ -66,5 +67,8 @@ def checkpoint_reminders():
         db.session.commit()
 
     view = 'date' if request.args.get('view') == 'date' else 'position'
-    return render_template('checkpoint_reminders.html', view=view,
-                           page=CheckpointsPageService(current_user.id))
+    page = CheckpointsPageService(current_user.id)
+    tab = request.args.get('tab')
+    if tab not in ('action', 'positions'):
+        tab = 'action' if page.lane() and view == 'position' else 'positions'
+    return render_template('checkpoint_reminders.html', view=view, tab=tab, page=page)

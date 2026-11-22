@@ -136,15 +136,16 @@ def _plural(count: int, word: str) -> str:
 
 
 def _held_label(shares: int, days: int, imported: bool) -> str:
+    unit = 'share' if shares == 1 else 'shares'
     if imported:
-        return f'{shares} shares · imported'
+        return f'{shares} {unit} · imported'
     if days < 60:
         span = _plural(days, 'day')
     elif days < 730:
         span = _plural(min(days // 30, 23), 'month')
     else:
         span = _plural(days // 365, 'year')
-    return f'{shares} shares · held {span}'
+    return f'{shares} {unit} · held {span}'
 
 
 def _one_line(text: str) -> Optional[str]:
