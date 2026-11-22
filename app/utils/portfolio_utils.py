@@ -20,7 +20,7 @@ Reusable calculation functions for portfolio analytics and metrics.
 """
 
 from decimal import Decimal
-from typing import List, Dict
+from typing import List, Dict, Mapping
 
 
 def trading_gain_loss(position) -> Decimal:
@@ -150,12 +150,14 @@ def calculate_average_holding_period(positions: List) -> int:
     return round(sum(days_list) / len(days_list))
 
 
-def categorize_by_holding_period(positions: List) -> Dict[str, List[float]]:
+def categorize_by_holding_period(positions: List, returns: Mapping) -> Dict[str, List[float]]:
     """
     Categorize positions by holding period buckets.
 
     Args:
         positions: List of PortfolioPosition objects
+        returns: position_returns() for these positions, keyed by company_id;
+                 positions without a return are skipped
 
     Returns:
         Dictionary with holding period buckets as keys and return lists as values
@@ -178,11 +180,12 @@ def categorize_by_holding_period(positions: List) -> Dict[str, List[float]]:
     }
 
     for position in positions:
-        if not position.unrealized_gain_loss_pct:
+        measured = returns.get(position.company_id)
+        if measured is None:
             continue
 
-        days = position.days_held or 0
-        return_pct = float(position.unrealized_gain_loss_pct)
+        days = measured.days
+        return_pct = measured.total_return_pct
 
         if days <= 30:
             buckets['0-30'].append(return_pct)
@@ -198,12 +201,13 @@ def categorize_by_holding_period(positions: List) -> Dict[str, List[float]]:
     return buckets
 
 
-def calculate_holding_period_stats(positions: List) -> Dict[str, float]:
+def calculate_holding_period_stats(positions: List, returns: Mapping) -> Dict[str, float]:
     """
     Calculate average returns for each holding period bucket.
 
     Args:
         positions: List of PortfolioPosition objects
+        returns: position_returns() for these positions, keyed by company_id
 
     Returns:
         Dictionary with period as key and average return as value
@@ -212,7 +216,7 @@ def calculate_holding_period_stats(positions: List) -> Dict[str, float]:
         >>> calculate_holding_period_stats(positions)
         {'0-30': 4.2, '31-90': 10.5, '91-180': 15.2, ...}
     """
-    buckets = categorize_by_holding_period(positions)
+    buckets = categorize_by_holding_period(positions, returns)
 
     stats = {}
     for period, returns in buckets.items():

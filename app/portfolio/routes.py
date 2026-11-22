@@ -20,7 +20,6 @@ import logging
 from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from app import db
 
@@ -37,12 +36,11 @@ from app.models import (
 )
 from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
-from app.utils.time_utils import days_between, now_utc, ensure_timezone_aware
+from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.utils.response_utils import json_error
 from app.utils.portfolio_utils import (
     calculate_holding_period_stats,
     calculate_confidence_stats,
-    count_positions_by_status,
 )
 from app.services.background_tasks import BackgroundTaskService
 
@@ -60,7 +58,8 @@ from app.services.portfolio_alerts import PortfolioAlertsService
 from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
-from app.services.decision_quality import compare_research, position_gain, position_return_pct
+from app.services.decision_quality import compare_research
+from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
 from app.services.outcome_tracking import received_position_company_ids, research_backed_company_ids
 from app.services.cash_service import CashService
@@ -108,10 +107,10 @@ def dashboard():
         if PriceService.should_update_price(pos)
     ]
 
-    # Calculate gains and losses counts using utility
-    status_counts = count_positions_by_status(positions)
-    gains_count = status_counts['winning']
-    losses_count = status_counts['losing']
+    # Lifetime returns (unrealized + realized + dividends), one per position
+    returns = position_returns(positions)
+    gains_count = sum(1 for r in returns.values() if r.total_gain > 0)
+    losses_count = sum(1 for r in returns.values() if r.total_gain < 0)
 
     # Get user currency settings
     user_currency = current_user.base_currency
@@ -129,8 +128,7 @@ def dashboard():
         'current_price': float(round(pos.current_price_base, 2)) if pos.current_price_base else (float(round(pos.current_price, 2)) if pos.current_price else None),
         'current_value': float(round(pos.current_value)) if pos.current_value else None,
         'cost_basis': float(round(pos.total_cost)) if pos.total_cost else None,
-        'gain_loss': float(round((pos.unrealized_gain_loss or Decimal('0.00')) + (pos.total_dividends or Decimal('0.00')))),
-        'gain_loss_pct': float(round(((pos.unrealized_gain_loss or Decimal('0.00')) + (pos.total_dividends or Decimal('0.00'))) / pos.total_cost * 100, 1)) if pos.total_cost else None,
+        **holding_return_fields(returns.get(pos.company_id)),
         'total_dividends': float(pos.total_dividends or 0),
         'days_held': pos.days_held or 0,
         'company_id': pos.company_id,
@@ -542,9 +540,12 @@ def analytics_decisions():
         is_portfolio_decision=True
     ).all()
 
+    # Lifetime returns (unrealized + realized + dividends), one per position
+    returns = position_returns(all_positions)
+
     # Research-backed vs non-research split (shared definition)
     comparison = compare_research(
-        _without_received_positions(all_positions), research_backed_company_ids(current_user.id))
+        _without_received_positions(all_positions), research_backed_company_ids(current_user.id), returns)
     research_positions = comparison.research.positions
     non_research_positions = comparison.no_research.positions
     research_avg_return = comparison.research.avg_return
@@ -558,14 +559,14 @@ def analytics_decisions():
     active_positions = [p for p in all_positions if p.is_active]
 
     # Calculate holding period performance using utility
-    hold_period_stats = calculate_holding_period_stats(active_positions)
+    hold_period_stats = calculate_holding_period_stats(active_positions, returns)
 
     # Decision Quality Matrix
     # Good Process = Research-backed, Bad Process = No research
-    good_process_good_outcome = sum(1 for p in research_positions if (position_gain(p) or 0) > 0)
-    good_process_bad_outcome = sum(1 for p in research_positions if (position_gain(p) or 0) <= 0)
-    bad_process_good_outcome = sum(1 for p in non_research_positions if (position_gain(p) or 0) > 0)
-    bad_process_bad_outcome = sum(1 for p in non_research_positions if (position_gain(p) or 0) <= 0)
+    good_process_good_outcome = sum(1 for p in research_positions if returns[p.company_id].is_gain)
+    good_process_bad_outcome = len(research_positions) - good_process_good_outcome
+    bad_process_good_outcome = sum(1 for p in non_research_positions if returns[p.company_id].is_gain)
+    bad_process_bad_outcome = len(non_research_positions) - bad_process_good_outcome
 
     # Recent decisions
     recent_decisions = Transaction.query.filter_by(
@@ -587,34 +588,26 @@ def analytics_decisions():
     # Get the latest opening BUY journals with confidence scores and actual returns
     journals_with_confidence = []
     for journal in latest_openings:
-        if journal.confidence_score is not None:
-            position = next((p for p in all_positions if p.company_id == journal.company_id), None)
-            if position and position_return_pct(position) is not None:
-                journals_with_confidence.append({
-                    'confidence': journal.confidence_score,
-                    'return': position_return_pct(position)
-                })
+        measured = returns.get(journal.company_id)
+        if journal.confidence_score is not None and measured is not None:
+            journals_with_confidence.append({
+                'confidence': journal.confidence_score,
+                'return': measured.total_return_pct
+            })
 
     # Calculate confidence calibration stats using utility
     confidence_stats = calculate_confidence_stats(journals_with_confidence)
 
-    # Performance vs Expectations Analysis: the expected return is a CAGR, so
-    # each position's CAGR is set against it (closed positions up to their last sale)
-    last_sale_dates = dict(db.session.query(
-        Transaction.company_id, func.max(Transaction.date)
-    ).filter(
-        Transaction.user_id == current_user.id, Transaction.type == 'SELL'
-    ).group_by(Transaction.company_id).all())
+    # Performance vs Expectations Analysis: the expected return is a CAGR, so each
+    # position's annualized return is set against it (closed positions up to their last flow)
     expectations_analysis = []
     for journal in latest_openings:
         if journal.expected_cagr is not None:
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
-            pos_return = position_return_pct(position) if position else None
-            if position and pos_return is not None:
-                exit_date = None if position.is_active else last_sale_dates.get(position.company_id)
-                hold_days = (days_between(position.first_purchase_date, exit_date)
-                             if exit_date and position.first_purchase_date else position.days_held)
-                vs_target = compare_to_expected_cagr(journal.expected_cagr, pos_return, hold_days)
+            measured = returns.get(journal.company_id)
+            if position and measured is not None:
+                vs_target = compare_to_expected_cagr(
+                    journal.expected_cagr, measured.total_return_pct, measured.days, measured.annualized_pct)
 
                 expectations_analysis.append({
                     'company': position.company,
@@ -874,7 +867,8 @@ def intelligence_hub():
     # Decisions Card
     all_positions = PortfolioPosition.query.filter_by(user_id=current_user.id).all()
     comparison = compare_research(
-        _without_received_positions(all_positions), research_backed_company_ids(current_user.id))
+        _without_received_positions(all_positions), research_backed_company_ids(current_user.id),
+        position_returns(all_positions))
 
     decisions = {
         'has_data': comparison.research.count > 0 or comparison.no_research.count > 0,

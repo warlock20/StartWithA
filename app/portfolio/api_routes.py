@@ -32,6 +32,7 @@ from app.constants import RATELIMIT_AI
 
 from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
+from app.services.position_returns import holding_return_fields, position_return, position_returns
 from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_thesis
 from app.services.financial_data import FinancialDataService
 from app.utils.blocknote_utils import blocknote_to_html
@@ -370,7 +371,7 @@ def refresh_position_price(company_id):
 
     return jsonify({
         'success': True,
-        'position': _serialize_position(position),
+        'position': _serialize_position(position, position_return(position)),
     })
 
 
@@ -389,23 +390,24 @@ def refresh_positions_batch():
         user_id=current_user.id,
         is_active=True
     ).all()
+    returns = position_returns(positions)
 
     return jsonify({
         'success': True,
         'updated': results['updated'],
         'skipped': results['skipped'],
         'failed': results.get('failed', 0),
-        'positions': [_serialize_position(p) for p in positions],
+        'positions': [_serialize_position(p, returns.get(p.company_id)) for p in positions],
     })
 
 
-def _serialize_position(position):
-    """Serialize a position for JSON API responses."""
-    unrealized = float(position.unrealized_gain_loss or 0)
-    dividends = float(position.total_dividends or 0)
-    total_return = unrealized + dividends
-    cost = float(position.total_cost or 0)
-    total_return_pct = round(total_return / cost * 100, 1) if cost > 0 else None
+def _serialize_position(position, measured):
+    """Serialize a position for JSON API responses.
+
+    ``gain_loss``/``gain_loss_pct`` are the lifetime return (see position_returns);
+    ``unrealized_*`` cover only the shares still held, for the position page's
+    Unrealized P&L tile.
+    """
     return {
         'company_id': position.company_id,
         'ticker': position.company.ticker_symbol,
@@ -415,9 +417,10 @@ def _serialize_position(position):
         'current_price': float(round(position.current_price, 2)) if position.current_price else None,
         'current_price_base': float(round(position.current_price_base, 2)) if position.current_price_base else None,
         'current_value': float(round(position.current_value)) if position.current_value else None,
-        'gain_loss': round(total_return),
-        'gain_loss_pct': total_return_pct,
-        'total_dividends': dividends,
+        **holding_return_fields(measured),
+        'unrealized_gain_loss': float(position.unrealized_gain_loss) if position.unrealized_gain_loss is not None else None,
+        'unrealized_gain_loss_pct': float(position.unrealized_gain_loss_pct) if position.unrealized_gain_loss_pct is not None else None,
+        'total_dividends': float(position.total_dividends or 0),
         'days_held': position.days_held or 0,
         'position_url': url_for('companies.company_detail', company_id=position.company_id),
         'add_tx_url': url_for('portfolio.add_transaction', company_id=position.company_id),

@@ -50,6 +50,9 @@ from app.utils.grading import score_to_grade
 from app.models.ai_intelligence import ResearchOutcome
 from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company, ThesisEvolution
 from app.services.decision_journals import opening_buy_decision
+# Below MIN_DAYS_FOR_ANNUALIZED_COMPARISON days held, total return is compared with
+# the return the expected CAGR implies by now
+from app.services.position_returns import MIN_DAYS_FOR_ANNUALIZED_COMPARISON, position_returns
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +60,6 @@ logger = logging.getLogger(__name__)
 SHORT_HOLD_THRESHOLD_DAYS = 90
 # Minimum data points needed for confidence-return correlation
 MIN_CONFIDENCE_RETURN_SAMPLES = 3
-# Below this many days held, compare total return to the return the expected
-# CAGR implies by now, since annualizing a few days' move is meaningless
-MIN_DAYS_FOR_ANNUALIZED_COMPARISON = 30
 DAYS_PER_YEAR = 365
 
 
@@ -475,7 +475,9 @@ class PortfolioIntelligenceService:
     def get_thesis_reality_check(self) -> List[ThesisReality]:
         """
         Compare original investment thesis to actual performance.
-        Uses CAGR (annualized returns) for fair comparison across different holding periods.
+        Uses the position's annualized return (XIRR over its own cash flows, so
+        realized gains and dividends count) for a fair comparison across
+        holding periods.
 
         Returns:
             List of ThesisReality for each active position
@@ -514,16 +516,21 @@ class PortfolioIntelligenceService:
         ).order_by(ThesisEvolution.version.desc()).all():
             theses_map.setdefault(t.company_id, []).append(t)
 
+        # Lifetime returns: realized gains and dividends count, not only the open shares
+        returns = position_returns(positions)
+
         results = []
 
         for position in positions:
             journal = journals_map.get(position.company_id)
             target = _resolve_return_target(journal, theses_map.get(position.company_id, []))
 
-            # Calculate actual returns
-            actual_return = float(position.unrealized_gain_loss_pct or 0)
+            # Calculate actual returns (a position with no price yet reads as flat)
+            measured = returns.get(position.company_id)
+            actual_return = measured.total_return_pct if measured else 0.0
             days_held = position.days_held or 0
-            annualized_return = calculate_cagr(actual_return, days_held)
+            annualized_return = (measured.annualized_pct if measured and measured.annualized_pct is not None
+                                 else calculate_cagr(actual_return, days_held))
 
             # Determine status (using annualized return for fair comparison)
             status = self._assess_thesis_status(

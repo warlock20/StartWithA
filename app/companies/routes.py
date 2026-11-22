@@ -25,6 +25,7 @@ from app.utils.time_utils import now_utc
 from app.services.decision_journals import exit_plan_view, opening_buy_decision
 from app.services.conviction_service import current_theses
 from app.services.portfolio_intelligence import compare_to_expected_cagr
+from app.services.position_returns import position_return
 from app.utils.auth_utils import owned_or_404
 from flask import render_template, request, redirect, url_for, flash, current_app, jsonify, Response, Response
 from flask_login import current_user, login_required
@@ -547,14 +548,11 @@ def _gather_journey_data(company, user_id):
         company_id=company.id
     ).filter(JournalEntry.entry_type.notin_(FINDING_TYPES)).count()
 
-    # Journey statistics
-    total_return = 0
-    days_held = 0
-    if position:
-        if position.unrealized_gain_loss_pct:
-            total_return = position.unrealized_gain_loss_pct
-        if position.days_held:
-            days_held = position.days_held
+    # Journey statistics: the lifetime return, so realized gains and dividends count
+    measured = position_return(position) if position else None
+    total_return = measured.total_return_pct if measured else 0
+    annualized_return = measured.annualized_pct if measured else None
+    days_held = (position.days_held or 0) if position else 0
 
     checkpoints_met = sum(1 for cp in checkpoints if cp.status == 'Met')
 
@@ -565,6 +563,7 @@ def _gather_journey_data(company, user_id):
 
     journey_stats = {
         'total_return': total_return,
+        'annualized_return': annualized_return,
         'thesis_updates': len(thesis_versions),
         'checkpoints_met': checkpoints_met,
         'total_checkpoints': len(checkpoints),
@@ -601,11 +600,12 @@ def _gather_journey_data(company, user_id):
             price_stale = PriceService.should_update_price(position)
             if (portfolio_decision_journal
                     and portfolio_decision_journal.expected_cagr is not None
-                    and position.unrealized_gain_loss_pct is not None):
+                    and measured is not None):
                 return_vs_expected = compare_to_expected_cagr(
                     portfolio_decision_journal.expected_cagr,
-                    float(position.unrealized_gain_loss_pct),
-                    position.days_held or 0)
+                    measured.total_return_pct,
+                    measured.days,
+                    measured.annualized_pct)
 
     return {
         'company_state': company_state,
