@@ -31,8 +31,10 @@ from sqlalchemy import func
 from app import db
 from app.models import ResearchSettings
 from app.models.prompt_management import PromptUsageLog
+from app.features import user_has_feature
 from app.services.config_service import ConfigKeys, get_config
-from app.utils.time_utils import ensure_timezone_aware, now_utc, timedelta, timezone
+from app.services.monitor_registry import MONITORS
+from app.utils.time_utils import naive_utc, now_utc, timedelta
 
 DEFAULT_ALLOWANCE = 150
 DEFAULT_ALLOWANCE_MAX = 500
@@ -42,16 +44,20 @@ WINDOW_DAYS = 30
 BACKGROUND_SEARCH_PROMPTS = ('exit_criteria_check',)
 
 
-def _naive_utc_now():
-    return now_utc().replace(tzinfo=None)
+def has_search_monitor(user):
+    """Whether the user can run any monitor whose searches count against the allowance."""
+    return any(
+        any(name in BACKGROUND_SEARCH_PROMPTS for _, name in monitor.prompts)
+        and (not monitor.feature or user_has_feature(user, monitor.feature))
+        for monitor in MONITORS.values())
 
 
 def allowance_window(user, now=None):
     """(start, end) of the user's current month: start exclusive, end inclusive."""
-    now = now or _naive_utc_now()
+    now = naive_utc(now or now_utc())
     reset = user.ai_tokens_reset_date
     if reset is not None:
-        reset = ensure_timezone_aware(reset).astimezone(timezone.utc).replace(tzinfo=None)  # in-session values are aware until reloaded
+        reset = naive_utc(reset)  # in-session values are aware until reloaded
         if reset <= now:
             # Reset overdue (it only runs when tokens are next used): roll forward in 30-day
             # steps to the period containing now.

@@ -118,16 +118,24 @@ class GeminiAdapter(ProviderAdapter):
     def _append_user(self, transcript, text):
         return transcript + [genai_types.Content(role='user', parts=[genai_types.Part(text=text)])]
 
-    def close_tool_calls(self, transcript, ack_text):
+    def close_tool_calls(self, transcript, ack_text, text=None):
         last = transcript[-1] if transcript else None
-        if last is None or last.role != 'model':
-            return transcript
-        calls = [part.function_call for part in last.parts or [] if part.function_call]
+        calls = ([part.function_call for part in last.parts or [] if part.function_call]
+                 if last is not None and last.role == 'model' else [])
         if not calls:
-            return transcript
+            if text is None:
+                return transcript
+            if last is not None and last.role == 'user':
+                # The model turn was empty and not replayed: one user turn, not two in a row.
+                parts = list(last.parts or []) + [genai_types.Part(text=text)]
+                merged = genai_types.Content(role='user', parts=parts)
+                return transcript[:-1] + [merged]
+            return self._append_user(transcript, text)
         parts = [genai_types.Part(function_response=genai_types.FunctionResponse(
             id=function_call.id, name=function_call.name, response={'result': ack_text}))
             for function_call in calls]
+        if text is not None:
+            parts.append(genai_types.Part(text=text))
         return transcript + [genai_types.Content(role='user', parts=parts)]
 
     def _complete(self, call, contents, on_usage):

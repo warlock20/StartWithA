@@ -30,11 +30,12 @@ from app.celery_tasks.base import TaskFailed, background_task
 from app.models import User
 from app.services.checkpoint_analysis_service import CheckpointAnalysisService
 from app.services.exit_watch.run import run_exit_watch
-from app.services.monitor_registry import dedup_window, expiry_window, get_monitor
+from app.services.monitor_registry import MONITOR_RUN_SOFT_LIMIT, dedup_window, expiry_window, get_monitor
 
 logger = logging.getLogger(__name__)
 
-MONITOR_RUN_SOFT_LIMIT = 900
+MONITOR_RUN_HARD_LIMIT = MONITOR_RUN_SOFT_LIMIT + 120  # room to roll back and report the timeout
+TIMEOUT_MESSAGE = 'Stopped at the 30-minute time limit. The next run picks up what was not finished.'
 
 
 def _run_checkpoint_analysis(user, monitor):
@@ -49,7 +50,8 @@ MONITOR_RUNNERS = {
 }
 
 
-@background_task(soft_time_limit=MONITOR_RUN_SOFT_LIMIT)
+@background_task(timeout_message=TIMEOUT_MESSAGE, soft_time_limit=MONITOR_RUN_SOFT_LIMIT,
+                 time_limit=MONITOR_RUN_HARD_LIMIT)
 def run_monitor_task(self, task, user_id: int, monitor_key: str):
     """Run one monitor for one user and return its summary dict."""
     monitor = get_monitor(monitor_key)

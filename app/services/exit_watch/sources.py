@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-"""Web sources for an exit-criteria check: resolve Gemini redirects, read publish dates."""
+"""Web sources for an exit-criteria check: resolve Gemini redirects, read publish dates of cited pages."""
 
 import json
 import logging
@@ -24,10 +24,10 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
+from celery.exceptions import SoftTimeLimitExceeded
 
 from app.services.ai_check import AICheckError
 from app.services.ai_check.fetch import resolve_redirect
-from app.services.ai_check.llm import SearchResult
 from app.utils.time_utils import add_days, date, now_utc, parse_date_string
 
 LOG = logging.getLogger(__name__)
@@ -48,6 +48,7 @@ class ResolvedSource:
     date_source: Optional[str]
     page_date: Optional[date]
     search_date: Optional[str]
+    fetched: bool = False  # its page was already requested (a redirect, or a cited source)
 
 
 def _iso_date(value):
@@ -126,37 +127,55 @@ def _is_google(host):
     return any(host == h or host.endswith('.' + h) for h in GOOGLE_HOSTS)
 
 
-def _resolve_one(result, contact, client, resolver):
-    """(url, page date) for one result, or None when a redirect result can't be resolved."""
-    url, page_date = result.url, None
-    if not (result.is_redirect or not parse_text_date(result.published)):
-        return url, page_date
+def _real_page(url):
+    """An http(s) URL on a host that isn't Google's: where a redirect may count as resolved."""
+    parsed = urlparse(url or '')
+    return parsed.scheme in ('http', 'https') and not _is_google(parsed.hostname)
+
+
+def _page_date(status, body):
+    return page_published_date(body) if status is not None and status < 400 and body else None
+
+
+def _resolve_redirect(result, contact, client, resolver):
+    """(url, page date) for a redirect result, or None when it never reached a real page.
+
+    The redirect is followed now so the source can be listed; the body it lands on gives the page
+    date for free. A chain that reached a real host and then timed out or ran past MAX_REDIRECTS
+    keeps that last real hop, undated.
+    """
+    hops = []
     try:
-        final_url, status, body = resolve_redirect(url, contact, client, resolver)
+        final_url, status, body = resolve_redirect(result.url, contact, client, resolver, hops=hops)
     except AICheckError as exc:
-        LOG.debug('Source %s not fetched: %s', url, exc)
-        final_url, status, body = None, None, b''
-    if result.is_redirect:
-        parsed = urlparse(final_url or '')
-        if parsed.scheme not in ('http', 'https') or _is_google(parsed.hostname):
-            LOG.debug('Redirect %s dropped (landed on %s)', url, final_url)
-            return None
-        url = final_url
-    if final_url and status < 400:
-        page_date = page_published_date(body)
-    return url, page_date
+        real = [hop for hop in hops[1:] if _real_page(hop)]
+        LOG.debug('Redirect %s failed after %s: %s', result.url, real[-1] if real else 'no real page', exc)
+        return (real[-1], None) if real else None
+    if not _real_page(final_url):
+        LOG.debug('Redirect %s dropped (landed on %s)', result.url, final_url)
+        return None
+    return final_url, _page_date(status, body)
 
 
 def resolve_sources(results, contact, client=None, resolver=None):
-    """Resolve search results to real pages. Returns (sources, unresolved count). One bad source
-    never aborts the batch: a redirect result is dropped, any other is kept without a page date."""
+    """Resolve search results to real pages to list for the answer. Returns (sources, unresolved count).
+
+    Only redirects are fetched here; other results keep their URL and search date, and their page
+    dates are read once the answer cites them (add_page_dates). One bad source never aborts the
+    batch: a redirect that fails is dropped.
+    """
     sources, seen, unresolved = [], set(), 0
     for result in results:
-        try:
-            resolved = _resolve_one(result, contact, client, resolver)
-        except Exception as exc:  # one hostile page must not abort the others
-            LOG.warning('Source %s failed: %s', result.url, exc)
-            resolved = None if result.is_redirect else (result.url, None)
+        if result.is_redirect:
+            try:
+                resolved = _resolve_redirect(result, contact, client, resolver)
+            except SoftTimeLimitExceeded:
+                raise
+            except Exception as exc:  # one hostile page must not abort the others
+                LOG.warning('Source %s failed: %s', result.url, exc)
+                resolved = None
+        else:
+            resolved = (result.url, None)
         if resolved is None:
             unresolved += 1
             continue
@@ -166,5 +185,26 @@ def resolve_sources(results, contact, client=None, resolver=None):
         seen.add(url)
         published, date_source = pick_date(result.published, page_date, None)
         sources.append(ResolvedSource(f'S{len(sources) + 1}', url, result.title, published, date_source,
-                                      page_date, result.published))
+                                      page_date, result.published, fetched=result.is_redirect))
     return sources, unresolved
+
+
+def add_page_dates(resolved, cited_ids, contact, client=None, resolver=None):
+    """Read the page date of each cited source that has no search date and wasn't fetched yet.
+
+    Updates the sources in place. A page that fails keeps its source, without a page date.
+    """
+    for source in resolved:
+        if source.id not in cited_ids or source.fetched or parse_text_date(source.search_date):
+            continue
+        source.fetched = True
+        try:
+            _, status, body = resolve_redirect(source.url, contact, client, resolver)
+            source.page_date = _page_date(status, body)
+        except SoftTimeLimitExceeded:
+            raise
+        except AICheckError as exc:
+            LOG.debug('Source %s not fetched: %s', source.url, exc)
+        except Exception as exc:  # one hostile page must not abort the others
+            LOG.warning('Source %s failed: %s', source.url, exc)
+        source.published, source.date_source = pick_date(source.search_date, source.page_date, None)

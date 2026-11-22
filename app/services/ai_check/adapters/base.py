@@ -25,7 +25,8 @@ class ProviderAdapter(ABC):
     """Translates neutral StageCalls into one provider's API and back.
 
     A subclass declares what the provider can do and implements four hooks; the base turns
-    those into `send` (first attempt) and `follow_up` (the reminder after a turn with no tool call).
+    those into `send` (first attempt), `follow_up` (the reminder after a turn with no tool call)
+    and `continue_with` (a transcript the caller finished, e.g. after close_tool_calls with text).
     """
     provider = ''  # pricing/provider key: 'claude', 'gemini', 'deepseek'
     name = ''  # shown in user-facing errors
@@ -56,9 +57,18 @@ class ProviderAdapter(ABC):
     def follow_up(self, call, transcript, text, on_usage):
         return self._complete(call, self._append_user(transcript, text), on_usage)
 
-    def close_tool_calls(self, transcript, ack_text):
-        """The transcript with every tool call in its last model turn answered by `ack_text`, so a
-        further user turn is valid; unchanged when that turn called no tool."""
+    def continue_with(self, call, transcript, on_usage):
+        """Complete `transcript` as it is (it already ends with the user turn to answer)."""
+        return self._complete(call, transcript, on_usage)
+
+    def close_tool_calls(self, transcript, ack_text, text=None):
+        """The transcript with every tool call in its last model turn answered by `ack_text`.
+
+        Without `text` a further user turn is then valid (follow_up); unchanged when that turn
+        called no tool. With `text`, the answers and the text go in one user turn (DeepSeek: the
+        tool messages, then one user message, as its API requires) and the result is ready for
+        continue_with; with no tool call to answer that is just the text turn.
+        """
         raise NotImplementedError(f'{self.name} adapter does not answer tool calls.')
 
     @abstractmethod

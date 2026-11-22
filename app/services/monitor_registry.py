@@ -28,6 +28,9 @@ FREQUENCY_PERIODS = {
     'monthly': timedelta(days=30),
 }
 DEDUP_SLACK = timedelta(hours=2)
+# One monitor run's Celery soft time limit, and how long before it a run stops taking new work.
+MONITOR_RUN_SOFT_LIMIT = 1800  # an exit watch run checks every rule, each with up to 3 searches
+MONITOR_RUN_STOP_MARGIN = 120
 
 
 @dataclass(frozen=True)

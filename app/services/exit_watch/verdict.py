@@ -16,7 +16,7 @@
 
 """Verdict rules for one exit-criteria check: what status the rule gets after the model answers."""
 
-STATUS_RANK = {'intact': 0, 'at_risk': 1, 'triggered': 2}
+from app.services.exit_watch import STATUS_RANK
 
 
 def decide(model_status, changed, web_ids, app_ids, previous_status):

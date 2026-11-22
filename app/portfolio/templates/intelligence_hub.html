@@ -492,9 +492,11 @@ document.addEventListener('DOMContentLoaded', function() {
         var link = el('a', 'hub-rule-name', rule.signal || rule.text);
         link.href = rule.findings_url;
         head.appendChild(link);
-        var status = rule.status || 'unchecked';
+        // A stale check is not where the rule stands now: muted, like the Findings tab
+        var expired = rule.expired && rule.checked_at_display;
+        var status = expired ? 'expired' : (rule.status || 'unchecked');
         head.appendChild(el('span', 'hub-rule-badge hub-rule-badge--' + status,
-            rule.status_label || 'Not checked yet'));
+            expired ? 'Not checked since ' + rule.checked_at_display : (rule.status_label || 'Not checked yet')));
         item.appendChild(head);
         if (rule.summary) item.appendChild(el('p', 'hub-rule-summary', rule.summary));
         if (rule.sources && rule.sources.length) {
@@ -514,8 +516,10 @@ document.addEventListener('DOMContentLoaded', function() {
             item.appendChild(list);
         }
         var notes = [];
-        if (rule.checked_at_display) {
-            notes.push((rule.expired ? 'Not checked since ' : 'Checked ') + rule.checked_at_display);
+        if (rule.checked_at_display && !rule.expired) {
+            // Carried evidence: the check is today's, the sources are from an earlier one
+            notes.push('Checked ' + rule.checked_at_display +
+                (rule.evidence_display ? ' \u00b7 Evidence from ' + rule.evidence_display : ''));
         }
         if (rule.held_since_display) {
             notes.push('Held through trigger since ' + rule.held_since_display +

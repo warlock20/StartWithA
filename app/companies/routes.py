@@ -675,6 +675,9 @@ def _format_intrinsic_value_label(company):
 def company_detail(company_id):
     """Unified company page — merges dashboard + journey into one."""
     company = owned_or_404(Company, company_id)
+    # Exit-rule episodes first: a commit later in the view would expire what it loaded.
+    if exit_episodes.resolve(current_user.id, now_utc()):
+        db.session.commit()
 
     # Journey data (timeline, thesis, position, stats, research)
     journey_data = _gather_journey_data(company, current_user.id)
@@ -767,8 +770,6 @@ def _exit_watch_states(findings):
     rule_ids = [f.id for f in findings if f.entry_type == MUST_EXIT]
     if not rule_ids:
         return {}
-    exit_episodes.resolve(current_user.id, now_utc())
-    db.session.commit()
     return exit_view.rule_states(current_user.id, rule_ids)
 
 

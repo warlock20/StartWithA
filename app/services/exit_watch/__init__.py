@@ -19,3 +19,8 @@
 
 class ExitWatchError(Exception):
     """A user-facing failure: the message is shown in the UI as is."""
+
+
+CONTEXT_TYPE = 'exit_criterion'  # AIInsight.context_type of a rule check; context_id is the rule id
+STATUS_LABELS = {'intact': 'Intact', 'at_risk': 'At risk', 'triggered': 'Triggered'}
+STATUS_RANK = {'intact': 0, 'at_risk': 1, 'triggered': 2}

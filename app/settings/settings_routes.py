@@ -33,7 +33,7 @@ from app.services.capital_timing import (
 )
 from app.services.config_service import ConfigService
 from app.services.currency_service import CurrencyService
-from app.services.search_allowance import allowance_max, allowance_status, set_allowance
+from app.services.search_allowance import allowance_max, allowance_status, has_search_monitor, set_allowance
 from app.services.monitor_registry import get_event, get_monitor
 from app.services.monitor_schedule import (
     MonitorSettingError, event_rows, monitor_rows, run_now, update_event_setting, update_setting,
@@ -116,7 +116,8 @@ def monitors():
         section_title='Background AI',
         section_intro=('AI checks that run on a schedule or when you do something. '
                        'Each run uses AI tokens from your monthly budget.'),
-        search_allowance=allowance_status(current_user),
+        # Hidden when no monitor the user can run searches the web (e.g. exit watch locked by plan)
+        search_allowance=allowance_status(current_user) if has_search_monitor(current_user) else None,
         search_allowance_max=allowance_max(),
         monitors=monitor_rows(current_user),
         events=event_rows(current_user),

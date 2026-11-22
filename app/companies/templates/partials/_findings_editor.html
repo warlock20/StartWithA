@@ -63,8 +63,9 @@
                             {%- if xs.expired %}{% if xs.checked_display %}Not checked since {{ xs.checked_display }}{% else %}Not checked yet{% endif %}{% else %}{{ xs.status_label }}{% endif -%}
                         </span>
                         {% if xs.checked_display and not xs.expired %}<small class="text-muted">Checked {{ xs.checked_display }}</small>{% endif %}
+                        {% if xs.evidence_display and not xs.expired %}<small class="text-muted">Evidence from {{ xs.evidence_display }}</small>{% endif %}
                     </div>
-                    {% if xs.summary %}<span class="finding-exit-summary">{{ xs.summary }}</span>{% endif %}
+                    {% if xs.display_summary %}<span class="finding-exit-summary">{{ xs.display_summary }}</span>{% endif %}
                     {% if xs.sources %}
                     <ul class="finding-exit-sources">
                         {% for src in xs.sources %}

@@ -66,6 +66,7 @@ CATEGORY_LABELS = {
     'intelligence': 'AI Intelligence',
     'portfolio': 'Portfolio Analytics',
     'kill_checklist': 'Kill Criterion Suggestions',
+    'exit_criteria': 'Exit criteria',
 }
 
 CATEGORY_ICONS = {
@@ -77,6 +78,7 @@ CATEGORY_ICONS = {
     'intelligence': 'bi-lightbulb',
     'portfolio': 'bi-pie-chart',
     'kill_checklist': 'bi-lightbulb',
+    'exit_criteria': 'bi-door-open',
 }
 
 

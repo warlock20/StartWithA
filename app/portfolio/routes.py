@@ -786,6 +786,9 @@ def intelligence_hub():
     Investment Intelligence Hub
     Central dashboard linking all intelligence features with summary metrics
     """
+    # Exit-rule episodes first, committing only on a change, so the joinedloads below stay loaded
+    if exit_episodes.resolve(current_user.id, now_utc()):
+        db.session.commit()
 
     # ========================================
     # HEALTH BAR - Quick overview metrics
@@ -817,8 +820,6 @@ def intelligence_hub():
     
     # Alerts, checkpoints, theses and coverage all come from one service so the
     # strip, the health bar and the cards agree (issue #435)
-    exit_episodes.resolve(current_user.id, now_utc())
-    db.session.commit()
     alerts_service = PortfolioAlertsService(current_user.id)
     checkpoints_data = alerts_service.checkpoints_data
     checkpoint_summary = {

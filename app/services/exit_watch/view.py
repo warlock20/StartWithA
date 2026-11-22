@@ -20,10 +20,9 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from app.models import JournalEntry
-from app.services.exit_watch import episodes
-from app.utils.time_utils import date, now_utc
+from app.services.exit_watch import STATUS_LABELS, episodes
+from app.utils.time_utils import date, naive_utc, now_utc
 
-STATUS_LABELS = {'intact': 'Intact', 'at_risk': 'At risk', 'triggered': 'Triggered'}
 DATE_FORMAT = '%b %d, %Y'
 
 
@@ -47,6 +46,12 @@ def _published_display(value) -> Optional[str]:
         return None
 
 
+def _evidence_display(data: dict) -> Optional[str]:
+    if not data.get('evidence_carried') or not data.get('evidence_checked_at'):
+        return None
+    return _published_display(data['evidence_checked_at'])
+
+
 def _sources(data: dict) -> list:
     return [{'url': s.get('url'), 'title': s.get('title') or s.get('url'),
              'published': s.get('published'), 'published_display': _published_display(s.get('published')),
@@ -57,13 +62,15 @@ def _sources(data: dict) -> list:
 def rule_states(user_id: int, rule_ids, now=None) -> dict:
     """Per rule id with a check or an open episode: status, summary, sources and the episode. One query per table.
 
+    'summary' is the model's own text; 'display_summary' is what the UI shows.
+
     Rules never checked and without an episode are left out. 'expired' is True when the latest
     check is inactive or past its expiry ("Not checked since <date>").
     """
     rule_ids = list(rule_ids)
     if not rule_ids:
         return {}
-    now_db = episodes._naive(now or now_utc())
+    now_db = naive_utc(now or now_utc())
     latest = episodes.latest_insights(user_id, rule_ids)
     open_episodes = episodes.open_for_rules(rule_ids)
     open_episodes = {rid: e for rid, e in open_episodes.items() if e.user_id == user_id}
@@ -81,7 +88,7 @@ def rule_states(user_id: int, rule_ids, now=None) -> dict:
         data = (insight.supporting_data if insight else None) or {}
         status = data.get('status') or (episode.current_status if episode else 'intact')
         expired = insight is None or not insight.is_active or (
-            insight.expires_at is not None and episodes._naive(insight.expires_at) <= now_db)
+            insight.expires_at is not None and naive_utc(insight.expires_at) <= now_db)
         checked = insight.created_at if insight else None
         state = {
             'status': status,
@@ -89,6 +96,11 @@ def rule_states(user_id: int, rule_ids, now=None) -> dict:
             'checked_at': checked.isoformat() if checked else None,
             'checked_display': _display(checked),
             'summary': data.get('summary') or '',
+            # A downgraded verdict shows the stored "No evidence found", never the model's claim.
+            # When the evidence was carried from an earlier check: "Evidence from <date>"
+            'evidence_display': _evidence_display(data),
+            'display_summary': ((insight.insight_text if insight and data.get('no_evidence')
+                                 else data.get('summary')) or ''),
             'no_evidence': bool(data.get('no_evidence')),
             'sources': _sources(data),
             'expired': expired,

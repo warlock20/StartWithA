@@ -5,6 +5,7 @@
 {% set when_format = '%d %b %Y, %H:%M UTC' %}
 
 {% block settings_content %}
+{% if search_allowance %}
 <section class="settings-panel" id="search-allowance">
     <div class="settings-panel-head">
         <h3><i class="bi bi-search me-1" aria-hidden="true"></i>Web search allowance</h3>
@@ -24,6 +25,7 @@
         </div>
     </form>
 </section>
+{% endif %}
 
 <h3 class="h6 text-uppercase text-muted mb-2" id="background-monitors">Background monitors</h3>
 {% for m in monitors %}
@@ -99,6 +101,7 @@
                  · {{ res.checked }} checked ({{ res.triggered }} triggered, {{ res.at_risk }} at risk) · {{ res.searches }} searches
                 {%- if res.skipped_recent %}, {{ res.skipped_recent }} already up to date{% endif %}
                 {%- if res.skipped_search_allowance %}, {{ res.skipped_search_allowance }} skipped (search allowance){% endif %}
+                {%- if res.skipped_time_limit %}, {{ res.skipped_time_limit }} not reached (time limit){% endif %}
                 {%- if res.skipped_token_budget %}, {{ res.skipped_token_budget }} skipped (token budget){% endif %}
                 {%- if res.failed %}, {{ res.failed }} failed{% endif %}
                 {%- if res.sources_unresolved %}, {{ res.sources_unresolved }} sources could not be opened{% endif %}

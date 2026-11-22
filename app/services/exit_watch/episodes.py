@@ -27,27 +27,17 @@ from typing import Optional
 from app import db
 from app.models import AIInsight, ExitRuleTrigger, JournalEntry, PortfolioPosition, Transaction
 from app.models.portfolio import fifo_state_before
-from app.services.exit_watch import ExitWatchError
-from app.services.findings import MUST_EXIT, _project_id_for
+from app.services.exit_watch import CONTEXT_TYPE, STATUS_RANK, ExitWatchError
+from app.services.findings import MUST_EXIT, project_id_for
 from app.services.position_coverage import exit_plan_stale_days
-from app.utils.time_utils import add_days, date, datetime, ensure_timezone_aware, now_utc, timezone
+from app.utils.time_utils import add_days, date, datetime, naive_utc, now_utc
 
 GRACE_DAYS = 14
-CONTEXT_TYPE = 'exit_criterion'
-
-STATUS_RANK = {'intact': 0, 'at_risk': 1, 'triggered': 2}
 
 PENDING, SOLD, HELD, IGNORED = 'pending', 'sold', 'held', 'ignored'
 
 NEEDS_REASON_MESSAGE = 'Say why you are holding through this exit rule.'
 NO_EPISODE_MESSAGE = 'This exit rule has no open trigger to respond to.'
-
-
-def _naive(value: Optional[datetime]) -> Optional[datetime]:
-    """UTC wall time without tzinfo, the way the columns store it."""
-    if value is None:
-        return None
-    return ensure_timezone_aware(value).astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def _open_query(user_id: Optional[int] = None):
@@ -67,7 +57,7 @@ def open_for_rules(rule_ids) -> dict:
 
 
 def _close(episode: ExitRuleTrigger, reason: str, now: datetime) -> None:
-    episode.closed_at = _naive(now)
+    episode.closed_at = naive_utc(now)
     episode.close_reason = reason
 
 
@@ -75,8 +65,14 @@ def _has_newer_dated_source(insight: Optional[AIInsight], held_at: datetime, now
     """A web source dated after the hold date and not in the future. App data and undated sources never count."""
     data = (insight.supporting_data if insight else None) or {}
     held_day = held_at.date()
-    today = _naive(now).date()
-    for source in data.get('web_sources') or []:
+    today = naive_utc(now).date()
+    # A check that carried the previous evidence holds the old sources in web_sources (never new)
+    # and its own finds in last_news_check.
+    if data.get('evidence_carried'):
+        found = (data.get('last_news_check') or {}).get('web_sources') or []
+    else:
+        found = data.get('web_sources') or []
+    for source in found:
         published = (source or {}).get('published')
         if not published:
             continue
@@ -90,14 +86,28 @@ def _has_newer_dated_source(insight: Optional[AIInsight], held_at: datetime, now
 
 
 def _realert(episode: ExitRuleTrigger, reason: str, now: datetime) -> None:
-    episode.realerted_at = _naive(now)
+    episode.realerted_at = naive_utc(now)
     episode.realert_reason = reason
+
+
+def _price_at_open(insight: Optional[AIInsight], position) -> tuple:
+    """(price, currency) for a new episode: the check snapshot's price, else the position's."""
+    snapshot = ((insight.supporting_data if insight else None) or {}).get('snapshot') or []
+    for item in snapshot:
+        if item.get('field') == 'price' and item.get('value') is not None:
+            unit = item.get('unit')
+            currency = unit if isinstance(unit, str) and len(unit) == 3 else None
+            return item['value'], currency or (position.currency if position else None)
+    if position is None:
+        return None, None
+    return position.current_price, position.currency
 
 
 def record_check(rule, position, insight, status: str, now: datetime) -> Optional[ExitRuleTrigger]:
     """Fold one check result into the rule's episode. Does not commit.
 
-    No open episode and a non-intact status opens one (price from the position). An intact
+    No open episode and a non-intact status opens one (price from the check's snapshot, else the
+    position). An intact
     status closes the open episode. A status worse than the episode's previous status raises
     worst_status as needed and re-alerts a held or sold (trimmed) episode; a held episode also
     re-alerts when the check cites a web source dated after the hold. Returns the episode
@@ -107,12 +117,12 @@ def record_check(rule, position, insight, status: str, now: datetime) -> Optiona
     if episode is None:
         if status == 'intact':
             return None
+        price, currency = _price_at_open(insight, position)
         episode = ExitRuleTrigger(
             user_id=rule.user_id, company_id=rule.company_id, rule_id=rule.id,
-            opened_at=_naive(now), opening_insight_id=insight.id if insight else None,
+            opened_at=naive_utc(now), opening_insight_id=insight.id if insight else None,
             worst_status=status, current_status=status, response=PENDING,
-            price_at_open=position.current_price if position else None,
-            price_currency=position.currency if position else None,
+            price_at_open=price, price_currency=currency,
             sold_after_hold=False,
         )
         db.session.add(episode)
@@ -145,7 +155,7 @@ def _apply_sales(episode: ExitRuleTrigger, sells: list, now: datetime) -> None:
     ignored. sold_pct is recomputed from all of them each time (capped at 100). After a hold,
     any later sale only sets sold_after_hold.
     """
-    now_db = _naive(now)
+    now_db = naive_utc(now)
     start = episode.opened_at.date()
     end = add_days(start, GRACE_DAYS)
     if episode.response in (PENDING, IGNORED, SOLD):
@@ -181,24 +191,25 @@ def _sells_for(user_id: int, company_ids) -> dict:
     return sells
 
 
-def resolve(user_id: int, now: datetime) -> None:
+def resolve(user_id: int, now: datetime) -> bool:
     """Bring the user's open episodes up to date from the rules and the transactions. Does not commit.
 
     Archived or missing rule closes the episode; sales set sold or sold_after_hold (see
     _apply_sales); a closed position closes the episode; a pending episode past GRACE_DAYS
     with no sale becomes ignored (and keeps alerting); a hold older than exit_plan_stale_days()
-    with no re-alert since re-asks.
+    with no re-alert since re-asks. Returns True when any episode changed, so a GET view
+    commits only then.
     """
     open_episodes = _open_query(user_id).order_by(ExitRuleTrigger.id).all()
     if not open_episodes:
-        return
+        return False
     company_ids = {e.company_id for e in open_episodes}
     rules = {r.id: r for r in JournalEntry.query.filter(
         JournalEntry.id.in_({e.rule_id for e in open_episodes})).all()}
     positions = {p.company_id: p for p in PortfolioPosition.query.filter(
         PortfolioPosition.user_id == user_id, PortfolioPosition.company_id.in_(company_ids)).all()}
     sells = _sells_for(user_id, company_ids)
-    now_db = _naive(now)
+    now_db = naive_utc(now)
     stale_days = exit_plan_stale_days()
     for episode in open_episodes:
         rule = rules.get(episode.rule_id)
@@ -217,6 +228,7 @@ def resolve(user_id: int, now: datetime) -> None:
                 and episode.realerted_at is None
                 and now_db >= add_days(episode.held_at, stale_days)):
             _realert(episode, 'reask', now)
+    return any(db.session.is_modified(episode) for episode in open_episodes)
 
 
 def hold(user_id: int, rule_id: int, reason: str, now: datetime) -> ExitRuleTrigger:
@@ -240,7 +252,7 @@ def hold(user_id: int, rule_id: int, reason: str, now: datetime) -> ExitRuleTrig
     if reason:
         entry = JournalEntry(
             user_id=user_id, company_id=episode.company_id,
-            project_id=_project_id_for(user_id, episode.company_id),
+            project_id=project_id_for(user_id, episode.company_id),
             entry_type='observation', title=f'Holding through exit rule: {rule.title}'[:200],
             content=reason, source='exit_watch',
         )
@@ -248,7 +260,7 @@ def hold(user_id: int, rule_id: int, reason: str, now: datetime) -> ExitRuleTrig
         db.session.flush()
         episode.hold_entry_id = entry.id
 
-    now_db = _naive(now)
+    now_db = naive_utc(now)
     episode.response = HELD
     episode.held_at = now_db
     episode.responded_at = now_db
@@ -277,7 +289,7 @@ def is_alerting(episode: ExitRuleTrigger, insight: Optional[AIInsight], now: dat
     """
     if insight is None or not insight.is_active:
         return False
-    if insight.expires_at is not None and _naive(insight.expires_at) <= _naive(now):
+    if insight.expires_at is not None and naive_utc(insight.expires_at) <= naive_utc(now):
         return False
     return episode.response in (PENDING, IGNORED) or episode.realerted_at is not None
 

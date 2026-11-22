@@ -132,15 +132,19 @@ def log_prompt_usage(
         db.session.add(log_entry)
         db.session.commit()
 
-        # GDPR audit trail
-        log_ai_call(
-            user_id=user_id,
-            provider=provider,
-            model=model,
-            task_type=prompt_name,
-            tokens_used=total_tokens,
-            success=success,
-        )
+        # GDPR audit trail. The row is already committed: an audit failure is logged, not
+        # reported as a failed usage log (callers treat None as "not saved").
+        try:
+            log_ai_call(
+                user_id=user_id,
+                provider=provider,
+                model=model,
+                task_type=prompt_name,
+                tokens_used=total_tokens,
+                success=success,
+            )
+        except Exception:
+            logger.exception('Audit log of prompt usage %s failed', prompt_name)
 
         logger.debug(
             f"Logged prompt usage: {prompt_name} v{prompt_version} "

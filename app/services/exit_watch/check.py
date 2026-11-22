@@ -21,6 +21,8 @@ import logging
 from dataclasses import dataclass, replace
 from typing import Optional
 
+from celery.exceptions import SoftTimeLimitExceeded
+
 from app import db
 from app.models import AIInsight, JournalEntry
 from app.models.user_ai_preferences import UserAIPreference
@@ -30,7 +32,7 @@ from app.services.ai_check import AICheckError, setup
 from app.services.ai_check.llm import UsageTally, call_for_tool, record_usage, stage_call
 from app.services.ai_check.pricing import provider_of
 from app.services.decision_journals import current_thesis
-from app.services.exit_watch import ExitWatchError, figures, sources, verdict
+from app.services.exit_watch import CONTEXT_TYPE, STATUS_LABELS, STATUS_RANK, ExitWatchError, figures, sources, verdict
 from app.services.exit_watch.tools import RECORD_EXIT_CHECK_TOOL, REQUEST_SEARCH_TOOL
 from app.services.findings import DEFAULT_SIGNAL, FINDING_TYPES, finding_text_from_editor
 from app.utils.time_utils import ensure_timezone_aware, now_utc
@@ -39,10 +41,8 @@ LOG = logging.getLogger(__name__)
 SEARCH_CAPABLE = setup.STAGE_MODELS['gather']
 PROMPT_CATEGORY = 'exit_criteria'
 PROMPT_NAME = 'exit_criteria_check'
-CONTEXT_TYPE = 'exit_criterion'
 ANSWER_TOOL = RECORD_EXIT_CHECK_TOOL['name']
 SEARCH_TOOL = REQUEST_SEARCH_TOOL['name']
-STATUS_LABELS = {'intact': 'Intact', 'at_risk': 'At risk', 'triggered': 'Triggered'}
 CONTEXT_LIMIT = 3000
 JOURNAL_ENTRIES = 3
 JOURNAL_ENTRY_LIMIT = 400
@@ -83,10 +83,16 @@ def require_search_capable(model_id):
 
 def exit_watch_model(user_id):
     """The user's model for Exit criteria (Settings → AI override, else the prompt's `fast`),
-    which must be able to search the web and have its provider configured."""
+    which must be able to search the web and have its provider configured. When the default
+    can't search (AI_FAST_MODEL set to one that can't), the first ready search model is used."""
     pref = UserAIPreference.get_preference(user_id, PROMPT_CATEGORY)
-    chosen = pref.model_override if pref and pref.model_override else _texts().get('model')
-    model_id = require_search_capable(chosen)
+    if pref and pref.model_override:
+        model_id = require_search_capable(pref.model_override)
+    else:
+        model_id = setup.canonical(_texts().get('model'))
+        if model_id not in SEARCH_CAPABLE or not setup.provider_ready(model_id):
+            model_id = require_search_capable(
+                next((m for m in SEARCH_CAPABLE if setup.provider_ready(m)), model_id))
     if not setup.provider_ready(model_id):
         provider = setup.PROVIDER_NAMES.get(provider_of(model_id), setup.model_label(model_id))
         raise ExitWatchError(f'{provider} is not configured on the server.')
@@ -131,7 +137,10 @@ def _source_lines(resolved, texts):
 
 def _search_step(adapter, texts, model_id, base_text, query, searches_left, contact, on_usage):
     """Search, list what came back by id, and ask for the answer citing listed ids only.
-    The search step's own answer is never used. Returns (answer, resolved sources, unresolved)."""
+
+    The search step's own answer is never used: its tool call is answered with the ack and the
+    listing in the same user turn. Returns (answer, resolved sources, unresolved count).
+    """
     cap = min(int(texts['search_cap']), searches_left)
     instruction = texts['search_step_instruction'].format(query=query, search_cap=cap)
     call = stage_call(texts, model_id, f'{base_text}\n\n{instruction}', [RECORD_EXIT_CHECK_TOOL], search_cap=cap)
@@ -142,8 +151,9 @@ def _search_step(adapter, texts, model_id, base_text, query, searches_left, cont
     # to search again); a search it makes anyway is counted, so a rule may use one past the cap.
     used = sum(usage.searches for usage in reply.usages)
     answer_call = replace(call, search_cap=max(1, cap - used))
-    transcript = adapter.close_tool_calls(reply.transcript, texts['tool_ack'])
-    reply = adapter.follow_up(answer_call, transcript, f"{listing}\n\n{texts['answer_instruction']}", on_usage)
+    transcript = adapter.close_tool_calls(reply.transcript, texts['tool_ack'],
+                                          text=f"{listing}\n\n{texts['answer_instruction']}")
+    reply = adapter.continue_with(answer_call, transcript, on_usage)
     if reply.tool_name != ANSWER_TOOL:
         reminder = prompt_service.get_prompt('research', 'ai_check_tool_reminder', tool_names=ANSWER_TOOL)
         reply = adapter.follow_up(answer_call, reply.transcript, reminder, on_usage)
@@ -152,9 +162,11 @@ def _search_step(adapter, texts, model_id, base_text, query, searches_left, cont
     return reply.tool_input, resolved, unresolved
 
 
-def _cited_web_sources(answer, resolved):
-    """Cited sources that were listed for this check, each with its best publish date."""
+def _cited_web_sources(answer, resolved, contact):
+    """Cited sources that were listed for this check, each with its best publish date (page dates
+    are read here, for the cited sources only)."""
     by_id = {source.id: source for source in resolved}
+    sources.add_page_dates(resolved, {c.get('source_id') for c in answer.get('web_sources') or []}, contact)
     cited = []
     for citation in answer.get('web_sources') or []:
         source = by_id.get(citation.get('source_id'))
@@ -166,8 +178,42 @@ def _cited_web_sources(answer, resolved):
     return cited
 
 
-def _store(user, rule, company, adapter, model_id, texts, decision, summary, web, app_ids, snapshot,
-           tally, window_start, now, expires_after):
+def _evidence(decision, previous, summary, web, app_ids, texts, now):
+    """What the stored insight shows and cites.
+
+    Normally this check's own summary and citations, also when the verdict kept the previous
+    status (a new article for the same status is shown). The previous evidence is carried forward
+    only when the previous status was kept and this check either brought no valid citation or
+    argued a different status than the kept one (its summary and sources must not appear under
+    the kept badge). The rule then still shows why it is at risk or triggered, the next prompt's
+    previous summary keeps the reason, and this check's own answer goes in last_news_check.
+    """
+    own_evidence = bool(web or app_ids) and decision['model_status'] == decision['status']
+    if not decision['kept_previous'] or previous is None or own_evidence:
+        text = texts['no_evidence_summary'] if decision['no_evidence'] or not summary else summary
+        return {'insight_text': text, 'summary': summary, 'web_sources': web, 'app_figures_cited': app_ids,
+                'extra': {}}
+    data = previous.supporting_data or {}
+    cited = set(data.get('app_figures_cited') or [])
+    return {
+        'insight_text': previous.insight_text,
+        'summary': data.get('summary') or previous.insight_text,
+        'web_sources': data.get('web_sources') or [],
+        'app_figures_cited': data.get('app_figures_cited') or [],
+        'extra': {
+            'evidence_carried': True,
+            # "Nothing new since <evidence_checked_at>"
+            'evidence_checked_at': data.get('evidence_checked_at') or data.get('checked_at'),
+            'evidence_snapshot': data.get('evidence_snapshot') or [
+                item for item in data.get('snapshot') or [] if item.get('id') in cited],
+            'last_news_check': {'checked_at': now.isoformat(), 'model_status': decision['model_status'],
+                                'summary': summary, 'web_sources': web, 'app_figures_cited': app_ids},
+        },
+    }
+
+
+def _store(user, rule, company, adapter, model_id, decision, evidence, snapshot, tally, window_start, now,
+           expires_after):
     AIInsight.query.filter(
         AIInsight.user_id == user.id,
         AIInsight.context_type == CONTEXT_TYPE,
@@ -183,13 +229,14 @@ def _store(user, rule, company, adapter, model_id, texts, decision, summary, web
         context_id=rule.id,
         company_id=company.id,
         title=f'{rule.title or DEFAULT_SIGNAL}: {STATUS_LABELS[status]}'[:200],
-        insight_text=texts['no_evidence_summary'] if decision['no_evidence'] or not summary else summary,
+        insight_text=evidence['insight_text'],
         supporting_data={
             'status': status, 'model_status': decision['model_status'],
             'no_evidence': decision['no_evidence'], 'kept_previous': decision['kept_previous'],
-            'summary': summary, 'web_sources': web, 'app_figures_cited': app_ids, 'snapshot': snapshot,
+            'summary': evidence['summary'], 'web_sources': evidence['web_sources'],
+            'app_figures_cited': evidence['app_figures_cited'], 'snapshot': snapshot,
             'searches': tally.web_searches, 'window_start': window_start, 'checked_at': now.isoformat(),
-            'model': model_id,
+            'model': model_id, **evidence['extra'],
         },
         confidence=None,
         ai_provider=adapter.provider,
@@ -200,6 +247,29 @@ def _store(user, rule, company, adapter, model_id, texts, decision, summary, web
     db.session.add(insight)
     db.session.flush()
     return insight
+
+
+def _decide(answer, web_ids, app_ids, previous_status):
+    model_status = answer.get('status') if answer.get('status') in STATUS_LABELS else 'intact'
+    return verdict.decide(model_status, bool(answer.get('changed')), web_ids, app_ids, previous_status)
+
+
+def _needs_search(name, answer, snapshot, previous_status):
+    """Whether step A's reply is treated as a search request.
+
+    A zero-search answer must rest on app figures. And a rule that is at risk or triggered only
+    goes down on a search: a zero-search answer that would lower its status goes to search too
+    (one that keeps or raises it on app figures is fine).
+    """
+    if name != ANSWER_TOOL:
+        return True
+    app_ids = figures.valid_app_citations(answer.get('app_figures'), snapshot)
+    if not app_ids:
+        return True
+    if previous_status in ('at_risk', 'triggered'):
+        status = _decide(answer, [], app_ids, previous_status)['status']
+        return STATUS_RANK[status] < STATUS_RANK[previous_status]
+    return False
 
 
 def _run_check(user, rule, position, company, adapter, model_id, searches_left, previous, contact,
@@ -229,8 +299,7 @@ def _run_check(user, rule, position, company, adapter, model_id, searches_left, 
                         [RECORD_EXIT_CHECK_TOOL, REQUEST_SEARCH_TOOL])
     name, answer, _ = call_for_tool(adapter, step_a, {ANSWER_TOOL, SEARCH_TOOL}, on_usage)
     resolved, unresolved = [], 0
-    # A zero-search answer must rest on app figures; otherwise it is treated as a search request.
-    if name != ANSWER_TOOL or not figures.valid_app_citations(answer.get('app_figures'), snapshot):
+    if _needs_search(name, answer, snapshot, previous_status):
         if searches_left <= 0:
             return result(status=previous_status or '', model_status='', summary='', web_sources=[], app_ids=[],
                           snapshot=snapshot, no_evidence=False, kept_previous=False, unresolved_sources=0,
@@ -241,18 +310,17 @@ def _run_check(user, rule, position, company, adapter, model_id, searches_left, 
         answer, resolved, unresolved = _search_step(adapter, texts, model_id, base_text, query, searches_left,
                                                     contact, on_usage)
 
-    web = _cited_web_sources(answer, resolved)
+    web = _cited_web_sources(answer, resolved, contact)
     app_ids = figures.valid_app_citations(answer.get('app_figures'), snapshot)
-    model_status = answer.get('status') if answer.get('status') in STATUS_LABELS else 'intact'
-    decision = verdict.decide(model_status, bool(answer.get('changed')), [item['id'] for item in web], app_ids,
-                              previous_status)
+    decision = _decide(answer, [item['id'] for item in web], app_ids, previous_status)
     summary = (answer.get('summary') or '').strip()
-    insight = _store(user, rule, company, adapter, model_id, texts, decision, summary, web, app_ids, snapshot,
-                     tally, window_start, now, expires_after)
-    return result(status=decision['status'], model_status=decision['model_status'], summary=summary,
-                  web_sources=web, app_ids=app_ids, snapshot=snapshot, no_evidence=decision['no_evidence'],
-                  kept_previous=decision['kept_previous'], unresolved_sources=unresolved, insight=insight,
-                  needed_search_but_none_left=False)
+    evidence = _evidence(decision, previous, summary, web, app_ids, texts, now)
+    insight = _store(user, rule, company, adapter, model_id, decision, evidence, snapshot, tally, window_start,
+                     now, expires_after)
+    return result(status=decision['status'], model_status=decision['model_status'], summary=evidence['summary'],
+                  web_sources=evidence['web_sources'], app_ids=evidence['app_figures_cited'], snapshot=snapshot,
+                  no_evidence=decision['no_evidence'], kept_previous=decision['kept_previous'],
+                  unresolved_sources=unresolved, insight=insight, needed_search_but_none_left=False)
 
 
 def check_rule(user, rule, position, company, adapter, model_id, searches_left, previous, contact,
@@ -260,8 +328,9 @@ def check_rule(user, rule, position, company, adapter, model_id, searches_left, 
     """Check one must-exit rule and store the result as the rule's one active AIInsight.
 
     `searches_left` is the user's remaining search allowance (the caller reads it), `previous` the
-    rule's active insight or None, `contact` the fetcher's AI_CHECK_FETCH_CONTACT. Returns a
-    CheckResult; `needed_search_but_none_left` means no insight was stored.
+    rule's latest exit_criterion insight, active or not (None before the first check), `contact`
+    the fetcher's AI_CHECK_FETCH_CONTACT. Returns a CheckResult; `needed_search_but_none_left`
+    means no insight was stored.
 
     Every call writes one PromptUsageLog row with the tokens and searches spent, also when a step
     raises, and charges the tokens to the user. On success the insight, the charge and the log row
@@ -281,6 +350,8 @@ def check_rule(user, rule, position, company, adapter, model_id, searches_left, 
         try:
             _charge_and_log(user, rule, adapter, model_id, texts, tally, success=False,
                             error=str(exc) or type(exc).__name__)
+        except SoftTimeLimitExceeded:
+            raise
         except Exception:  # never mask the check's own error
             LOG.exception('exit watch: could not log the failed check of rule %s', rule_id)
             db.session.rollback()

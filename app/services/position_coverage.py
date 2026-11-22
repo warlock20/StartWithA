@@ -189,11 +189,12 @@ def _rule_dict(rule, state, now) -> dict:
     return {
         'id': rule.id,
         'signal': rule.title,
-        'text': rule.content,
+        'text': findings.finding_text_from_editor(rule.content),
         'status': state.get('status'),
         'status_label': state.get('status_label'),
         'checked_at_display': state.get('checked_display'),
-        'summary': state.get('summary'),
+        'evidence_display': state.get('evidence_display'),
+        'summary': state.get('display_summary'),
         'no_evidence': state.get('no_evidence', False),
         'sources': [{'url': s['url'], 'title': s['title'], 'published_display': s['published_display'],
                      'date_source': s.get('date_source')}

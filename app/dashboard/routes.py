@@ -35,6 +35,12 @@ from app.utils.time_utils import now_utc
 @dashboard_bp.route('/')
 @login_required
 def index():
+    # Exit-rule episodes first, committing only on a change (a later commit would expire loaded rows).
+    # Only users with Portfolio Intelligence see the alerts they feed.
+    has_portfolio_intelligence = user_has_feature(current_user, 'portfolio_intelligence')
+    if has_portfolio_intelligence and exit_episodes.resolve(current_user.id, now_utc()):
+        db.session.commit()
+
     # --- Inbox ---
     inbox_count = current_user.idea_pipeline.filter(
         IdeaPipeline.status.in_(['inbox', 'killing'])
@@ -99,9 +105,7 @@ def index():
     # --- Portfolio alerts (same service as the Intelligence Hub) ---
     # Only for users who have Portfolio Intelligence; the others never see its page.
     alerts = []
-    if user_has_feature(current_user, 'portfolio_intelligence'):
-        exit_episodes.resolve(current_user.id, now_utc())
-        db.session.commit()
+    if has_portfolio_intelligence:
         alerts = PortfolioAlertsService(current_user.id).strip_alerts()
 
     # --- Unlock Progress (free-tier users only) ---

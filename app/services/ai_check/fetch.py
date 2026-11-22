@@ -68,9 +68,10 @@ def check_public_host(host, resolver=_resolve):
             raise AICheckError(f'{host} points to a private or reserved address.')
 
 
-def _get_final(url, contact, client, resolver, read):
+def _get_final(url, contact, client, resolver, read, hops=None):
     """GET `url`, following at most MAX_REDIRECTS redirects and re-checking every hop. `read` gets the
-    final streaming response and its URL and returns the result. Failures are AICheckErrors."""
+    final streaming response and its URL and returns the result. Failures are AICheckErrors.
+    `hops`, when given, collects each URL that passed the host check before it was requested."""
     if not contact:
         raise AICheckError('Web fetching is not configured on the server.')
     headers = {'User-Agent': f'StartWithA AI check ({contact})'}
@@ -82,6 +83,8 @@ def _get_final(url, contact, client, resolver, read):
             if parsed.scheme not in ('http', 'https') or not parsed.hostname:
                 raise AICheckError(f'Not a web address: {url}')
             check_public_host(parsed.hostname, resolver)
+            if hops is not None:
+                hops.append(url)
             with client.stream('GET', url, headers=headers) as response:
                 if response.is_redirect:
                     url = urljoin(url, response.headers.get('location', ''))
@@ -112,9 +115,10 @@ def download(url, contact, client=None, resolver=_resolve):
     return _get_final(url, contact, client, resolver, read)
 
 
-def resolve_redirect(url, contact, client=None, resolver=None, max_bytes=512 * 1024):
+def resolve_redirect(url, contact, client=None, resolver=None, max_bytes=512 * 1024, hops=None):
     """Follow `url` to its final page. Returns (final url, status code, first `max_bytes` of the body).
-    A 4xx/5xx final response is returned (empty body), not raised."""
+    A 4xx/5xx final response is returned (empty body), not raised. `hops` (a list) collects every
+    public URL requested, so a caller can tell how far a failed chain got."""
     def read(response, final_url):
         if response.status_code >= 400:
             return final_url, response.status_code, b''
@@ -124,7 +128,7 @@ def resolve_redirect(url, contact, client=None, resolver=None, max_bytes=512 * 1
             if len(body) >= max_bytes:
                 break
         return final_url, response.status_code, bytes(body[:max_bytes])
-    return _get_final(url, contact, client, resolver or _resolve, read)
+    return _get_final(url, contact, client, resolver or _resolve, read, hops)
 
 
 def html_to_text(markup):

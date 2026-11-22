@@ -18,6 +18,8 @@
 import logging
 import math
 
+from celery.exceptions import SoftTimeLimitExceeded
+
 from app.services.ai.prompt_service import prompt_service
 from app.services.financial_data.financial_data_service import FinancialDataService
 from app.utils.time_utils import days_between, ensure_timezone_aware, now_utc
@@ -37,6 +39,8 @@ def _texts():
 def _safe(call, ticker, what):
     try:
         return call(ticker)
+    except SoftTimeLimitExceeded:
+        raise
     except Exception:
         logger.warning('exit watch: %s failed for %s', what, ticker, exc_info=True)
         return None

@@ -122,13 +122,17 @@ class ClaudeAdapter(ProviderAdapter):
     def _append_user(self, transcript, text):
         return transcript + [{'role': 'user', 'content': text}]
 
-    def close_tool_calls(self, transcript, ack_text):
+    def close_tool_calls(self, transcript, ack_text, text=None):
         last = transcript[-1] if transcript else {}
         content = last.get('content') if last.get('role') == 'assistant' else None
         results = [{'type': 'tool_result', 'tool_use_id': block['id'], 'content': ack_text}
                    for block in content or [] if isinstance(block, dict) and block.get('type') == 'tool_use']
-        # The API merges consecutive user turns, so the tool results stay first in the next turn.
-        return transcript + [{'role': 'user', 'content': results}] if results else transcript
+        if text is None:
+            # The API merges consecutive user turns, so the tool results stay first in the next turn.
+            return transcript + [{'role': 'user', 'content': results}] if results else transcript
+        if not results:
+            return self._append_user(transcript, text)
+        return transcript + [{'role': 'user', 'content': results + [{'type': 'text', 'text': text}]}]
 
     def _complete(self, call, messages, on_usage):
         """Send, resuming pause_turn up to MAX_PAUSE_RESUMES times."""
