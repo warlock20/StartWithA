@@ -1,0 +1,595 @@
+/* ========================================================================
+   Checkpoints page: needs-action lane, position cards, date view, not held
+   Scoped under .checkpoints-page. Colours come from _variables.css.
+   ======================================================================== */
+
+.checkpoints-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+/* Metric icon tones (green/gray come from the shared metrics strip) */
+.checkpoints-page .portfolio-metric-icon.cp-tone-danger {
+    background: var(--danger-50);
+    color: var(--danger-600);
+}
+
+.checkpoints-page .portfolio-metric-icon.cp-tone-warning {
+    background: var(--warning-50);
+    color: var(--warning-600);
+}
+
+/* Shared bits */
+.cp-panel {
+    background: var(--background-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md) var(--space-lg);
+}
+
+.cp-section-title {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.cp-count {
+    font-family: var(--font-body);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.cp-held,
+.cp-rule-detail {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+}
+
+.cp-ticker {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+h3.cp-ticker {
+    margin: 0;
+    font-size: var(--font-size-lg);
+}
+
+.cp-date {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--gray-600);
+}
+
+.cp-metric {
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
+.cp-expectation {
+    color: var(--gray-600);
+}
+
+.cp-empty {
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.cp-empty--dashed {
+    border: 1px dashed var(--border-medium);
+    border-radius: var(--radius-md);
+}
+
+.cp-empty--danger {
+    border: 1px dashed var(--danger-500);
+    background: var(--danger-50);
+    border-radius: var(--radius-md);
+    color: var(--danger-600);
+}
+
+.cp-return.gain {
+    color: var(--success-600);
+}
+
+.cp-return.loss {
+    color: var(--danger-600);
+}
+
+/* Pills */
+.cp-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--gray-100);
+    color: var(--gray-600);
+    white-space: nowrap;
+}
+
+.cp-pill--danger,
+.cp-state--overdue .cp-state-pill,
+.cp-state--not_met .cp-state-pill,
+.cp-ai--likely_missed,
+.cp-rule--triggered,
+.cp-kind--exit_triggered,
+.cp-kind--checkpoint_overdue,
+.cp-kind--missing_plan {
+    background: var(--danger-50);
+    color: var(--danger-600);
+}
+
+.cp-pill--warning,
+.cp-state--due_soon .cp-state-pill,
+.cp-ai--at_risk,
+.cp-rule--at_risk,
+.cp-kind--exit_at_risk,
+.cp-kind--checkpoint_at_risk {
+    background: var(--warning-50);
+    color: var(--warning-800);
+}
+
+.cp-pill--info,
+.cp-rule--stale,
+.cp-kind--needs_look {
+    background: var(--primary-100);
+    color: var(--primary-700);
+}
+
+.cp-pill--held,
+.cp-rule--held {
+    background: var(--purple-100);
+    color: var(--purple-700);
+}
+
+.cp-state--met .cp-state-pill,
+.cp-ai--on_track,
+.cp-ai--likely_met,
+.cp-rule--intact {
+    background: var(--success-50);
+    color: var(--success-600);
+}
+
+/* Tabs: one row at every width; each tab takes half, label and badge may shrink */
+.cp-tabs {
+    flex-wrap: nowrap;
+}
+
+.cp-tabs .nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.cp-tabs .nav-link {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    .cp-tabs .nav-link {
+        gap: var(--space-xs);
+        padding-left: var(--space-sm);
+        padding-right: var(--space-sm);
+    }
+}
+
+.cp-tab-content {
+    margin-top: var(--space-md);
+}
+
+.cp-tab-content > .tab-pane > * + * {
+    margin-top: var(--space-md);
+}
+
+/* Long exit-rule titles stop at three lines; the full text is in the title attribute */
+.cp-clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+
+/* Needs action lane */
+
+.cp-lane-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.cp-lane-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.cp-kind {
+    flex: 0 0 140px;
+    justify-content: center;
+    padding: 4px 8px;
+}
+
+.cp-lane-text {
+    flex: 999 1 320px;
+    min-width: 0;
+}
+
+.cp-lane-name {
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
+.cp-lane-detail {
+    margin-top: 2px;
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+}
+
+.cp-lane-actions,
+.cp-card-actions,
+.cp-date-actions,
+.cp-timeline-meta,
+.cp-hold-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.cp-hold-form {
+    flex: 1 1 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.cp-hold-reason {
+    width: 100%;
+    padding: var(--space-sm);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+}
+
+.cp-hold-buttons {
+    justify-content: flex-end;
+}
+
+/* Section header and view switch */
+.cp-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.cp-view-switch {
+    display: inline-flex;
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--background-white);
+}
+
+.cp-view-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 var(--space-md);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--gray-700);
+    text-decoration: none;
+}
+
+.cp-view-link.is-current {
+    background: var(--primary-800);
+    color: var(--text-white);
+}
+
+/* Position cards */
+.cp-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+    gap: var(--space-md);
+    align-items: start;
+}
+
+.cp-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    padding: var(--space-lg);
+    background: var(--background-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+}
+
+.cp-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.cp-card-id {
+    min-width: 0;
+}
+
+.cp-card-name {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+.cp-company-name {
+    font-size: var(--font-size-base);
+    color: var(--gray-600);
+}
+
+.cp-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.cp-thesis {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    color: var(--gray-600);
+}
+
+.cp-thesis-label {
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.cp-card-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.cp-section-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+.cp-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.cp-timeline-item {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr);
+    gap: 10px;
+    padding: var(--space-sm) 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.cp-dot {
+    width: 12px;
+    height: 12px;
+    margin-top: 4px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background: var(--background-white);
+    border: 2px solid var(--gray-400);
+}
+
+.cp-state--met .cp-dot {
+    background: var(--success-500);
+    border-color: var(--success-500);
+}
+
+.cp-state--not_met .cp-dot {
+    background: var(--danger-500);
+    border-color: var(--danger-500);
+}
+
+.cp-state--overdue .cp-dot {
+    border-color: var(--danger-500);
+}
+
+.cp-state--overdue .cp-date {
+    color: var(--danger-600);
+}
+
+.cp-state--due_soon .cp-dot {
+    border-color: var(--warning-600);
+}
+
+.cp-timeline-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.cp-timeline-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: baseline;
+}
+
+.cp-rule {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: var(--font-size-sm);
+    color: var(--gray-800);
+}
+
+.cp-rule-text {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.cp-rule-detail {
+    margin-top: 2px;
+}
+
+.cp-card-actions {
+    padding-top: var(--space-xs);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.cp-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 6px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--primary-600);
+}
+
+.cp-healthy-toggle {
+    align-self: flex-start;
+}
+
+/* Date view */
+.cp-buckets {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.cp-bucket-title {
+    margin: 0 0 var(--space-sm);
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    color: var(--gray-800);
+}
+
+.cp-bucket--overdue .cp-bucket-title {
+    color: var(--danger-600);
+}
+
+.cp-date-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.cp-date-row .cp-date {
+    flex: 0 0 92px;
+}
+
+.cp-date-row .cp-ticker {
+    flex: 0 0 96px;
+}
+
+.cp-date-what {
+    flex: 1 1 200px;
+    min-width: 0;
+}
+
+.cp-row-ai {
+    flex: 1 1 100%;
+}
+
+.cp-row-ai summary {
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--primary-600);
+}
+
+/* Not held */
+.cp-not-held {
+    background: var(--background-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 0 var(--space-lg);
+}
+
+.cp-not-held summary {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.cp-not-held-list {
+    padding-bottom: var(--space-md);
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+}
+
+.cp-not-held-row {
+    padding: var(--space-sm) 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+/* Phone */
+@media (max-width: 576px) {
+    .checkpoints-page .dashboard-metrics-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .checkpoints-page .action-btn,
+    .checkpoints-page .cp-link {
+        min-height: 40px;
+    }
+
+    .cp-panel {
+        padding: var(--space-md);
+    }
+
+    .cp-card {
+        padding: var(--space-md);
+    }
+
+    .cp-card-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cp-kind {
+        flex-basis: auto;
+    }
+
+    .cp-lane-text {
+        flex-basis: 100%;
+    }
+
+    .cp-lane-actions {
+        flex: 1 1 100%;
+    }
+
+    .cp-date-row .cp-date,
+    .cp-date-row .cp-ticker {
+        flex-basis: auto;
+    }
+}

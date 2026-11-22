@@ -205,7 +205,7 @@ def _run_checklist_step(client, project_id, step_index):
 
 
 def _login_client(app, email):
-    user = User(email=email, ai_consent_given=True)
+    user = User(email=email, ai_consent_given=True, subscription_tier='pro')
     db.session.add(user)
     db.session.commit()
     client = app.test_client()
@@ -221,6 +221,9 @@ def _login_client(app, email):
 
 def _run_journey(client, user_id):
     """Idea to lesson for one company. Returns the ids the checks need."""
+    # The Checkpoints and Intelligence Hub pages need portfolio_intelligence
+    db.session.get(User, user_id).subscription_tier = 'pro'
+    db.session.commit()
     today = date.today()
 
     # --- 1. First visit to the inbox sets up the Kill Screen --------------

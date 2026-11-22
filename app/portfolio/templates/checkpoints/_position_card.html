@@ -1,0 +1,70 @@
+<article class="cp-card{% if card.has_problems %} has-problems{% endif %}">
+    <div class="cp-card-head">
+        <div class="cp-card-id">
+            <div class="cp-card-name">
+                <h3 class="cp-ticker">{{ card.ticker }}</h3>
+                <span class="cp-company-name">{{ card.name }}</span>
+            </div>
+            <div class="cp-held">{{ card.held_label }} ·
+                {% if card.return_pct is none %}&mdash;{% else %}<span class="cp-return {{ 'gain' if card.return_pct >= 0 else 'loss' }}">{{ '%+.1f' | format(card.return_pct) }}%</span>{% endif %}
+            </div>
+        </div>
+        <div class="cp-badges">
+            {% for badge in card.badges %}<span class="cp-pill cp-pill--{{ badge.tone }}">{{ badge.label }}</span>{% endfor %}
+        </div>
+    </div>
+
+    <p class="cp-thesis"><span class="cp-thesis-label">Thesis:</span> {{ card.thesis or 'No thesis recorded yet.' }}</p>
+
+    <div class="cp-card-section">
+        <div class="cp-section-label">Checkpoints</div>
+        {% if not card.checkpoints %}
+        <div class="cp-empty cp-empty--dashed">No checkpoints yet. What should be true, and by when?</div>
+        {% else %}
+        <ol class="cp-timeline">
+            {% for c in card.checkpoints %}
+            <li class="cp-timeline-item cp-state--{{ c.state }}">
+                <span class="cp-dot" aria-hidden="true"></span>
+                <div class="cp-timeline-body">
+                    <div class="cp-timeline-line">
+                        <span class="cp-date">{{ c.target_date.strftime('%d %b %Y') }}</span>
+                        <span class="cp-metric">{{ c.metric }}</span>
+                        <span class="cp-expectation">{{ c.expectation }}</span>
+                    </div>
+                    <div class="cp-timeline-meta">
+                        <span class="cp-pill cp-state-pill">{{ c.state_label }}</span>
+                        {% if c.ai_label %}<span class="cp-pill cp-ai cp-ai--{{ c.ai_status }}">AI: {{ c.ai_label | lower }}</span>{% endif %}
+                        {% if c.can_resolve %}
+                        <button type="button" class="action-btn cp-status-btn" data-status-url="{{ url_for('portfolio.update_checkpoint_status', checkpoint_id=c.id) }}" data-status="Met" aria-label="Mark {{ c.metric }} met">Met</button>
+                        <button type="button" class="action-btn cp-status-btn" data-status-url="{{ url_for('portfolio.update_checkpoint_status', checkpoint_id=c.id) }}" data-status="Not Met" aria-label="Mark {{ c.metric }} not met">Not met</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ol>
+        {% endif %}
+    </div>
+
+    <div class="cp-card-section">
+        <div class="cp-section-label">Exit plan</div>
+        {% if not card.rules %}
+        <div class="cp-empty cp-empty--danger">No exit rule. Every position needs at least one.</div>
+        {% endif %}
+        {% for r in card.rules %}
+        <div class="cp-rule">
+            <span class="cp-pill cp-rule-status cp-rule--{{ r.status }}">{{ r.label }}</span>
+            <div class="cp-rule-text">
+                <div class="cp-clamp" title="{{ r.text }}">{{ r.text }}</div>
+                {% if r.detail %}<div class="cp-rule-detail">{{ r.detail }}</div>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="cp-card-actions">
+        <a href="{{ url_for('companies.destination_analysis', company_id=card.company_id) }}" class="action-btn">Add checkpoint</a>
+        <a href="{{ url_for('companies.company_detail', company_id=card.company_id, _anchor='research/findings') }}" class="action-btn">Add exit rule</a>
+        <a href="{{ url_for('companies.company_detail', company_id=card.company_id) }}" class="cp-link">Company page</a>
+    </div>
+</article>

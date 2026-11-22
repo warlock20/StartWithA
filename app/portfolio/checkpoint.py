@@ -22,11 +22,11 @@ from app import db
 from app.portfolio import portfolio_bp
 from app.models import DestinationCheckpoint
 from app.utils.response_utils import json_success, json_error, json_not_found
-from app.utils.decorators import json_errors
+from app.utils.decorators import json_errors, require_feature
 
-from app.constants import DEFAULT_CHECKPOINT_LOOKBACK_DAYS
-from app.services.portfolio_intelligence import get_upcoming_checkpoints
-from app.services.checkpoint_analysis_service import CheckpointAnalysisService
+from app.services.checkpoints_page import CheckpointsPageService
+from app.services.exit_watch import episodes as exit_episodes
+from app.utils.time_utils import now_utc
 
 logger = logging.getLogger(__name__)
 
@@ -59,20 +59,16 @@ def update_checkpoint_status(checkpoint_id):
 
 @portfolio_bp.route('/checkpoints')
 @login_required
+@require_feature('portfolio_intelligence')
 def checkpoint_reminders():
-    """Checkpoint Reminders Dashboard"""
-    checkpoints = get_upcoming_checkpoints(current_user.id, days_ahead=DEFAULT_CHECKPOINT_LOOKBACK_DAYS)
+    """Checkpoints page: what needs action, then every position or every checkpoint by date."""
+    # Exit-rule episodes first, committing only on a change, so the loads below stay loaded
+    if exit_episodes.resolve(current_user.id, now_utc()):
+        db.session.commit()
 
-    # Collect all checkpoint IDs and fetch AI insights
-    all_checkpoint_ids = []
-    for group in checkpoints.values():
-        all_checkpoint_ids.extend([cp.id for cp in group])
-
-    checkpoint_insights = CheckpointAnalysisService.get_checkpoint_insights(all_checkpoint_ids)
-    analysis_alerts = CheckpointAnalysisService.get_analysis_alerts(checkpoint_insights)
-
-    return render_template('checkpoint_reminders.html',
-                          checkpoints=checkpoints,
-                          checkpoint_insights=checkpoint_insights,
-                          analysis_alerts=analysis_alerts)
-    
+    view = 'date' if request.args.get('view') == 'date' else 'position'
+    page = CheckpointsPageService(current_user.id)
+    tab = request.args.get('tab')
+    if tab not in ('action', 'positions'):
+        tab = 'action' if page.lane() and view == 'position' else 'positions'
+    return render_template('checkpoint_reminders.html', view=view, tab=tab, page=page)

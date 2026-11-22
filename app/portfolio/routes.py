@@ -38,6 +38,7 @@ from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.utils.response_utils import json_error
+from app.utils.decorators import require_feature
 from app.utils.portfolio_utils import (
     calculate_holding_period_stats,
     calculate_confidence_stats,
@@ -774,6 +775,7 @@ def learning_insights():
 
 @portfolio_bp.route('/intelligence')
 @login_required
+@require_feature('portfolio_intelligence')
 def intelligence_hub():
     """
     Investment Intelligence Hub

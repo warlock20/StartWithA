@@ -89,33 +89,6 @@
         {% include 'components/portfolio_alerts_strip.html' %}
     </div>
 
-    <!-- Position coverage -->
-    {% set coverage_total = coverage_rows|length %}
-    {% set coverage_problems = coverage_rows|selectattr('has_problems')|list|length %}
-    {% set coverage_clean = coverage_total - coverage_problems %}
-    <section class="hub-coverage" id="coverage">
-        <h2 class="hub-coverage-title font-poppins">Position coverage</h2>
-        <p class="hub-coverage-subtitle">Every open position should have an exit plan and a checkpoint still ahead of it.</p>
-        {% if coverage_rows %}
-        <p class="hub-coverage-summary" id="coverage-summary">
-            {% if coverage_problems %}
-            {{ coverage_problems }} of {{ coverage_total }} position{{ '' if coverage_total == 1 else 's' }} need{{ 's' if coverage_problems == 1 }} attention
-            {% else %}
-            <i class="bi bi-check-circle-fill text-success"></i> {% if coverage_total == 1 %}Your 1 position is covered{% else %}All {{ coverage_total }} positions are covered{% endif %}
-            {% endif %}
-        </p>
-        <div id="coverage-table"></div>
-        {% if coverage_clean %}
-        <button type="button" class="action-btn hub-coverage-toggle" id="coverage-toggle" aria-expanded="false" aria-controls="coverage-table"
-                data-count="{{ coverage_clean }}">Show {{ coverage_clean }} covered position{{ '' if coverage_clean == 1 else 's' }}</button>
-        {% endif %}
-        {% else %}
-        <div class="hub-intel-card-empty">
-            <i class="bi bi-briefcase"></i>
-            <p>No open positions to cover</p>
-        </div>
-        {% endif %}
-    </section>
 
     <!-- Intelligence Cards Grid -->
     <div class="priority-lane-grid">
@@ -440,6 +413,34 @@
         </div>
 
     </div>
+
+    <!-- Position coverage -->
+    {% set coverage_total = coverage_rows|length %}
+    {% set coverage_problems = coverage_rows|selectattr('has_problems')|list|length %}
+    {% set coverage_clean = coverage_total - coverage_problems %}
+    <section class="hub-coverage" id="coverage">
+        <h2 class="hub-coverage-title font-poppins">Position coverage</h2>
+        <p class="hub-coverage-subtitle">Every open position should have an exit plan and a checkpoint still ahead of it.</p>
+        {% if coverage_rows %}
+        <p class="hub-coverage-summary" id="coverage-summary">
+            {% if coverage_problems %}
+            {{ coverage_problems }} of {{ coverage_total }} position{{ '' if coverage_total == 1 else 's' }} need{{ 's' if coverage_problems == 1 }} attention
+            {% else %}
+            <i class="bi bi-check-circle-fill text-success"></i> {% if coverage_total == 1 %}Your 1 position is covered{% else %}All {{ coverage_total }} positions are covered{% endif %}
+            {% endif %}
+        </p>
+        <div id="coverage-table"></div>
+        {% if coverage_clean %}
+        <button type="button" class="action-btn hub-coverage-toggle" id="coverage-toggle" aria-expanded="false" aria-controls="coverage-table"
+                data-count="{{ coverage_clean }}">Show {{ coverage_clean }} covered position{{ '' if coverage_clean == 1 else 's' }}</button>
+        {% endif %}
+        {% else %}
+        <div class="hub-intel-card-empty">
+            <i class="bi bi-briefcase"></i>
+            <p>No open positions to cover</p>
+        </div>
+        {% endif %}
+    </section>
 
 </div>
 
