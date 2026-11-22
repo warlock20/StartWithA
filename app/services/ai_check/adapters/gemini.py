@@ -28,7 +28,7 @@ from app.services.ai.prompt_service import prompt_service
 from app.services.ai.providers.gemini import _get_gemini_client, gemini_output_tokens
 from app.services.ai_check import AICheckError
 from app.services.ai_check.adapters.base import ProviderAdapter
-from app.services.ai_check.llm import StageReply, Usage
+from app.services.ai_check.llm import SearchResult, StageReply, Usage
 
 TRUNCATED = {'MAX_TOKENS'}
 BLOCKED = {'SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'}
@@ -50,6 +50,18 @@ def gemini_usage(response, model):
         tokens_in=prompt - cached + ((meta.tool_use_prompt_token_count or 0) if meta else 0),
         tokens_out=((meta.candidates_token_count or 0) + (meta.thoughts_token_count or 0)) if meta else 0,
         cached_in=cached, searches=searches)
+
+
+def grounding_results(candidate):
+    """The search request's grounding chunks as SearchResults (Gemini gives redirect URLs),
+    deduped by URI; chunks without a web URI are skipped."""
+    metadata = candidate.grounding_metadata
+    found = {}
+    for chunk in (metadata.grounding_chunks if metadata else None) or []:
+        web = chunk.web
+        if web and web.uri and web.uri not in found:
+            found[web.uri] = SearchResult(web.uri, web.title or '', None, is_redirect=True)
+    return list(found.values())
 
 
 class GeminiAdapter(ProviderAdapter):
@@ -83,12 +95,13 @@ class GeminiAdapter(ProviderAdapter):
         texts = prompt_service.get_prompt_data('research', 'ai_check_search_phase')
         first = self._first_turn(call)
         first[-1].parts.append(genai_types.Part(text=texts['search_instruction'].format(search_cap=call.search_cap)))
-        _, findings, search_usage = self._generate(call, first, self._config(call, search=True), on_usage)
+        search_candidate, findings, search_usage = self._generate(call, first, self._config(call, search=True), on_usage)
         tool_names = ' or '.join(sorted(tool['name'] for tool in call.tools))
         transcript = self._append_user(first + ([findings] if findings else []),
                                        texts['answer_instruction'].format(tool_names=tool_names))
         reply = self._complete(call, transcript, on_usage)
         reply.usages = [search_usage] + reply.usages
+        reply.search_results = grounding_results(search_candidate)
         return reply
 
     def _first_turn(self, call):
@@ -104,6 +117,26 @@ class GeminiAdapter(ProviderAdapter):
 
     def _append_user(self, transcript, text):
         return transcript + [genai_types.Content(role='user', parts=[genai_types.Part(text=text)])]
+
+    def close_tool_calls(self, transcript, ack_text, text=None):
+        last = transcript[-1] if transcript else None
+        calls = ([part.function_call for part in last.parts or [] if part.function_call]
+                 if last is not None and last.role == 'model' else [])
+        if not calls:
+            if text is None:
+                return transcript
+            if last is not None and last.role == 'user':
+                # The model turn was empty and not replayed: one user turn, not two in a row.
+                parts = list(last.parts or []) + [genai_types.Part(text=text)]
+                merged = genai_types.Content(role='user', parts=parts)
+                return transcript[:-1] + [merged]
+            return self._append_user(transcript, text)
+        parts = [genai_types.Part(function_response=genai_types.FunctionResponse(
+            id=function_call.id, name=function_call.name, response={'result': ack_text}))
+            for function_call in calls]
+        if text is not None:
+            parts.append(genai_types.Part(text=text))
+        return transcript + [genai_types.Content(role='user', parts=parts)]
 
     def _complete(self, call, contents, on_usage):
         candidate, replay, usage = self._generate(call, contents, self._config(call), on_usage)

@@ -56,6 +56,8 @@ from app.services.portfolio_intelligence import (
     compare_to_expected_cagr,
     get_learning_insights, get_correlation_data, outcome_hold_days
     )
+from app.services.exit_watch import episodes as exit_episodes
+from app.services.exit_watch import view as exit_watch_view
 from app.services.portfolio_alerts import PortfolioAlertsService
 from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
@@ -784,6 +786,9 @@ def intelligence_hub():
     Investment Intelligence Hub
     Central dashboard linking all intelligence features with summary metrics
     """
+    # Exit-rule episodes first, committing only on a change, so the joinedloads below stay loaded
+    if exit_episodes.resolve(current_user.id, now_utc()):
+        db.session.commit()
 
     # ========================================
     # HEALTH BAR - Quick overview metrics
@@ -930,10 +935,13 @@ def intelligence_hub():
         'min_needed': MIN_TRADES_FOR_INSIGHTS
     }
     
+    rule_states = exit_watch_view.rule_states(
+        current_user.id, [rule.id for row in alerts_service.coverage for rule in row.rules])
+
     return render_template('intelligence_hub.html',
                           health=health,
                           alerts=alerts,
-                          coverage_rows=coverage_rows(alerts_service.coverage),
+                          coverage_rows=coverage_rows(alerts_service.coverage, rule_states),
                           performance=performance,
                           decisions=decisions,
                           correlation=correlation,

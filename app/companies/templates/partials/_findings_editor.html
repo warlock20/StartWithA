@@ -8,7 +8,11 @@
    replace mode and saves through companies.api_replace_finding.
    Must Exit rows have a "Still valid" button (companies.api_review_finding) that sets
    last_reviewed, which clears the exit-plan-stale warning.
+   Optional: exit_watch, {rule id: state} from exit_watch.view.rule_states. Must Exit rows
+   with a state get the latest check (badge, summary, sources) and, while the rule alerts,
+   Sell / Hold anyway (or Still holding when re-asked) which post to companies.api_hold_finding.
    Behaviour: static/js/findings-editor.js #}
+{% set exit_states = exit_watch if exit_watch is defined and exit_watch else {} %}
 {% set finding_columns = [
     ('red_flag', 'red', 'exclamation-triangle-fill', 'Red Flags', 'What counts against investing?'),
     ('green_flag', 'green', 'check-circle-fill', 'Green Flags', 'What counts in favour?'),
@@ -29,25 +33,69 @@
         </div>
         <ul class="findings-list">
             {% for entry in (items[-findings_limit:] if findings_limit else items) %}
+            {% set xs = exit_states.get(entry.id) if ftype == 'must_exit' else none %}
             <li data-finding-id="{{ entry.id }}">
                 <div class="finding-body">
                     <div class="finding-meta">
                         <span class="finding-signal">{{ entry.title }}</span>
                         <span class="finding-date">{{ entry.created_at.strftime('%b %d, %Y') if entry.created_at }}</span>
+                        <span class="finding-row-actions">
+                            {% if ftype == 'must_exit' %}
+                            <button type="button" class="finding-review" title="Still valid" aria-label="Mark as still valid">
+                                <i class="bi bi-check2-circle"></i> Still valid
+                            </button>
+                            {% endif %}
+                            <button type="button" class="finding-delete" title="Delete" aria-label="Delete">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </span>
                     </div>
                     {% if ftype == 'must_exit' %}
                     <small class="finding-reviewed text-muted" role="status" aria-live="polite"{% if not entry.last_reviewed %} hidden{% endif %}>Reviewed {{ entry.last_reviewed.strftime('%b %d, %Y') if entry.last_reviewed }}</small>
                     {% endif %}
                     <span class="finding-text">{{ entry.content }}</span>
                 </div>
-                {% if ftype == 'must_exit' %}
-                <button type="button" class="finding-review" title="Still valid" aria-label="Mark as still valid">
-                    <i class="bi bi-check2-circle"></i> Still valid
-                </button>
+                {% if xs %}
+                {% set ep = xs.episode %}
+                <div class="finding-exit-status" data-rule-id="{{ entry.id }}">
+                    <div class="finding-exit-head">
+                        <span class="finding-exit-badge is-{{ 'expired' if xs.expired else xs.status }}">
+                            {%- if xs.expired %}{% if xs.checked_display %}Not checked since {{ xs.checked_display }}{% else %}Not checked yet{% endif %}{% else %}{{ xs.status_label }}{% endif -%}
+                        </span>
+                        {% if xs.checked_display and not xs.expired %}<small class="text-muted">Checked {{ xs.checked_display }}</small>{% endif %}
+                        {% if xs.evidence_display and not xs.expired %}<small class="text-muted">Evidence from {{ xs.evidence_display }}</small>{% endif %}
+                    </div>
+                    {% if xs.display_summary %}<span class="finding-exit-summary">{{ xs.display_summary }}</span>{% endif %}
+                    {% if xs.sources %}
+                    <ul class="finding-exit-sources">
+                        {% for src in xs.sources %}
+                        <li><a href="{{ src.url }}" target="_blank" rel="noopener">{{ src.title }}</a>
+                            <small class="text-muted">
+                                {%- if src.published_display %} {{ src.published_display }}{% endif -%}
+                                {%- if not src.published_display or src.date_source == 'model' %} (date unchecked){% endif -%}
+                            </small></li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    {% if ep and ep.response == 'held' and ep.held_display %}
+                    <p class="finding-exit-held">Held through trigger since {{ ep.held_display }}{% if ep.hold_reason %}: {{ ep.hold_reason }}{% endif %}</p>
+                    {% endif %}
+                    {% if ep and ep.alerting %}
+                    <div class="finding-exit-actions">
+                        <a class="action-btn finding-exit-sell" href="{{ url_for('portfolio.add_transaction', company_id=entry.company_id, type='SELL') }}"><i class="bi bi-box-arrow-right"></i> Sell</a>
+                        <button type="button" class="action-btn finding-exit-hold-open">{{ 'Still holding' if ep.held_display else 'Hold anyway' }}</button>
+                    </div>
+                    <form class="finding-exit-hold-form" hidden data-reason-required="{{ 'false' if ep.held_display else 'true' }}">
+                        <textarea class="finding-exit-reason" rows="2" maxlength="2000"
+                                  placeholder="{{ 'Why are you still holding? (optional)' if ep.held_display else 'Why are you holding through this?' }}"></textarea>
+                        <div class="finding-add-actions">
+                            <button type="button" class="action-btn finding-exit-hold-cancel">Cancel</button>
+                            <button type="submit" class="action-btn primary">{{ 'Still holding' if ep.held_display else 'Hold anyway' }}</button>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
                 {% endif %}
-                <button type="button" class="finding-delete" title="Delete" aria-label="Delete">
-                    <i class="bi bi-x"></i>
-                </button>
             </li>
             {% endfor %}
         </ul>

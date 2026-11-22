@@ -50,6 +50,9 @@ class PromptUsageLog(db.Model):
     # Cost (in cents)
     estimated_cost_cents = db.Column(db.Integer)
 
+    # Web searches this call made (counted against the background-AI allowance)
+    web_searches = db.Column(db.Integer, nullable=False, default=0, server_default='0')
+
     # Performance
     latency_ms = db.Column(db.Integer)  # Response time in milliseconds
     success = db.Column(db.Boolean, default=True)

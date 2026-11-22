@@ -48,28 +48,29 @@
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Transaction Type <span
                                 class="text-danger">*</span></label>
+                        {% set selected_type = form_data.type if form_data and form_data.type else (preselected_type or 'BUY') %}
                         <div class="tx-type-group">
-                            <input type="radio" class="btn-check" name="type" id="type_buy" value="BUY" {% if not form_data or form_data.type == 'BUY' %}checked{% endif %} style="display:none;">
+                            <input type="radio" class="btn-check" name="type" id="type_buy" value="BUY" {% if selected_type == 'BUY' %}checked{% endif %} style="display:none;">
                             <label class="tx-type-btn" for="type_buy" style="--btn-active: #2d6a4f;">
                                 <i class="bi bi-arrow-down-circle"></i><span>Buy</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_sell" value="SELL" {% if form_data and form_data.type == 'SELL' %}checked{% endif %} style="display:none;">
+                            <input type="radio" class="btn-check" name="type" id="type_sell" value="SELL" {% if selected_type == 'SELL' %}checked{% endif %} style="display:none;">
                             <label class="tx-type-btn" for="type_sell" style="--btn-active: #dc3545;">
                                 <i class="bi bi-arrow-up-circle"></i><span>Sell</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_dividend" value="DIVIDEND" {% if form_data and form_data.type == 'DIVIDEND' %}checked{% endif %} style="display:none;">
+                            <input type="radio" class="btn-check" name="type" id="type_dividend" value="DIVIDEND" {% if selected_type == 'DIVIDEND' %}checked{% endif %} style="display:none;">
                             <label class="tx-type-btn" for="type_dividend" style="--btn-active: #198754;">
                                 <i class="bi bi-cash-coin"></i><span>Dividend</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_deposit" value="DEPOSIT" {% if form_data and form_data.type == 'DEPOSIT' %}checked{% endif %} style="display:none;">
+                            <input type="radio" class="btn-check" name="type" id="type_deposit" value="DEPOSIT" {% if selected_type == 'DEPOSIT' %}checked{% endif %} style="display:none;">
                             <label class="tx-type-btn" for="type_deposit" style="--btn-active: #3b82f6;">
                                 <i class="bi bi-box-arrow-in-down"></i><span>Deposit</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_withdrawal" value="WITHDRAWAL" {% if form_data and form_data.type == 'WITHDRAWAL' %}checked{% endif %} style="display:none;">
+                            <input type="radio" class="btn-check" name="type" id="type_withdrawal" value="WITHDRAWAL" {% if selected_type == 'WITHDRAWAL' %}checked{% endif %} style="display:none;">
                             <label class="tx-type-btn" for="type_withdrawal" style="--btn-active: #f59e0b;">
                                 <i class="bi bi-box-arrow-up"></i><span>Withdraw</span>
                             </label>

@@ -23,7 +23,8 @@ from typing import Optional
 from flask import url_for
 
 from app.constants import DEFAULT_CHECKPOINT_LOOKBACK_DAYS, MIN_TRADES_FOR_INSIGHTS
-from app.models import ResearchOutcome
+from app.models import Company, JournalEntry, ResearchOutcome
+from app.services.exit_watch import episodes as exit_episodes
 from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_intelligence import PortfolioIntelligenceService, get_learning_insights
 from app.services.position_coverage import GAP_SEVERITY, GAP_TYPES, PositionCoverageService, exit_plan_stale_days
@@ -127,10 +128,41 @@ class PortfolioAlertsService:
                                 f'{cp.company_ticker}: {cp.metric} due this week', 'View',
                                 'portfolio.checkpoint_reminders', {}, cp.company_id))
 
+        alerts.extend(self._exit_rule_alerts())
         alerts.extend(self._insight_alerts())
         alerts.extend(self._warning_alerts())
 
         alerts.sort(key=lambda a: _SEVERITY_RANK[a.severity])  # stable within a severity
+        return alerts
+
+    def _exit_rule_alerts(self) -> list:
+        """Alerts for must-exit rules whose open trigger needs an answer, grouped by status."""
+        episodes = exit_episodes.alerting(self.user_id)
+        if not episodes:
+            return []
+        rules = {r.id: r for r in JournalEntry.query.filter(
+            JournalEntry.id.in_([e.rule_id for e in episodes])).all()}
+        tickers = {c.id: c.ticker_symbol for c in Company.query.filter(
+            Company.id.in_({e.company_id for e in episodes})).all()}
+        alerts = []
+        for status, word, severity, icon in (('triggered', 'triggered', 'danger', 'box-arrow-right'),
+                                             ('at_risk', 'at risk', 'warning', 'exclamation-diamond')):
+            group = [e for e in episodes if e.current_status == status and e.rule_id in rules]
+            if len(group) == 1:
+                episode = group[0]
+                ticker, signal = tickers.get(episode.company_id), rules[episode.rule_id].title
+                if episode.realert_reason == 'reask':
+                    message = f'{ticker}: still holding through "{signal}"?'
+                else:
+                    message = f'{ticker}: exit rule "{signal}" {word}'
+                alerts.append(Alert(f'exit_rule_{status}', severity, icon, message, 'Decide',
+                                    'companies.company_detail',
+                                    {'company_id': episode.company_id, '_anchor': 'research/findings'},
+                                    episode.company_id))
+            elif group:
+                alerts.append(Alert(f'exit_rule_{status}', severity, icon,
+                                    f'{len(group)} exit rules {word}', 'Decide',
+                                    'portfolio.intelligence_hub', {'_anchor': 'coverage'}))
         return alerts
 
     def _insight_alerts(self) -> list:

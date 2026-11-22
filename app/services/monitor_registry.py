@@ -28,6 +28,9 @@ FREQUENCY_PERIODS = {
     'monthly': timedelta(days=30),
 }
 DEDUP_SLACK = timedelta(hours=2)
+# One monitor run's Celery soft time limit, and how long before it a run stops taking new work.
+MONITOR_RUN_SOFT_LIMIT = 1800  # an exit watch run checks every rule, each with up to 3 searches
+MONITOR_RUN_STOP_MARGIN = 120
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,19 @@ MONITORS: dict[str, Monitor] = {
         allowed_frequencies=('daily', 'weekly', 'monthly'),
         feature=None,
         estimated_tokens=3000,
+    ),
+    'exit_criteria_watch': Monitor(
+        key='exit_criteria_watch',
+        label='Exit-criteria watch',
+        description=(
+            'Checks each exit rule of the companies you hold, using the latest prices '
+            'and a web search for news since the last check.'
+        ),
+        prompts=(('exit_criteria', 'exit_criteria_check'),),
+        default_frequency='weekly',
+        allowed_frequencies=('daily', 'weekly', 'monthly'),
+        feature='portfolio_intelligence',
+        estimated_tokens=4000,
     ),
 }
 

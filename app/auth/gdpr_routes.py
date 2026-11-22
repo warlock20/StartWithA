@@ -31,7 +31,7 @@ from flask_login import login_required, logout_user, current_user
 from app import db, limiter
 from app.auth import auth_bp
 from app.constants import RATELIMIT_AUTH
-from app.models import CorporateAction
+from app.models import CorporateAction, ExitRuleTrigger, UserMonitorSetting
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import serialize_model_to_dict
 from app.utils.db_utils import safe_db_transaction
@@ -122,6 +122,8 @@ def _collect_user_data(user):
         ('prompt_usage_logs', PromptUsageLog, PromptUsageLog.user_id == user.id),
         ('bias_check_results', BiasCheckResult, BiasCheckResult.user_id == user.id),
         ('portfolio_insights', PortfolioUIInsight, PortfolioUIInsight.user_id == user.id),
+        ('exit_rule_triggers', ExitRuleTrigger, ExitRuleTrigger.user_id == user.id),
+        ('monitor_settings', UserMonitorSetting, UserMonitorSetting.user_id == user.id),
     ]
 
     for section_name, model, filter_expr in sections:

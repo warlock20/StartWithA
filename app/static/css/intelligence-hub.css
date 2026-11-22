@@ -50,13 +50,13 @@
 }
 
 .hub-intel-card.research .hub-intel-card-icon {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--success-50);
+    color: var(--success-600);
 }
 
 .hub-intel-card.checkpoints .hub-intel-card-icon {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--warning-50);
+    color: var(--warning-800);
 }
 
 .hub-intel-card.thesis .hub-intel-card-icon {
@@ -240,4 +240,70 @@
         font-size: 0.8125rem;
         color: var(--text-secondary, #6b7280);
     }
+}
+
+/* Exit rules inside the coverage table (issue #437) */
+.hub-rules {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.hub-rule {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.hub-rule-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hub-rule-name {
+    font-weight: 600;
+}
+
+.hub-rule-badge {
+    padding: 0.0625rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--bg-secondary, #f3f4f6);
+    color: var(--text-secondary, #6b7280);
+}
+
+.hub-rule-badge--intact {
+    background: var(--success-50);
+    color: var(--success-600);
+}
+
+.hub-rule-badge--at_risk {
+    background: var(--warning-50);
+    color: var(--warning-800);
+}
+
+.hub-rule-badge--triggered {
+    background: var(--danger-50);
+    color: var(--danger-600);
+}
+
+.hub-rule-summary,
+.hub-rule-note {
+    margin: 0.25rem 0 0;
+    font-size: 0.8125rem;
+}
+
+.hub-rule-note,
+.hub-rule-date {
+    color: var(--text-secondary, #6b7280);
+}
+
+.hub-rule-sources {
+    margin: 0.25rem 0 0;
+    padding-left: 1.1rem;
+    font-size: 0.8125rem;
 }

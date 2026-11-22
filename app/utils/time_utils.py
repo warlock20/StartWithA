@@ -61,6 +61,13 @@ def ensure_timezone_aware(dt: Optional[datetime]) -> Optional[datetime]:
     return dt
 
 
+def naive_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """UTC wall time without tzinfo, the way DateTime columns store it (naive input is taken as UTC)."""
+    if dt is None:
+        return None
+    return ensure_timezone_aware(dt).astimezone(timezone.utc).replace(tzinfo=None)
+
+
 def calculate_duration_minutes(start_time: datetime, end_time: datetime) -> int:
     """
     Calculate duration between two datetime objects in minutes.

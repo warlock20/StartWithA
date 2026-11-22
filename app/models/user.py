@@ -179,15 +179,17 @@ class User(UserMixin, db.Model):  # Add UserMixin here
         self.check_and_reset_tokens()
         return (self.ai_tokens_used + tokens_needed) <= self.ai_tokens_limit
 
-    def increment_ai_tokens(self, tokens_used):
+    def increment_ai_tokens(self, tokens_used, commit=True):
         """
         Increment user's AI token usage counter.
 
         Args:
             tokens_used: Number of tokens consumed by the AI request
+            commit: False leaves the change for the caller's own commit
         """
         self.ai_tokens_used += tokens_used
-        db.session.commit()
+        if commit:
+            db.session.commit()
 
     def get_token_usage_percentage(self):
         """
