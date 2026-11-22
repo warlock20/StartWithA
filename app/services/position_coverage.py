@@ -26,7 +26,7 @@ from app.models import Company, DestinationCheckpoint
 from app.models.portfolio import PortfolioPosition
 from app.services import findings
 from app.services.config_service import ConfigKeys, get_config
-from app.utils.time_utils import ensure_timezone_aware, now_utc, timedelta
+from app.utils.time_utils import datetime, days_between, ensure_timezone_aware, naive_utc, now_utc, timedelta
 
 DEFAULT_EXIT_PLAN_STALE_DAYS = 90
 MAX_EXIT_PLAN_STALE_DAYS = 3650  # keep in step with max_value in the seeding migration
@@ -62,6 +62,7 @@ def _rule_freshness(rule):
     return max(ensure_timezone_aware(d) for d in dates)
 
 
+ALERT_STATUSES = ('triggered', 'at_risk')
 GAP_TYPES = ('no_exit_plan', 'no_active_checkpoint', 'checkpoints_all_past', 'exit_plan_stale')
 GAP_SEVERITY = {
     'no_exit_plan': 'danger',
@@ -96,6 +97,7 @@ class PositionCoverage:
     has_future_checkpoint: bool
     exit_plan_stale: bool
     gaps: list = field(default_factory=list)
+    rules: list = field(default_factory=list)
 
     @property
     def has_problems(self) -> bool:
@@ -173,16 +175,53 @@ class PositionCoverageService:
                             'Review exit plan', *plan_target))
         gaps.sort(key=lambda g: _SEVERITY_RANK[g.severity])
         return PositionCoverage(position, company, has_exit_plan, has_active, has_future,
-                                stale, gaps)
+                                stale, gaps, list(rules))
 
 
-def coverage_rows(coverage) -> list:
+def _rule_dict(rule, state, now) -> dict:
+    """One exit rule for the hub table: its entry plus the latest watch state (None when never checked)."""
+    state = state or {}
+    episode = state.get('episode') or {}
+    ignored = episode.get('response') == 'ignored'
+    ignored_days = None
+    if ignored and episode.get('opened_at'):
+        ignored_days = days_between(naive_utc(datetime.fromisoformat(episode['opened_at'])), now)
+    return {
+        'id': rule.id,
+        'signal': rule.title,
+        'text': rule.content,
+        'status': state.get('status'),
+        'status_label': state.get('status_label'),
+        'checked_at_display': state.get('checked_display'),
+        'summary': state.get('summary'),
+        'no_evidence': state.get('no_evidence', False),
+        'sources': [{'url': s['url'], 'title': s['title'], 'published_display': s['published_display'],
+                     'date_source': s.get('date_source')}
+                    for s in state.get('sources', [])],
+        'expired': state.get('expired', False),
+        'held_since_display': episode.get('held_display') if episode.get('response') == 'held' else None,
+        'hold_reason': episode.get('hold_reason'),
+        'ignored': ignored,
+        'ignored_days': ignored_days,
+        'alerting': bool(episode.get('alerting')) and state.get('status') in ALERT_STATUSES,
+        'findings_url': url_for('companies.company_detail', company_id=rule.company_id,
+                                _anchor='research/findings'),
+    }
+
+
+def coverage_rows(coverage, rule_states=None) -> list:
     """JSON-ready dicts for the hub's coverage table, in the order given.
 
-    Resolves URLs, so it needs a request context.
+    rule_states is view.rule_states for the rules involved; a triggered or at-risk rule
+    that is alerting makes its row a problem. Resolves URLs, so it needs a request context.
     """
-    return [
-        {
+    rule_states = rule_states or {}
+    now = naive_utc(now_utc())
+    out = []
+    for row in coverage:
+        rules = [_rule_dict(rule, rule_states.get(rule.id), now) for rule in row.rules]
+        rule_problem = any(r['alerting'] for r in rules)
+        out.append({
             'company_name': row.company.name,
             'ticker': row.company.ticker_symbol or '',
             'company_url': url_for('companies.company_detail', company_id=row.company.id),
@@ -190,12 +229,13 @@ def coverage_rows(coverage) -> list:
             'has_active_checkpoint': row.has_active_checkpoint,
             'has_future_checkpoint': row.has_future_checkpoint,
             'exit_plan_stale': row.exit_plan_stale,
-            'has_problems': row.has_problems,
+            'has_problems': row.has_problems or rule_problem,
+            'rule_problem': rule_problem,
+            'rules': rules,
             'gaps': [
                 {'type': g.type, 'message': g.message, 'fix_label': g.fix_label,
                  'fix_link': g.fix_link}
                 for g in row.gaps
             ],
-        }
-        for row in coverage
-    ]
+        })
+    return out

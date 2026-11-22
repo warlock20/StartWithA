@@ -1135,6 +1135,7 @@
 
 .findings-editable .findings-list li {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 0.5rem;
     padding: 0.375rem 0;
@@ -1185,6 +1186,13 @@
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 0 0.5rem;
+}
+
+.findings-editable .finding-row-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: auto;
 }
 
 .findings-editable .finding-signal {
@@ -1250,6 +1258,115 @@
 .findings-editable .finding-review:hover,
 .findings-editable .finding-review.is-done {
     color: var(--success-500);
+}
+
+/* Exit-criteria watch: latest check and Sell / Hold anyway under a must-exit rule */
+.findings-editable .finding-exit-status {
+    flex: 0 0 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+    font-size: var(--font-size-xs);
+}
+
+.findings-editable .finding-exit-status small,
+.findings-editable .finding-exit-status a,
+.findings-editable .finding-exit-sources li {
+    font-size: var(--font-size-xs);
+}
+
+.findings-editable .finding-exit-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.5rem;
+}
+
+.findings-editable .finding-exit-badge {
+    padding: 0 0.375rem;
+    border-radius: 999px;
+    font-weight: 600;
+    background: var(--gray-100);
+    color: var(--text-secondary);
+}
+
+.findings-editable .finding-exit-badge.is-intact {
+    background: var(--success-50);
+    color: var(--success-500);
+}
+
+.findings-editable .finding-exit-badge.is-at_risk {
+    background: var(--warning-50);
+    color: var(--warning-500);
+}
+
+.findings-editable .finding-exit-badge.is-triggered {
+    background: var(--danger-50);
+    color: var(--danger-500);
+}
+
+.findings-editable .finding-exit-summary {
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.findings-editable .finding-exit-summary.is-long {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+
+.findings-editable .finding-exit-sources {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.findings-editable .findings-list .finding-exit-sources li {
+    display: block;
+    padding: 0;
+    border: none;
+    overflow-wrap: anywhere;
+}
+
+.findings-editable .finding-exit-held {
+    margin: 0;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.findings-editable .finding-exit-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.findings-editable .finding-exit-status .action-btn {
+    padding: 0.25rem 0.625rem;
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+}
+
+.findings-editable .finding-exit-hold-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.findings-editable .finding-exit-hold-form[hidden] {
+    display: none;
+}
+
+.findings-editable .finding-exit-reason {
+    width: 100%;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    font: inherit;
+    resize: vertical;
 }
 
 .finding-add-form {

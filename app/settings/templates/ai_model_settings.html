@@ -179,6 +179,7 @@
         <label class="settings-row-label" for="model-{{ cat.name }}">
             <strong><i class="bi {{ cat.icon }} me-1" aria-hidden="true"></i>{{ cat.label }}</strong>
             {% if cat.user_model %}<span class="settings-chip settings-chip--custom">Custom</span>{% endif %}
+            {% if cat.name == 'exit_criteria' and cat.user_model and cat.user_model not in cat.models|map(attribute='id') %}<span class="text-danger">Your saved model can't search the web; pick another or reset to default.</span>{% endif %}
             <span>{{ cat.prompt_count }} prompt{{ 's' if cat.prompt_count != 1 }}{% if cat.default_model %} · default <code>{{ cat.default_model }}</code>{% endif %}</span>
         </label>
         <div class="settings-row-control">
@@ -186,7 +187,7 @@
                 <input type="hidden" name="category" value="{{ cat.name }}">
                 <select id="model-{{ cat.name }}" name="model_id" class="form-select form-select-sm">
                     <option value="default" {% if not cat.user_model %}selected{% endif %}>Default</option>
-                    {% for provider, models in available_models|groupby('provider') %}
+                    {% for provider, models in cat.models|groupby('provider') %}
                     <optgroup label="{{ provider|capitalize }}">
                         {% for model in models %}
                         <option value="{{ model.id }}" {% if cat.user_model == model.id %}selected{% endif %}>{{ model.name }}</option>

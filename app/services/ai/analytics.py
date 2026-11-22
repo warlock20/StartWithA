@@ -63,7 +63,9 @@ def log_prompt_usage(
     success: bool = True,
     error_message: Optional[str] = None,
     context_data: Optional[Dict[str, Any]] = None,
-    user_id: Optional[int] = None
+    user_id: Optional[int] = None,
+    web_searches: int = 0,
+    cost_dollars: Optional[float] = None
 ) -> Optional[PromptUsageLog]:
     """
     Log prompt usage for analytics.
@@ -80,6 +82,8 @@ def log_prompt_usage(
         error_message: Error message if failed
         context_data: Additional context (truncated if large)
         user_id: User ID (auto-detected from current_user if not provided)
+        web_searches: Web searches the call made (counted against the background-AI allowance)
+        cost_dollars: The caller's own cost figure (e.g. including search fees); else estimated from tokens
 
     Returns:
         PromptUsageLog instance if logged successfully, None otherwise
@@ -98,7 +102,10 @@ def log_prompt_usage(
             total_tokens += output_tokens
 
         # Estimate cost in cents
-        estimated_cost_cents = _estimate_cost(model, input_tokens, output_tokens)
+        if cost_dollars is not None:
+            estimated_cost_cents = round(cost_dollars * 100)
+        else:
+            estimated_cost_cents = _estimate_cost(model, input_tokens, output_tokens)
 
         # Truncate context_data if too large
         if context_data and len(str(context_data)) > 1000:
@@ -118,7 +125,8 @@ def log_prompt_usage(
             latency_ms=latency_ms,
             success=success,
             error_message=error_message,
-            context_data=context_data
+            context_data=context_data,
+            web_searches=web_searches or 0
         )
 
         db.session.add(log_entry)

@@ -35,12 +35,15 @@ from app.services.company_isin import check_company_isin, set_company_isin
 from app.utils.response_utils import json_error, json_not_found
 from app.utils.time_utils import format_for_javascript, now_utc
 from app.utils.blocknote_utils import append_note, blocknote_to_text
+from app.services.exit_watch import ExitWatchError, episodes as exit_episodes, view as exit_view
 from app.services.findings import (
     FINDING_TYPES, MUST_EXIT, LastExitRuleError, add_finding, assert_can_remove_must_exit,
     delete_finding, mark_reviewed, normalize_finding_type, replace_must_exit, signal_suggestions,
 )
 
 logger = logging.getLogger(__name__)
+
+HOLD_REASON_MAX = 2000
 
 # Module-level singleton for financial data lookups
 _financial_service = None
@@ -812,6 +815,39 @@ def api_review_finding(company_id, entry_id):
     db.session.commit()
     return jsonify({'success': True,
                     'reviewed_display': entry.last_reviewed.strftime('%b %d, %Y')})
+
+
+@companies_bp.route('/api/<int:company_id>/findings/<int:entry_id>/hold', methods=['POST'])
+@login_required
+def api_hold_finding(company_id, entry_id):
+    """Hold through a triggered exit rule ("Hold anyway") or answer a re-ask ("Still holding")."""
+    if not request.is_json:
+        return json_error('A JSON request body is required')
+    rule = JournalEntry.query.filter_by(
+        id=entry_id, company_id=company_id, user_id=current_user.id,
+        entry_type=MUST_EXIT, is_archived=False).first()
+    if rule is None:
+        return json_not_found('Exit rule')
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return json_error('A JSON object is required')
+    reason = body.get('reason') or ''
+    if not isinstance(reason, str):
+        return json_error('The reason must be text')
+    now = now_utc()
+    exit_episodes.resolve(current_user.id, now)
+    if rule.id not in {e.rule_id for e in exit_episodes.alerting(current_user.id, now)}:
+        db.session.commit()
+        return json_error('This exit rule is not waiting for an answer.')
+    try:
+        episode = exit_episodes.hold(current_user.id, rule.id, reason.strip()[:HOLD_REASON_MAX], now)
+    except ExitWatchError as exc:
+        db.session.rollback()
+        return json_error(str(exc))
+    db.session.commit()
+    state = exit_view.rule_states(current_user.id, [rule.id])[rule.id]
+    return jsonify({'success': True, 'held_display': episode.held_at.strftime('%b %d, %Y'),
+                    'state': state})
 
 
 # ===================================================================

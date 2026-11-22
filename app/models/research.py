@@ -609,6 +609,9 @@ class ResearchSettings(db.Model):
     # AI check: web searches allowed per run (Gather + loop-back, or the Quick call). 1–10.
     ai_check_search_budget = db.Column(db.Integer, nullable=False, default=5, server_default='5')
 
+    # Background AI: web searches a month the user allows. NULL = the default (search_allowance.DEFAULT_ALLOWANCE).
+    background_search_allowance = db.Column(db.Integer, nullable=True)
+
     def __repr__(self):
         return f'<ResearchSettings for User {self.user_id}>'
 

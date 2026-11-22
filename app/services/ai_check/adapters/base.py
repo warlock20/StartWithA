@@ -56,6 +56,11 @@ class ProviderAdapter(ABC):
     def follow_up(self, call, transcript, text, on_usage):
         return self._complete(call, self._append_user(transcript, text), on_usage)
 
+    def close_tool_calls(self, transcript, ack_text):
+        """The transcript with every tool call in its last model turn answered by `ack_text`, so a
+        further user turn is valid; unchanged when that turn called no tool."""
+        raise NotImplementedError(f'{self.name} adapter does not answer tool calls.')
+
     @abstractmethod
     def _make_client(self):
         """The SDK client, or None when the provider's key is not configured."""

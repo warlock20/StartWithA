@@ -97,6 +97,7 @@ from .portfolio import (
 from .background_task import BackgroundTask
 from .scheduled_job_run import ScheduledJobRun
 from .user_monitor_setting import UserMonitorSetting
+from .exit_rule_trigger import ExitRuleTrigger
 from .ai_intelligence import (
     ResearchOutcome,
     AIInsight,
@@ -219,6 +220,7 @@ __all__ = [
     # Scheduled (beat) job run history
     'ScheduledJobRun',
     'UserMonitorSetting',
+    'ExitRuleTrigger',
     # AI Intelligence models
     'ResearchOutcome',
     'AIInsight',

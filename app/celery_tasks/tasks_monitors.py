@@ -29,6 +29,7 @@ from app import db
 from app.celery_tasks.base import TaskFailed, background_task
 from app.models import User
 from app.services.checkpoint_analysis_service import CheckpointAnalysisService
+from app.services.exit_watch.run import run_exit_watch
 from app.services.monitor_registry import dedup_window, expiry_window, get_monitor
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ def _run_checkpoint_analysis(user, monitor):
 
 MONITOR_RUNNERS = {
     'checkpoint_analysis': _run_checkpoint_analysis,
+    'exit_criteria_watch': run_exit_watch,
 }
 
 

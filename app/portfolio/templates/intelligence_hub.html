@@ -486,6 +486,46 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
+    function ruleItem(rule) {
+        var item = el('div', 'hub-rule');
+        var head = el('div', 'hub-rule-head');
+        var link = el('a', 'hub-rule-name', rule.signal || rule.text);
+        link.href = rule.findings_url;
+        head.appendChild(link);
+        var status = rule.status || 'unchecked';
+        head.appendChild(el('span', 'hub-rule-badge hub-rule-badge--' + status,
+            rule.status_label || 'Not checked yet'));
+        item.appendChild(head);
+        if (rule.summary) item.appendChild(el('p', 'hub-rule-summary', rule.summary));
+        if (rule.sources && rule.sources.length) {
+            var list = el('ul', 'hub-rule-sources');
+            rule.sources.forEach(function(src) {
+                var li = el('li');
+                var a = el('a', '', src.title);
+                a.href = src.url;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                li.appendChild(a);
+                var when = (src.published_display ? ' ' + src.published_display : '') +
+                    (!src.published_display || src.date_source === 'model' ? ' (date unchecked)' : '');
+                if (when) li.appendChild(el('span', 'hub-rule-date', when));
+                list.appendChild(li);
+            });
+            item.appendChild(list);
+        }
+        var notes = [];
+        if (rule.checked_at_display) {
+            notes.push((rule.expired ? 'Not checked since ' : 'Checked ') + rule.checked_at_display);
+        }
+        if (rule.held_since_display) {
+            notes.push('Held through trigger since ' + rule.held_since_display +
+                (rule.hold_reason ? ': ' + rule.hold_reason : ''));
+        }
+        if (rule.ignored) notes.push('No response for ' + rule.ignored_days + ' day' + (rule.ignored_days === 1 ? '' : 's'));
+        notes.forEach(function(note) { item.appendChild(el('p', 'hub-rule-note', note)); });
+        return item;
+    }
+
     var table = createDataTable('#coverage-table', {
         data: rows,
         columns: [
@@ -531,6 +571,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     var row = cell.getRow().getData();
                     if (!row.has_exit_plan) return el('span', 'table-cell-muted', '\u2014');
                     return mark(!row.exit_plan_stale);
+                }
+            },
+            {
+                title: 'Exit rules',
+                field: 'rules',
+                cssClass: 'dt-cell-wrap',
+                headerSort: false,
+                minWidth: 320,
+                widthGrow: 3,
+                responsive: 0,
+                formatter: function(cell) {
+                    var rules = cell.getValue();
+                    var wrap = el('div', 'hub-rules');
+                    if (!rules.length) return el('span', 'table-cell-muted', '\u2014');
+                    rules.forEach(function(rule) { wrap.appendChild(ruleItem(rule)); });
+                    return wrap;
                 }
             },
             {

@@ -21,7 +21,7 @@ import base64
 from app.services.ai.providers.claude import ClaudeProvider
 from app.services.ai_check import AICheckError
 from app.services.ai_check.adapters.base import ProviderAdapter
-from app.services.ai_check.llm import StageReply, Usage
+from app.services.ai_check.llm import SearchResult, StageReply, Usage
 from app.services.ai_check.verify import fetched_texts
 
 MAX_PAUSE_RESUMES = 3
@@ -58,6 +58,22 @@ def _find_tool_call(message):
         if block.get('type') == 'tool_use':
             return block.get('name'), block.get('input') or {}
     return None, {}
+
+
+def search_results(responses):
+    """Every web search result across the responses, deduped by URL, in order. Error blocks
+    (content is a dict, not a list) are skipped."""
+    found = {}
+    for message in responses:
+        for block in message.get('content') or []:
+            content = block.get('content')
+            if block.get('type') != 'web_search_tool_result' or not isinstance(content, list):
+                continue
+            for item in content:
+                url = item.get('url')
+                if item.get('type') == 'web_search_result' and url and url not in found:
+                    found[url] = SearchResult(url, item.get('title') or '', item.get('page_age'))
+    return list(found.values())
 
 
 class ClaudeAdapter(ProviderAdapter):
@@ -106,6 +122,14 @@ class ClaudeAdapter(ProviderAdapter):
     def _append_user(self, transcript, text):
         return transcript + [{'role': 'user', 'content': text}]
 
+    def close_tool_calls(self, transcript, ack_text):
+        last = transcript[-1] if transcript else {}
+        content = last.get('content') if last.get('role') == 'assistant' else None
+        results = [{'type': 'tool_result', 'tool_use_id': block['id'], 'content': ack_text}
+                   for block in content or [] if isinstance(block, dict) and block.get('type') == 'tool_use']
+        # The API merges consecutive user turns, so the tool results stay first in the next turn.
+        return transcript + [{'role': 'user', 'content': results}] if results else transcript
+
     def _complete(self, call, messages, on_usage):
         """Send, resuming pause_turn up to MAX_PAUSE_RESUMES times."""
         usages, responses = [], []
@@ -124,5 +148,6 @@ class ClaudeAdapter(ProviderAdapter):
             messages = messages + [{'role': 'assistant', 'content': message.get('content') or []}]
             if stop != 'pause_turn':
                 name, args = _find_tool_call(message)
-                return StageReply(name, args, messages, usages, fetched_texts=fetched_texts(responses))
+                return StageReply(name, args, messages, usages, fetched_texts=fetched_texts(responses),
+                                  search_results=search_results(responses))
         raise AICheckError(f'Claude kept pausing; gave up after {MAX_PAUSE_RESUMES} resumes.')

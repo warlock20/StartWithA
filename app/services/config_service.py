@@ -518,6 +518,9 @@ class ConfigKeys:
     MIN_RESEARCH_SCORE = 'min_research_score'
     EXIT_PLAN_STALE_DAYS = 'exit_plan_stale_days'
     
+    # Background AI
+    BACKGROUND_SEARCH_ALLOWANCE_MAX = 'background_search_allowance_max'
+
     # Behavioral Patterns
     MIN_HOLD_DAYS_FOR_PATTERN = 'min_hold_days_for_pattern'
     OVERCONFIDENCE_THRESHOLD = 'overconfidence_threshold'

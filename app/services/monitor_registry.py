@@ -57,6 +57,19 @@ MONITORS: dict[str, Monitor] = {
         feature=None,
         estimated_tokens=3000,
     ),
+    'exit_criteria_watch': Monitor(
+        key='exit_criteria_watch',
+        label='Exit-criteria watch',
+        description=(
+            'Checks each exit rule of the companies you hold, using the latest prices '
+            'and a web search for news since the last check.'
+        ),
+        prompts=(('exit_criteria', 'exit_criteria_check'),),
+        default_frequency='weekly',
+        allowed_frequencies=('daily', 'weekly', 'monthly'),
+        feature='portfolio_intelligence',
+        estimated_tokens=4000,
+    ),
 }
 
 

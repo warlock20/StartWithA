@@ -56,6 +56,8 @@ from app.services.portfolio_intelligence import (
     compare_to_expected_cagr,
     get_learning_insights, get_correlation_data, outcome_hold_days
     )
+from app.services.exit_watch import episodes as exit_episodes
+from app.services.exit_watch import view as exit_watch_view
 from app.services.portfolio_alerts import PortfolioAlertsService
 from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
@@ -815,6 +817,8 @@ def intelligence_hub():
     
     # Alerts, checkpoints, theses and coverage all come from one service so the
     # strip, the health bar and the cards agree (issue #435)
+    exit_episodes.resolve(current_user.id, now_utc())
+    db.session.commit()
     alerts_service = PortfolioAlertsService(current_user.id)
     checkpoints_data = alerts_service.checkpoints_data
     checkpoint_summary = {
@@ -930,10 +934,13 @@ def intelligence_hub():
         'min_needed': MIN_TRADES_FOR_INSIGHTS
     }
     
+    rule_states = exit_watch_view.rule_states(
+        current_user.id, [rule.id for row in alerts_service.coverage for rule in row.rules])
+
     return render_template('intelligence_hub.html',
                           health=health,
                           alerts=alerts,
-                          coverage_rows=coverage_rows(alerts_service.coverage),
+                          coverage_rows=coverage_rows(alerts_service.coverage, rule_states),
                           performance=performance,
                           decisions=decisions,
                           correlation=correlation,
