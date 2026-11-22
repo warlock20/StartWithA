@@ -1,0 +1,13 @@
+{% if not_held %}
+<details class="cp-not-held">
+    <summary>Not held · {{ not_held | length }} {{ 'company' if not_held | length == 1 else 'companies' }} with old checkpoints</summary>
+    <div class="cp-not-held-list">
+        {% for n in not_held %}
+        <div class="cp-not-held-row">
+            {%- set total = n.met + n.not_met + n.active -%}
+            <span class="cp-ticker">{{ n.ticker }}</span>{% if n.sold_on %} · sold {{ n.sold_on.strftime('%d %b %Y') }}{% endif %} · {{ total }} {{ 'checkpoint' if total == 1 else 'checkpoints' }} ({{ n.met }} met, {{ n.not_met }} not met{% if n.active %}, {{ n.active }} open{% endif %})
+        </div>
+        {% endfor %}
+    </div>
+</details>
+{% endif %}

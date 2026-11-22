@@ -142,6 +142,7 @@ css_portfolio = Bundle(
     'css/modules/_warnings-widget.css',
     'css/modules/_intelligence-panel.css',
     'css/modules/_thesis-update.css',
+    'css/modules/_checkpoints-page.css',
     'css/intelligence-hub.css',
     'css/thesis-reality.css',
     'css/checkpoints.css',

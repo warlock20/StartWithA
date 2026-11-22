@@ -1,0 +1,46 @@
+{% set items = page.lane() %}
+<section id="needs-action" class="cp-panel" aria-labelledby="cp-lane-title">
+    <div class="cp-lane-header">
+        <h2 id="cp-lane-title" class="cp-section-title font-poppins">Needs action <span class="cp-count">· {{ items | length }}</span></h2>
+        <span class="cp-hint">Same items as the alerts on the dashboard and Intelligence Hub</span>
+    </div>
+    {% if items %}
+    <ul class="cp-lane-list">
+        {% for item in items %}
+        {% set row = loop.index %}
+        <li class="cp-lane-item" data-kind="{{ item.kind }}">
+            <span class="cp-pill cp-kind cp-kind--{{ item.kind }}">{{ item.label }}</span>
+            <div class="cp-lane-text">
+                <div class="cp-lane-title"><span class="cp-ticker">{{ item.ticker }}</span> <span class="cp-lane-name">{{ item.title }}</span></div>
+                <div class="cp-lane-detail">{{ item.detail }}</div>
+            </div>
+            <div class="cp-lane-actions">
+                {% for a in item.actions %}
+                    {% if a.kind == 'link' %}
+                    <a href="{{ a.link }}" class="action-btn{% if a.primary %} primary{% endif %}">{{ a.label }}</a>
+                    {% elif a.kind == 'checkpoint_status' %}
+                    <button type="button" class="action-btn cp-status-btn{% if a.primary %} primary{% endif %}" data-status-url="{{ a.status_url }}" data-status="{{ a.status }}">{{ a.label }}</button>
+                    {% elif a.kind == 'still_valid' %}
+                    <button type="button" class="action-btn cp-still-valid{% if a.primary %} primary{% endif %}" data-review-urls='{{ a.review_urls | tojson }}'>{{ a.label }}</button>
+                    {% elif a.kind == 'hold' %}
+                    <button type="button" class="action-btn cp-hold-open{% if a.primary %} primary{% endif %}" aria-controls="cp-hold-{{ row }}" aria-expanded="false">{{ a.label }}</button>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% for a in item.actions if a.kind == 'hold' %}
+            <form class="cp-hold-form" id="cp-hold-{{ row }}" data-hold-url="{{ a.hold_url }}" data-reason-required="{{ 'true' if a.reason_required else 'false' }}" hidden>
+                <textarea class="cp-hold-reason" rows="2" aria-label="Reason"{% if a.reason_required %} required{% endif %}
+                    placeholder="{% if a.reason_required %}Why are you holding through this?{% else %}Why are you still holding? (optional){% endif %}"></textarea>
+                <div class="cp-hold-buttons">
+                    <button type="button" class="action-btn cp-hold-cancel">Cancel</button>
+                    <button type="submit" class="action-btn primary cp-hold-submit">{{ a.label }}</button>
+                </div>
+            </form>
+            {% endfor %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="cp-empty">Nothing needs action.</p>
+    {% endif %}
+</section>

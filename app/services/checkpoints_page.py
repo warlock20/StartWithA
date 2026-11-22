@@ -334,7 +334,8 @@ class CheckpointsPageService:
     def collapse_healthy(self) -> bool:
         if len(self.alerts.coverage) <= HEALTHY_COLLAPSE_THRESHOLD:
             return False
-        return any(card.has_problems for card in self.cards())
+        cards = self.cards()
+        return any(c.has_problems for c in cards) and any(not c.has_problems for c in cards)
 
     # Metrics
 
@@ -364,7 +365,7 @@ class CheckpointsPageService:
                    'danger' if overdue else 'neutral'),
             Metric('next_30_days', 'Next 30 days', str(due_30), 'checkpoints due',
                    'calendar-event', 'warning' if due_30 else 'neutral'),
-            Metric('covered', 'Covered', f'{covered} of {total}', 'exit plan + future checkpoint',
+            Metric('covered', 'Positions covered', f'{covered} of {total}', 'exit plan + future checkpoint',
                    'shield-check', 'success' if covered == total else 'warning'),
             Metric('active_checkpoints', 'Active checkpoints', str(len(active)),
                    f'across {_plural(len({cp.company_id for cp in active}), "position")}',

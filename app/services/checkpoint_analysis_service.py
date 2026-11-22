@@ -294,44 +294,6 @@ class CheckpointAnalysisService:
         return insight
 
     @staticmethod
-    def get_analysis_alerts(checkpoint_insights):
-        """
-        Build alert notifications from checkpoint insights for the dashboard header.
-
-        Surfaces at_risk and likely_missed checkpoints as prominent alerts.
-
-        Args:
-            checkpoint_insights: dict from get_checkpoint_insights()
-
-        Returns:
-            list[dict]: Alert dicts with icon, message, status, company_id
-        """
-        alerts = []
-        status_priority = {'likely_missed': 0, 'at_risk': 1}
-
-        for checkpoint_id, insight in checkpoint_insights.items():
-            if not insight.supporting_data:
-                continue
-
-            status = insight.supporting_data.get('status_assessment', '')
-            if status not in status_priority:
-                continue
-
-            alerts.append({
-                'icon': 'exclamation-triangle-fill' if status == 'likely_missed' else 'exclamation-circle',
-                'status': status,
-                'message': f"{insight.supporting_data.get('checkpoint_metric', 'Checkpoint')}: {insight.title}",
-                'company_id': insight.company_id,
-                'checkpoint_id': checkpoint_id,
-                'confidence': insight.confidence,
-            })
-
-        # Sort: likely_missed first, then at_risk, then by confidence desc
-        alerts.sort(key=lambda a: (status_priority.get(a['status'], 99), -(a['confidence'] or 0)))
-
-        return alerts
-
-    @staticmethod
     def get_checkpoint_insights(checkpoint_ids):
         """
         Get the latest active AI insights for a list of checkpoint IDs.
