@@ -148,6 +148,21 @@ def _status_words(assessment: str) -> str:
     return assessment.replace('_', ' ').lower()
 
 
+def held_text(episode_info: dict) -> str:
+    """"Held since <date>: <reason>", leaving out whichever parts are missing."""
+    since = f' since {episode_info["held_display"]}' if episode_info.get('held_display') else ''
+    reason = f': {episode_info["hold_reason"]}' if episode_info.get('hold_reason') else ''
+    return f'Held{since}{reason}'
+
+
+def source_text(source: dict) -> str:
+    """"<title>, <published date>" of a check's source; the date is left out when unknown."""
+    if not source.get('title'):
+        return ''
+    published = f', {source["published_display"]}' if source.get('published_display') else ''
+    return f'{source["title"]}{published}'
+
+
 def _coverage_message(gap_type: str, count: int) -> str:
     plural = count != 1
     if gap_type == 'no_exit_plan':
@@ -270,14 +285,12 @@ class PortfolioAlertsService:
             reask = episode.realert_reason == 'reask'
             if reask:
                 info = state.get('episode') or {}
-                since = f' since {info["held_display"]}' if info.get('held_display') else ''
-                reason = f': {info["hold_reason"]}' if info.get('hold_reason') else ''
-                detail = f'Held{since}{reason}. Still holding?'
+                detail = f'{held_text(info)}. Still holding?'
             else:
                 source = next(iter(state.get('sources') or []), None)
                 summary = state.get('display_summary') or ''
                 if source and source.get('published_display'):
-                    lead = f'{source["title"]}, {source["published_display"]}'
+                    lead = source_text(source)
                 elif state.get('checked_display'):
                     lead = f'Checked {state["checked_display"]}'
                 else:
