@@ -27,11 +27,13 @@ import logging
 from flask import Blueprint, flash, render_template, redirect, request, url_for
 from flask_login import login_required, current_user
 
+from app import db
 from app.services.capital_timing import (
     GRADUAL, LUMP_SUM, imported_capital_mode, switch_imported_capital,
 )
 from app.services.config_service import ConfigService
 from app.services.currency_service import CurrencyService
+from app.services.search_allowance import allowance_max, allowance_status, has_search_monitor, set_allowance
 from app.services.monitor_registry import get_event, get_monitor
 from app.services.monitor_schedule import (
     MonitorSettingError, event_rows, monitor_rows, run_now, update_event_setting, update_setting,
@@ -114,10 +116,28 @@ def monitors():
         section_title='Background AI',
         section_intro=('AI checks that run on a schedule or when you do something. '
                        'Each run uses AI tokens from your monthly budget.'),
+        # Hidden when no monitor the user can run searches the web (e.g. exit watch locked by plan)
+        search_allowance=allowance_status(current_user) if has_search_monitor(current_user) else None,
+        search_allowance_max=allowance_max(),
         monitors=monitor_rows(current_user),
         events=event_rows(current_user),
         ai_consent=current_user.ai_consent_given,
     )
+
+
+@settings_bp.route('/monitors/search-allowance', methods=['POST'])
+@login_required
+def update_search_allowance():
+    """Save the user's monthly web-search allowance for background AI."""
+    try:
+        value = set_allowance(current_user, request.form.get('allowance', ''))
+        db.session.commit()
+    except ValueError as error:
+        db.session.rollback()
+        flash(str(error), 'danger')
+    else:
+        flash(f'Web search allowance: {value} a month.', 'success')
+    return redirect(url_for('settings.monitors', _anchor='search-allowance'))
 
 
 @settings_bp.route('/monitors/<key>', methods=['POST'])

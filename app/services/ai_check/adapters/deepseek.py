@@ -52,7 +52,19 @@ class DeepSeekAdapter(ProviderAdapter):
         return [{'role': 'system', 'content': call.system}, {'role': 'user', 'content': text}]
 
     def _append_user(self, transcript, text):
+        # A user turn may not follow unanswered tool_calls (the API rejects that), e.g. a reminder
+        # after a call to a tool the caller did not expect: drop them from the assistant turn.
+        last = transcript[-1] if transcript else {}
+        if last.get('role') == 'assistant' and last.get('tool_calls'):
+            transcript = transcript[:-1] + [{key: value for key, value in last.items() if key != 'tool_calls'}]
         return transcript + [{'role': 'user', 'content': text}]
+
+    def close_tool_calls(self, transcript, ack_text, text=None):
+        last = transcript[-1] if transcript else {}
+        calls = (last.get('tool_calls') or []) if last.get('role') == 'assistant' else []
+        closed = transcript + [{'role': 'tool', 'tool_call_id': tool_call['id'], 'content': ack_text}
+                               for tool_call in calls]
+        return closed if text is None else closed + [{'role': 'user', 'content': text}]
 
     def _complete(self, call, messages, on_usage):
         tools = [{'type': 'function', 'function': {'name': tool['name'], 'description': tool['description'],
@@ -82,5 +94,13 @@ class DeepSeekAdapter(ProviderAdapter):
                 name, args = None, {}
             if not isinstance(args, dict):  # valid JSON but not an object: same as no tool call
                 name, args = None, {}
-        transcript = messages + [{'role': 'assistant', 'content': message.content or ''}]
-        return StageReply(name, args, transcript, [usage])
+        assistant = {'role': 'assistant', 'content': message.content or ''}
+        # Kept only for a parsed call, so close_tool_calls can answer it; a reminder after an
+        # unusable call must not follow unanswered tool_calls (the API rejects that; _append_user
+        # also drops kept ones the caller did not answer).
+        if name is not None:
+            assistant['tool_calls'] = [
+                {'id': tool_call.id, 'type': 'function',
+                 'function': {'name': tool_call.function.name, 'arguments': tool_call.function.arguments or ''}}
+                for tool_call in message.tool_calls]
+        return StageReply(name, args, messages + [assistant], [usage])

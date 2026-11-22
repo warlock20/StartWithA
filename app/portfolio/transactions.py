@@ -264,6 +264,15 @@ def force_resync():
         
     return redirect(url_for('portfolio.dashboard'))
 
+PRESELECTABLE_TYPES = ('BUY', 'SELL', 'DIVIDEND', 'DEPOSIT', 'WITHDRAWAL')
+
+
+def _preselected_type():
+    """The ?type= query value when it is a valid transaction type, else None."""
+    value = request.args.get('type', '').upper()
+    return value if value in PRESELECTABLE_TYPES else None
+
+
 def _add_transaction_context():
     """
     Build the template context for the add-transaction form.
@@ -330,6 +339,7 @@ def _add_transaction_context():
         'owned_company_ids': set(existing_positions.keys()),
         'companies_with_research': companies_with_research,
         'preselected_company_id': request.args.get('company_id', type=int),
+        'preselected_type': _preselected_type(),
         'user_currency': current_user.base_currency,
         'currency_symbol': CurrencyService.get_currency_symbol(current_user.base_currency),
     }

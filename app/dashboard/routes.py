@@ -17,12 +17,14 @@
 # In app/dashboard/routes.py
 from flask import render_template
 from flask_login import current_user, login_required
+from app import db
 from app.models import Company, ResearchProject, ResearchSettings, IdeaPipeline, DestinationCheckpoint, PortfolioPosition
 from app.services.research_priority import ResearchPriorityService
 from app.services.feature_unlock_service import FeatureUnlockService
 from app.services.company_state import company_states
 from app.services.watchlist_targets import active_hits, alert_item, near_target_pct, near_targets
 from app.features import user_has_feature
+from app.services.exit_watch import episodes as exit_episodes
 from app.services.portfolio_alerts import PortfolioAlertsService
 from app.services.too_hard_service import overall_filter_rate
 from . import dashboard_bp
@@ -33,6 +35,12 @@ from app.utils.time_utils import now_utc
 @dashboard_bp.route('/')
 @login_required
 def index():
+    # Exit-rule episodes first, committing only on a change (a later commit would expire loaded rows).
+    # Only users with Portfolio Intelligence see the alerts they feed.
+    has_portfolio_intelligence = user_has_feature(current_user, 'portfolio_intelligence')
+    if has_portfolio_intelligence and exit_episodes.resolve(current_user.id, now_utc()):
+        db.session.commit()
+
     # --- Inbox ---
     inbox_count = current_user.idea_pipeline.filter(
         IdeaPipeline.status.in_(['inbox', 'killing'])
@@ -97,7 +105,7 @@ def index():
     # --- Portfolio alerts (same service as the Intelligence Hub) ---
     # Only for users who have Portfolio Intelligence; the others never see its page.
     alerts = []
-    if user_has_feature(current_user, 'portfolio_intelligence'):
+    if has_portfolio_intelligence:
         alerts = PortfolioAlertsService(current_user.id).strip_alerts()
 
     # --- Unlock Progress (free-tier users only) ---

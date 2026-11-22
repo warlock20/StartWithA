@@ -57,6 +57,7 @@ from app.services.corporate_action_display import (
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
 from app.services.export_service import export_company_journey, safe_name
+from app.services.exit_watch import episodes as exit_episodes, view as exit_view
 from app.services.findings import FINDING_TYPES, GREEN_FLAG, MUST_EXIT, RED_FLAG, finding_entries
 from app.companies import companies_bp
 from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task
@@ -674,6 +675,9 @@ def _format_intrinsic_value_label(company):
 def company_detail(company_id):
     """Unified company page — merges dashboard + journey into one."""
     company = owned_or_404(Company, company_id)
+    # Exit-rule episodes first: a commit later in the view would expire what it loaded.
+    if exit_episodes.resolve(current_user.id, now_utc()):
+        db.session.commit()
 
     # Journey data (timeline, thesis, position, stats, research)
     journey_data = _gather_journey_data(company, current_user.id)
@@ -719,6 +723,7 @@ def company_detail(company_id):
     return render_template(
         'company_detail.html',
         company=company,
+        exit_watch=_exit_watch_states(journey_data['findings']),
         # Dashboard data
         intrinsic_display_value=intrinsic_display_value,
         intrinsic_unit=intrinsic_unit,
@@ -758,6 +763,14 @@ def company_detail(company_id):
         price_stale=journey_data['price_stale'],
         title=f"{company.name}"
     )
+
+
+def _exit_watch_states(findings):
+    """Check state and response of the company's live must-exit rules, {rule id: state}."""
+    rule_ids = [f.id for f in findings if f.entry_type == MUST_EXIT]
+    if not rule_ids:
+        return {}
+    return exit_view.rule_states(current_user.id, rule_ids)
 
 
 def _transaction_rows(transactions):

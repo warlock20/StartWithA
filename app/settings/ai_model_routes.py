@@ -33,12 +33,14 @@ from app.models.user_ai_preferences import UserAIPreference
 from app.services.ai.config import AIModel, AIProvider, get_ai_config
 from app.services.ai.prompt_service import prompt_service
 from app.services.ai_check import AICheckError
+from app.services.exit_watch import ExitWatchError
+from app.services.exit_watch.check import PROMPT_CATEGORY as EXIT_CATEGORY, SEARCH_CAPABLE, require_search_capable
 from app.services.ai_check.pricing import provider_of
 from app.services.argos.knowledge_index import index_status
 from app.services.background_tasks import BackgroundTaskService
 from app.services.ai_check.setup import (
     MAX_SEARCH_BUDGET, MIN_SEARCH_BUDGET, PREF_PREFIX, STAGES, STAGE_TITLES, check_stage_model, model_label,
-    my_setup_choice, stage_default, stage_options, user_search_budget,
+    canonical, my_setup_choice, stage_default, stage_options, user_search_budget,
 )
 
 logger = logging.getLogger(__name__)
@@ -64,6 +66,7 @@ CATEGORY_LABELS = {
     'intelligence': 'AI Intelligence',
     'portfolio': 'Portfolio Analytics',
     'kill_checklist': 'Kill Criterion Suggestions',
+    'exit_criteria': 'Exit criteria',
 }
 
 CATEGORY_ICONS = {
@@ -75,6 +78,7 @@ CATEGORY_ICONS = {
     'intelligence': 'bi-lightbulb',
     'portfolio': 'bi-pie-chart',
     'kill_checklist': 'bi-lightbulb',
+    'exit_criteria': 'bi-door-open',
 }
 
 
@@ -129,6 +133,13 @@ def _check_ai_check_choice(category, model_id):
     return check_stage_model(stage, model_id)
 
 
+def _models_for(category, available_models):
+    """The models a category's dropdown offers: Exit criteria needs web search."""
+    if category == EXIT_CATEGORY:
+        return [m for m in available_models if canonical(m['id']) in SEARCH_CAPABLE]
+    return available_models
+
+
 def _get_categories_with_defaults():
     """Get all prompt categories with their YAML default model/provider."""
     categories = []
@@ -172,6 +183,7 @@ def ai_model_settings():
 
     # Merge user overrides into category data
     for cat in categories:
+        cat['models'] = _models_for(cat['name'], available_models)
         pref = user_prefs.get(cat['name'])
         if pref:
             cat['user_model'] = pref.model_override
@@ -228,6 +240,13 @@ def set_model_preference():
         db.session.commit()
         flash(f'AI check {category[len(PREF_PREFIX):]} set to {model_label(model_id)}', 'success')
         return redirect(url_for('ai_models.ai_model_settings'))
+
+    if category == EXIT_CATEGORY:
+        try:
+            model_id = require_search_capable(model_id)
+        except ExitWatchError as exc:
+            flash(str(exc), 'error')
+            return redirect(url_for('ai_models.ai_model_settings'))
 
     # Resolve model to get provider
     try:
@@ -366,6 +385,12 @@ def api_set_preference():
                                         model_override=model_id, provider_override=provider_of(model_id))
         db.session.commit()
         return jsonify({'success': True, 'category': category, 'model_id': model_id})
+
+    if category == EXIT_CATEGORY:
+        try:
+            model_id = require_search_capable(model_id)
+        except ExitWatchError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
 
     try:
         model_enum = AIModel.from_string(model_id)

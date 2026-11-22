@@ -17,7 +17,7 @@
 """Strict tool schemas Claude uses to hand results back to the AI check pipeline."""
 
 
-def _strict(name, description, properties, required):
+def strict_tool(name, description, properties, required):
     return {
         'name': name,
         'description': description,
@@ -40,7 +40,7 @@ _SOURCE_ITEM = {
     'additionalProperties': False,
 }
 
-RECORD_SOURCES_TOOL = _strict(
+RECORD_SOURCES_TOOL = strict_tool(
     'record_sources', 'Record the sources to read for this question.',
     {'sources': {'type': 'array', 'items': _SOURCE_ITEM}}, ['sources'])
 
@@ -59,7 +59,7 @@ _EVIDENCE_ITEM = {
     'additionalProperties': False,
 }
 
-RECORD_EVIDENCE_TOOL = _strict(
+RECORD_EVIDENCE_TOOL = strict_tool(
     'record_evidence', 'Record every figure from this source that the question needs.',
     {'items': {'type': 'array', 'items': _EVIDENCE_ITEM}}, ['items'])
 
@@ -89,7 +89,7 @@ _KEY_FIGURE = {
     'additionalProperties': False,
 }
 
-SUBMIT_AI_CHECK_TOOL = _strict(
+SUBMIT_AI_CHECK_TOOL = strict_tool(
     'submit_ai_check', 'Submit the finished analysis.',
     {
         'headline': {'type': 'string', 'description': 'One sentence with the key number'},
@@ -103,6 +103,6 @@ SUBMIT_AI_CHECK_TOOL = _strict(
     },
     ['headline', 'summary', 'key_figures', 'calculation', 'suggested_verdict', 'verdict_reason', 'gaps'])
 
-REQUEST_MORE_EVIDENCE_TOOL = _strict(
+REQUEST_MORE_EVIDENCE_TOOL = strict_tool(
     'request_more_evidence', 'Ask for one more round of sources for the listed missing figures.',
     {'gaps': {'type': 'array', 'items': {'type': 'string'}}}, ['gaps'])

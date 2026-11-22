@@ -5,6 +5,8 @@
 // The last must-exit rule of a held company can't be deleted (409,
 // code 'last_exit_rule'); the Must Exit form then opens in replace mode.
 // Must-exit rows have a "Still valid" button that stamps last_reviewed.
+// When the page passes exit-watch state, a must-exit row also shows its latest check; while
+// the rule alerts it has Sell / Hold anyway (or Still holding), which post to .../hold.
 (function () {
     var LONG_TEXT_CHARS = 150;
     var LONG_TEXT_LINES = 3;
@@ -46,7 +48,9 @@
         var date = document.createElement('span');
         date.className = 'finding-date';
         date.textContent = finding.date;
-        meta.append(signal, date);
+        var rowActions = document.createElement('span');
+        rowActions.className = 'finding-row-actions';
+        meta.append(signal, date, rowActions);
         var text = document.createElement('span');
         text.className = 'finding-text';
         text.textContent = finding.text;
@@ -66,7 +70,7 @@
             review.title = 'Still valid';
             review.setAttribute('aria-label', 'Mark as still valid');
             review.innerHTML = '<i class="bi bi-check2-circle"></i> Still valid';
-            li.append(review);
+            rowActions.append(review);
         }
         var del = document.createElement('button');
         del.type = 'button';
@@ -74,7 +78,7 @@
         del.title = 'Delete';
         del.setAttribute('aria-label', 'Delete');
         del.innerHTML = '<i class="bi bi-x"></i>';
-        li.append(del);
+        rowActions.append(del);
         return li;
     }
 
@@ -100,9 +104,28 @@
         }
 
         grid.querySelectorAll('.finding-text').forEach(markLong);
+        grid.querySelectorAll('.finding-exit-summary').forEach(function (summary) {
+            if (summary.textContent.length <= LONG_TEXT_CHARS) return;
+            summary.classList.add('is-long', 'detail-trigger');
+            summary.dataset.detailId = summary.closest('li').dataset.findingId;
+            summary.tabIndex = 0;
+            summary.setAttribute('role', 'button');
+            summary.setAttribute('aria-expanded', 'false');
+        });
         if (window.initDetailCard) {
             window.initDetailCard({
                 container: grid,
+                trigger: '.finding-exit-summary.detail-trigger',
+                label: 'Latest check',
+                lookup: function (id) {
+                    var li = grid.querySelector('li[data-finding-id="' + id + '"]');
+                    return li && { text: li.querySelector('.finding-exit-summary').textContent };
+                },
+                sections: [{ key: 'text', label: 'Summary' }]
+            });
+            window.initDetailCard({
+                container: grid,
+                trigger: '.finding-text.detail-trigger',
                 label: 'Finding',
                 lookup: function (id) {
                     var li = grid.querySelector('li[data-finding-id="' + id + '"]');
@@ -190,6 +213,22 @@
                 return;
             }
 
+            var holdOpen = e.target.closest('.finding-exit-hold-open');
+            if (holdOpen) {
+                var holdForm = holdOpen.closest('.finding-exit-status').querySelector('.finding-exit-hold-form');
+                holdForm.hidden = !holdForm.hidden;
+                if (!holdForm.hidden) holdForm.querySelector('.finding-exit-reason').focus();
+                return;
+            }
+
+            var holdCancel = e.target.closest('.finding-exit-hold-cancel');
+            if (holdCancel) {
+                var cancelForm = holdCancel.closest('.finding-exit-hold-form');
+                cancelForm.reset();
+                cancelForm.hidden = true;
+                return;
+            }
+
             var review = e.target.closest('.finding-review');
             if (review) {
                 var item = review.closest('li');
@@ -234,6 +273,12 @@
         });
 
         grid.addEventListener('keydown', function (e) {
+            var holdForm = e.target.closest('.finding-exit-hold-form');
+            if (holdForm && e.key === 'Escape') {
+                holdForm.reset();
+                holdForm.hidden = true;
+                return;
+            }
             var form = e.target.closest('.finding-add-form');
             if (!form) return;
             if (e.key === 'Escape') closeForm(form);
@@ -244,7 +289,46 @@
             }
         });
 
+        // Hold anyway / Still holding: save, then replace the buttons with the "Held through" line
+        function submitHold(form) {
+            var status = form.closest('.finding-exit-status');
+            var reason = form.querySelector('.finding-exit-reason').value.trim();
+            if (!reason && form.dataset.reasonRequired !== 'false') {
+                form.querySelector('.finding-exit-reason').focus();
+                return;
+            }
+            var button = form.querySelector('button[type="submit"]');
+            button.disabled = true;
+            fetch(baseUrl + '/' + status.dataset.ruleId + '/hold', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reason })
+            })
+                .then(function (r) { return readJson(r, 'Could not save'); })
+                .then(function (data) {
+                    if (!data.success) throw new Error(data.error || 'Could not save');
+                    var episode = (data.state && data.state.episode) || {};
+                    var held = document.createElement('p');
+                    held.className = 'finding-exit-held';
+                    held.textContent = 'Held through trigger since ' + data.held_display +
+                        (episode.hold_reason ? ': ' + episode.hold_reason : '');
+                    var old = status.querySelector('.finding-exit-held');
+                    if (old) old.remove();
+                    status.insertBefore(held, status.querySelector('.finding-exit-actions'));
+                    status.querySelector('.finding-exit-actions').remove();
+                    form.remove();
+                })
+                .catch(function (err) { notify(err.message, 'error'); })
+                .finally(function () { button.disabled = false; });
+        }
+
         grid.addEventListener('submit', function (e) {
+            var holdForm = e.target.closest('.finding-exit-hold-form');
+            if (holdForm) {
+                e.preventDefault();
+                submitHold(holdForm);
+                return;
+            }
             var form = e.target.closest('.finding-add-form');
             if (!form) return;
             e.preventDefault();

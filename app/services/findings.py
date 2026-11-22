@@ -158,7 +158,7 @@ def has_exit_plan(user_id: int, company_id: int) -> bool:
     ).scalar()
 
 
-def _project_id_for(user_id: int, company_id: int) -> Optional[int]:
+def project_id_for(user_id: int, company_id: int) -> Optional[int]:
     project = ResearchProject.query.filter_by(
         user_id=user_id, company_id=company_id
     ).with_entities(ResearchProject.id).first()
@@ -246,7 +246,7 @@ def add_finding(user_id: int, company_id: int, finding_type: str, text: str,
         raise ValueError('Finding text is required')
 
     if project_id is None:
-        project_id = _project_id_for(user_id, company_id)
+        project_id = project_id_for(user_id, company_id)
 
     entry = JournalEntry(
         user_id=user_id,

@@ -5,6 +5,28 @@
 {% set when_format = '%d %b %Y, %H:%M UTC' %}
 
 {% block settings_content %}
+{% if search_allowance %}
+<section class="settings-panel" id="search-allowance">
+    <div class="settings-panel-head">
+        <h3><i class="bi bi-search me-1" aria-hidden="true"></i>Web search allowance</h3>
+    </div>
+    <p class="settings-hint mb-3">Background checks that search the web (exit-criteria watch) use this. AI check has its own limit.</p>
+    <form method="POST" action="{{ url_for('settings.update_search_allowance') }}">
+        <div class="settings-row">
+            <label class="settings-row-label" for="search-allowance-input">
+                <strong>Used {{ search_allowance.used }} of {{ search_allowance.allowance }} this month &middot; {{ search_allowance.remaining }} left</strong>
+                <span>Resets {{ search_allowance.resets_at.strftime('%d %b %Y') }}</span>
+            </label>
+            <div class="settings-row-control">
+                <input type="number" class="form-control form-control-sm w-auto" id="search-allowance-input" name="allowance"
+                       min="0" max="{{ search_allowance_max }}" step="1" value="{{ search_allowance.allowance }}" required>
+                <button type="submit" class="action-btn">Save</button>
+            </div>
+        </div>
+    </form>
+</section>
+{% endif %}
+
 <h3 class="h6 text-uppercase text-muted mb-2" id="background-monitors">Background monitors</h3>
 {% for m in monitors %}
 {% set task = m.last_task %}
@@ -15,7 +37,7 @@
         <span class="settings-chip settings-chip--muted">Pro</span>
         {% elif not m.enabled %}
         <span class="settings-chip settings-chip--muted">Off</span>
-        {% elif task and (task.status == 'failed' or (task.status == 'completed' and task.result and task.result.analyzed == 0 and task.result.failed)) %}
+        {% elif task and (task.status == 'failed' or (task.status == 'completed' and task.result and ((task.result.kind == 'exit_watch' and task.result.checked == 0 and task.result.failed) or (task.result.analyzed is defined and task.result.analyzed == 0 and task.result.failed)))) %}
         <span class="settings-chip settings-chip--warn">Failed</span>
         {% endif %}
     </div>
@@ -69,10 +91,22 @@
             {% if not task %}
             <span>No runs yet</span>
             {% else %}
-            {% set res = task.result if task.status == 'completed' and task.result and task.result.analyzed is defined else none %}
-            <span{% if res and res.analyzed == 0 and res.failed %} class="text-danger"{% endif %}>{{ status_labels.get(task.status, task.status) }}
+            {% set res = task.result if task.status == 'completed' and task.result and (task.result.analyzed is defined or task.result.kind == 'exit_watch') else none %}
+            <span{% if res and ((res.kind == 'exit_watch' and res.checked == 0 and res.failed) or (res.kind != 'exit_watch' and res.analyzed == 0 and res.failed)) %} class="text-danger"{% endif %}>{{ status_labels.get(task.status, task.status) }}
                 {%- if res %}
+                {%- if res.kind == 'exit_watch' %}
                 {%- if res.total == 0 %}
+                 · No exit rules on held positions.
+                {%- else %}
+                 · {{ res.checked }} checked ({{ res.triggered }} triggered, {{ res.at_risk }} at risk) · {{ res.searches }} searches
+                {%- if res.skipped_recent %}, {{ res.skipped_recent }} already up to date{% endif %}
+                {%- if res.skipped_search_allowance %}, {{ res.skipped_search_allowance }} skipped (search allowance){% endif %}
+                {%- if res.skipped_time_limit %}, {{ res.skipped_time_limit }} not reached (time limit){% endif %}
+                {%- if res.skipped_token_budget %}, {{ res.skipped_token_budget }} skipped (token budget){% endif %}
+                {%- if res.failed %}, {{ res.failed }} failed{% endif %}
+                {%- if res.sources_unresolved %}, {{ res.sources_unresolved }} sources could not be opened{% endif %}
+                {%- endif %}
+                {%- elif res.total == 0 %}
                  · No checkpoints due soon or overdue.
                 {%- else %}
                  · {{ res.analyzed }} analysed, {{ res.skipped }} already up to date

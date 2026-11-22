@@ -61,12 +61,23 @@ class Usage:
 
 
 @dataclass
+class SearchResult:
+    """One web search result the provider returned. `is_redirect` marks Gemini's grounding
+    redirect URLs, which are not the page's own address."""
+    url: str
+    title: str
+    published: Optional[str] = None
+    is_redirect: bool = False
+
+
+@dataclass
 class StageReply:
     tool_name: Optional[str]  # None when the model ended without calling a tool
     tool_input: dict
     transcript: object  # adapter-specific; passed back to follow_up for the reminder
     usages: list
     fetched_texts: list = field(default_factory=list)  # page text the provider fetched, for verification
+    search_results: list = field(default_factory=list)  # SearchResults the provider's web search returned
 
 
 @dataclass
