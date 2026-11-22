@@ -53,6 +53,7 @@ from app.models.ai_intelligence import ResearchOutcome
 # Use the unified AI embedding service
 from app.services.ai.embedding_service import get_embedding_service, embed as get_embedding
 from app.services.config_service import get_config
+from app.services.position_returns import position_return
 
 logger = logging.getLogger(__name__)
 
@@ -523,15 +524,16 @@ class SimilarMistakesService:
             company_id=decision.company_id
         ).first()
         
-        if position:
-            if position.is_active and position.unrealized_gain_loss_pct:
-                # Position still open - use unrealized
+        if position and position.is_active:
+            # Position still open - lifetime return so far (realized gains and dividends count)
+            measured = position_return(position)
+            if measured is not None and measured.total_return_pct:
                 return {
-                    'return_pct': float(position.unrealized_gain_loss_pct),
-                    'holding_days': position.days_held,
-                    'category': self._categorize_return(float(position.unrealized_gain_loss_pct)),
+                    'return_pct': measured.total_return_pct,
+                    'holding_days': measured.days,
+                    'category': self._categorize_return(measured.total_return_pct),
                     'lessons_learned': None,
-                    'is_unrealized': True
+                    'is_open': True
                 }
         
         return None

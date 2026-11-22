@@ -36,6 +36,7 @@ from app.models import Company
 from app.models.portfolio import PortfolioPosition
 from app.services.ai import ai_service
 from app.services.ai.prompt_service import prompt_service, resolve_model_provider
+from app.services.position_returns import position_return
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +150,14 @@ class CompanionMixin:
             user_id=self.user_id, company_id=company_id, is_active=True).first()
         position = None
         if pos:
+            measured = position_return(pos)
             position = {
+                # Lifetime: unrealized + realized + dividends over the capital put in
+                'total_return_pct': round(measured.total_return_pct, 1) if measured else None,
+                # Money-weighted (XIRR) a year; None under 30 days held
+                'annualized_return_pct': (round(measured.annualized_pct, 1)
+                                          if measured and measured.annualized_pct is not None else None),
+                # Only the shares still held, against their cost
                 'unrealized_pct': float(pos.unrealized_gain_loss_pct or 0),
                 'days_held': pos.days_held or 0,
                 'current_value': float(pos.current_value or 0),

@@ -53,6 +53,7 @@ from app.models import PortfolioPosition, Company, ResearchProject, ChecklistAna
 from app.utils.financial_utils import calculate_cagr
 from sqlalchemy.orm import joinedload
 from app.services.decision_journals import latest_buy_decision, opening_buy_decision
+from app.services.position_returns import position_return
 from app.services.similar_mistakes import get_similar_mistakes_warnings
 from app.services.config_service import get_config
 from app import cache
@@ -733,9 +734,13 @@ class IntelligenceEngine:
         if days_held < min_days:
             return None  # Position too new for meaningful CAGR analysis
 
-        # Calculate CAGR
-        total_return = float(existing_position.unrealized_gain_loss_pct or 0)
-        cagr = calculate_cagr(total_return, days_held)
+        # Lifetime return: realized gains and dividends count, money-weighted over the holding
+        measured = position_return(existing_position)
+        if measured is None:
+            return None  # no price yet
+        total_return = measured.total_return_pct
+        cagr = (measured.annualized_pct if measured.annualized_pct is not None
+                else calculate_cagr(total_return, days_held))
 
         threshold_cagr = self.THRESHOLDS['chasing_returns_cagr_threshold']
 

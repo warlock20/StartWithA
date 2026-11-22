@@ -847,17 +847,22 @@ def intelligence_hub():
     # CARD DATA - Individual sections
     # ========================================
     
-    # Performance Card
-    winning_positions = len([p for p in positions if (p.unrealized_gain_loss or 0) > 0])
-    losing_positions = len([p for p in positions if (p.unrealized_gain_loss or 0) < 0])
-    
+    # Lifetime returns (unrealized + realized + dividends) for open and closed positions
+    all_positions = PortfolioPosition.query.filter_by(user_id=current_user.id).all()
+    returns = position_returns(all_positions)
+
+    # Performance Card (open positions)
+    open_returns = [(p, returns[p.company_id]) for p in positions if p.company_id in returns]
+    winning_positions = sum(1 for _, r in open_returns if r.total_gain > 0)
+    losing_positions = sum(1 for _, r in open_returns if r.total_gain < 0)
+
     top_performer = None
-    if positions:
-        best = max(positions, key=lambda p: float(p.unrealized_gain_loss_pct or 0))
+    if open_returns:
+        best, best_return = max(open_returns, key=lambda pr: pr[1].total_return_pct)
         if best.company:
             top_performer = {
                 'ticker': best.company.ticker_symbol,
-                'return': float(best.unrealized_gain_loss_pct or 0)
+                'return': best_return.total_return_pct
             }
     
     performance = {
@@ -870,10 +875,8 @@ def intelligence_hub():
     }
     
     # Decisions Card
-    all_positions = PortfolioPosition.query.filter_by(user_id=current_user.id).all()
     comparison = compare_research(
-        _without_received_positions(all_positions), research_backed_company_ids(current_user.id),
-        position_returns(all_positions))
+        _without_received_positions(all_positions), research_backed_company_ids(current_user.id), returns)
 
     decisions = {
         'has_data': comparison.research.count > 0 or comparison.no_research.count > 0,

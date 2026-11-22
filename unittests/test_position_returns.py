@@ -26,8 +26,11 @@ import pytest
 from app import db
 from app.models import DecisionJournal
 from app.models.portfolio import PortfolioPosition, Transaction, update_portfolio_position_for_company
+from app.services.argos.core import ArgosService
+from app.services.intelligence_engine import IntelligenceEngine
 from app.services.portfolio_intelligence import PortfolioIntelligenceService
 from app.services.position_returns import position_return
+from app.services.similar_mistakes import SimilarMistakesService
 from app.utils.financial_utils import calculate_xirr
 from app.utils.time_utils import now_utc
 from conftest import _make_company, _make_user
@@ -237,3 +240,68 @@ def test_decisions_and_intelligence_pages_use_the_lifetime_return(app_context, _
     html = decisions.get_data(as_text=True)
     assert '1 of 1 positions' in html  # 8.5% a year meets the 8% expected
     assert '+18.9%' in html  # average return of the unresearched group, dividends included
+
+
+def _sold_half_at_four_times(user, company):
+    """Bought 100 at 10 400 days ago, sold half at 40 200 days ago; the rest is flat at 10."""
+    _txn(user, company, 'BUY', 400, 100, Decimal('10'))
+    _txn(user, company, 'SELL', 200, 50, Decimal('40'))
+    return _position(user, company, Decimal('10'))
+
+
+def test_intelligence_hub_top_performer_counts_dividends(app_context, _app):
+    user = _make_user()
+    aumann = _make_company(user.id, name='Aumann AG', ticker='AAG.DE')
+    _aumann(user, aumann)
+    other = _make_company(user.id, name='Plain Co', ticker='PLN')
+    _txn(user, other, 'BUY', 400, 10, Decimal('100'))
+    _position(user, other, Decimal('115'))
+    client = _logged_in(_app, user)
+
+    html = client.get('/portfolio/intelligence').get_data(as_text=True)
+
+    # Unrealized only, PLN (+15%) beat AAG.DE (+7.6%); with dividends AAG.DE is +18.9%
+    assert 'Top: AAG.DE (+18.9%)' in html
+
+
+def test_hot_position_warning_counts_gains_already_taken(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _sold_half_at_four_times(user, company)
+
+    warning = IntelligenceEngine(user.id)._check_chasing_returns(company, 1000)
+
+    # The open half is flat (0% unrealized), but the position has made 150% in 400 days
+    assert warning is not None
+    assert warning.data['total_return'] == pytest.approx(150.0)
+    assert warning.data['cagr'] > 50
+
+
+def test_argos_company_context_carries_the_lifetime_return(app_context):
+    user = _make_user()
+    company = _make_company(user.id, name='Aumann AG', ticker='AAG.DE')
+    _aumann(user, company)
+
+    position = ArgosService(user.id).build_company_context(company.id).to_summary()['position']
+
+    assert position['total_return_pct'] == pytest.approx(18.9)
+    assert position['annualized_return_pct'] == pytest.approx(8.5)
+    assert position['unrealized_pct'] == pytest.approx(7.55, abs=0.01)
+
+
+def test_similar_decision_outcome_uses_the_lifetime_return(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _sold_half_at_four_times(user, company)
+    decision = DecisionJournal(
+        user_id=user.id, company_id=company.id, decision_type='BUY',
+        decision_date=TODAY - timedelta(days=400), is_portfolio_decision=True,
+        investment_thesis='Thesis')
+    db.session.add(decision)
+    db.session.commit()
+
+    outcome = SimilarMistakesService(user.id)._get_decision_outcome(decision)
+
+    assert outcome['return_pct'] == pytest.approx(150.0)
+    assert outcome['holding_days'] == 400
+    assert outcome['is_open']
