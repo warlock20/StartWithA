@@ -48,7 +48,7 @@ def exit_plan_stale_days() -> int:
     return int(days)
 
 
-def _rule_freshness(rule):
+def rule_freshness(rule):
     """When the rule was last reviewed or edited, whichever is later.
 
     An edit after a review counts as attention too. A rule with neither date
@@ -153,7 +153,7 @@ class PositionCoverageService:
         has_exit_plan = bool(rules)
         has_active = bool(checkpoints)
         has_future = any(c.target_date >= today for c in checkpoints)
-        fresh_dates = [_rule_freshness(rule) for rule in rules]
+        fresh_dates = [rule_freshness(rule) for rule in rules]
         stale = has_exit_plan and not any(d is not None and d >= cutoff for d in fresh_dates)
 
         plan_target = ('companies.company_detail',
