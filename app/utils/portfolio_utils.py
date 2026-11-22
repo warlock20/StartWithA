@@ -20,7 +20,7 @@ Reusable calculation functions for portfolio analytics and metrics.
 """
 
 from decimal import Decimal
-from typing import List, Dict
+from typing import List, Dict, Mapping
 
 
 def trading_gain_loss(position) -> Decimal:
@@ -35,133 +35,20 @@ def trading_gain_loss(position) -> Decimal:
     return realized - dividends
 
 
-def calculate_win_rate(positions: List) -> float:
-    """
-    Calculate win rate (percentage of profitable positions).
-
-    Args:
-        positions: List of PortfolioPosition objects
-
-    Returns:
-        Win rate as percentage (0-100)
-
-    Example:
-        >>> positions = [pos1, pos2, pos3]  # 2 winners, 1 loser
-        >>> calculate_win_rate(positions)
-        66.7
-    """
-    if not positions:
-        return 0.0
-
-    winning = sum(
-        1 for p in positions
-        if p.unrealized_gain_loss and p.unrealized_gain_loss > 0
-    )
-
-    return round((winning / len(positions)) * 100, 1)
-
-
-def calculate_average_return(positions: List) -> float:
-    """
-    Calculate average return percentage across positions.
-
-    Args:
-        positions: List of PortfolioPosition objects
-
-    Returns:
-        Average return percentage
-
-    Example:
-        >>> positions = [pos1, pos2, pos3]  # Returns: 10%, 20%, -5%
-        >>> calculate_average_return(positions)
-        8.3
-    """
-    if not positions:
-        return 0.0
-
-    returns = [
-        float(p.unrealized_gain_loss_pct)
-        for p in positions
-        if p.unrealized_gain_loss_pct is not None
-    ]
-
-    if not returns:
-        return 0.0
-
-    return round(sum(returns) / len(returns), 1)
-
-
-def filter_positions_by_performance(
-    positions: List,
-    filter_type: str = 'all'
-) -> List:
-    """
-    Filter positions by performance (gains/losses).
-
-    Args:
-        positions: List of PortfolioPosition objects
-        filter_type: 'all', 'gains', or 'losses'
-
-    Returns:
-        Filtered list of positions
-
-    Example:
-        >>> all_positions = [winner1, winner2, loser1]
-        >>> filter_positions_by_performance(all_positions, 'gains')
-        [winner1, winner2]
-    """
-    if filter_type == 'gains':
-        return [
-            p for p in positions
-            if p.unrealized_gain_loss and p.unrealized_gain_loss > 0
-        ]
-    elif filter_type == 'losses':
-        return [
-            p for p in positions
-            if p.unrealized_gain_loss and p.unrealized_gain_loss < 0
-        ]
-    else:  # 'all'
-        return positions
-
-
-def calculate_average_holding_period(positions: List) -> int:
-    """
-    Calculate average holding period in days.
-
-    Args:
-        positions: List of PortfolioPosition objects
-
-    Returns:
-        Average days held (rounded to nearest day)
-
-    Example:
-        >>> positions = [pos1, pos2, pos3]  # Held: 30, 60, 90 days
-        >>> calculate_average_holding_period(positions)
-        60
-    """
-    if not positions:
-        return 0
-
-    days_list = [p.days_held for p in positions if p.days_held]
-
-    if not days_list:
-        return 0
-
-    return round(sum(days_list) / len(days_list))
-
-
-def categorize_by_holding_period(positions: List) -> Dict[str, List[float]]:
+def categorize_by_holding_period(positions: List, returns: Mapping) -> Dict[str, List[float]]:
     """
     Categorize positions by holding period buckets.
 
     Args:
         positions: List of PortfolioPosition objects
+        returns: position_returns() for these positions, keyed by company_id;
+                 positions without a return are skipped
 
     Returns:
         Dictionary with holding period buckets as keys and return lists as values
 
     Example:
-        >>> categorize_by_holding_period(positions)
+        >>> categorize_by_holding_period(positions, position_returns(positions))
         {
             '0-30': [5.2, 3.1],
             '31-90': [12.5, -2.3, 8.7],
@@ -178,11 +65,12 @@ def categorize_by_holding_period(positions: List) -> Dict[str, List[float]]:
     }
 
     for position in positions:
-        if not position.unrealized_gain_loss_pct:
+        measured = returns.get(position.company_id)
+        if measured is None:
             continue
 
-        days = position.days_held or 0
-        return_pct = float(position.unrealized_gain_loss_pct)
+        days = measured.days
+        return_pct = measured.total_return_pct
 
         if days <= 30:
             buckets['0-30'].append(return_pct)
@@ -198,21 +86,22 @@ def categorize_by_holding_period(positions: List) -> Dict[str, List[float]]:
     return buckets
 
 
-def calculate_holding_period_stats(positions: List) -> Dict[str, float]:
+def calculate_holding_period_stats(positions: List, returns: Mapping) -> Dict[str, float]:
     """
     Calculate average returns for each holding period bucket.
 
     Args:
         positions: List of PortfolioPosition objects
+        returns: position_returns() for these positions, keyed by company_id
 
     Returns:
         Dictionary with period as key and average return as value
 
     Example:
-        >>> calculate_holding_period_stats(positions)
+        >>> calculate_holding_period_stats(positions, position_returns(positions))
         {'0-30': 4.2, '31-90': 10.5, '91-180': 15.2, ...}
     """
-    buckets = categorize_by_holding_period(positions)
+    buckets = categorize_by_holding_period(positions, returns)
 
     stats = {}
     for period, returns in buckets.items():
@@ -313,90 +202,3 @@ def calculate_confidence_stats(journals_with_returns: List[Dict]) -> Dict[str, D
 
     return stats
 
-
-def count_positions_by_status(positions: List) -> Dict[str, int]:
-    """
-    Count positions by gain/loss status.
-
-    Args:
-        positions: List of PortfolioPosition objects
-
-    Returns:
-        Dictionary with 'winning', 'losing', 'total' counts
-
-    Example:
-        >>> count_positions_by_status(positions)
-        {'winning': 5, 'losing': 2, 'total': 7}
-    """
-    winning = sum(
-        1 for p in positions
-        if p.unrealized_gain_loss and p.unrealized_gain_loss > 0
-    )
-
-    losing = sum(
-        1 for p in positions
-        if p.unrealized_gain_loss and p.unrealized_gain_loss < 0
-    )
-
-    return {
-        'winning': winning,
-        'losing': losing,
-        'total': len(positions)
-    }
-
-
-def get_top_performers(positions: List, limit: int = 5) -> List:
-    """
-    Get top performing positions.
-
-    Args:
-        positions: List of PortfolioPosition objects
-        limit: Number of top performers to return
-
-    Returns:
-        List of top performers sorted by return percentage (descending)
-
-    Example:
-        >>> get_top_performers(positions, limit=3)
-        [best_position, second_best, third_best]
-    """
-    positions_with_returns = [
-        p for p in positions
-        if p.unrealized_gain_loss_pct is not None
-    ]
-
-    sorted_positions = sorted(
-        positions_with_returns,
-        key=lambda p: p.unrealized_gain_loss_pct,
-        reverse=True
-    )
-
-    return sorted_positions[:limit]
-
-
-def get_bottom_performers(positions: List, limit: int = 5) -> List:
-    """
-    Get bottom performing positions.
-
-    Args:
-        positions: List of PortfolioPosition objects
-        limit: Number of bottom performers to return
-
-    Returns:
-        List of bottom performers sorted by return percentage (ascending)
-
-    Example:
-        >>> get_bottom_performers(positions, limit=3)
-        [worst_position, second_worst, third_worst]
-    """
-    positions_with_returns = [
-        p for p in positions
-        if p.unrealized_gain_loss_pct is not None
-    ]
-
-    sorted_positions = sorted(
-        positions_with_returns,
-        key=lambda p: p.unrealized_gain_loss_pct
-    )
-
-    return sorted_positions[:limit]

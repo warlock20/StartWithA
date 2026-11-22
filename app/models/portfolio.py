@@ -418,6 +418,10 @@ class _FifoResult:
     sell_proceeds: Decimal
     round_trips: List[RoundTrip]
     first_oversold: Optional[Transaction] = None  # first removal that found fewer shares than it asked for
+    # The position's own money flows, investor's view: money in negative, money out
+    # positive. Their sum plus the market value of the shares held equals
+    # unrealized + realized (dividends included). Feeds position_returns' XIRR.
+    cash_flows: List[Tuple[date, Decimal]] = field(default_factory=list)
 
 
 def _load_transactions(company_id, user_id):
@@ -447,6 +451,11 @@ def _walk_fifo(transactions):
     round_trips = []
     trip = None
     first_oversold = None
+    cash_flows = []
+
+    def flow(txn, amount):
+        if amount:
+            cash_flows.append((txn.date, amount))
 
     def add_lot(txn, quantity, unit_price, lot_fees, cost, opens_trip=True):
         """Put a lot at the back of the queue; a lot added at 0 shares opens a round trip."""
@@ -544,19 +553,26 @@ def _walk_fifo(transactions):
             unit_value = value / Decimal(str(txn.quantity)) if txn.quantity else Decimal('0.00')
 
         if txn.type == 'BUY':
-            add_lot(txn, txn.quantity, price, fees, (Decimal(str(txn.quantity)) * price) + fees)
+            cost = (Decimal(str(txn.quantity)) * price) + fees
+            add_lot(txn, txn.quantity, price, fees, cost)
+            flow(txn, -cost)
 
         elif txn.type == 'SELL':
-            remove_shares(txn, (Decimal(str(txn.quantity)) * price) - fees, price)
+            proceeds = (Decimal(str(txn.quantity)) * price) - fees
+            remove_shares(txn, proceeds, price)
+            flow(txn, proceeds)
 
         elif txn.type == 'MERGER_OUT':
             proceeds = value + cash - fees
             remove_shares(txn, proceeds, proceeds / Decimal(str(txn.quantity)) if txn.quantity else price)
+            flow(txn, proceeds)
 
         elif txn.type in RECEIVED_POSITION_TYPES:
             add_lot(txn, txn.quantity, unit_value, Decimal('0.00'), value)
+            flow(txn, -value)
             if txn.type == 'SPINOFF_CHILD':
                 realized_gain_loss += cash - fees
+                flow(txn, cash - fees)
 
         elif txn.type == 'SPINOFF_PARENT':
             # Part of the parent's cost moves to the child; shares and gains are untouched.
@@ -566,13 +582,18 @@ def _walk_fifo(transactions):
                 for batch in shares_queue:
                     batch['price_per_share'] = batch['price_per_share'] * factor
                     batch['fees'] = batch['fees'] * factor
-                total_cost = max(Decimal('0.00'), total_cost - value)
+                moved = min(value, total_cost)
+                total_cost -= moved
+                # The moved value leaves this position as the child's shares
+                flow(txn, moved)
 
         elif txn.type == 'STOCK_DIVIDEND':
             add_lot(txn, txn.quantity, unit_value, Decimal('0.00'), value, opens_trip=False)
             income = value + cash - fees
             realized_gain_loss += income
             total_dividends += income
+            # The new shares stay in the position (and its market value); only cash leaves
+            flow(txn, cash - fees)
 
         elif txn.type == 'DIVIDEND':
             # Dividends don't affect share count or cost basis
@@ -580,6 +601,7 @@ def _walk_fifo(transactions):
             dividend_amount = Decimal(str(txn.quantity)) * price - fees
             realized_gain_loss += dividend_amount
             total_dividends += dividend_amount
+            flow(txn, dividend_amount)
 
         elif txn.type == 'SPLIT':
             # Stock split: adjust all batches in queue
@@ -612,6 +634,7 @@ def _walk_fifo(transactions):
         sell_proceeds=lifetime_proceeds,
         round_trips=round_trips,
         first_oversold=first_oversold,
+        cash_flows=cash_flows,
     )
 
 

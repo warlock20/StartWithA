@@ -29,30 +29,22 @@ is lifetime across trades while the research flag comes from the latest trade.
 Before the backfill (``flask rebuild-trade-outcomes``) runs, positions without
 outcome rows count as no research.
 
-A position's return is its own return %: unrealized for an open position,
-``realized_gain_loss_pct`` for a closed one. Positions with no return are left
-out of both groups.
+A position's return is its lifetime return from ``position_returns``:
+unrealized + realized + dividends over the capital put in, the same for open and
+closed positions. The caller passes those returns in, keyed by company_id;
+positions with no return are left out of both groups.
 """
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Set
+from typing import Iterable, List, Mapping, Optional, Set
 
-
-def position_return_pct(position) -> Optional[float]:
-    """Return % of a position: unrealized if open, realized if closed."""
-    value = position.unrealized_gain_loss_pct if position.is_active else position.realized_gain_loss_pct
-    return float(value) if value is not None else None
-
-
-def position_gain(position) -> Optional[float]:
-    """Gain/loss amount of a position: unrealized if open, realized if closed."""
-    value = position.unrealized_gain_loss if position.is_active else position.realized_gain_loss
-    return float(value) if value is not None else None
+from app.services.position_returns import PositionReturn
 
 
 @dataclass
 class ResearchGroup:
     positions: List
+    returns: Mapping[int, PositionReturn]
 
     @property
     def count(self) -> int:
@@ -62,19 +54,20 @@ class ResearchGroup:
     def avg_return(self) -> float:
         if not self.positions:
             return 0.0
-        return sum(position_return_pct(p) for p in self.positions) / self.count
+        return sum(self.returns[p.company_id].total_return_pct for p in self.positions) / self.count
 
     @property
     def win_rate(self) -> float:
         if not self.positions:
             return 0.0
-        return sum(1 for p in self.positions if (position_gain(p) or 0) > 0) / self.count * 100
+        return sum(1 for p in self.positions if self.returns[p.company_id].is_gain) / self.count * 100
 
     @property
     def avg_hold_days(self) -> float:
         if not self.positions:
             return 0.0
-        return sum(p.days_held for p in self.positions) / self.count
+        # Up to today for open positions, up to the last sale for closed ones
+        return sum(self.returns[p.company_id].days for p in self.positions) / self.count
 
 
 @dataclass
@@ -90,14 +83,16 @@ class ResearchComparison:
         return self.research.avg_return - self.no_research.avg_return
 
 
-def compare_research(positions: Iterable, researched_company_ids: Set[int]) -> ResearchComparison:
+def compare_research(positions: Iterable, researched_company_ids: Set[int],
+                     returns: Mapping[int, PositionReturn]) -> ResearchComparison:
     """Split positions by whether their company id is in researched_company_ids.
 
-    See the module docstring for the definition and its limitations.
+    returns is position_returns() for (at least) these positions. See the module
+    docstring for the definition and its limitations.
     """
     research, no_research = [], []
     for position in positions:
-        if position_return_pct(position) is None:
+        if position.company_id not in returns:
             continue
         (research if position.company_id in researched_company_ids else no_research).append(position)
-    return ResearchComparison(ResearchGroup(research), ResearchGroup(no_research))
+    return ResearchComparison(ResearchGroup(research, returns), ResearchGroup(no_research, returns))

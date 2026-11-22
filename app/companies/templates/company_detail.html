@@ -148,20 +148,15 @@
                     "{:,.0f}".format(position.realized_gain_loss) }}
                 </div>
             </div>
-            <div
-                class="journey-stat {% if journey_stats.total_return > 0 %}gain{% elif journey_stats.total_return < 0 %}loss{% endif %}">
-                <div class="journey-stat-value">
-                    {% if journey_stats.days_held >= 365 and journey_stats.total_return %}
-                    {% set years = journey_stats.days_held / 365.25 %}
-                    {% set tr = journey_stats.total_return|float %}
-                    {% set cagr = ((1 + tr / 100) ** (1 / years) - 1) * 100 %}
-                    {% if cagr > 0 %}+{% endif %}{{ "%.1f"|format(cagr) }}%
-                    {% else %}
-                    {% if journey_stats.total_return > 0 %}+{% endif %}{{ "%.1f"|format(journey_stats.total_return) }}%
-                    {% endif %}
+            {% set show_annualized = journey_stats.days_held >= 365 and journey_stats.annualized_return is not none %}
+            {% set shown_return = journey_stats.annualized_return if show_annualized else journey_stats.total_return %}
+            <div id="posReturnCard"
+                class="journey-stat {% if shown_return > 0 %}gain{% elif shown_return < 0 %}loss{% endif %}"
+                title="Counts unrealized and realized gains and dividends. {% if show_annualized %}Money-weighted annual return (XIRR) of your buys, sells and dividends.{% else %}Total gain over the capital you put in.{% endif %}">
+                <div class="journey-stat-value" id="posReturnValue">
+                    {% if shown_return > 0 %}+{% endif %}{{ "%.1f"|format(shown_return) }}%
                 </div>
-                <div class="journey-stat-label">{% if journey_stats.days_held >= 365 %}CAGR{% else %}Total Return{%
-                    endif %}</div>
+                <div class="journey-stat-label">{% if show_annualized %}CAGR{% else %}Total Return{% endif %}</div>
             </div>
             <div class="journey-stat">
                 <div class="journey-stat-value">{{ journey_stats.days_held }}</div>
@@ -654,15 +649,23 @@ window.companyConfig = {
                         if (p.current_value !== null) {
                             document.getElementById('posValue').textContent = currencySymbol + Math.round(p.current_value).toLocaleString();
                         }
-                        if (p.gain_loss !== null) {
-                            var sign = p.gain_loss >= 0 ? '+' : '';
-                            document.getElementById('posPLValue').textContent = sign + currencySymbol + Math.round(Math.abs(p.gain_loss)).toLocaleString();
-                            document.getElementById('posPLValue').className = 'position-metric-value ' + (p.gain_loss >= 0 ? 'gain' : 'loss');
-                            document.getElementById('posPLCard').className = 'position-metric highlight ' + (p.gain_loss >= 0 ? 'gain' : 'loss');
+                        // The P&L tile is unrealized only; gain_loss is the lifetime total
+                        if (p.unrealized_gain_loss !== null) {
+                            var ugl = p.unrealized_gain_loss;
+                            var sign = ugl >= 0 ? '+' : '-';
+                            document.getElementById('posPLValue').textContent = sign + currencySymbol + Math.round(Math.abs(ugl)).toLocaleString();
+                            document.getElementById('posPLValue').className = 'position-metric-value ' + (ugl >= 0 ? 'gain' : 'loss');
+                            document.getElementById('posPLCard').className = 'position-metric highlight ' + (ugl >= 0 ? 'gain' : 'loss');
                         }
-                        if (p.gain_loss_pct !== null) {
-                            var pctSign = p.gain_loss_pct >= 0 ? '+' : '';
-                            document.getElementById('posPLPct').textContent = pctSign + p.gain_loss_pct.toFixed(1) + '%';
+                        if (p.unrealized_gain_loss_pct !== null) {
+                            var pctSign = p.unrealized_gain_loss_pct >= 0 ? '+' : '';
+                            document.getElementById('posPLPct').textContent = pctSign + p.unrealized_gain_loss_pct.toFixed(1) + '%';
+                        }
+                        // Lifetime return tile: annualized from a year held, total before that
+                        var shown = (p.days_held >= 365 && p.annualized_pct !== null) ? p.annualized_pct : p.gain_loss_pct;
+                        if (shown !== null && document.getElementById('posReturnValue')) {
+                            document.getElementById('posReturnValue').textContent = (shown > 0 ? '+' : '') + shown.toFixed(1) + '%';
+                            document.getElementById('posReturnCard').className = 'journey-stat ' + (shown > 0 ? 'gain' : (shown < 0 ? 'loss' : ''));
                         }
                     }
                 })

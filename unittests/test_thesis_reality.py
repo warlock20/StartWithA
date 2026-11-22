@@ -107,10 +107,17 @@ def test_losing_money_with_target_needs_attention():
 # ── page and service ──
 
 def _seed_position(user_id, company_id, gain_pct, days_held):
+    """One purchase of 10 shares at 100, now worth gain_pct more."""
+    bought = now_utc().date() - timedelta(days=days_held)
+    value = 1000 * (1 + gain_pct / 100)
+    db.session.add(Transaction(
+        user_id=user_id, company_id=company_id, type='BUY', date=bought,
+        quantity=10, price_per_share=100))
     db.session.add(PortfolioPosition(
         user_id=user_id, company_id=company_id, is_active=True,
-        total_shares=10, current_value=1000, unrealized_gain_loss_pct=gain_pct,
-        first_purchase_date=now_utc().date() - timedelta(days=days_held)))
+        total_shares=10, total_cost=1000, current_value=value,
+        unrealized_gain_loss=value - 1000, unrealized_gain_loss_pct=gain_pct,
+        first_purchase_date=bought))
 
 
 def _seed_buy(user_id, company_id, expected_cagr, expected_timeframe):
@@ -340,13 +347,16 @@ def test_decisions_page_compares_closed_position_cagr_up_to_last_sale(app_contex
     user = _make_user()
     company = _make_company(user.id)
     bought = now_utc().date() - timedelta(days=1500)
-    # Held three years (1096 days) for 52.09%, ~15% a year, then sold 404 days ago
+    # Held three years (1096 days) for 52.2%, ~15.04% a year, then sold 404 days ago
     db.session.add(PortfolioPosition(
         user_id=user.id, company_id=company.id, is_active=False, total_shares=0,
-        realized_gain_loss=520.9, realized_gain_loss_pct=52.09, first_purchase_date=bought))
+        realized_gain_loss=522.0, realized_gain_loss_pct=52.2, first_purchase_date=bought))
+    db.session.add(Transaction(
+        user_id=user.id, company_id=company.id, type='BUY', date=bought,
+        quantity=10, price_per_share=100))
     db.session.add(Transaction(
         user_id=user.id, company_id=company.id, type='SELL', date=bought + timedelta(days=1096),
-        quantity=10, price_per_share=152.09))
+        quantity=10, price_per_share=152.20))
     _seed_buy(user.id, company.id, expected_cagr=15, expected_timeframe=36)
     client = _logged_in(_app, user)
 

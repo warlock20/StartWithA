@@ -36,7 +36,7 @@ from app.models import Checklist, ChecklistItem
 from app.models.checklist import DestinationCheckpoint
 from app.models.idea_pipeline import (
     IdeaPipeline, KillAnswer, KillChecklist, KillCriterion, KillSession)
-from app.models.portfolio import PortfolioPosition
+from app.models.portfolio import PortfolioPosition, Transaction
 from app.models.research import ChecklistAnalysis, ChecklistAnswer
 from app.services.ai.tool_calling import ToolCall
 from app.models.configuration import SystemConfig
@@ -245,10 +245,15 @@ def test_open_kill_session_with_unanswered_criteria(app_context, user_with_holdi
 def test_losing_position_shows_as_thesis_drift(app_context):
     user = _make_user()
     company = _make_company(user.id)
+    bought = add_days(now_utc().date(), -400)
+    db.session.add(Transaction(
+        user_id=user.id, company_id=company.id, type='BUY', date=bought,
+        quantity=10, price_per_share=700))
     db.session.add(PortfolioPosition(
         user_id=user.id, company_id=company.id, is_active=True,
-        total_shares=10, current_value=5000, unrealized_gain_loss_pct=-30,
-        first_purchase_date=add_days(now_utc().date(), -400)))
+        total_shares=10, total_cost=7000, current_value=5000,
+        unrealized_gain_loss=-2000, unrealized_gain_loss_pct=-28.57,
+        first_purchase_date=bought))
     db.session.commit()
 
     items = _agenda(user.id)['thesis_drift']['items']
