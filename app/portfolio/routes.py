@@ -64,7 +64,8 @@ from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_quality import compare_research
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
-from app.services.outcome_tracking import received_position_company_ids, research_backed_company_ids
+from app.services.outcome_tracking import (
+    portfolio_outcomes, received_only_company_ids, research_backed_company_ids)
 from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
@@ -74,11 +75,6 @@ import json
 # Import blueprint from current package (avoids circular import)
 from . import portfolio_bp
 
-
-def _without_received_positions(positions):
-    """Drop positions opened by a merger or spin-off: they carry no buy decision."""
-    received = received_position_company_ids(current_user.id)
-    return [p for p in positions if p.company_id not in received]
 
 #############################
 #### Dashboard  ####
@@ -546,9 +542,12 @@ def analytics_decisions():
     # Lifetime returns (unrealized + realized + dividends), one per position
     returns = position_returns(all_positions)
 
-    # Research-backed vs non-research split (shared definition)
+    # Research-backed vs non-research split (shared definition). Positions that only
+    # ever came from a merger or spin-off carry no buy decision, so they stay out.
+    received_only = received_only_company_ids(current_user.id)
     comparison = compare_research(
-        _without_received_positions(all_positions), research_backed_company_ids(current_user.id), returns)
+        [p for p in all_positions if p.company_id not in received_only],
+        research_backed_company_ids(current_user.id), returns)
     research_positions = comparison.research.positions
     non_research_positions = comparison.no_research.positions
     research_avg_return = comparison.research.avg_return
@@ -581,8 +580,16 @@ def analytics_decisions():
     # Both analyses pair a decision with the company's single lifetime position, so a
     # company counts once: through its latest opening decision (top-ups repeat the same
     # position outcome, and so would the openings of earlier holding periods).
+    # A journal linked to a received outcome (a top-up after a merger) is no decision either.
+    received_journal_ids = {
+        row[0] for row in portfolio_outcomes(current_user.id)
+        .filter(ResearchOutcome.is_received.is_(True), ResearchOutcome.decision_journal_id.isnot(None))
+        .with_entities(ResearchOutcome.decision_journal_id)
+    }
     latest_openings = {}
-    for journal in sorted((j for j in all_journals if j.decision_type == 'BUY' and not j.is_top_up),
+    for journal in sorted((j for j in all_journals if j.decision_type == 'BUY' and not j.is_top_up
+                                    and j.company_id not in received_only
+                                    and j.id not in received_journal_ids),
                           key=lambda j: (j.decision_date, j.id)):
         latest_openings[journal.company_id] = journal
     latest_openings = list(latest_openings.values())
@@ -699,8 +706,7 @@ def learning_insights():
     Shows personalized patterns from trading history
     """
     # Get outcomes for stats
-    outcomes = ResearchOutcome.query.filter(
-        ResearchOutcome.user_id == current_user.id,
+    outcomes = portfolio_outcomes(current_user.id).filter(
         ResearchOutcome.realized_return_pct.isnot(None)
     ).all()
     
@@ -808,8 +814,7 @@ def intelligence_hub():
     closed_count = summary['wins'] + summary['losses']
 
     # Research outcomes still feed the learning-insights gate
-    outcomes = ResearchOutcome.query.filter(
-        ResearchOutcome.user_id == current_user.id,
+    outcomes = portfolio_outcomes(current_user.id).filter(
         ResearchOutcome.realized_return_pct.isnot(None)
     ).all()
     
@@ -877,8 +882,10 @@ def intelligence_hub():
     }
     
     # Decisions Card
+    received_only = received_only_company_ids(current_user.id)
     comparison = compare_research(
-        _without_received_positions(all_positions), research_backed_company_ids(current_user.id), returns)
+        [p for p in all_positions if p.company_id not in received_only],
+        research_backed_company_ids(current_user.id), returns)
 
     decisions = {
         'has_data': comparison.research.count > 0 or comparison.no_research.count > 0,

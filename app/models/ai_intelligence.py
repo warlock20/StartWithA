@@ -83,6 +83,8 @@ class ResearchOutcome(db.Model):
 
     # ===== LEARNING METRICS (computed by ML) =====
     outcome_category = db.Column(db.String(20), nullable=True, index=True)  # 'big_win', 'small_win', 'small_loss', 'big_loss'
+    # True when a merger or spin-off opened the trade: no research decision behind it (#451)
+    is_received = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=now_utc)

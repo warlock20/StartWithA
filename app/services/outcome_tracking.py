@@ -25,7 +25,9 @@ Lifecycle:
 2. Every write to a company's transactions (add, edit, delete, sync-positions,
    bulk import) calls sync_outcomes_for_company(user_id, company_id)
 3. The sync rebuilds that company's ResearchOutcome rows from its FIFO round
-   trips (get_round_trips): open trips stay open, closed trips get exit data
+   trips (get_round_trips): open trips stay open, closed trips get exit data.
+   Trips a merger or spin-off opened get an outcome flagged is_received, with no
+   research or expectation fields
 4. Correlation analysis runs to identify patterns
 
 Usage:
@@ -45,7 +47,7 @@ from app.models.ai_intelligence import ResearchOutcome
 from app.models.checklist import DestinationCheckpoint
 from app.models.journal import DecisionJournal
 from app.models.portfolio import (
-    PortfolioPosition, RoundTrip, Transaction, find_sale, get_round_trips,
+    PortfolioPosition, RECEIVED_POSITION_TYPES, RoundTrip, Transaction, find_sale, get_round_trips,
     update_portfolio_position_for_company,
 )
 from app.models.research import ResearchProject
@@ -150,8 +152,7 @@ class OutcomeTracker:
         Returns:
             Dict with stats like win_rate, avg_return, etc.
         """
-        outcomes = ResearchOutcome.query.filter(
-            ResearchOutcome.user_id == user_id,
+        outcomes = portfolio_outcomes(user_id).filter(
             ResearchOutcome.realized_return_pct.isnot(None)
         ).all()
         
@@ -165,10 +166,11 @@ class OutcomeTracker:
         
         wins = [o for o in outcomes if o.realized_return_pct > 0]
         
-        # Calculate research correlation
-        researched = [o for o in outcomes if o.research_quality_score is not None and o.research_quality_score > 0]
-        unreasearched = [o for o in outcomes if o.research_quality_score is None or o.research_quality_score <= 0]
-        scored = [o.research_quality_score for o in outcomes if o.research_quality_score is not None]
+        # Research correlation is about decisions: received holdings (#451) have none
+        decided = [o for o in outcomes if not o.is_received]
+        researched = [o for o in decided if o.research_quality_score is not None and o.research_quality_score > 0]
+        unreasearched = [o for o in decided if o.research_quality_score is None or o.research_quality_score <= 0]
+        scored = [o.research_quality_score for o in decided if o.research_quality_score is not None]
         
         research_advantage = None
         if researched and unreasearched:
@@ -245,30 +247,37 @@ def research_project_for_trade(
     return None
 
 
+def portfolio_outcomes(user_id: int):
+    """Every trade outcome, received included: for portfolio stats."""
+    return ResearchOutcome.query.filter(ResearchOutcome.user_id == user_id)
+
+
+def decision_outcomes(user_id: int):
+    """Outcomes with a research decision (not received): for research and decision analytics."""
+    return portfolio_outcomes(user_id).filter(ResearchOutcome.is_received.is_(False))
+
+
+def received_only_company_ids(user_id: int) -> Set[int]:
+    """Company ids that have outcomes, every one of them received (a merger or spin-off, #451)."""
+    every = {row[0] for row in portfolio_outcomes(user_id).with_entities(ResearchOutcome.company_id).distinct()}
+    decided = {row[0] for row in decision_outcomes(user_id).with_entities(ResearchOutcome.company_id).distinct()}
+    return every - decided
+
+
 def research_backed_company_ids(user_id: int) -> Set[int]:
-    """Company ids whose latest trade outcome has a research project (#417 timing rule)."""
+    """Company ids whose latest decision outcome has a research project (#417 timing rule).
+
+    Received outcomes are not decisions, so they never count as the latest.
+    """
     latest = (
-        db.session.query(ResearchOutcome.company_id, ResearchOutcome.project_id)
-        .filter(ResearchOutcome.user_id == user_id)
+        decision_outcomes(user_id)
+        .with_entities(ResearchOutcome.company_id, ResearchOutcome.project_id)
         .distinct(ResearchOutcome.company_id)
         .order_by(ResearchOutcome.company_id, ResearchOutcome.decision_date.desc().nullslast(),
                   ResearchOutcome.id.desc())
         .all()
     )
     return {company_id for company_id, project_id in latest if project_id is not None}
-
-
-def received_position_company_ids(user_id: int) -> Set[int]:
-    """Company ids whose latest round trip was opened by a merger or spin-off."""
-    company_ids = [row[0] for row in db.session.query(Transaction.company_id)
-                   .filter(Transaction.user_id == user_id, Transaction.company_id.isnot(None))
-                   .distinct().all()]
-    received = set()
-    for company_id in company_ids:
-        trips = get_round_trips(company_id, user_id)
-        if trips and trips[-1].opened_by_corporate_action:
-            received.add(company_id)
-    return received
 
 
 def trip_buy_journal(trip: RoundTrip) -> Optional[DecisionJournal]:
@@ -336,8 +345,11 @@ def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company
     outcome.entry_price = trip.entry_price
     outcome.position_size = trip.buy_cost
     outcome.decision_journal_id = journal.id if journal else None
+    outcome.is_received = bool(trip.opened_by_corporate_action)
 
-    real_journal = journal if journal is not None and not is_placeholder_journal(journal) else None
+    # Received shares carry no research decision: no journal fields, no research project
+    real_journal = (journal if journal is not None and not is_placeholder_journal(journal)
+                    and not outcome.is_received else None)
     outcome.initial_thesis = real_journal.investment_thesis_text if real_journal else None
     outcome.confidence_at_entry = real_journal.confidence_score if real_journal else None
     outcome.expected_cagr_pct = real_journal.expected_cagr if real_journal else None
@@ -345,7 +357,8 @@ def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company
 
     # Known limitation: the quality score is the project's quality NOW, not on the
     # entry date, because nothing records past snapshots.
-    project = research_project_for_trade(user_id, company_id, trip.entry_date, journal)
+    project = (None if outcome.is_received
+               else research_project_for_trade(user_id, company_id, trip.entry_date, journal))
     quality = None
     if project:
         if project.id not in quality_cache:
@@ -417,8 +430,6 @@ def sync_outcomes_for_company(user_id: int, company_id: int) -> OutcomeSyncStats
     quality_cache: Dict[int, Any] = {}
     kept: List[ResearchOutcome] = []
     for trip in trips:
-        if trip.opened_by_corporate_action:
-            continue  # received shares carry no research decision; stale rows become leftovers
         candidates = by_date.get(trip.entry_date)
         if candidates:
             outcome = candidates.pop(0)
@@ -554,6 +565,58 @@ def rebuild_trade_outcomes(user_id: Optional[int] = None, dry_run: bool = False)
             # Nothing landed for this user, so don't let the totals count it
             report.created = report.updated = report.deleted = report.closed = 0
             report.positions_with_realized_pct = 0
+            report.failed = True
+            report.error = str(exc)
+        reports.append(report)
+    return reports
+
+
+@dataclass
+class ReceivedBackfillReport:
+    user_id: int
+    companies: int = 0
+    created: int = 0
+    updated: int = 0
+    deleted: int = 0
+    failed: bool = False
+    error: Optional[str] = None
+
+
+def backfill_received_outcomes(user_id: Optional[int] = None, dry_run: bool = False) -> List[ReceivedBackfillReport]:
+    """
+    Create the missing is_received outcomes for holdings opened by a merger or spin-off (#451).
+    Covers every (user, company) pair with a received transaction, which is a superset of the
+    companies with a received round trip; re-syncing the others is harmless. Commits per user
+    (rolls back per user when dry_run). A failure rolls back that user only, is logged, and is
+    recorded on the report.
+    """
+    query = db.session.query(Transaction.user_id, Transaction.company_id).filter(
+        Transaction.company_id.isnot(None),
+        Transaction.type.in_(RECEIVED_POSITION_TYPES))
+    if user_id is not None:
+        query = query.filter(Transaction.user_id == user_id)
+    companies_by_user: Dict[int, List[int]] = {}
+    for uid, company_id in sorted({(row[0], row[1]) for row in query.distinct().all()}):
+        companies_by_user.setdefault(uid, []).append(company_id)
+
+    reports: List[ReceivedBackfillReport] = []
+    for uid, company_ids in sorted(companies_by_user.items()):
+        report = ReceivedBackfillReport(user_id=uid)
+        try:
+            report.companies = len(company_ids)
+            for company_id in company_ids:
+                stats = sync_outcomes_for_company(uid, company_id)
+                report.created += stats.created
+                report.updated += stats.updated
+                report.deleted += stats.deleted
+            if dry_run:
+                db.session.rollback()
+            else:
+                db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            logger.error(f"Received-outcome backfill failed for user {uid}", exc_info=True)
+            report.created = report.updated = report.deleted = 0
             report.failed = True
             report.error = str(exc)
         reports.append(report)

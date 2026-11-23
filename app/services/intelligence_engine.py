@@ -53,6 +53,7 @@ from app.models import PortfolioPosition, Company, ResearchProject, ChecklistAna
 from app.utils.financial_utils import calculate_cagr
 from sqlalchemy.orm import joinedload
 from app.services.decision_journals import latest_buy_decision, opening_buy_decision
+from app.services.outcome_tracking import decision_outcomes
 from app.services.position_returns import position_return
 from app.services.similar_mistakes import get_similar_mistakes_warnings
 from app.services.config_service import get_config
@@ -832,8 +833,7 @@ class IntelligenceEngine:
         poor_outcome_pct = self.THRESHOLDS['overconfidence_poor_outcome_pct']
         poor_rate_threshold = self.THRESHOLDS['overconfidence_poor_rate_threshold']
 
-        outcomes = ResearchOutcome.query.filter(
-            ResearchOutcome.user_id == self.user_id,
+        outcomes = decision_outcomes(self.user_id).filter(
             ResearchOutcome.realized_return_pct.isnot(None),
             ResearchOutcome.confidence_at_entry.isnot(None)
         ).all()

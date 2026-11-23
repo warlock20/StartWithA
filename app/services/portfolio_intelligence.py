@@ -50,6 +50,7 @@ from app.utils.grading import score_to_grade
 from app.models.ai_intelligence import ResearchOutcome
 from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company, ThesisEvolution
 from app.services.decision_journals import opening_buy_decision
+from app.services.outcome_tracking import decision_outcomes, portfolio_outcomes
 # Below MIN_DAYS_FOR_ANNUALIZED_COMPARISON days held, total return is compared with
 # the return the expected CAGR implies by now
 from app.services.position_returns import MIN_DAYS_FOR_ANNUALIZED_COMPARISON, position_returns
@@ -250,8 +251,7 @@ class PortfolioIntelligenceService:
             CorrelationData with grade breakdown, averages, and correlation metrics
         """
         # Get all completed outcomes for this user
-        outcomes = ResearchOutcome.query.filter(
-            ResearchOutcome.user_id == self.user_id,
+        outcomes = decision_outcomes(self.user_id).filter(
             ResearchOutcome.realized_return_pct.isnot(None)
         ).all()
         
@@ -620,8 +620,7 @@ class PortfolioIntelligenceService:
         insights = []
 
         # Get all outcomes with eager-loaded company+sector (avoids N+1 in sector analysis)
-        outcomes = ResearchOutcome.query.filter(
-            ResearchOutcome.user_id == self.user_id,
+        outcomes = portfolio_outcomes(self.user_id).filter(
             ResearchOutcome.realized_return_pct.isnot(None)
         ).options(
             joinedload(ResearchOutcome.company).joinedload(Company.sector)
@@ -638,9 +637,11 @@ class PortfolioIntelligenceService:
             return insights
 
         # Analyze patterns
-        insights.extend(self._analyze_quality_patterns(outcomes))
+        # Quality and confidence are about research decisions: received holdings have none
+        decided = [o for o in outcomes if not o.is_received]
+        insights.extend(self._analyze_quality_patterns(decided))
         insights.extend(self._analyze_holding_patterns(outcomes))
-        insights.extend(self._analyze_confidence_calibration(outcomes))
+        insights.extend(self._analyze_confidence_calibration(decided))
         insights.extend(self._analyze_sector_patterns(outcomes))
         
         # Sort by importance
