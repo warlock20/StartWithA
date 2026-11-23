@@ -88,7 +88,8 @@ def compare_research(positions: Iterable, researched_company_ids: Set[int],
     """Split positions by whether their company id is in researched_company_ids.
 
     returns is position_returns() for (at least) these positions. See the module
-    docstring for the definition and its limitations.
+    docstring for the definition and its limitations. Companies whose every outcome is
+    received (a merger or spin-off, #451) are left out by the caller.
     """
     research, no_research = [], []
     for position in positions:

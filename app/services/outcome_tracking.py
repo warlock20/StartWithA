@@ -247,19 +247,6 @@ def research_project_for_trade(
     return None
 
 
-def research_backed_company_ids(user_id: int) -> Set[int]:
-    """Company ids whose latest trade outcome has a research project (#417 timing rule)."""
-    latest = (
-        db.session.query(ResearchOutcome.company_id, ResearchOutcome.project_id)
-        .filter(ResearchOutcome.user_id == user_id)
-        .distinct(ResearchOutcome.company_id)
-        .order_by(ResearchOutcome.company_id, ResearchOutcome.decision_date.desc().nullslast(),
-                  ResearchOutcome.id.desc())
-        .all()
-    )
-    return {company_id for company_id, project_id in latest if project_id is not None}
-
-
 def portfolio_outcomes(user_id: int):
     """Every trade outcome, received included: for portfolio stats."""
     return ResearchOutcome.query.filter(ResearchOutcome.user_id == user_id)
@@ -270,17 +257,27 @@ def decision_outcomes(user_id: int):
     return portfolio_outcomes(user_id).filter(ResearchOutcome.is_received.is_(False))
 
 
-def received_position_company_ids(user_id: int) -> Set[int]:
-    """Company ids whose latest round trip was opened by a merger or spin-off."""
-    company_ids = [row[0] for row in db.session.query(Transaction.company_id)
-                   .filter(Transaction.user_id == user_id, Transaction.company_id.isnot(None))
-                   .distinct().all()]
-    received = set()
-    for company_id in company_ids:
-        trips = get_round_trips(company_id, user_id)
-        if trips and trips[-1].opened_by_corporate_action:
-            received.add(company_id)
-    return received
+def received_only_company_ids(user_id: int) -> Set[int]:
+    """Company ids that have outcomes, every one of them received (a merger or spin-off, #451)."""
+    every = {row[0] for row in portfolio_outcomes(user_id).with_entities(ResearchOutcome.company_id).distinct()}
+    decided = {row[0] for row in decision_outcomes(user_id).with_entities(ResearchOutcome.company_id).distinct()}
+    return every - decided
+
+
+def research_backed_company_ids(user_id: int) -> Set[int]:
+    """Company ids whose latest decision outcome has a research project (#417 timing rule).
+
+    Received outcomes are not decisions, so they never count as the latest.
+    """
+    latest = (
+        decision_outcomes(user_id)
+        .with_entities(ResearchOutcome.company_id, ResearchOutcome.project_id)
+        .distinct(ResearchOutcome.company_id)
+        .order_by(ResearchOutcome.company_id, ResearchOutcome.decision_date.desc().nullslast(),
+                  ResearchOutcome.id.desc())
+        .all()
+    )
+    return {company_id for company_id, project_id in latest if project_id is not None}
 
 
 def trip_buy_journal(trip: RoundTrip) -> Optional[DecisionJournal]:
