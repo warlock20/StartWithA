@@ -47,7 +47,7 @@ from app.models.ai_intelligence import ResearchOutcome
 from app.models.checklist import DestinationCheckpoint
 from app.models.journal import DecisionJournal
 from app.models.portfolio import (
-    PortfolioPosition, RoundTrip, Transaction, find_sale, get_round_trips,
+    PortfolioPosition, RECEIVED_POSITION_TYPES, RoundTrip, Transaction, find_sale, get_round_trips,
     update_portfolio_position_for_company,
 )
 from app.models.research import ResearchProject
@@ -565,6 +565,58 @@ def rebuild_trade_outcomes(user_id: Optional[int] = None, dry_run: bool = False)
             # Nothing landed for this user, so don't let the totals count it
             report.created = report.updated = report.deleted = report.closed = 0
             report.positions_with_realized_pct = 0
+            report.failed = True
+            report.error = str(exc)
+        reports.append(report)
+    return reports
+
+
+@dataclass
+class ReceivedBackfillReport:
+    user_id: int
+    companies: int = 0
+    created: int = 0
+    updated: int = 0
+    deleted: int = 0
+    failed: bool = False
+    error: Optional[str] = None
+
+
+def backfill_received_outcomes(user_id: Optional[int] = None, dry_run: bool = False) -> List[ReceivedBackfillReport]:
+    """
+    Create the missing is_received outcomes for holdings opened by a merger or spin-off (#451).
+    Covers every (user, company) pair with a received transaction, which is a superset of the
+    companies with a received round trip; re-syncing the others is harmless. Commits per user
+    (rolls back per user when dry_run). A failure rolls back that user only, is logged, and is
+    recorded on the report.
+    """
+    query = db.session.query(Transaction.user_id, Transaction.company_id).filter(
+        Transaction.company_id.isnot(None),
+        Transaction.type.in_(RECEIVED_POSITION_TYPES))
+    if user_id is not None:
+        query = query.filter(Transaction.user_id == user_id)
+    companies_by_user: Dict[int, List[int]] = {}
+    for uid, company_id in sorted({(row[0], row[1]) for row in query.distinct().all()}):
+        companies_by_user.setdefault(uid, []).append(company_id)
+
+    reports: List[ReceivedBackfillReport] = []
+    for uid, company_ids in sorted(companies_by_user.items()):
+        report = ReceivedBackfillReport(user_id=uid)
+        try:
+            report.companies = len(company_ids)
+            for company_id in company_ids:
+                stats = sync_outcomes_for_company(uid, company_id)
+                report.created += stats.created
+                report.updated += stats.updated
+                report.deleted += stats.deleted
+            if dry_run:
+                db.session.rollback()
+            else:
+                db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            logger.error(f"Received-outcome backfill failed for user {uid}", exc_info=True)
+            report.created = report.updated = report.deleted = 0
             report.failed = True
             report.error = str(exc)
         reports.append(report)
