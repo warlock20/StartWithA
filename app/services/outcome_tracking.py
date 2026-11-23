@@ -25,7 +25,9 @@ Lifecycle:
 2. Every write to a company's transactions (add, edit, delete, sync-positions,
    bulk import) calls sync_outcomes_for_company(user_id, company_id)
 3. The sync rebuilds that company's ResearchOutcome rows from its FIFO round
-   trips (get_round_trips): open trips stay open, closed trips get exit data
+   trips (get_round_trips): open trips stay open, closed trips get exit data.
+   Trips a merger or spin-off opened get an outcome flagged is_received, with no
+   research or expectation fields
 4. Correlation analysis runs to identify patterns
 
 Usage:
@@ -258,6 +260,16 @@ def research_backed_company_ids(user_id: int) -> Set[int]:
     return {company_id for company_id, project_id in latest if project_id is not None}
 
 
+def portfolio_outcomes(user_id: int):
+    """Every trade outcome, received included: for portfolio stats."""
+    return ResearchOutcome.query.filter(ResearchOutcome.user_id == user_id)
+
+
+def decision_outcomes(user_id: int):
+    """Outcomes with a research decision (not received): for research and decision analytics."""
+    return portfolio_outcomes(user_id).filter(ResearchOutcome.is_received.is_(False))
+
+
 def received_position_company_ids(user_id: int) -> Set[int]:
     """Company ids whose latest round trip was opened by a merger or spin-off."""
     company_ids = [row[0] for row in db.session.query(Transaction.company_id)
@@ -336,8 +348,11 @@ def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company
     outcome.entry_price = trip.entry_price
     outcome.position_size = trip.buy_cost
     outcome.decision_journal_id = journal.id if journal else None
+    outcome.is_received = bool(trip.opened_by_corporate_action)
 
-    real_journal = journal if journal is not None and not is_placeholder_journal(journal) else None
+    # Received shares carry no research decision: no journal fields, no research project
+    real_journal = (journal if journal is not None and not is_placeholder_journal(journal)
+                    and not outcome.is_received else None)
     outcome.initial_thesis = real_journal.investment_thesis_text if real_journal else None
     outcome.confidence_at_entry = real_journal.confidence_score if real_journal else None
     outcome.expected_cagr_pct = real_journal.expected_cagr if real_journal else None
@@ -345,7 +360,8 @@ def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company
 
     # Known limitation: the quality score is the project's quality NOW, not on the
     # entry date, because nothing records past snapshots.
-    project = research_project_for_trade(user_id, company_id, trip.entry_date, journal)
+    project = (None if outcome.is_received
+               else research_project_for_trade(user_id, company_id, trip.entry_date, journal))
     quality = None
     if project:
         if project.id not in quality_cache:
@@ -417,8 +433,6 @@ def sync_outcomes_for_company(user_id: int, company_id: int) -> OutcomeSyncStats
     quality_cache: Dict[int, Any] = {}
     kept: List[ResearchOutcome] = []
     for trip in trips:
-        if trip.opened_by_corporate_action:
-            continue  # received shares carry no research decision; stale rows become leftovers
         candidates = by_date.get(trip.entry_date)
         if candidates:
             outcome = candidates.pop(0)
