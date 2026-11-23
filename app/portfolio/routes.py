@@ -580,9 +580,16 @@ def analytics_decisions():
     # Both analyses pair a decision with the company's single lifetime position, so a
     # company counts once: through its latest opening decision (top-ups repeat the same
     # position outcome, and so would the openings of earlier holding periods).
+    # A journal linked to a received outcome (a top-up after a merger) is no decision either.
+    received_journal_ids = {
+        row[0] for row in portfolio_outcomes(current_user.id)
+        .filter(ResearchOutcome.is_received.is_(True), ResearchOutcome.decision_journal_id.isnot(None))
+        .with_entities(ResearchOutcome.decision_journal_id)
+    }
     latest_openings = {}
     for journal in sorted((j for j in all_journals if j.decision_type == 'BUY' and not j.is_top_up
-                                    and j.company_id not in received_only),
+                                    and j.company_id not in received_only
+                                    and j.id not in received_journal_ids),
                           key=lambda j: (j.decision_date, j.id)):
         latest_openings[journal.company_id] = journal
     latest_openings = list(latest_openings.values())
