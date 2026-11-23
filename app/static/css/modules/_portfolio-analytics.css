@@ -27,6 +27,10 @@
     grid-template-columns: 1fr 1fr 1fr;
 }
 
+.di-row-1-1 {
+    grid-template-columns: 1fr 1fr;
+}
+
 @media (max-width: 1024px) {
 
     .di-row-1-1-1 {
@@ -35,6 +39,7 @@
 }
 
 @media (max-width: 768px) {
+    .di-row-1-1,
     .di-row-1-1-1 {
         grid-template-columns: 1fr;
     }
@@ -709,3 +714,88 @@
 /* Insight Badge */
 
 /* Stat Highlight */
+
+/* =============================================================================
+   RESEARCH QUALITY (#439) - scope switch, three-group comparison, grade table
+   ============================================================================= */
+
+.di-scope-switch {
+    display: inline-flex;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.di-scope-btn {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 0;
+    background: var(--background-white);
+    color: var(--gray-700);
+    cursor: pointer;
+}
+
+.di-scope-btn + .di-scope-btn {
+    border-left: 1px solid var(--gray-200);
+}
+
+.di-scope-btn[aria-pressed="true"] {
+    background: var(--primary-600);
+    color: var(--background-white);
+}
+
+.di-group {
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid var(--gray-200);
+    background: var(--gray-50);
+}
+
+.di-group-high {
+    border-color: var(--success-500);
+}
+
+.di-group-none .di-comparison-label i {
+    color: var(--danger-500);
+}
+
+.di-group-low .di-comparison-label i {
+    color: var(--primary-500);
+}
+
+.di-group-high .di-comparison-label i {
+    color: var(--success-500);
+}
+
+.di-rq-subtitle {
+    margin: 20px 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.di-rq-grades td {
+    text-align: right;
+}
+
+.di-rq-grades td:first-child {
+    text-align: left;
+}
+
+.di-rq-summary {
+    margin: 16px 0 4px;
+    font-size: 14px;
+    color: var(--gray-700);
+}
+
+.di-rq-note,
+.di-rq-empty {
+    margin: 4px 0;
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+.di-rq-link {
+    margin-top: 16px;
+}

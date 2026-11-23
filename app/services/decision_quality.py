@@ -26,9 +26,9 @@ score stored on the outcome at its last sync (see ``decision_trades``).
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
-from app.constants import HIGH_QUALITY_RESEARCH_SCORE
+from app.constants import HIGH_QUALITY_RESEARCH_SCORE, MIN_TRADES_FOR_RESEARCH_SUMMARY
 
 
 def classify_research(outcome) -> str:
@@ -119,3 +119,64 @@ def compare_research(trades: List) -> ResearchComparison:
         high=TradeGroup(by_class['high']),
         research=TradeGroup(by_class['low'] + by_class['high']),
     )
+
+
+GRADES = ('A', 'B', 'C', 'D', 'F')
+
+
+@dataclass
+class GradeRow:
+    grade: str
+    group: TradeGroup
+
+
+def grade_table(trades: List) -> Tuple[List[GradeRow], int]:
+    """
+    One row per letter grade (A to F, empty rows kept) over the researched trades.
+
+    The second value counts researched trades that have no score yet, so they are
+    in no row. Trades with no research are left out.
+    """
+    by_grade = {grade: [] for grade in GRADES}
+    unscored = 0
+    for trade in trades:
+        if trade.research == 'none':
+            continue
+        if trade.grade is None:
+            unscored += 1
+        else:
+            by_grade[trade.grade].append(trade)
+    return [GradeRow(grade, TradeGroup(by_grade[grade])) for grade in GRADES], unscored
+
+
+@dataclass
+class QualitySummary:
+    edge: Optional[float]   # high-quality avg return minus low-quality avg return
+    n: int                  # trades behind it (high plus low)
+    small_sample: bool
+
+
+def quality_summary(trades: List) -> QualitySummary:
+    comparison = compare_research(trades)
+    n = comparison.high.count + comparison.low.count
+    return QualitySummary(
+        edge=comparison.quality_edge,
+        n=n,
+        small_sample=n < MIN_TRADES_FOR_RESEARCH_SUMMARY,
+    )
+
+
+def research_quality_view(trades: List) -> Dict[str, dict]:
+    """Everything the Research quality section shows, per scope ('all' and 'closed')."""
+    view = {}
+    for scope in SCOPES:
+        scoped = in_scope(trades, scope)
+        grades, unscored = grade_table(scoped)
+        view[scope] = {
+            'comparison': compare_research(scoped),
+            'grades': grades,
+            'unscored': unscored,
+            'summary': quality_summary(scoped),
+            'count': len(scoped),
+        }
+    return view
