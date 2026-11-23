@@ -164,6 +164,8 @@
 <script defer src="{{ url_for('static', filename='js/companion/verbs.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/companion/insights.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/companion/deep-dive.js') }}"></script>
+{% if current_user.selection_assist_enabled %}
 <script defer src="{{ url_for('static', filename='js/companion/selection.js') }}"></script>
+{% endif %}
 <script defer src="{{ url_for('static', filename='js/companion/bootstrap.js') }}"></script>
 {% endif %}

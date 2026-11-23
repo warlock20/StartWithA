@@ -74,6 +74,19 @@ def preferences():
     )
 
 
+@settings_bp.route('/preferences/selection-assist', methods=['POST'])
+@login_required
+def update_selection_assist():
+    """Turn the companion's highlight popover on or off."""
+    current_user.selection_assist_enabled = request.form.get('selection_assist_enabled') == 'on'
+    db.session.commit()
+    if current_user.selection_assist_enabled:
+        flash('Highlight suggestions turned on.', 'success')
+    else:
+        flash('Highlight suggestions turned off.', 'success')
+    return redirect(url_for('settings.preferences'))
+
+
 @settings_bp.route('/preferences/capital-timing', methods=['POST'])
 @login_required
 def update_capital_timing():

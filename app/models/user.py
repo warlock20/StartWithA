@@ -127,6 +127,9 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     # and the start time of the last indexing run that finished.
     knowledge_context_enabled = db.Column(db.Boolean, default=True, nullable=False, server_default='true')
     knowledge_indexed_at = db.Column(db.DateTime, nullable=True)
+    # Companion selection assist: the "You already know something about this"
+    # popover that appears when text is highlighted.
+    selection_assist_enabled = db.Column(db.Boolean, default=True, nullable=False, server_default='true')
 
     # Onboarding and tour tracking
     onboarding_completed = db.Column(db.Boolean, default=False)

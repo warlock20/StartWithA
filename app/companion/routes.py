@@ -167,6 +167,10 @@ def selection():
     `company_id` narrows the search when the page is focused on one; it's a hint,
     and retrieval is scoped to `current_user` regardless of what's sent.
     """
+    # A tab opened before the user turned this off still has the script loaded.
+    if not current_user.selection_assist_enabled:
+        return json_success('Selection assist is off', data={'evidence': []})
+
     data = request.get_json(silent=True) or {}
     text = (data.get('text') or '').strip()
     if not text:
