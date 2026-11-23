@@ -67,6 +67,30 @@
     </form>
 </section>
 
+<section class="settings-panel" id="selection-assist">
+    <div class="settings-panel-head">
+        <h3>Research companion</h3>
+    </div>
+    <form method="POST" action="{{ url_for('settings.update_selection_assist') }}">
+        <div class="settings-row">
+            <label class="settings-row-label" for="selection_assist_enabled">
+                <strong>Suggest my notes when I highlight text</strong>
+                <span>Shows "You already know something about this" with matching notes, journal entries and research when you select text on a page.</span>
+            </label>
+            <div class="settings-row-control">
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="selection_assist_enabled"
+                           name="selection_assist_enabled" {% if current_user.selection_assist_enabled %}checked{% endif %}>
+                </div>
+            </div>
+        </div>
+        <div class="settings-panel-foot">
+            <span></span>
+            <button type="submit" class="action-btn primary">Save companion</button>
+        </div>
+    </form>
+</section>
+
 {% if capital_mode %}
 <section class="settings-panel">
     <div class="settings-panel-head">

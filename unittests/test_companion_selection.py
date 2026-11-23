@@ -31,6 +31,7 @@ from companion_js import companion_js
 
 from app import db
 from app.models.knowledge_chunk import KnowledgeChunk
+from app.models.user import User
 from app.services.argos import selection_assist
 from app.services.argos.knowledge_index import _text
 from app.services.argos.selection_assist import (
@@ -192,3 +193,50 @@ def test_flattener_keeps_link_text_and_nested_blocks():
 def test_flattener_still_handles_plain_and_html():
     assert blocknote_to_text('just text') == 'just text'
     assert blocknote_to_text('<p>old quill</p>') == 'old quill'
+
+
+def test_endpoint_is_silent_when_the_user_turned_it_off(client_logged_in, stub_embedding):
+    """A tab opened before the setting changed still posts; it must get nothing back."""
+    client, user_id = client_logged_in
+    db.session.add(KnowledgeChunk(
+        user_id=user_id, company_id=None, source_type='journal', source_id=1,
+        title='Switching costs note',
+        summary='switching costs keep customers locked in',
+        embedding=stub_embedding.embed('switching costs keep customers locked in'),
+        embedding_model=stub_embedding.model_id,
+        token_estimate=20))
+    db.session.get(User, user_id).selection_assist_enabled = False
+    db.session.commit()
+
+    resp = client.post('/companion/selection',
+                       json={'text': 'switching costs keep customers locked in'})
+    assert resp.status_code == 200
+    assert resp.get_json()['data']['evidence'] == []
+
+
+def test_preferences_switch_turns_selection_assist_off_and_on(client_logged_in):
+    client, user_id = client_logged_in
+    assert db.session.get(User, user_id).selection_assist_enabled is True
+
+    resp = client.post('/settings/preferences/selection-assist', data={})
+    assert resp.status_code == 302
+    db.session.expire_all()
+    assert db.session.get(User, user_id).selection_assist_enabled is False
+
+    client.post('/settings/preferences/selection-assist',
+                data={'selection_assist_enabled': 'on'})
+    db.session.expire_all()
+    assert db.session.get(User, user_id).selection_assist_enabled is True
+
+
+def test_switch_is_on_the_preferences_page_and_gates_the_script():
+    """Preferences carries the switch; with it off the widget never loads selection.js."""
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    with open(os.path.join(root, 'app/settings/templates/settings_preferences.html')) as f:
+        prefs = f.read()
+    with open(os.path.join(root, 'app/templates/main/_companion_widget.html')) as f:
+        widget = f.read()
+    assert 'name="selection_assist_enabled"' in prefs
+    assert "url_for('settings.update_selection_assist')" in prefs
+    gate = widget.index('current_user.selection_assist_enabled')
+    assert gate < widget.index('js/companion/selection.js')
