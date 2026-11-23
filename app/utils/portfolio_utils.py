@@ -202,3 +202,9 @@ def calculate_confidence_stats(journals_with_returns: List[Dict]) -> Dict[str, D
 
     return stats
 
+
+def process_win_rate(good_outcomes: int, bad_outcomes: int) -> float:
+    """Share of research-backed positions that gained, in percent (0 when there are none)."""
+    total = good_outcomes + bad_outcomes
+    return good_outcomes / total * 100 if total else 0.0
+

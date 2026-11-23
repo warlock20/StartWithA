@@ -8,71 +8,44 @@
     <div class="dashboard-header-card">
         <header class="dashboard-header">
             <div>
-                <h1 class="dashboard-title font-poppins">Decision Intelligence Dashboard</h1>
+                <h1 class="dashboard-title font-poppins">Decision Intelligence</h1>
                 <p class="dashboard-subtitle">Learning from patterns, decision quality, and behavioral insights</p>
             </div>
             <div class="dashboard-header-actions">
-                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="action-btn">
-                    <i class="bi bi-arrow-left"></i>
-                    Back to Intelligence Hub
-                </a>
+                {% with btn_class='action-btn' %}{% include 'components/smart_back_button.html' %}{% endwith %}
             </div>
         </header>
-    </div>
-
-    <!-- KPI Summary Strip -->
-    {% set process_win_rate = (good_process_good_outcome / (good_process_good_outcome + good_process_bad_outcome) * 100) if (good_process_good_outcome + good_process_bad_outcome) > 0 else 0 %}
-    {% set confidence_calibrated = confidence_stats.high.avg_return > confidence_stats.medium.avg_return %}
-    <div class="di-kpi-strip">
-        <div class="di-kpi-card">
-            <div class="di-kpi-icon" style="background: rgba(16,185,129,0.07); color: #10b981;">
-                <i class="bi bi-graph-up-arrow"></i>
-            </div>
-            <div>
-                <div class="di-kpi-label">Research Edge</div>
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon {% if research_edge is not none and research_edge >= 0 %}green{% else %}gray{% endif %}"><i class="bi bi-graph-up-arrow"></i></div>
+                <div class="portfolio-metric-label">Research Edge</div>
                 {% if research_edge is none %}
-                <div class="di-kpi-value">&mdash;</div>
-                <div class="di-kpi-desc">No baseline to compare</div>
+                <div class="portfolio-metric-value">&mdash;</div>
+                <div class="portfolio-metric-subtext">No baseline to compare</div>
                 {% else %}
-                <div class="di-kpi-value" style="color: {% if research_edge >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+                <div class="portfolio-metric-value {% if research_edge >= 0 %}gain{% else %}loss{% endif %}">
                     {% if research_edge >= 0 %}+{% endif %}{{ "%.1f"|format(research_edge) }}pp
                 </div>
-                <div class="di-kpi-desc">vs non-research</div>
+                <div class="portfolio-metric-subtext">vs non-research</div>
                 {% endif %}
             </div>
-        </div>
-        <div class="di-kpi-card">
-            <div class="di-kpi-icon" style="background: rgba(37,99,235,0.07); color: #2563eb;">
-                <i class="bi bi-shield-check"></i>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-shield-check"></i></div>
+                <div class="portfolio-metric-label">Process Win Rate</div>
+                <div class="portfolio-metric-value">{{ "%.0f"|format(process_win_rate) }}%</div>
+                <div class="portfolio-metric-subtext">{{ good_process_good_outcome }} of {{ good_process_good_outcome + good_process_bad_outcome }} researched</div>
             </div>
-            <div>
-                <div class="di-kpi-label">Process Win Rate</div>
-                <div class="di-kpi-value" style="color: #2563eb;">{{ "%.0f"|format(process_win_rate) }}%</div>
-                <div class="di-kpi-desc">{{ good_process_good_outcome }} of {{ good_process_good_outcome + good_process_bad_outcome }} researched</div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon {% if confidence_calibrated %}green{% else %}warning{% endif %}"><i class="bi bi-speedometer2"></i></div>
+                <div class="portfolio-metric-label">Confidence Calibrated</div>
+                <div class="portfolio-metric-value {% if confidence_calibrated %}gain{% endif %}">{% if confidence_calibrated %}Yes{% else %}Review{% endif %}</div>
+                <div class="portfolio-metric-subtext">High: {% if confidence_stats.high.avg_return >= 0 %}+{% endif %}{{ confidence_stats.high.avg_return }}%</div>
             </div>
-        </div>
-        <div class="di-kpi-card">
-            <div class="di-kpi-icon" style="background: rgba({% if confidence_calibrated %}16,185,129{% else %}245,158,11{% endif %},0.07); color: {% if confidence_calibrated %}#10b981{% else %}#f59e0b{% endif %};">
-                <i class="bi bi-speedometer2"></i>
-            </div>
-            <div>
-                <div class="di-kpi-label">Confidence Calibrated</div>
-                <div class="di-kpi-value" style="color: {% if confidence_calibrated %}#10b981{% else %}#f59e0b{% endif %};">
-                    {% if confidence_calibrated %}Yes{% else %}Review{% endif %}
-                </div>
-                <div class="di-kpi-desc">High: {% if confidence_stats.high.avg_return >= 0 %}+{% endif %}{{ confidence_stats.high.avg_return }}%</div>
-            </div>
-        </div>
-        <div class="di-kpi-card">
-            <div class="di-kpi-icon" style="background: rgba({% if expectations_met_pct >= 50 %}16,185,129{% else %}245,158,11{% endif %},0.07); color: {% if expectations_met_pct >= 50 %}#10b981{% else %}#f59e0b{% endif %};">
-                <i class="bi bi-bullseye"></i>
-            </div>
-            <div>
-                <div class="di-kpi-label">Expectations Met</div>
-                <div class="di-kpi-value" style="color: {% if expectations_met_pct >= 50 %}#10b981{% else %}#f59e0b{% endif %};">
-                    {{ "%.0f"|format(expectations_met_pct) }}%
-                </div>
-                <div class="di-kpi-desc">{{ expectations_met_count }} of {{ expectations_total_count }} positions</div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon {% if expectations_met_pct >= 50 %}green{% else %}warning{% endif %}"><i class="bi bi-bullseye"></i></div>
+                <div class="portfolio-metric-label">Expectations Met</div>
+                <div class="portfolio-metric-value {% if expectations_met_pct >= 50 %}gain{% endif %}">{{ "%.0f"|format(expectations_met_pct) }}%</div>
+                <div class="portfolio-metric-subtext">{{ expectations_met_count }} of {{ expectations_total_count }} positions</div>
             </div>
         </div>
     </div>

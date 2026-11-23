@@ -39,9 +39,11 @@ from app.services.price_service import PriceService
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.utils.response_utils import json_error
 from app.utils.decorators import require_feature
+from app.utils.navigation_utils import get_smart_return_url
 from app.utils.portfolio_utils import (
     calculate_holding_period_stats,
     calculate_confidence_stats,
+    process_win_rate,
 )
 from app.services.background_tasks import BackgroundTaskService
 
@@ -525,7 +527,7 @@ def analytics_run_module(template_name):
 @login_required
 def analytics_decisions():
     """
-    Decision Intelligence Dashboard
+    Decision Intelligence
     Deep behavioral analysis and learning from patterns
     """
     # Get all positions (both active and closed)
@@ -607,6 +609,7 @@ def analytics_decisions():
 
     # Calculate confidence calibration stats using utility
     confidence_stats = calculate_confidence_stats(journals_with_confidence)
+    confidence_calibrated = confidence_stats['high']['avg_return'] > confidence_stats['medium']['avg_return']
 
     # Performance vs Expectations Analysis: the expected return is a CAGR, so each
     # position's annualized return is set against it (closed positions up to their last flow)
@@ -633,7 +636,12 @@ def analytics_decisions():
     expectations_total_count = len(expectations_analysis)
     expectations_met_pct = (expectations_met_count / expectations_total_count * 100) if expectations_total_count > 0 else 0
 
+    # Smart back: wherever the user came from, else the intelligence hub
+    return_url, context_label = get_smart_return_url('portfolio.intelligence_hub')
+
     return render_template('decisions_intelligence.html',
+                          return_url=return_url,
+                          context_label=context_label,
                           research_edge=comparison.edge,
                           research_backed_count=len(research_positions),
                           non_research_count=len(non_research_positions),
@@ -648,8 +656,10 @@ def analytics_decisions():
                           good_process_bad_outcome=good_process_bad_outcome,
                           bad_process_good_outcome=bad_process_good_outcome,
                           bad_process_bad_outcome=bad_process_bad_outcome,
+                          process_win_rate=process_win_rate(good_process_good_outcome, good_process_bad_outcome),
                           recent_decisions=recent_decisions,
                           confidence_stats=confidence_stats,
+                          confidence_calibrated=confidence_calibrated,
                           expectations_analysis=expectations_analysis,
                           expectations_met_count=expectations_met_count,
                           expectations_total_count=expectations_total_count,

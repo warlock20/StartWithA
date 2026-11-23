@@ -98,6 +98,10 @@ def get_smart_return_url(default_route=None, default_kwargs=None):
         if '/portfolio/position/' in path:
             return path, "Position"
 
+        # Portfolio intelligence hub
+        if path.rstrip('/') == '/portfolio/intelligence':
+            return path, "Intelligence Hub"
+
         # Portfolio dashboard or other portfolio pages
         if '/portfolio' in path:
             return path, "Portfolio"
@@ -116,9 +120,8 @@ def get_smart_return_url(default_route=None, default_kwargs=None):
 
     # Default fallback
     if default_route:
-        if default_kwargs:
-            return url_for(default_route, **default_kwargs), "Back"
-        return url_for(default_route), "Back"
+        default_url = url_for(default_route, **(default_kwargs or {}))
+        return default_url, _get_context_label(default_url)
 
     # Ultimate fallback to dashboard
     return url_for('main.index'), "Dashboard"
@@ -158,6 +161,8 @@ def _get_context_label(path):
         return "Journal"
     elif '/portfolio/position/' in path:
         return "Position"
+    elif urlparse(path).path.rstrip('/') == '/portfolio/intelligence':
+        return "Intelligence Hub"
     elif '/portfolio' in path:
         return "Portfolio"
     elif '/analytics' in path:
