@@ -64,10 +64,10 @@ from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_quality import compare_research
+from app.services.decision_trades import decision_trades
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
-from app.services.outcome_tracking import (
-    portfolio_outcomes, received_only_company_ids, research_backed_company_ids)
+from app.services.outcome_tracking import portfolio_outcomes, received_only_company_ids
 from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
@@ -544,20 +544,16 @@ def analytics_decisions():
     # Lifetime returns (unrealized + realized + dividends), one per position
     returns = position_returns(all_positions)
 
-    # Research-backed vs non-research split (shared definition). Positions that only
-    # ever came from a merger or spin-off carry no buy decision, so they stay out.
+    # Research-backed vs non-research split, per trade (shared definition, #439).
+    # Received holdings (mergers, spin-offs) are not decisions and are left out.
     received_only = received_only_company_ids(current_user.id)
-    comparison = compare_research(
-        [p for p in all_positions if p.company_id not in received_only],
-        research_backed_company_ids(current_user.id), returns)
-    research_positions = comparison.research.positions
-    non_research_positions = comparison.no_research.positions
+    comparison = compare_research(decision_trades(current_user.id))
     research_avg_return = comparison.research.avg_return
     research_win_rate = comparison.research.win_rate
     research_avg_hold = comparison.research.avg_hold_days
-    non_research_avg_return = comparison.no_research.avg_return
-    non_research_win_rate = comparison.no_research.win_rate
-    non_research_avg_hold = comparison.no_research.avg_hold_days
+    non_research_avg_return = comparison.none.avg_return
+    non_research_win_rate = comparison.none.win_rate
+    non_research_avg_hold = comparison.none.avg_hold_days
 
     # Get active positions for current analysis
     active_positions = [p for p in all_positions if p.is_active]
@@ -567,10 +563,10 @@ def analytics_decisions():
 
     # Decision Quality Matrix
     # Good Process = Research-backed, Bad Process = No research
-    good_process_good_outcome = sum(1 for p in research_positions if returns[p.company_id].is_gain)
-    good_process_bad_outcome = len(research_positions) - good_process_good_outcome
-    bad_process_good_outcome = sum(1 for p in non_research_positions if returns[p.company_id].is_gain)
-    bad_process_bad_outcome = len(non_research_positions) - bad_process_good_outcome
+    good_process_good_outcome = sum(1 for t in comparison.research.trades if t.is_gain)
+    good_process_bad_outcome = comparison.research.count - good_process_good_outcome
+    bad_process_good_outcome = sum(1 for t in comparison.none.trades if t.is_gain)
+    bad_process_bad_outcome = comparison.none.count - bad_process_good_outcome
 
     # Recent decisions
     recent_decisions = Transaction.query.filter_by(
@@ -643,8 +639,8 @@ def analytics_decisions():
                           return_url=return_url,
                           context_label=context_label,
                           research_edge=comparison.edge,
-                          research_backed_count=len(research_positions),
-                          non_research_count=len(non_research_positions),
+                          research_backed_count=comparison.research.count,
+                          non_research_count=comparison.none.count,
                           research_avg_return=research_avg_return,
                           research_win_rate=research_win_rate,
                           research_avg_hold=research_avg_hold,
@@ -892,17 +888,15 @@ def intelligence_hub():
     }
     
     # Decisions Card
-    received_only = received_only_company_ids(current_user.id)
-    comparison = compare_research(
-        [p for p in all_positions if p.company_id not in received_only],
-        research_backed_company_ids(current_user.id), returns)
+    trades = decision_trades(current_user.id)
+    comparison = compare_research(trades)
 
     decisions = {
-        'has_data': comparison.research.count > 0 or comparison.no_research.count > 0,
+        'has_data': comparison.research.count > 0 or comparison.none.count > 0,
         'research_count': comparison.research.count,
         'research_return': comparison.research.avg_return,
-        'no_research_count': comparison.no_research.count,
-        'no_research_return': comparison.no_research.avg_return,
+        'no_research_count': comparison.none.count,
+        'no_research_return': comparison.none.avg_return,
         'edge': comparison.edge
     }
 

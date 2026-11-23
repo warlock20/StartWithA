@@ -26,14 +26,14 @@
                 <div class="portfolio-metric-value {% if research_edge >= 0 %}gain{% else %}loss{% endif %}">
                     {% if research_edge >= 0 %}+{% endif %}{{ "%.1f"|format(research_edge) }}pp
                 </div>
-                <div class="portfolio-metric-subtext">vs non-research</div>
+                <div class="portfolio-metric-subtext">vs no research</div>
                 {% endif %}
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon blue"><i class="bi bi-shield-check"></i></div>
                 <div class="portfolio-metric-label">Process Win Rate</div>
                 <div class="portfolio-metric-value">{{ "%.0f"|format(process_win_rate) }}%</div>
-                <div class="portfolio-metric-subtext">{{ good_process_good_outcome }} of {{ good_process_good_outcome + good_process_bad_outcome }} researched</div>
+                <div class="portfolio-metric-subtext">{{ good_process_good_outcome }} of {{ good_process_good_outcome + good_process_bad_outcome }} researched trades</div>
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon {% if confidence_calibrated %}green{% else %}warning{% endif %}"><i class="bi bi-speedometer2"></i></div>
@@ -79,7 +79,7 @@
                             <div class="di-comparison-return {% if research_avg_return >= 0 %}positive{% else %}negative{% endif %}">
                                 {% if research_avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(research_avg_return) }}%
                             </div>
-                            <div class="di-comparison-meta">avg return &middot; {{ research_backed_count }} positions</div>
+                            <div class="di-comparison-meta">avg return &middot; {{ research_backed_count }} trades</div>
                             <div class="di-comparison-stats">
                                 <div>
                                     <div class="di-comparison-stat-value">{{ "%.0f"|format(research_win_rate) }}%</div>
@@ -105,7 +105,7 @@
                             <div class="di-comparison-return {% if non_research_avg_return >= 0 %}positive{% else %}negative{% endif %}">
                                 {% if non_research_avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(non_research_avg_return) }}%
                             </div>
-                            <div class="di-comparison-meta">avg return &middot; {{ non_research_count }} positions</div>
+                            <div class="di-comparison-meta">avg return &middot; {{ non_research_count }} trades</div>
                             <div class="di-comparison-stats">
                                 <div>
                                     <div class="di-comparison-stat-value">{{ "%.0f"|format(non_research_win_rate) }}%</div>
@@ -125,7 +125,7 @@
                             Key Insight
                         </div>
                         <div>
-                            Research-backed positions {% if research_edge >= 0 %}outperform{% else %}underperform{% endif %} impulse buys by
+                            Research-backed trades {% if research_edge >= 0 %}outperform{% else %}underperform{% endif %} impulse buys by
                             <span class="di-highlight">{{ "%.1f"|format(research_edge|abs) }} percentage points</span>
                             {% if research_win_rate > non_research_win_rate and non_research_win_rate > 0 %}
                             with a {{ "%.1f"|format(research_win_rate / non_research_win_rate) }}&times; better win rate.
@@ -431,7 +431,7 @@
                             <div>
                                 <div class="di-pattern-title">Research-Backed Decisions</div>
                                 <div class="di-pattern-desc">Positions with proper research analysis significantly outperform</div>
-                                <div class="di-pattern-stat">{{ research_backed_count }} positions tracked</div>
+                                <div class="di-pattern-stat">{{ research_backed_count }} trades tracked</div>
                             </div>
                         </div>
                         <div class="di-pattern-item">
@@ -469,7 +469,7 @@
                         <div>
                             <div class="di-pattern-title">Impulsive Entry Without Research</div>
                             <div class="di-pattern-desc">Buying without proper research leads to lower win rates and returns</div>
-                            <div class="di-pattern-stat">{{ non_research_count }} positions tracked</div>
+                            <div class="di-pattern-stat">{{ non_research_count }} trades tracked</div>
                         </div>
                     </div>
                     <div class="di-pattern-item">

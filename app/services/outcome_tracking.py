@@ -264,22 +264,6 @@ def received_only_company_ids(user_id: int) -> Set[int]:
     return every - decided
 
 
-def research_backed_company_ids(user_id: int) -> Set[int]:
-    """Company ids whose latest decision outcome has a research project (#417 timing rule).
-
-    Received outcomes are not decisions, so they never count as the latest.
-    """
-    latest = (
-        decision_outcomes(user_id)
-        .with_entities(ResearchOutcome.company_id, ResearchOutcome.project_id)
-        .distinct(ResearchOutcome.company_id)
-        .order_by(ResearchOutcome.company_id, ResearchOutcome.decision_date.desc().nullslast(),
-                  ResearchOutcome.id.desc())
-        .all()
-    )
-    return {company_id for company_id, project_id in latest if project_id is not None}
-
-
 def trip_buy_journal(trip: RoundTrip) -> Optional[DecisionJournal]:
     """The BUY journal of the transaction that opened the trade, or None."""
     journal = trip.opening_transaction.decision_journal

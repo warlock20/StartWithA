@@ -184,7 +184,7 @@
                 <div class="hub-intel-card-highlight">
                     {% if decisions.edge is none %}
                     <i class="bi bi-info-circle"></i>
-                    <span>{% if decisions.no_research_count == 0 %}No unresearched positions to compare{% else %}No research-backed positions to compare{% endif %}</span>
+                    <span>{% if decisions.no_research_count == 0 %}No unresearched trades to compare{% else %}No research-backed trades to compare{% endif %}</span>
                     {% elif decisions.edge >= 0 %}
                     <i class="bi bi-check-circle text-success"></i>
                     <span>Research adds +{{ "%.1f"|format(decisions.edge) }}% edge</span>
@@ -196,7 +196,7 @@
                 {% else %}
                 <div class="hub-intel-card-empty">
                     <i class="bi bi-clipboard-data"></i>
-                    <p>No positions with a return yet</p>
+                    <p>No trades with a return yet</p>
                 </div>
                 {% endif %}
             </div>
