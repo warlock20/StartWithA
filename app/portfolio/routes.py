@@ -64,7 +64,8 @@ from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_quality import compare_research
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
-from app.services.outcome_tracking import received_only_company_ids, research_backed_company_ids
+from app.services.outcome_tracking import (
+    portfolio_outcomes, received_only_company_ids, research_backed_company_ids)
 from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
@@ -698,8 +699,7 @@ def learning_insights():
     Shows personalized patterns from trading history
     """
     # Get outcomes for stats
-    outcomes = ResearchOutcome.query.filter(
-        ResearchOutcome.user_id == current_user.id,
+    outcomes = portfolio_outcomes(current_user.id).filter(
         ResearchOutcome.realized_return_pct.isnot(None)
     ).all()
     
@@ -807,8 +807,7 @@ def intelligence_hub():
     closed_count = summary['wins'] + summary['losses']
 
     # Research outcomes still feed the learning-insights gate
-    outcomes = ResearchOutcome.query.filter(
-        ResearchOutcome.user_id == current_user.id,
+    outcomes = portfolio_outcomes(current_user.id).filter(
         ResearchOutcome.realized_return_pct.isnot(None)
     ).all()
     

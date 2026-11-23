@@ -152,8 +152,7 @@ class OutcomeTracker:
         Returns:
             Dict with stats like win_rate, avg_return, etc.
         """
-        outcomes = ResearchOutcome.query.filter(
-            ResearchOutcome.user_id == user_id,
+        outcomes = portfolio_outcomes(user_id).filter(
             ResearchOutcome.realized_return_pct.isnot(None)
         ).all()
         
@@ -167,10 +166,11 @@ class OutcomeTracker:
         
         wins = [o for o in outcomes if o.realized_return_pct > 0]
         
-        # Calculate research correlation
-        researched = [o for o in outcomes if o.research_quality_score is not None and o.research_quality_score > 0]
-        unreasearched = [o for o in outcomes if o.research_quality_score is None or o.research_quality_score <= 0]
-        scored = [o.research_quality_score for o in outcomes if o.research_quality_score is not None]
+        # Research correlation is about decisions: received holdings (#451) have none
+        decided = [o for o in outcomes if not o.is_received]
+        researched = [o for o in decided if o.research_quality_score is not None and o.research_quality_score > 0]
+        unreasearched = [o for o in decided if o.research_quality_score is None or o.research_quality_score <= 0]
+        scored = [o.research_quality_score for o in decided if o.research_quality_score is not None]
         
         research_advantage = None
         if researched and unreasearched:

@@ -28,6 +28,7 @@ from app.services import findings
 from app.services.checkpoint_analysis_service import CheckpointAnalysisService
 from app.services.exit_watch import episodes as exit_episodes
 from app.services.exit_watch import view as exit_view
+from app.services.outcome_tracking import portfolio_outcomes
 from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_intelligence import PortfolioIntelligenceService, get_learning_insights
 from app.services.position_coverage import (
@@ -414,8 +415,7 @@ class PortfolioAlertsService:
         return alerts
 
     def _insight_alerts(self) -> list:
-        outcome_count = ResearchOutcome.query.filter(
-            ResearchOutcome.user_id == self.user_id,
+        outcome_count = portfolio_outcomes(self.user_id).filter(
             ResearchOutcome.realized_return_pct.isnot(None),
         ).count()
         if outcome_count < MIN_TRADES_FOR_INSIGHTS:

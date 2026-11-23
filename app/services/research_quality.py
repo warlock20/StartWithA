@@ -43,6 +43,7 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 import logging
 
+from app.models.ai_intelligence import ResearchOutcome
 from app.services.config_service import get_config
 from app.utils.grading import score_to_grade
 
@@ -472,9 +473,9 @@ class ResearchQualityCalculator:
         if not user_id:
             return 70.0  # Default average
         
-        from app.models.ai_intelligence import ResearchOutcome
-        
-        outcomes = ResearchOutcome.query.filter_by(user_id=user_id).all()
+        # Same rule as outcome_tracking.decision_outcomes (not imported: it imports this module)
+        outcomes = ResearchOutcome.query.filter_by(user_id=user_id).filter(
+            ResearchOutcome.is_received.is_(False)).all()
         if not outcomes:
             return 70.0
         

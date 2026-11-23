@@ -49,10 +49,10 @@ from datetime import datetime
 from app.models import (
     DecisionJournal, Company, PortfolioPosition
 )
-from app.models.ai_intelligence import ResearchOutcome
 # Use the unified AI embedding service
 from app.services.ai.embedding_service import get_embedding_service, embed as get_embedding
 from app.services.config_service import get_config
+from app.services.outcome_tracking import decision_outcomes
 from app.services.position_returns import position_return
 
 logger = logging.getLogger(__name__)
@@ -504,7 +504,7 @@ class SimilarMistakesService:
         
         # Check if there's a ResearchOutcome record
         try:
-            outcome = ResearchOutcome.query.filter_by(
+            outcome = decision_outcomes(self.user_id).filter_by(
                 decision_journal_id=decision.id
             ).first()
             
