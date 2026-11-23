@@ -43,6 +43,7 @@ import logging
 from sqlalchemy.orm import joinedload
 
 from app import cache
+from app.constants import HIGH_QUALITY_RESEARCH_SCORE
 from app.utils.time_utils import days_between, now_utc
 from app.utils.financial_utils import calculate_cagr
 from app.utils.grading import score_to_grade
@@ -50,6 +51,7 @@ from app.utils.grading import score_to_grade
 from app.models.ai_intelligence import ResearchOutcome
 from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company, ThesisEvolution
 from app.services.decision_journals import opening_buy_decision
+from app.services.decision_quality import classify_research
 from app.services.outcome_tracking import decision_outcomes, portfolio_outcomes
 # Below MIN_DAYS_FOR_ANNUALIZED_COMPARISON days held, total return is compared with
 # the return the expected CAGR implies by now
@@ -234,7 +236,6 @@ class PortfolioIntelligenceService:
     # Thresholds (will be configurable later)
     MIN_OUTCOMES_FOR_ANALYSIS = 3
     MIN_OUTCOMES_PER_GRADE = 1
-    HIGH_QUALITY_THRESHOLD = 70  # Score >= 70 is "researched"
     
     def __init__(self, user_id: int):
         self.user_id = user_id
@@ -292,7 +293,7 @@ class PortfolioIntelligenceService:
                 'won': return_pct > 0
             })
 
-            if score >= self.HIGH_QUALITY_THRESHOLD:
+            if score >= HIGH_QUALITY_RESEARCH_SCORE:
                 researched_returns.append(return_pct)
             else:
                 non_researched_returns.append(return_pct)
@@ -654,8 +655,8 @@ class PortfolioIntelligenceService:
         """Analyze research quality patterns"""
         insights = []
         
-        high_quality = [o for o in outcomes if o.research_quality_score is not None and o.research_quality_score >= 70]
-        low_quality = [o for o in outcomes if o.research_quality_score is None or o.research_quality_score < 70]
+        high_quality = [o for o in outcomes if classify_research(o) == 'high']
+        low_quality = [o for o in outcomes if classify_research(o) == 'low']
         
         if high_quality and low_quality:
             hq_avg = sum(float(o.realized_return_pct) for o in high_quality) / len(high_quality)
@@ -665,7 +666,7 @@ class PortfolioIntelligenceService:
                 insights.append(LearningInsight(
                     category='edge',
                     title='Research Quality Is Your Edge',
-                    description=f'High-quality research (score 70+) delivers {hq_avg - lq_avg:.1f}% better returns than low-quality research.',
+                    description=f'High-quality research (score {HIGH_QUALITY_RESEARCH_SCORE}+) delivers {hq_avg - lq_avg:.1f}% better returns than low-quality research.',
                     supporting_data=f'High quality: {hq_avg:.1f}% avg, Low quality: {lq_avg:.1f}% avg',
                     importance='high'
                 ))

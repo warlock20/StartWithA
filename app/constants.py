@@ -53,6 +53,12 @@ GRADE_D_THRESHOLD = 60
 
 # Anything < 60 is 'F'
 
+HIGH_QUALITY_RESEARCH_SCORE = 70
+"""Minimum research quality score for 'high' research; equal to GRADE_C_THRESHOLD (grades A-C)"""
+
+MIN_TRADES_FOR_RESEARCH_SUMMARY = 10
+"""Fewer trades than this on the research quality summary are shown as a small sample"""
+
 # ============================================================================
 # RECENT ITEMS LIMITS
 # ============================================================================

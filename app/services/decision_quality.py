@@ -38,7 +38,24 @@ positions with no return are left out of both groups.
 from dataclasses import dataclass
 from typing import Iterable, List, Mapping, Optional, Set
 
+from app.constants import HIGH_QUALITY_RESEARCH_SCORE
 from app.services.position_returns import PositionReturn
+
+
+def classify_research(outcome) -> str:
+    """
+    The research class of a trade: 'none', 'low' or 'high'.
+
+    No project is 'none'. A project with no score yet (researched, ungraded) or a
+    score below HIGH_QUALITY_RESEARCH_SCORE is 'low'. Reads the values stored on the
+    outcome at its last sync, not the project's score now.
+    """
+    if outcome.project_id is None:
+        return 'none'
+    score = outcome.research_quality_score
+    if score is None or score < HIGH_QUALITY_RESEARCH_SCORE:
+        return 'low'
+    return 'high'
 
 
 @dataclass
