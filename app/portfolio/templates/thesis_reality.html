@@ -19,25 +19,17 @@
                     <i class="bi bi-arrow-left"></i>
                     Back to Intelligence Hub
                 </a>
-                <a href="{{ url_for('portfolio.checkpoint_reminders') }}" class="action-btn">
-                    <i class="bi bi-calendar-check"></i>
-                    Checkpoints
-                </a>
-                <a href="{{ url_for('portfolio.analytics_decisions') }}" class="action-btn primary">
-                    <i class="bi bi-brain"></i>
-                    Decision Intelligence
-                </a>
             </div>
         </header>
         {% if positions %}
         <div class="dashboard-metrics-strip">
             <div class="portfolio-metric">
-                <div class="portfolio-metric-icon red"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div class="portfolio-metric-icon danger"><i class="bi bi-exclamation-triangle-fill"></i></div>
                 <div class="portfolio-metric-label">Needs Attention</div>
                 <div class="portfolio-metric-value {% if status_counts.needs_attention > 0 %}loss{% endif %}">{{ status_counts.needs_attention }}</div>
             </div>
             <div class="portfolio-metric">
-                <div class="portfolio-metric-icon amber"><i class="bi bi-dash-circle-fill"></i></div>
+                <div class="portfolio-metric-icon warning"><i class="bi bi-dash-circle-fill"></i></div>
                 <div class="portfolio-metric-label">Behind Plan</div>
                 <div class="portfolio-metric-value {% if status_counts.behind > 0 %}loss{% endif %}">{{ status_counts.behind }}</div>
             </div>

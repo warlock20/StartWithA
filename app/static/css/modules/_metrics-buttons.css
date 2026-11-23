@@ -219,6 +219,16 @@
     color: var(--gray-600);
 }
 
+.portfolio-metric-icon.warning {
+    background: var(--warning-50);
+    color: var(--warning-600);
+}
+
+.portfolio-metric-icon.danger {
+    background: var(--danger-50);
+    color: var(--danger-600);
+}
+
 .portfolio-metric-label {
     font-size: var(--font-size-xs);
     font-weight: 500;

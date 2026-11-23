@@ -9,74 +9,6 @@
 /* Metric Cards */
 
 /* =============================================================================
-   KPI SUMMARY STRIP — Decision Intelligence Dashboard
-   ============================================================================= */
-
-.di-kpi-strip {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 24px;
-}
-
-.di-kpi-card {
-    background: #fff;
-    border-radius: 10px;
-    border: 1px solid var(--gray-200);
-    padding: 16px 18px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-}
-
-.di-kpi-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-}
-
-.di-kpi-label {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--primary-400);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.di-kpi-value {
-    font-size: 22px;
-    font-weight: 700;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-    margin-top: 2px;
-}
-
-.di-kpi-desc {
-    font-size: 11px;
-    color: var(--primary-400);
-    margin-top: 2px;
-}
-
-@media (max-width: 1024px) {
-    .di-kpi-strip {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 576px) {
-    .di-kpi-strip {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* =============================================================================
    DASHBOARD GRID LAYOUT — Decision Intelligence
    ============================================================================= */
 
@@ -777,10 +709,3 @@
 /* Insight Badge */
 
 /* Stat Highlight */
-
-/* 10–11px labels are hard to read on a phone; 12px is the floor there. */
-@media (max-width: 768px) {
-    .di-kpi-label {
-        font-size: 0.75rem;
-    }
-}
