@@ -31,7 +31,9 @@ from app.models import (
 )
 from app.services.currency_service import CurrencyService
 from app.services.cash_service import CashService
-from app.services.decision_journals import inherited_thesis, opening_decision_for_buy, snapshot_exit_plan
+from app.services.decision_journals import (
+    inherited_thesis, opening_decision_for_buy, record_rebuy_thesis, snapshot_exit_plan,
+)
 from app.services.expected_return import ExpectedReturn, ExpectedReturnError, expected_return_from_form
 from app.services.outcome_tracking import safe_sync_outcomes
 from app.services.findings import MUST_EXIT, add_finding, has_exit_plan
@@ -677,6 +679,10 @@ class TransactionService:
                         non_research_source=form_data.get('non_research_source', '').strip()
                     )
 
+                    # A re-buy after a full sell starts a new thesis version
+                    rebuy_version = record_rebuy_thesis(
+                        transaction, investment_thesis, form_data.get('confidence_score', type=int), expected)
+
                     # Create ThesisEvolution Version 0 for non-research purchases
                     # Check if version 0 already exists for this company
                     existing_v0 = ThesisEvolution.query.filter_by(
@@ -685,7 +691,7 @@ class TransactionService:
                         version=0
                     ).first()
 
-                    if not existing_v0 and investment_thesis:
+                    if rebuy_version is None and not existing_v0 and investment_thesis:
                         thesis_evolution = ThesisEvolution(
                             user_id=user_id,
                             company_id=company_id,
@@ -720,6 +726,9 @@ class TransactionService:
                             linked_research_id=research_project.id,
                             thesis_depth='comprehensive'
                         )
+                        # A re-buy after a full sell starts a new thesis version
+                        record_rebuy_thesis(transaction, research_project.investment_thesis,
+                                            form_data.get('confidence_score', type=int), expected)
                     else:
                         return None
 

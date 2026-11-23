@@ -39,16 +39,19 @@ from typing import Dict, List, Optional
 from app import db
 from app.models import DecisionJournal, ThesisEvolution, Transaction
 from app.models.portfolio import RoundTrip, get_round_trips
+from app.services.expected_return import ExpectedReturn
 from app.services.findings import active_must_exits
 from app.services.outcome_tracking import (
     IMPORTED_BUY_THESIS, opening_decision_for_trip, sync_outcomes_for_company,
 )
-from app.utils.time_utils import datetime, ensure_timezone_aware, now_utc
+from app.utils.blocknote_utils import blocknote_to_text
+from app.utils.time_utils import datetime, ensure_timezone_aware, now_utc, timezone
 
 logger = logging.getLogger(__name__)
 
 EXIT_PLAN_SNAPSHOT_VERSION = 1
 _TS_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+REBUY_THESIS_TRIGGER = 'Re-buy after full sell'
 
 
 @dataclass
@@ -124,13 +127,71 @@ def current_thesis(user_id: int, company_id: int) -> Optional[ThesisEvolution]:
     ).order_by(ThesisEvolution.version.desc(), ThesisEvolution.id.desc()).first()
 
 
+def _thesis_words(thesis: Optional[str]) -> str:
+    """A thesis as plain words, so BlockNote JSON and spacing don't make two theses differ."""
+    return ' '.join(blocknote_to_text(thesis or '').split())
+
+
+def record_rebuy_thesis(transaction: Transaction, thesis: Optional[str], conviction: Optional[int],
+                        expected: ExpectedReturn) -> Optional[ThesisEvolution]:
+    """
+    Record a re-buy's thesis as the new current version (#450) and return it, or None.
+
+    A re-buy is a new decision even when the reason is the same (a price drop, say), so
+    every one gets a version; its summary says whether the thesis changed. Only a
+    (flushed) BUY that opens the latest holding period after a full sell counts, so a
+    backdated buy that lands in an earlier period writes nothing, and neither does an
+    empty thesis. The version carries the buy's expected return, so Thesis vs Reality
+    measures against this period's target. Adds, never flushes or commits.
+    """
+    if not _thesis_words(thesis):
+        return None
+    trips = get_round_trips(transaction.company_id, transaction.user_id)
+    if len(trips) < 2 or trips[-1].opening_transaction.id != transaction.id:
+        return None
+    user_id, company_id = transaction.user_id, transaction.company_id
+    current = current_thesis(user_id, company_id)
+    unchanged = current is not None and _thesis_words(current.thesis) == _thesis_words(thesis)
+
+    max_version = db.session.query(db.func.max(ThesisEvolution.version)).filter_by(
+        user_id=user_id, company_id=company_id).scalar()
+    ThesisEvolution.query.filter_by(
+        user_id=user_id, company_id=company_id, is_current=True,
+    ).update({'is_current': False})
+
+    key_metrics = {}
+    if expected.cagr is not None:
+        key_metrics['expected_cagr'] = expected.cagr
+        if expected.timeframe_months:
+            key_metrics['expected_timeframe'] = expected.timeframe_months
+
+    version = ThesisEvolution(
+        user_id=user_id,
+        company_id=company_id,
+        version=0 if max_version is None else max_version + 1,
+        thesis=thesis,
+        change_summary=('Re-bought after a full sell; thesis unchanged' if unchanged
+                        else 'New thesis for a re-buy after a full sell'),
+        change_trigger=REBUY_THESIS_TRIGGER,
+        conviction_level=conviction,
+        key_metrics=key_metrics or None,
+        is_current=True,
+        created_at=datetime.combine(transaction.date, datetime.min.time(), tzinfo=timezone.utc),
+    )
+    db.session.add(version)
+    return version
+
+
 def inherited_thesis(user_id: int, company_id: int, opening: Optional[DecisionJournal]) -> str:
     """
-    The thesis a top-up copies: the current thesis version if it was written on or after
-    the opening decision's date (or there is no opening decision), else the opening
-    decision's own thesis. A re-buy writes no new version, so an older current version
-    belongs to an earlier holding period. An empty choice falls back to the other one.
-    An imported opening decision has no thesis of its own: its text is the importer's label.
+    The thesis a top-up copies: the current thesis version, or the opening decision's own
+    thesis when that version is empty. A re-buy with a new thesis writes a new version
+    (record_rebuy_thesis), so the current version is this holding period's.
+
+    Fallback for re-buys from before #450, which wrote no version: a current version
+    written before the opening decision's date belongs to an earlier holding period, so
+    the opening decision's thesis wins then. An imported opening decision has no thesis
+    of its own: its text is the importer's label.
     """
     version = current_thesis(user_id, company_id)
     version_text = version.thesis if version is not None else None
