@@ -146,7 +146,6 @@ css_portfolio = Bundle(
     'css/intelligence-hub.css',
     'css/thesis-reality.css',
     'css/checkpoints.css',
-    'css/learning-insights.css',
 
     filters='rcssmin',
     output='css/gen/portfolio.%(version)s.css',

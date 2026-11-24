@@ -30,7 +30,8 @@ from app.services.exit_watch import episodes as exit_episodes
 from app.services.exit_watch import view as exit_view
 from app.services.outcome_tracking import portfolio_outcomes
 from app.services.intelligence_engine import get_portfolio_warnings
-from app.services.portfolio_intelligence import PortfolioIntelligenceService, get_learning_insights
+from app.services.decision_intelligence import get_learning_insights
+from app.services.portfolio_intelligence import PortfolioIntelligenceService
 from app.services.position_coverage import (
     GAP_SEVERITY, GAP_TYPES, PositionCoverageService, exit_plan_stale_days, rule_freshness)
 from app.utils.time_utils import date
@@ -425,7 +426,7 @@ class PortfolioAlertsService:
             return []
         return [Alert('learning_insight', 'info', 'lightbulb-fill',
                       f'New insight: "{high[0].title}"', 'View',
-                      'portfolio.learning_insights')]
+                      'portfolio.analytics_decisions', {'tab': 'insights'})]
 
     def _warning_alerts(self) -> list:
         alerts = []

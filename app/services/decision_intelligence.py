@@ -29,6 +29,7 @@ from typing import Dict, List, Optional, Tuple
 from flask import url_for
 from sqlalchemy.orm import joinedload
 
+from app import cache
 from app.constants import (
     HIGH_QUALITY_RESEARCH_SCORE, MIN_TRADES_FOR_INSIGHTS, RECENT_DECISIONS_LIMIT,
 )
@@ -480,3 +481,9 @@ class DecisionIntelligenceService:
         if name not in handlers:
             raise ValueError(f'Unknown tab: {name!r}')
         return handlers[name]()
+
+
+@cache.memoize(timeout=1800)  # 30 min: trade history doesn't change often
+def get_learning_insights(user_id: int) -> List[LearningInsight]:
+    """The cached insight list (no request context needed), for the dashboard alert."""
+    return DecisionIntelligenceService(user_id).learning_insights()

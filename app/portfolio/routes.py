@@ -44,10 +44,7 @@ from app.constants import (
     MIN_TRADES_FOR_INSIGHTS,
     MAX_DYNAMIC_FORM_FIELDS,
 )
-from app.services.portfolio_intelligence import (
-    get_thesis_reality_check, get_return_target,
-    get_learning_insights, outcome_hold_days
-    )
+from app.services.portfolio_intelligence import get_thesis_reality_check, get_return_target
 from app.services.exit_watch import episodes as exit_episodes
 from app.services.exit_watch import view as exit_watch_view
 from app.services.portfolio_alerts import PortfolioAlertsService
@@ -55,7 +52,7 @@ from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_intelligence import (
-    TAB_LABELS, DecisionIntelligenceService, normalise_tab,
+    TAB_LABELS, DecisionIntelligenceService, get_learning_insights, normalise_tab,
 )
 from app.services.decision_quality import compare_research, grade_table
 from app.services.decision_trades import decision_trades
@@ -585,83 +582,9 @@ def thesis_reality():
 @portfolio_bp.route('/learning-insights')
 @login_required
 def learning_insights():
-    """
-    Learning Insights Dashboard
-    Shows personalized patterns from trading history
-    """
-    # Get outcomes for stats
-    outcomes = portfolio_outcomes(current_user.id).filter(
-        ResearchOutcome.realized_return_pct.isnot(None)
-    ).all()
-    
-    current_trades = len(outcomes)
-    has_sufficient_data = current_trades >= MIN_TRADES_FOR_INSIGHTS
-    
-    # Initialize default values
-    insights_by_category = {
-        'edge': [],
-        'winning_pattern': [],
-        'warning': [],
-        'improvement': []
-    }
-    stats = {
-        'total_trades': 0,
-        'win_rate': 0,
-        'avg_return': 0,
-        'avg_hold_days': 0
-    }
-    has_quality_edge = False
-    has_holding_insight = False
-    has_sector_insight = False
-    
-    if has_sufficient_data:
-        # Get insights
-        insights = get_learning_insights(current_user.id)
-        
-        # Group insights by category
-        for insight in insights:
-            category = insight.category
-            if category in insights_by_category:
-                insights_by_category[category].append(insight)
-            else:
-                insights_by_category['improvement'].append(insight)
-        
-        # Calculate stats
-        returns = [float(o.realized_return_pct) for o in outcomes]
-        wins = [r for r in returns if r > 0]
-        
-        hold_days = []
-        for o in outcomes:
-            days = outcome_hold_days(o)
-            if days is not None:
-                hold_days.append(days)
-        
-        stats = {
-            'total_trades': len(outcomes),
-            'win_rate': (len(wins) / len(returns) * 100) if returns else 0,
-            'avg_return': sum(returns) / len(returns) if returns else 0,
-            'avg_hold_days': sum(hold_days) // len(hold_days) if hold_days else 0
-        }
-        
-        # Check for specific insight types to show relevant actions
-        for insight in insights:
-            if 'research' in insight.title.lower() or 'quality' in insight.title.lower():
-                has_quality_edge = True
-            if 'hold' in insight.title.lower() or 'patience' in insight.title.lower():
-                has_holding_insight = True
-            if 'sector' in insight.title.lower():
-                has_sector_insight = True
-    
-    return render_template('learning_insights.html',
-                          has_sufficient_data=has_sufficient_data,
-                          min_trades_needed=MIN_TRADES_FOR_INSIGHTS,
-                          current_trades=current_trades,
-                          insights_by_category=insights_by_category,
-                          stats=stats,
-                          has_quality_edge=has_quality_edge,
-                          has_holding_insight=has_holding_insight,
-                          has_sector_insight=has_sector_insight)
-    
+    """Retired page: its content is the Your insights tab of Decision Intelligence (#442)."""
+    return redirect(url_for('portfolio.analytics_decisions', tab='insights'), code=301)
+
 
 @portfolio_bp.route('/intelligence')
 @login_required

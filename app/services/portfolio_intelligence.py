@@ -30,7 +30,6 @@ Usage:
     
     service = PortfolioIntelligenceService(user_id=123)
     checkpoints = service.get_upcoming_checkpoints()
-    insights = service.get_learning_insights()
 """
 
 from typing import Dict, Any, Optional, List
@@ -42,15 +41,11 @@ import logging
 from sqlalchemy.orm import joinedload
 
 from app import cache
-from app.constants import HIGH_QUALITY_RESEARCH_SCORE
 from app.utils.time_utils import days_between, now_utc
 from app.utils.financial_utils import calculate_cagr
 
-from app.models.ai_intelligence import ResearchOutcome
 from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company, ThesisEvolution
 from app.services.decision_journals import opening_buy_decision
-from app.services.decision_quality import classify_research
-from app.services.outcome_tracking import portfolio_outcomes
 # Below MIN_DAYS_FOR_ANNUALIZED_COMPARISON days held, total return is compared with
 # the return the expected CAGR implies by now
 from app.services.position_returns import MIN_DAYS_FOR_ANNUALIZED_COMPARISON, position_returns
@@ -59,8 +54,6 @@ logger = logging.getLogger(__name__)
 
 # Thresholds for outcome analysis (days)
 SHORT_HOLD_THRESHOLD_DAYS = 90
-# Minimum data points needed for confidence-return correlation
-MIN_CONFIDENCE_RETURN_SAMPLES = 3
 DAYS_PER_YEAR = 365
 
 
@@ -424,201 +417,6 @@ class PortfolioIntelligenceService:
             return 'behind'  # Positive but below expectations
         else:
             return 'needs_attention'  # Losing money
-    
-    # =========================================================================
-    # STEP 4: Learning Insights
-    # =========================================================================
-    
-    def get_learning_insights(self) -> List[LearningInsight]:
-        """
-        Generate personalized learning insights from user's trading data.
-
-        Returns:
-            List of LearningInsight sorted by importance
-        """
-        insights = []
-
-        # Get all outcomes with eager-loaded company+sector (avoids N+1 in sector analysis)
-        outcomes = portfolio_outcomes(self.user_id).filter(
-            ResearchOutcome.realized_return_pct.isnot(None)
-        ).options(
-            joinedload(ResearchOutcome.company).joinedload(Company.sector)
-        ).all()
-
-        if len(outcomes) < 3:
-            insights.append(LearningInsight(
-                category='improvement',
-                title='Build Your Track Record',
-                description=f'Complete more trades to unlock personalized insights. You have {len(outcomes)} completed trades, need at least 3.',
-                supporting_data=None,
-                importance='medium'
-            ))
-            return insights
-
-        # Analyze patterns
-        # Quality and confidence are about research decisions: received holdings have none
-        decided = [o for o in outcomes if not o.is_received]
-        insights.extend(self._analyze_quality_patterns(decided))
-        insights.extend(self._analyze_holding_patterns(outcomes))
-        insights.extend(self._analyze_confidence_calibration(decided))
-        insights.extend(self._analyze_sector_patterns(outcomes))
-        
-        # Sort by importance
-        importance_order = {'high': 0, 'medium': 1, 'low': 2}
-        insights.sort(key=lambda x: importance_order.get(x.importance, 99))
-        
-        return insights[:6]  # Return top 6 insights
-    
-    def _analyze_quality_patterns(self, outcomes) -> List[LearningInsight]:
-        """Analyze research quality patterns"""
-        insights = []
-        
-        high_quality = [o for o in outcomes if classify_research(o) == 'high']
-        low_quality = [o for o in outcomes if classify_research(o) == 'low']
-        
-        if high_quality and low_quality:
-            hq_avg = sum(float(o.realized_return_pct) for o in high_quality) / len(high_quality)
-            lq_avg = sum(float(o.realized_return_pct) for o in low_quality) / len(low_quality)
-            
-            if hq_avg > lq_avg + 5:
-                insights.append(LearningInsight(
-                    category='edge',
-                    title='Research Quality Is Your Edge',
-                    description=f'High-quality research (score {HIGH_QUALITY_RESEARCH_SCORE}+) delivers {hq_avg - lq_avg:.1f}% better returns than low-quality research.',
-                    supporting_data=f'High quality: {hq_avg:.1f}% avg, Low quality: {lq_avg:.1f}% avg',
-                    importance='high'
-                ))
-            elif lq_avg > hq_avg:
-                insights.append(LearningInsight(
-                    category='warning',
-                    title='Research Quality Not Translating',
-                    description='Your high-quality research isn\'t outperforming. Consider if your research process needs adjustment.',
-                    supporting_data=f'High quality: {hq_avg:.1f}% avg, Low quality: {lq_avg:.1f}% avg',
-                    importance='high'
-                ))
-        
-        return insights
-    
-    def _analyze_holding_patterns(self, outcomes) -> List[LearningInsight]:
-        """Analyze holding period patterns"""
-        insights = []
-        
-        short_holds = []  # < 90 days
-        long_holds = []   # >= 90 days
-        
-        for o in outcomes:
-            days = outcome_hold_days(o)
-            if days is not None:
-                if days < SHORT_HOLD_THRESHOLD_DAYS:
-                    short_holds.append(float(o.realized_return_pct))
-                else:
-                    long_holds.append(float(o.realized_return_pct))
-        
-        if short_holds and long_holds:
-            short_avg = sum(short_holds) / len(short_holds)
-            long_avg = sum(long_holds) / len(long_holds)
-            
-            if long_avg > short_avg + 5:
-                insights.append(LearningInsight(
-                    category='winning_pattern',
-                    title='Patience Pays Off',
-                    description=f'Positions held 90+ days return {long_avg - short_avg:.1f}% more on average.',
-                    supporting_data=f'Long holds: {long_avg:.1f}% avg ({len(long_holds)} trades), Short holds: {short_avg:.1f}% avg ({len(short_holds)} trades)',
-                    importance='high'
-                ))
-            elif short_avg > long_avg + 5:
-                insights.append(LearningInsight(
-                    category='winning_pattern',
-                    title='Quick Trades Working',
-                    description=f'Your shorter-term trades (<90 days) are outperforming.',
-                    supporting_data=f'Short holds: {short_avg:.1f}% avg, Long holds: {long_avg:.1f}% avg',
-                    importance='medium'
-                ))
-        
-        return insights
-    
-    def _analyze_confidence_calibration(self, outcomes) -> List[LearningInsight]:
-        """Analyze if confidence scores predict outcomes"""
-        insights = []
-        confidence_returns = []
-        for o in outcomes:
-            # confidence_at_entry is None for importer placeholder journals
-            if o.confidence_at_entry:
-                confidence_returns.append({
-                    'confidence': o.confidence_at_entry,
-                    'return': float(o.realized_return_pct)
-                })
-        
-        if len(confidence_returns) >= MIN_CONFIDENCE_RETURN_SAMPLES:
-            high_conf = [cr for cr in confidence_returns if cr['confidence'] >= 8]
-            low_conf = [cr for cr in confidence_returns if cr['confidence'] <= 5]
-            
-            if high_conf and low_conf:
-                hc_avg = sum(cr['return'] for cr in high_conf) / len(high_conf)
-                lc_avg = sum(cr['return'] for cr in low_conf) / len(low_conf)
-                
-                if lc_avg > hc_avg:
-                    insights.append(LearningInsight(
-                        category='warning',
-                        title='Overconfidence Alert',
-                        description='High confidence trades (8-10) are underperforming low confidence trades. Consider if you\'re overconfident in some picks.',
-                        supporting_data=f'High confidence: {hc_avg:.1f}% avg, Low confidence: {lc_avg:.1f}% avg',
-                        importance='high'
-                    ))
-                elif hc_avg > lc_avg + 10:
-                    insights.append(LearningInsight(
-                        category='edge',
-                        title='Well Calibrated Confidence',
-                        description='Your high-confidence picks significantly outperform. You\'re good at knowing when you have an edge.',
-                        supporting_data=f'High confidence: {hc_avg:.1f}% avg, Low confidence: {lc_avg:.1f}% avg',
-                        importance='medium'
-                    ))
-        
-        return insights
-    
-    def _analyze_sector_patterns(self, outcomes) -> List[LearningInsight]:
-        """Analyze sector performance patterns"""
-        insights = []
-        sector_returns = {}
-
-        for o in outcomes:
-            company = o.company  # Already eager-loaded in get_learning_insights
-            if company and company.sector:
-                sector_name = company.sector.display_name  # Use display_name for better readability
-                if sector_name not in sector_returns:
-                    sector_returns[sector_name] = []
-                sector_returns[sector_name].append(float(o.realized_return_pct))
-        
-        if len(sector_returns) >= 2:
-            sector_avgs = {
-                sector: sum(returns) / len(returns)
-                for sector, returns in sector_returns.items()
-                if len(returns) >= 2
-            }
-            
-            if sector_avgs:
-                best_sector = max(sector_avgs, key=sector_avgs.get)
-                worst_sector = min(sector_avgs, key=sector_avgs.get)
-                
-                if sector_avgs[best_sector] > 10:
-                    insights.append(LearningInsight(
-                        category='winning_pattern',
-                        title=f'{best_sector} Is Your Sweet Spot',
-                        description=f'You\'re averaging {sector_avgs[best_sector]:.1f}% returns in {best_sector}.',
-                        supporting_data=f'{len(sector_returns[best_sector])} trades',
-                        importance='medium'
-                    ))
-                
-                if sector_avgs[worst_sector] < -5:
-                    insights.append(LearningInsight(
-                        category='warning',
-                        title=f'Struggling in {worst_sector}',
-                        description=f'Your {worst_sector} trades average {sector_avgs[worst_sector]:.1f}%. Consider avoiding or researching more carefully.',
-                        supporting_data=f'{len(sector_returns[worst_sector])} trades',
-                        importance='medium'
-                    ))
-        
-        return insights
 
 
 # ============================================================
@@ -649,10 +447,3 @@ def get_thesis_reality_check(user_id: int) -> List[ThesisReality]:
     """Get thesis vs reality comparison for active positions"""
     service = PortfolioIntelligenceService(user_id)
     return service.get_thesis_reality_check()
-
-
-@cache.memoize(timeout=1800)  # 30 min — trade history doesn't change frequently
-def get_learning_insights(user_id: int) -> List[LearningInsight]:
-    """Get personalized learning insights"""
-    service = PortfolioIntelligenceService(user_id)
-    return service.get_learning_insights()

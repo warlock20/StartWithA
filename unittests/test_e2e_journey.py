@@ -367,7 +367,7 @@ def _run_journey(client, user_id):
     _open(client, '/journal/knowledge-hub?type=mistake')
     for page in ('/dashboard/', '/portfolio/thesis-reality', '/portfolio/checkpoints',
                  '/portfolio/intelligence', '/portfolio/decision-journal',
-                 '/portfolio/learning-insights', '/analytics/dashboard'):
+                 '/portfolio/analytics/decisions?tab=insights', '/analytics/dashboard'):
         _open(client, page)
 
     # --- 12. Sell out; the outcome closes ---------------------------------
