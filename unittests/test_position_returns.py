@@ -28,6 +28,7 @@ from app.models import DecisionJournal
 from app.models.portfolio import PortfolioPosition, Transaction, update_portfolio_position_for_company
 from app.services.argos.core import ArgosService
 from app.services.intelligence_engine import IntelligenceEngine
+from app.services.outcome_tracking import sync_outcomes_for_company
 from app.services.portfolio_intelligence import PortfolioIntelligenceService
 from app.services.position_returns import position_return
 from app.services.similar_mistakes import SimilarMistakesService
@@ -223,14 +224,21 @@ def test_thesis_reality_counts_dividends(app_context):
     assert result.status == 'on_track'
 
 
-def test_decisions_and_intelligence_pages_use_the_lifetime_return(app_context, _app):
+def test_decisions_and_intelligence_pages_use_the_trade_return(app_context, _app):
     user = _make_user()
+    user.subscription_tier = 'pro'
     company = _make_company(user.id, name='Aumann AG', ticker='AAG.DE')
     _aumann(user, company)
-    db.session.add(DecisionJournal(
+    journal = DecisionJournal(
         user_id=user.id, company_id=company.id, decision_type='BUY',
         decision_date=TODAY - timedelta(days=831), is_portfolio_decision=True,
-        investment_thesis='Thesis', expected_cagr=8, expected_timeframe=36, confidence_score=7))
+        investment_thesis='Thesis', expected_cagr=8, expected_timeframe=36, confidence_score=7)
+    db.session.add(journal)
+    db.session.flush()
+    opening = Transaction.query.filter_by(user_id=user.id, company_id=company.id, type='BUY').one()
+    opening.decision_journal_id = journal.id
+    sync_outcomes_for_company(user.id, company.id)
+    db.session.commit()
     client = _logged_in(_app, user)
 
     decisions = client.get('/portfolio/analytics/decisions')
@@ -238,8 +246,10 @@ def test_decisions_and_intelligence_pages_use_the_lifetime_return(app_context, _
 
     assert decisions.status_code == hub.status_code == 200
     html = decisions.get_data(as_text=True)
-    assert '1 of 1 positions' in html  # 8.5% a year meets the 8% expected
-    assert '+18.9%' in html  # average return of the unresearched group, dividends included
+    # the trade return leaves dividends out: 7.5% over 831 days is 3.2% a year, short of the 8% expected
+    assert '0 of 1 trades' in html
+    # the trade's return if sold now (12.55 on 11.67), leaving dividends out
+    assert '+7.5%' in html
 
 
 def _sold_half_at_four_times(user, company):

@@ -184,7 +184,7 @@
                 <div class="hub-intel-card-highlight">
                     {% if decisions.edge is none %}
                     <i class="bi bi-info-circle"></i>
-                    <span>{% if decisions.no_research_count == 0 %}No unresearched positions to compare{% else %}No research-backed positions to compare{% endif %}</span>
+                    <span>{% if decisions.no_research_count == 0 %}No unresearched trades to compare{% else %}No research-backed trades to compare{% endif %}</span>
                     {% elif decisions.edge >= 0 %}
                     <i class="bi bi-check-circle text-success"></i>
                     <span>Research adds +{{ "%.1f"|format(decisions.edge) }}% edge</span>
@@ -196,7 +196,7 @@
                 {% else %}
                 <div class="hub-intel-card-empty">
                     <i class="bi bi-clipboard-data"></i>
-                    <p>No positions with a return yet</p>
+                    <p>No trades with a return yet</p>
                 </div>
                 {% endif %}
             </div>
@@ -207,47 +207,52 @@
             </div>
         </div>
 
-        <!-- Research Correlation Card -->
+        <!-- Research Quality Card -->
         <div class="hub-intel-card research">
             <div class="hub-intel-card-header">
                 <div class="hub-intel-card-icon">
                     <i class="bi bi-bar-chart-line"></i>
                 </div>
                 <div>
-                    <h3 class="hub-intel-card-title">Research Correlation</h3>
-                    <p class="hub-intel-card-subtitle">Quality score → returns</p>
+                    <h3 class="hub-intel-card-title">Research Quality</h3>
+                    <p class="hub-intel-card-subtitle">Grades A–C vs your other researched trades</p>
                 </div>
             </div>
             <div class="hub-intel-card-body">
-                {% if correlation.has_data %}
+                {% if research_quality_card.has_data %}
+                {% set edge = research_quality_card.quality_edge %}
                 <div class="hub-intel-card-metrics">
                     <div class="hub-intel-metric">
-                        <div class="hub-intel-metric-value {% if correlation.research_advantage >= 0 %}positive{% else %}negative{% endif %}">
-                            {% if correlation.research_advantage >= 0 %}+{% endif %}{{ "%.1f"|format(correlation.research_advantage) }}%
+                        {% if edge is none %}
+                        <div class="hub-intel-metric-value">—</div>
+                        {% else %}
+                        <div class="hub-intel-metric-value {% if edge >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if edge >= 0 %}+{% endif %}{{ "%.1f"|format(edge) }}pp
                         </div>
-                        <div class="hub-intel-metric-label">Research Edge</div>
+                        {% endif %}
+                        <div class="hub-intel-metric-label">Quality Edge</div>
                     </div>
                     <div class="hub-intel-metric">
-                        <div class="hub-intel-metric-value">{{ correlation.total_outcomes }}</div>
-                        <div class="hub-intel-metric-label">Trades Analyzed</div>
+                        <div class="hub-intel-metric-value">{{ research_quality_card.researched_count }}</div>
+                        <div class="hub-intel-metric-label">Researched Trades</div>
                     </div>
                 </div>
-                {% if correlation.best_grade %}
+                {% if research_quality_card.best_grade %}
                 <div class="hub-intel-card-highlight">
                     <i class="bi bi-award text-primary"></i>
-                    <span>Best grade: {{ correlation.best_grade }} trades</span>
+                    <span>Best grade: {{ research_quality_card.best_grade }} trades</span>
                 </div>
                 {% endif %}
                 {% else %}
                 <div class="hub-intel-card-empty">
                     <i class="bi bi-graph-up"></i>
-                    <p>Needs {{ correlation.min_needed }} closed trades with tracked research ({{ correlation.total_outcomes }} so far)</p>
+                    <p>No researched trades yet</p>
                 </div>
                 {% endif %}
             </div>
             <div class="hub-intel-card-footer">
-                <a href="{{ url_for('portfolio.research_correlation') }}">
-                    View Correlation Data <i class="bi bi-arrow-right"></i>
+                <a href="{{ url_for('portfolio.analytics_decisions', tab='research', _anchor='research-quality') }}">
+                    View Research Quality <i class="bi bi-arrow-right"></i>
                 </a>
             </div>
         </div>

@@ -23,8 +23,8 @@ import pytest
 from app import db
 from app.models import DecisionJournal, ThesisEvolution
 from app.models.ai_intelligence import ResearchOutcome
-from app.models.portfolio import PortfolioPosition, Transaction
-from app.services.outcome_tracking import OutcomeTracker
+from app.models.portfolio import PortfolioPosition, Transaction, update_portfolio_position_for_company
+from app.services.outcome_tracking import OutcomeTracker, sync_outcomes_for_company
 from app.services.portfolio_intelligence import (
     PortfolioIntelligenceService,
     compare_to_expected_cagr,
@@ -348,16 +348,22 @@ def test_decisions_page_compares_closed_position_cagr_up_to_last_sale(app_contex
     company = _make_company(user.id)
     bought = now_utc().date() - timedelta(days=1500)
     # Held three years (1096 days) for 52.2%, ~15.04% a year, then sold 404 days ago
-    db.session.add(PortfolioPosition(
-        user_id=user.id, company_id=company.id, is_active=False, total_shares=0,
-        realized_gain_loss=522.0, realized_gain_loss_pct=52.2, first_purchase_date=bought))
-    db.session.add(Transaction(
-        user_id=user.id, company_id=company.id, type='BUY', date=bought,
-        quantity=10, price_per_share=100))
+    buy = Transaction(user_id=user.id, company_id=company.id, type='BUY', date=bought,
+                      quantity=10, price_per_share=100)
+    db.session.add(buy)
     db.session.add(Transaction(
         user_id=user.id, company_id=company.id, type='SELL', date=bought + timedelta(days=1096),
         quantity=10, price_per_share=152.20))
-    _seed_buy(user.id, company.id, expected_cagr=15, expected_timeframe=36)
+    db.session.flush()
+    journal = DecisionJournal(
+        user_id=user.id, company_id=company.id, decision_type='BUY', decision_date=bought,
+        is_portfolio_decision=True, investment_thesis='Thesis', expected_cagr=15, expected_timeframe=36)
+    db.session.add(journal)
+    db.session.flush()
+    buy.decision_journal_id = journal.id
+    update_portfolio_position_for_company(company.id, user.id)
+    sync_outcomes_for_company(user.id, company.id)
+    db.session.commit()
     client = _logged_in(_app, user)
 
     html = client.get('/portfolio/analytics/decisions').get_data(as_text=True)
@@ -365,7 +371,7 @@ def test_decisions_page_compares_closed_position_cagr_up_to_last_sale(app_contex
     # Annualized over the 1096 days held, not the 1500 to today, nor the 52% total
     assert 'Expected CAGR' in html
     assert '+15.0%' in html
-    assert '1 of 1 positions' in html
+    assert '1 of 1 trades' in html
 
 
 def test_update_thesis_converts_a_total_to_a_cagr(app_context, _app):

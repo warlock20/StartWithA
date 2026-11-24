@@ -2,6 +2,116 @@
 
 {% block title %}Decision Intelligence{% endblock %}
 
+{% macro signed_pct(value) %}{% if value >= 0 %}+{% endif %}{{ "%.1f"|format(value) }}%{% endmacro %}
+
+{% macro group_card(label, icon, tone, group) %}
+<div class="di-group di-group-{{ tone }}">
+    <div class="di-comparison-label">
+        <i class="bi bi-{{ icon }}"></i>
+        <span>{{ label }}</span>
+    </div>
+    {% if group.count %}
+    <div class="di-comparison-return {% if group.avg_return >= 0 %}positive{% else %}negative{% endif %}">{{ signed_pct(group.avg_return) }}</div>
+    <div class="di-comparison-meta">avg return &middot; {{ group.count }} trade{{ '' if group.count == 1 else 's' }}</div>
+    <div class="di-comparison-stats">
+        <div>
+            <div class="di-comparison-stat-value">{{ "%.0f"|format(group.win_rate) }}%</div>
+            <div class="di-comparison-stat-label">Win Rate</div>
+        </div>
+        <div>
+            <div class="di-comparison-stat-value">{{ "%.0f"|format(group.avg_hold_days) }}d</div>
+            <div class="di-comparison-stat-label">Avg Hold</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="di-comparison-return">&mdash;</div>
+    <div class="di-comparison-meta">No trades</div>
+    <div class="di-comparison-stats">
+        <div>
+            <div class="di-comparison-stat-value">&mdash;</div>
+            <div class="di-comparison-stat-label">Win Rate</div>
+        </div>
+        <div>
+            <div class="di-comparison-stat-value">&mdash;</div>
+            <div class="di-comparison-stat-label">Avg Hold</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro scope_panel(scope, data, empty_text, hidden) %}
+{% set cmp = data.comparison %}
+<div data-scope="{{ scope }}" {% if hidden %}hidden{% endif %}>
+    {% if data.count == 0 %}
+    <p class="di-rq-empty">{{ empty_text }}</p>
+    {% else %}
+    <div class="priority-lane-grid di-rq-groups">
+        {{ group_card('No research', 'x-circle-fill', 'none', cmp.none) }}
+        {{ group_card('Low-quality research', 'check-circle', 'low', cmp.low) }}
+        {{ group_card('High-quality research', 'check-circle-fill', 'high', cmp.high) }}
+    </div>
+    {% if cmp.edge is not none or cmp.quality_edge is not none %}
+    <div class="di-insight-card learning">
+        <div class="di-insight-title">
+            <i class="bi bi-lightbulb-fill"></i>
+            Key Insight
+        </div>
+        <div>
+            {% if cmp.edge is not none %}
+            Researched trades {% if cmp.edge >= 0 %}outperform{% else %}underperform{% endif %} trades with no research by
+            <span class="di-highlight">{{ "%.1f"|format(cmp.edge|abs) }} percentage points</span>.
+            {% endif %}
+            {% if cmp.quality_edge is not none %}
+            High-quality research {% if cmp.quality_edge >= 0 %}outperforms{% else %}underperforms{% endif %} low-quality research by
+            <span class="di-highlight">{{ "%.1f"|format(cmp.quality_edge|abs) }} percentage points</span>.
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <h4 class="di-rq-subtitle">Return by research grade</h4>
+    <div class="di-table-wrapper di-rq-grades-wrapper">
+        <table class="di-table di-rq-grades">
+            <thead>
+                <tr><th>Grade</th><th>Trades</th><th>Avg return</th><th>Win rate</th><th>Avg hold</th></tr>
+            </thead>
+            <tbody>
+                {% for row in data.grades %}
+                <tr>
+                    <td class="ticker">{{ row.grade }}</td>
+                    <td>{{ row.group.count }}</td>
+                    {% if row.group.count %}
+                    <td class="{% if row.group.avg_return >= 0 %}positive{% else %}negative{% endif %}">{{ signed_pct(row.group.avg_return) }}</td>
+                    <td>{{ "%.0f"|format(row.group.win_rate) }}%</td>
+                    <td>{{ "%.0f"|format(row.group.avg_hold_days) }}d</td>
+                    {% else %}
+                    <td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if data.unscored %}
+    <p class="di-rq-note">Researched, not scored: {{ data.unscored }}</p>
+    {% endif %}
+
+    {% set summary = data.summary %}
+    <p class="di-rq-summary">
+        {% if summary.edge is none %}
+        Not enough graded trades on both sides yet.
+        {% else %}
+        A–C graded trades (score {{ HIGH_QUALITY_RESEARCH_SCORE }}+) returned {{ "%.1f"|format(summary.edge|abs) }} pp {{ 'more' if summary.edge >= 0 else 'less' }} than your other researched trades, across {{ summary.n }} trades.
+        {% endif %}
+    </p>
+    {% if summary.edge is not none and summary.small_sample %}
+    <p class="di-rq-note">Small sample: {{ summary.n }} trade{{ '' if summary.n == 1 else 's' }}; treat this as a hint, not a pattern.</p>
+    {% endif %}
+    {% endif %}
+</div>
+{% endmacro %}
+
 {% block content %}
 <div class="portfolio-dashboard-container">
     <!-- Header -->
@@ -26,14 +136,14 @@
                 <div class="portfolio-metric-value {% if research_edge >= 0 %}gain{% else %}loss{% endif %}">
                     {% if research_edge >= 0 %}+{% endif %}{{ "%.1f"|format(research_edge) }}pp
                 </div>
-                <div class="portfolio-metric-subtext">vs non-research</div>
+                <div class="portfolio-metric-subtext">vs no research</div>
                 {% endif %}
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon blue"><i class="bi bi-shield-check"></i></div>
                 <div class="portfolio-metric-label">Process Win Rate</div>
                 <div class="portfolio-metric-value">{{ "%.0f"|format(process_win_rate) }}%</div>
-                <div class="portfolio-metric-subtext">{{ good_process_good_outcome }} of {{ good_process_good_outcome + good_process_bad_outcome }} researched</div>
+                <div class="portfolio-metric-subtext">{{ good_process_good_outcome }} of {{ good_process_good_outcome + good_process_bad_outcome }} researched trades</div>
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon {% if confidence_calibrated %}green{% else %}warning{% endif %}"><i class="bi bi-speedometer2"></i></div>
@@ -45,7 +155,7 @@
                 <div class="portfolio-metric-icon {% if expectations_met_pct >= 50 %}green{% else %}warning{% endif %}"><i class="bi bi-bullseye"></i></div>
                 <div class="portfolio-metric-label">Expectations Met</div>
                 <div class="portfolio-metric-value {% if expectations_met_pct >= 50 %}gain{% endif %}">{{ "%.0f"|format(expectations_met_pct) }}%</div>
-                <div class="portfolio-metric-subtext">{{ expectations_met_count }} of {{ expectations_total_count }} positions</div>
+                <div class="portfolio-metric-subtext">{{ expectations_met_count }} of {{ expectations_total_count }} trades</div>
             </div>
         </div>
     </div>
@@ -53,88 +163,8 @@
     <!-- Dashboard Grid -->
     <div class="di-dashboard-grid">
 
-        <!-- Row 1: Research Comparison + Decision Matrix + Confidence Calibration -->
-        <div class="di-row di-row-1-1-1">
-
-            <!-- Research vs Non-Research Comparison -->
-            <div class="di-section-card">
-                <div class="di-section-header">
-                    <div>
-                        <h3 class="di-section-title">
-                            <i class="bi bi-clipboard-data"></i>
-                            Research vs Non-Research
-                        </h3>
-                    </div>
-                </div>
-                <div class="di-section-body">
-                    <div class="di-comparison-wrapper">
-                        <div class="di-comparison-side with-research">
-                            {% if research_avg_return > non_research_avg_return %}
-                            <div class="di-comparison-winner-badge">Winner</div>
-                            {% endif %}
-                            <div class="di-comparison-label">
-                                <i class="bi bi-check-circle-fill" style="color: #10b981; font-size: 16px;"></i>
-                                <span>With Research</span>
-                            </div>
-                            <div class="di-comparison-return {% if research_avg_return >= 0 %}positive{% else %}negative{% endif %}">
-                                {% if research_avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(research_avg_return) }}%
-                            </div>
-                            <div class="di-comparison-meta">avg return &middot; {{ research_backed_count }} positions</div>
-                            <div class="di-comparison-stats">
-                                <div>
-                                    <div class="di-comparison-stat-value">{{ "%.0f"|format(research_win_rate) }}%</div>
-                                    <div class="di-comparison-stat-label">Win Rate</div>
-                                </div>
-                                <div>
-                                    <div class="di-comparison-stat-value">{{ "%.0f"|format(research_avg_hold) }}d</div>
-                                    <div class="di-comparison-stat-label">Avg Hold</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="di-comparison-divider">
-                            <span class="di-comparison-vs">VS</span>
-                        </div>
-                        <div class="di-comparison-side without-research">
-                            {% if non_research_avg_return > research_avg_return %}
-                            <div class="di-comparison-winner-badge">Winner</div>
-                            {% endif %}
-                            <div class="di-comparison-label">
-                                <i class="bi bi-x-circle-fill" style="color: #ef4444; font-size: 16px;"></i>
-                                <span>Without Research</span>
-                            </div>
-                            <div class="di-comparison-return {% if non_research_avg_return >= 0 %}positive{% else %}negative{% endif %}">
-                                {% if non_research_avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(non_research_avg_return) }}%
-                            </div>
-                            <div class="di-comparison-meta">avg return &middot; {{ non_research_count }} positions</div>
-                            <div class="di-comparison-stats">
-                                <div>
-                                    <div class="di-comparison-stat-value">{{ "%.0f"|format(non_research_win_rate) }}%</div>
-                                    <div class="di-comparison-stat-label">Win Rate</div>
-                                </div>
-                                <div>
-                                    <div class="di-comparison-stat-value">{{ "%.0f"|format(non_research_avg_hold) }}d</div>
-                                    <div class="di-comparison-stat-label">Avg Hold</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% if research_backed_count > 0 and non_research_count > 0 %}
-                    <div class="di-insight-card learning">
-                        <div class="di-insight-title">
-                            <i class="bi bi-lightbulb-fill"></i>
-                            Key Insight
-                        </div>
-                        <div>
-                            Research-backed positions {% if research_edge >= 0 %}outperform{% else %}underperform{% endif %} impulse buys by
-                            <span class="di-highlight">{{ "%.1f"|format(research_edge|abs) }} percentage points</span>
-                            {% if research_win_rate > non_research_win_rate and non_research_win_rate > 0 %}
-                            with a {{ "%.1f"|format(research_win_rate / non_research_win_rate) }}&times; better win rate.
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
+        <!-- Row 1: Decision Matrix + Confidence Calibration -->
+        <div class="di-row di-row-1-1">
 
             <!-- Decision Quality Matrix -->
             <div class="di-section-card">
@@ -271,6 +301,30 @@
             {% endif %}
         </div>
 
+        <!-- Research quality (#439) -->
+        <div class="di-section-card" id="research-quality">
+            <div class="di-section-header">
+                <div>
+                    <h3 class="di-section-title">
+                        <i class="bi bi-clipboard-data"></i>
+                        Research quality
+                    </h3>
+                    <p class="di-section-subtitle">Does better research lead to better returns?</p>
+                </div>
+                <div class="di-scope-switch" role="group" aria-label="Trade scope">
+                    <button type="button" class="di-scope-btn" data-scope-btn="all" aria-pressed="true">Closed + open</button>
+                    <button type="button" class="di-scope-btn" data-scope-btn="closed" aria-pressed="false">Closed only</button>
+                </div>
+            </div>
+            <div class="di-section-body">
+                {{ scope_panel('all', research_quality['all'], 'No trades yet', false) }}
+                {{ scope_panel('closed', research_quality['closed'], 'No closed trades yet', true) }}
+                <a href="{{ url_for('portfolio.learning_insights') }}" class="action-btn di-rq-link">
+                    <i class="bi bi-lightbulb"></i> See all your insights
+                </a>
+            </div>
+        </div>
+
         <!-- Row 2: Expectations Table (full width) -->
         {% if expectations_total_count > 0 %}
         <div class="di-section-card">
@@ -302,6 +356,7 @@
                                 <td style="text-align: left;">
                                     <span class="di-mono" style="color: #374151;">{{ item.company.ticker_symbol }}</span>
                                     <span class="checkpoints-company-name"> &middot; {{ item.company.name }}</span>
+                                    <div class="checkpoints-company-name">{% if item.exit_date %}{{ item.entry_date.strftime('%b %Y') }} – {{ item.exit_date.strftime('%b %Y') }}{% else %}since {{ item.entry_date.strftime('%b %Y') }}{% endif %}</div>
                                 </td>
                                 <td style="text-align: right; font-family: var(--font-mono); font-weight: 600; color: #6b7280;">{{ "%.1f"|format(item.expected) }}%{% if not item.annualized %}<span title="Held under 30 days: total return so far against the return due so far">*</span>{% endif %}</td>
                                 <td style="text-align: right; font-family: var(--font-mono); font-weight: 700; color: {% if item.actual >= 0 %}#10b981{% else %}#ef4444{% endif %};">
@@ -325,7 +380,7 @@
                         Key Insight
                     </div>
                     <div>
-                        You've met expectations in <span class="di-highlight">{{ expectations_met_count }} of {{ expectations_total_count }} positions</span> ({{ "%.0f"|format(expectations_met_pct) }}%).
+                        You've met expectations in <span class="di-highlight">{{ expectations_met_count }} of {{ expectations_total_count }} trades</span> ({{ "%.0f"|format(expectations_met_pct) }}%).
                         {% if expectations_met_pct >= 60 %}
                         Strong forecasting &mdash; you know your picks.
                         {% else %}
@@ -431,7 +486,7 @@
                             <div>
                                 <div class="di-pattern-title">Research-Backed Decisions</div>
                                 <div class="di-pattern-desc">Positions with proper research analysis significantly outperform</div>
-                                <div class="di-pattern-stat">{{ research_backed_count }} positions tracked</div>
+                                <div class="di-pattern-stat">{{ research_backed_count }} trades tracked</div>
                             </div>
                         </div>
                         <div class="di-pattern-item">
@@ -469,7 +524,7 @@
                         <div>
                             <div class="di-pattern-title">Impulsive Entry Without Research</div>
                             <div class="di-pattern-desc">Buying without proper research leads to lower win rates and returns</div>
-                            <div class="di-pattern-stat">{{ non_research_count }} positions tracked</div>
+                            <div class="di-pattern-stat">{{ non_research_count }} trades tracked</div>
                         </div>
                     </div>
                     <div class="di-pattern-item">
@@ -493,6 +548,22 @@
 {% block scripts %}
 {{ super() }}
 {% include 'components/_chart_js.html' %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const section = document.getElementById('research-quality');
+    const buttons = section.querySelectorAll('[data-scope-btn]');
+    buttons.forEach(function(button) {
+        button.addEventListener('click', function() {
+            buttons.forEach(function(other) {
+                other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
+            });
+            section.querySelectorAll('[data-scope]').forEach(function(panel) {
+                panel.hidden = panel.dataset.scope !== button.dataset.scopeBtn;
+            });
+        });
+    });
+});
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const holdingCtx = document.getElementById('holdingPeriodChart').getContext('2d');

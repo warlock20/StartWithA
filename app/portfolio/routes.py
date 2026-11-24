@@ -29,7 +29,6 @@ from app.models import (
     Transaction,
     PortfolioPosition,
     Company,
-    DecisionJournal,
     ThesisEvolution,
     ResearchOutcome,
     BackgroundTask,
@@ -48,6 +47,7 @@ from app.utils.portfolio_utils import (
 from app.services.background_tasks import BackgroundTaskService
 
 from app.constants import (
+    HIGH_QUALITY_RESEARCH_SCORE,
     MIN_TRADES_FOR_INSIGHTS,
     RECENT_DECISIONS_LIMIT,
     MAX_DYNAMIC_FORM_FIELDS,
@@ -55,7 +55,7 @@ from app.constants import (
 from app.services.portfolio_intelligence import (
     get_thesis_reality_check, get_return_target,
     compare_to_expected_cagr,
-    get_learning_insights, get_correlation_data, outcome_hold_days
+    get_learning_insights, outcome_hold_days
     )
 from app.services.exit_watch import episodes as exit_episodes
 from app.services.exit_watch import view as exit_watch_view
@@ -63,11 +63,11 @@ from app.services.portfolio_alerts import PortfolioAlertsService
 from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
-from app.services.decision_quality import compare_research
+from app.services.decision_quality import compare_research, grade_table, research_quality_view
+from app.services.decision_trades import decision_trades
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
-from app.services.outcome_tracking import (
-    portfolio_outcomes, received_only_company_ids, research_backed_company_ids)
+from app.services.outcome_tracking import portfolio_outcomes
 from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
@@ -535,29 +535,13 @@ def analytics_decisions():
         user_id=current_user.id
     ).all()
 
-    # Get all decision journals
-    all_journals = DecisionJournal.query.filter_by(
-        user_id=current_user.id,
-        is_portfolio_decision=True
-    ).all()
-
     # Lifetime returns (unrealized + realized + dividends), one per position
     returns = position_returns(all_positions)
 
-    # Research-backed vs non-research split (shared definition). Positions that only
-    # ever came from a merger or spin-off carry no buy decision, so they stay out.
-    received_only = received_only_company_ids(current_user.id)
-    comparison = compare_research(
-        [p for p in all_positions if p.company_id not in received_only],
-        research_backed_company_ids(current_user.id), returns)
-    research_positions = comparison.research.positions
-    non_research_positions = comparison.no_research.positions
-    research_avg_return = comparison.research.avg_return
-    research_win_rate = comparison.research.win_rate
-    research_avg_hold = comparison.research.avg_hold_days
-    non_research_avg_return = comparison.no_research.avg_return
-    non_research_win_rate = comparison.no_research.win_rate
-    non_research_avg_hold = comparison.no_research.avg_hold_days
+    # Per trade (holding period) analytics, shared definition (#439).
+    # Received holdings (mergers, spin-offs) are not decisions and are left out.
+    trades = decision_trades(current_user.id)
+    comparison = compare_research(trades)
 
     # Get active positions for current analysis
     active_positions = [p for p in all_positions if p.is_active]
@@ -567,10 +551,10 @@ def analytics_decisions():
 
     # Decision Quality Matrix
     # Good Process = Research-backed, Bad Process = No research
-    good_process_good_outcome = sum(1 for p in research_positions if returns[p.company_id].is_gain)
-    good_process_bad_outcome = len(research_positions) - good_process_good_outcome
-    bad_process_good_outcome = sum(1 for p in non_research_positions if returns[p.company_id].is_gain)
-    bad_process_bad_outcome = len(non_research_positions) - bad_process_good_outcome
+    good_process_good_outcome = sum(1 for t in comparison.research.trades if t.is_gain)
+    good_process_bad_outcome = comparison.research.count - good_process_good_outcome
+    bad_process_good_outcome = sum(1 for t in comparison.none.trades if t.is_gain)
+    bad_process_bad_outcome = comparison.none.count - bad_process_good_outcome
 
     # Recent decisions
     recent_decisions = Transaction.query.filter_by(
@@ -579,57 +563,34 @@ def analytics_decisions():
         Transaction.type.in_(['BUY', 'SELL'])
     ).order_by(Transaction.date.desc()).limit(RECENT_DECISIONS_LIMIT).all()
 
-    # Both analyses pair a decision with the company's single lifetime position, so a
-    # company counts once: through its latest opening decision (top-ups repeat the same
-    # position outcome, and so would the openings of earlier holding periods).
-    # A journal linked to a received outcome (a top-up after a merger) is no decision either.
-    received_journal_ids = {
-        row[0] for row in portfolio_outcomes(current_user.id)
-        .filter(ResearchOutcome.is_received.is_(True), ResearchOutcome.decision_journal_id.isnot(None))
-        .with_entities(ResearchOutcome.decision_journal_id)
-    }
-    latest_openings = {}
-    for journal in sorted((j for j in all_journals if j.decision_type == 'BUY' and not j.is_top_up
-                                    and j.company_id not in received_only
-                                    and j.id not in received_journal_ids),
-                          key=lambda j: (j.decision_date, j.id)):
-        latest_openings[journal.company_id] = journal
-    latest_openings = list(latest_openings.values())
-
-    # Confidence Calibration Analysis
-    # Get the latest opening BUY journals with confidence scores and actual returns
-    journals_with_confidence = []
-    for journal in latest_openings:
-        measured = returns.get(journal.company_id)
-        if journal.confidence_score is not None and measured is not None:
-            journals_with_confidence.append({
-                'confidence': journal.confidence_score,
-                'return': measured.total_return_pct
-            })
+    # Confidence calibration: each holding period (trade) with its own opening decision.
+    # Imported or missing openings carry no confidence and are left out.
+    journals_with_confidence = [
+        {'confidence': t.confidence, 'return': t.return_pct}
+        for t in trades if t.confidence is not None
+    ]
 
     # Calculate confidence calibration stats using utility
     confidence_stats = calculate_confidence_stats(journals_with_confidence)
     confidence_calibrated = confidence_stats['high']['avg_return'] > confidence_stats['medium']['avg_return']
 
     # Performance vs Expectations Analysis: the expected return is a CAGR, so each
-    # position's annualized return is set against it (closed positions up to their last flow)
+    # trade's annualized return is set against it (closed trades up to their last flow)
     expectations_analysis = []
-    for journal in latest_openings:
-        if journal.expected_cagr is not None:
-            position = next((p for p in all_positions if p.company_id == journal.company_id), None)
-            measured = returns.get(journal.company_id)
-            if position and measured is not None:
-                vs_target = compare_to_expected_cagr(
-                    journal.expected_cagr, measured.total_return_pct, measured.days, measured.annualized_pct)
-
-                expectations_analysis.append({
-                    'company': position.company,
-                    'expected': vs_target.expected,
-                    'actual': vs_target.actual,
-                    'annualized': vs_target.annualized,
-                    'diff': vs_target.actual - vs_target.expected,
-                    'met': vs_target.actual >= vs_target.expected
-                })
+    for t in trades:
+        if t.expected_cagr is None:
+            continue
+        vs_target = compare_to_expected_cagr(t.expected_cagr, t.return_pct, t.days, t.annualized_pct)
+        expectations_analysis.append({
+            'company': t.outcome.company,
+            'entry_date': t.entry_date,
+            'exit_date': t.exit_date,
+            'expected': vs_target.expected,
+            'actual': vs_target.actual,
+            'annualized': vs_target.annualized,
+            'diff': vs_target.actual - vs_target.expected,
+            'met': vs_target.actual >= vs_target.expected
+        })
 
     # Calculate summary stats
     expectations_met_count = sum(1 for item in expectations_analysis if item['met'])
@@ -643,14 +604,10 @@ def analytics_decisions():
                           return_url=return_url,
                           context_label=context_label,
                           research_edge=comparison.edge,
-                          research_backed_count=len(research_positions),
-                          non_research_count=len(non_research_positions),
-                          research_avg_return=research_avg_return,
-                          research_win_rate=research_win_rate,
-                          research_avg_hold=research_avg_hold,
-                          non_research_avg_return=non_research_avg_return,
-                          non_research_win_rate=non_research_win_rate,
-                          non_research_avg_hold=non_research_avg_hold,
+                          research_quality=research_quality_view(trades),
+                          HIGH_QUALITY_RESEARCH_SCORE=HIGH_QUALITY_RESEARCH_SCORE,
+                          research_backed_count=comparison.research.count,
+                          non_research_count=comparison.none.count,
                           hold_period_stats=hold_period_stats,
                           good_process_good_outcome=good_process_good_outcome,
                           good_process_bad_outcome=good_process_bad_outcome,
@@ -668,21 +625,9 @@ def analytics_decisions():
 @portfolio_bp.route('/analytics/research-correlation')
 @login_required
 def research_correlation():
-    """Research Quality → Returns Correlation Dashboard"""
-    from app.services.portfolio_intelligence import (
-        get_correlation_data,
-        get_learning_insights
-    )
-    
-    correlation_data = get_correlation_data(current_user.id)
-    
-    insights = []
-    if correlation_data.has_sufficient_data:
-        insights = get_learning_insights(current_user.id)
-    
-    return render_template('research_correlation.html',
-                          correlation_data=correlation_data,
-                          insights=insights)
+    """Retired page; the research quality section on Decision Intelligence replaced it."""
+    return redirect(url_for('portfolio.analytics_decisions', tab='research', _anchor='research-quality'),
+                    code=301)
 
 
 @portfolio_bp.route('/thesis-reality')
@@ -892,31 +837,30 @@ def intelligence_hub():
     }
     
     # Decisions Card
-    received_only = received_only_company_ids(current_user.id)
-    comparison = compare_research(
-        [p for p in all_positions if p.company_id not in received_only],
-        research_backed_company_ids(current_user.id), returns)
+    trades = decision_trades(current_user.id)
+    comparison = compare_research(trades)
 
     decisions = {
-        'has_data': comparison.research.count > 0 or comparison.no_research.count > 0,
+        'has_data': comparison.research.count > 0 or comparison.none.count > 0,
         'research_count': comparison.research.count,
         'research_return': comparison.research.avg_return,
-        'no_research_count': comparison.no_research.count,
-        'no_research_return': comparison.no_research.avg_return,
+        'no_research_count': comparison.none.count,
+        'no_research_return': comparison.none.avg_return,
         'edge': comparison.edge
     }
 
-    # Correlation Card
-    correlation_data = get_correlation_data(current_user.id)
-    
-    correlation = {
-        'has_data': correlation_data.has_sufficient_data,
-        'research_advantage': correlation_data.research_advantage,
-        'total_outcomes': correlation_data.total_outcomes,
-        'best_grade': correlation_data.best_grade,
-        'min_needed': MIN_TRADES_FOR_INSIGHTS
+    # Research Quality Card
+    researched = [t for t in trades if t.research in ('low', 'high')]
+    graded_rows = [row for row in grade_table(researched)[0] if row.group.count > 0]
+    best_row = max(graded_rows, key=lambda row: row.group.avg_return, default=None)
+    quality_edge = comparison.quality_edge
+    research_quality_card = {
+        'has_data': len(researched) > 0,
+        'quality_edge': quality_edge,
+        'researched_count': len(researched),
+        'best_grade': best_row.grade if best_row else None,
     }
-    
+
     # Checkpoints Card
     checkpoints = {
         'overdue': checkpoint_summary.get('overdue_count', 0),
@@ -960,7 +904,7 @@ def intelligence_hub():
                           coverage_rows=coverage_rows(alerts_service.coverage, rule_states),
                           performance=performance,
                           decisions=decisions,
-                          correlation=correlation,
+                          research_quality_card=research_quality_card,
                           checkpoints=checkpoints,
                           thesis=thesis,
                           learning=learning)
