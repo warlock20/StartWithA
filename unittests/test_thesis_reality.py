@@ -369,9 +369,9 @@ def test_decisions_page_compares_closed_position_cagr_up_to_last_sale(app_contex
     html = client.get('/portfolio/analytics/decisions?tab=decision-quality').get_data(as_text=True)
 
     # Annualized over the 1096 days held, not the 1500 to today, nor the 52% total
-    assert 'Expected CAGR' in html
+    assert 'Expected vs actual' in html
     assert '+15.0%' in html
-    assert '1 of 1 trades' in html
+    assert '1 of 1 met' in html
 
 
 def test_update_thesis_converts_a_total_to_a_cagr(app_context, _app):

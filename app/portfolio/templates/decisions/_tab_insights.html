@@ -22,7 +22,7 @@
     {% for card in panel.cards %}
     {% set insight = card.insight %}
     {% set tone = pill_tones.get(insight.category, 'improvement') %}
-    <article class="di-insight di-insight--{{ tone }}">
+    <article class="di-insight">
         <span class="di-pill di-pill--{{ tone }}">{{ pill_labels.get(insight.category, 'To improve') }}</span>
         <h3 class="di-insight-heading">{{ insight.title }}</h3>
         <p class="di-insight-description">{{ insight.description }}</p>
