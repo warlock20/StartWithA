@@ -752,10 +752,6 @@
     background: var(--gray-50);
 }
 
-.di-group-high {
-    border-color: var(--success-500);
-}
-
 .di-group-none .di-comparison-label i {
     color: var(--danger-500);
 }
@@ -773,6 +769,10 @@
     font-size: 13px;
     font-weight: 600;
     color: var(--gray-700);
+}
+
+.di-rq-grades-wrapper {
+    overflow-x: auto;
 }
 
 .di-rq-grades td {

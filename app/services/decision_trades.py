@@ -32,6 +32,7 @@ Limitations:
   last sync (the project's quality then, not at entry); see ``classify_research``.
 - An open trade whose outcome row no longer matches the live round trip (the
   transactions changed and the sync has not run) is skipped until the next sync.
+- An open outcome whose position is inactive or has no price yet is left out.
 
 Nothing here fetches prices or writes; it is safe on every page render.
 """

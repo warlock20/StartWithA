@@ -71,7 +71,7 @@
     {% endif %}
 
     <h4 class="di-rq-subtitle">Return by research grade</h4>
-    <div class="di-table-wrapper">
+    <div class="di-table-wrapper di-rq-grades-wrapper">
         <table class="di-table di-rq-grades">
             <thead>
                 <tr><th>Grade</th><th>Trades</th><th>Avg return</th><th>Win rate</th><th>Avg hold</th></tr>
@@ -105,7 +105,7 @@
         A–C graded trades (score {{ HIGH_QUALITY_RESEARCH_SCORE }}+) returned {{ "%.1f"|format(summary.edge|abs) }} pp {{ 'more' if summary.edge >= 0 else 'less' }} than your other researched trades, across {{ summary.n }} trades.
         {% endif %}
     </p>
-    {% if summary.small_sample %}
+    {% if summary.edge is not none and summary.small_sample %}
     <p class="di-rq-note">Small sample: {{ summary.n }} trade{{ '' if summary.n == 1 else 's' }}; treat this as a hint, not a pattern.</p>
     {% endif %}
     {% endif %}

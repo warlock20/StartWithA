@@ -542,12 +542,6 @@ def analytics_decisions():
     # Received holdings (mergers, spin-offs) are not decisions and are left out.
     trades = decision_trades(current_user.id)
     comparison = compare_research(trades)
-    research_avg_return = comparison.research.avg_return
-    research_win_rate = comparison.research.win_rate
-    research_avg_hold = comparison.research.avg_hold_days
-    non_research_avg_return = comparison.none.avg_return
-    non_research_win_rate = comparison.none.win_rate
-    non_research_avg_hold = comparison.none.avg_hold_days
 
     # Get active positions for current analysis
     active_positions = [p for p in all_positions if p.is_active]
@@ -614,12 +608,6 @@ def analytics_decisions():
                           HIGH_QUALITY_RESEARCH_SCORE=HIGH_QUALITY_RESEARCH_SCORE,
                           research_backed_count=comparison.research.count,
                           non_research_count=comparison.none.count,
-                          research_avg_return=research_avg_return,
-                          research_win_rate=research_win_rate,
-                          research_avg_hold=research_avg_hold,
-                          non_research_avg_return=non_research_avg_return,
-                          non_research_win_rate=non_research_win_rate,
-                          non_research_avg_hold=non_research_avg_hold,
                           hold_period_stats=hold_period_stats,
                           good_process_good_outcome=good_process_good_outcome,
                           good_process_bad_outcome=good_process_bad_outcome,
