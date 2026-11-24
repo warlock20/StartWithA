@@ -799,3 +799,133 @@
 .di-rq-link {
     margin-top: 16px;
 }
+
+/* =============================================================================
+   DECISION INTELLIGENCE TABS (#442)
+   ============================================================================= */
+
+.di-tabs {
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.di-tabs .nav-link {
+    min-height: 44px;
+}
+
+.di-insight-grid {
+    margin-bottom: 20px;
+}
+
+.di-insight {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+}
+
+.di-insight-heading {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.di-insight-description {
+    margin: 0;
+    font-size: 14px;
+    color: var(--gray-700);
+}
+
+.di-insight-data {
+    margin: 0;
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+.di-insight .action-btn {
+    margin-top: auto;
+}
+
+.di-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--primary-100);
+    color: var(--primary-700);
+}
+
+.di-pill--edge { background: var(--success-50); color: var(--success-600); }
+.di-pill--winning { background: var(--info-50); color: var(--info-600); }
+.di-pill--warning { background: var(--warning-50); color: var(--warning-800); }
+.di-pill--improvement { background: var(--primary-100); color: var(--primary-700); }
+
+.di-locked {
+    background: var(--gray-50);
+    border: 1px dashed var(--gray-300);
+}
+
+.di-locked-text {
+    margin: 8px 0 12px;
+    font-size: 14px;
+    color: var(--gray-700);
+}
+
+.di-progress {
+    height: 10px;
+    background: var(--gray-200);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.di-progress-fill {
+    height: 100%;
+    background: var(--success-500);
+    border-radius: 999px;
+}
+
+/* Decision quality: matrix and confidence colours by role (were inline) */
+.di-matrix-cell.deserved-wins { color: var(--success-500); }
+.di-matrix-cell.bad-luck { color: var(--info-500); }
+.di-matrix-cell.lucky-wins { color: var(--warning-500); }
+.di-matrix-cell.expected-losses { color: var(--danger-500); }
+
+.di-matrix-cell .di-matrix-desc { color: var(--gray-500); }
+
+.di-confidence-high { color: var(--success-500); }
+.di-confidence-medium { color: var(--warning-500); }
+.di-confidence-low { color: var(--primary-400); }
+
+.di-confidence-bar-fill { background: currentColor; }
+.di-confidence-label i { font-size: 14px; }
+
+.di-expectations th,
+.di-expectations td { text-align: right; }
+.di-expectations th:first-child,
+.di-expectations td:first-child { text-align: left; }
+.di-expectations th:last-child,
+.di-expectations td:last-child { text-align: center; }
+
+.di-company-ticker { color: var(--gray-700); }
+
+.di-num {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 700;
+}
+
+.di-num-muted { color: var(--gray-500); font-weight: 600; }
+
+.di-met i { font-size: 16px; }
+
+.di-holding th,
+.di-holding td { text-align: right; }
+.di-holding th:first-child,
+.di-holding td:first-child { text-align: left; }

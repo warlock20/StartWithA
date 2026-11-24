@@ -366,7 +366,7 @@ def test_decisions_page_compares_closed_position_cagr_up_to_last_sale(app_contex
     db.session.commit()
     client = _logged_in(_app, user)
 
-    html = client.get('/portfolio/analytics/decisions').get_data(as_text=True)
+    html = client.get('/portfolio/analytics/decisions?tab=decision-quality').get_data(as_text=True)
 
     # Annualized over the 1096 days held, not the 1500 to today, nor the 52% total
     assert 'Expected CAGR' in html

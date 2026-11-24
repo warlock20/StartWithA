@@ -454,6 +454,7 @@ class DecisionIntelligenceService:
             joinedload(Transaction.decision_journal).joinedload(DecisionJournal.parent_decision),
         ).order_by(Transaction.date.desc(), Transaction.id.desc()).limit(RECENT_DECISIONS_LIMIT).all()
 
+        by_opening = {t.opening.id: t for t in self.trades if t.opening is not None}
         rows = []
         for txn in transactions:
             journal = txn.decision_journal
@@ -461,10 +462,11 @@ class DecisionIntelligenceService:
                 kind, research = 'SELL', None
             else:
                 is_top_up = journal is not None and journal.is_top_up
-                opening = journal.parent_decision if is_top_up else journal
                 kind = 'TOP-UP' if is_top_up else 'BUY'
-                researched = opening is not None and opening.linked_research_id is not None
-                research = 'Researched' if researched else 'No research'
+                # The chip follows the trade the decision belongs to, as the header counts it
+                opening_id = None if journal is None else (journal.parent_decision_id if is_top_up else journal.id)
+                trade = by_opening.get(opening_id)
+                research = None if trade is None else ('Researched' if trade.research != 'none' else 'No research')
             rows.append({'transaction': txn, 'kind': kind, 'research': research})
         return rows
 

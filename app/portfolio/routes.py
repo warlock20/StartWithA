@@ -18,7 +18,7 @@
 
 import logging
 from decimal import Decimal
-from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import abort, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from app import db
@@ -26,7 +26,6 @@ from app import db
 # Configure logger
 logger = logging.getLogger(__name__)
 from app.models import (
-    Transaction,
     PortfolioPosition,
     Company,
     ThesisEvolution,
@@ -39,22 +38,14 @@ from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.utils.response_utils import json_error
 from app.utils.decorators import require_feature
 from app.utils.navigation_utils import get_smart_return_url
-from app.utils.portfolio_utils import (
-    calculate_holding_period_stats,
-    calculate_confidence_stats,
-    process_win_rate,
-)
 from app.services.background_tasks import BackgroundTaskService
 
 from app.constants import (
-    HIGH_QUALITY_RESEARCH_SCORE,
     MIN_TRADES_FOR_INSIGHTS,
-    RECENT_DECISIONS_LIMIT,
     MAX_DYNAMIC_FORM_FIELDS,
 )
 from app.services.portfolio_intelligence import (
     get_thesis_reality_check, get_return_target,
-    compare_to_expected_cagr,
     get_learning_insights, outcome_hold_days
     )
 from app.services.exit_watch import episodes as exit_episodes
@@ -63,7 +54,10 @@ from app.services.portfolio_alerts import PortfolioAlertsService
 from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
-from app.services.decision_quality import compare_research, grade_table, research_quality_view
+from app.services.decision_intelligence import (
+    TAB_LABELS, DecisionIntelligenceService, normalise_tab,
+)
+from app.services.decision_quality import compare_research, grade_table
 from app.services.decision_trades import decision_trades
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
@@ -72,6 +66,13 @@ from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
 from app.services.conviction_service import current_theses, conviction_summary
+
+DECISION_TAB_TEMPLATES = {
+    'insights': 'decisions/_tab_insights.html',
+    'research': 'decisions/_tab_research.html',
+    'decision-quality': 'decisions/_tab_decision_quality.html',
+    'behaviour': 'decisions/_tab_behaviour.html',
+}
 
 import json
 # Import blueprint from current package (avoids circular import)
@@ -526,101 +527,29 @@ def analytics_run_module(template_name):
 @portfolio_bp.route('/analytics/decisions')
 @login_required
 def analytics_decisions():
-    """
-    Decision Intelligence
-    Deep behavioral analysis and learning from patterns
-    """
-    # Get all positions (both active and closed)
-    all_positions = PortfolioPosition.query.filter_by(
-        user_id=current_user.id
-    ).all()
-
-    # Lifetime returns (unrealized + realized + dividends), one per position
-    returns = position_returns(all_positions)
-
-    # Per trade (holding period) analytics, shared definition (#439).
-    # Received holdings (mergers, spin-offs) are not decisions and are left out.
-    trades = decision_trades(current_user.id)
-    comparison = compare_research(trades)
-
-    # Get active positions for current analysis
-    active_positions = [p for p in all_positions if p.is_active]
-
-    # Calculate holding period performance using utility
-    hold_period_stats = calculate_holding_period_stats(active_positions, returns)
-
-    # Decision Quality Matrix
-    # Good Process = Research-backed, Bad Process = No research
-    good_process_good_outcome = sum(1 for t in comparison.research.trades if t.is_gain)
-    good_process_bad_outcome = comparison.research.count - good_process_good_outcome
-    bad_process_good_outcome = sum(1 for t in comparison.none.trades if t.is_gain)
-    bad_process_bad_outcome = comparison.none.count - bad_process_good_outcome
-
-    # Recent decisions
-    recent_decisions = Transaction.query.filter_by(
-        user_id=current_user.id
-    ).filter(
-        Transaction.type.in_(['BUY', 'SELL'])
-    ).order_by(Transaction.date.desc()).limit(RECENT_DECISIONS_LIMIT).all()
-
-    # Confidence calibration: each holding period (trade) with its own opening decision.
-    # Imported or missing openings carry no confidence and are left out.
-    journals_with_confidence = [
-        {'confidence': t.confidence, 'return': t.return_pct}
-        for t in trades if t.confidence is not None
-    ]
-
-    # Calculate confidence calibration stats using utility
-    confidence_stats = calculate_confidence_stats(journals_with_confidence)
-    confidence_calibrated = confidence_stats['high']['avg_return'] > confidence_stats['medium']['avg_return']
-
-    # Performance vs Expectations Analysis: the expected return is a CAGR, so each
-    # trade's annualized return is set against it (closed trades up to their last flow)
-    expectations_analysis = []
-    for t in trades:
-        if t.expected_cagr is None:
-            continue
-        vs_target = compare_to_expected_cagr(t.expected_cagr, t.return_pct, t.days, t.annualized_pct)
-        expectations_analysis.append({
-            'company': t.outcome.company,
-            'entry_date': t.entry_date,
-            'exit_date': t.exit_date,
-            'expected': vs_target.expected,
-            'actual': vs_target.actual,
-            'annualized': vs_target.annualized,
-            'diff': vs_target.actual - vs_target.expected,
-            'met': vs_target.actual >= vs_target.expected
-        })
-
-    # Calculate summary stats
-    expectations_met_count = sum(1 for item in expectations_analysis if item['met'])
-    expectations_total_count = len(expectations_analysis)
-    expectations_met_pct = (expectations_met_count / expectations_total_count * 100) if expectations_total_count > 0 else 0
-
+    """Decision Intelligence: one header, four tabs; only the requested tab is rendered."""
+    tab = normalise_tab(request.args.get('tab'))
+    service = DecisionIntelligenceService(current_user.id)
     # Smart back: wherever the user came from, else the intelligence hub
     return_url, context_label = get_smart_return_url('portfolio.intelligence_hub')
-
     return render_template('decisions_intelligence.html',
-                          return_url=return_url,
-                          context_label=context_label,
-                          research_edge=comparison.edge,
-                          research_quality=research_quality_view(trades),
-                          HIGH_QUALITY_RESEARCH_SCORE=HIGH_QUALITY_RESEARCH_SCORE,
-                          research_backed_count=comparison.research.count,
-                          non_research_count=comparison.none.count,
-                          hold_period_stats=hold_period_stats,
-                          good_process_good_outcome=good_process_good_outcome,
-                          good_process_bad_outcome=good_process_bad_outcome,
-                          bad_process_good_outcome=bad_process_good_outcome,
-                          bad_process_bad_outcome=bad_process_bad_outcome,
-                          process_win_rate=process_win_rate(good_process_good_outcome, good_process_bad_outcome),
-                          recent_decisions=recent_decisions,
-                          confidence_stats=confidence_stats,
-                          confidence_calibrated=confidence_calibrated,
-                          expectations_analysis=expectations_analysis,
-                          expectations_met_count=expectations_met_count,
-                          expectations_total_count=expectations_total_count,
-                          expectations_met_pct=expectations_met_pct)
+                           tab=tab,
+                           tabs=TAB_LABELS,
+                           tab_templates=DECISION_TAB_TEMPLATES,
+                           header=service.header(),
+                           panel=service.tab(tab),
+                           return_url=return_url,
+                           context_label=context_label)
+
+
+@portfolio_bp.route('/analytics/decisions/panel/<tab>')
+@login_required
+def analytics_decisions_panel(tab):
+    """One tab's HTML, fetched when the user opens a tab that was not rendered with the page."""
+    template = DECISION_TAB_TEMPLATES.get(tab)
+    if template is None:
+        abort(404)
+    return render_template(template, panel=DecisionIntelligenceService(current_user.id).tab(tab))
 
 @portfolio_bp.route('/analytics/research-correlation')
 @login_required

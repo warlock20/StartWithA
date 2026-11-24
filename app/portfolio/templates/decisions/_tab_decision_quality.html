@@ -1,0 +1,187 @@
+{% set m = panel.matrix %}
+{% set cs = panel.confidence_stats %}
+<div class="di-dashboard-grid">
+    {% if not panel.has_matrix and not panel.has_confidence and not panel.expectations_total_count %}
+    <div class="di-section-card">
+        <div class="di-section-body">
+            <p class="di-rq-empty">No decisions to compare yet.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="di-row di-row-1-1">
+        {% if panel.has_matrix %}
+        <div class="di-section-card" id="process-outcome">
+            <div class="di-section-header">
+                <div>
+                    <h3 class="di-section-title">
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                        Decision Quality Matrix
+                    </h3>
+                </div>
+                <span class="di-badge info">Process Check</span>
+            </div>
+            <div class="di-section-body">
+                <div class="di-matrix-axis-labels">
+                    <div class="di-matrix-axis-label">Good Outcome</div>
+                    <div class="di-matrix-axis-label">Bad Outcome</div>
+                </div>
+                <div class="di-matrix-grid">
+                    <div class="di-matrix-cell deserved-wins">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <div class="di-matrix-value">{{ m.earned }}</div>
+                        <div class="di-matrix-label">Deserved Wins</div>
+                        <div class="di-matrix-desc">Researched &amp; won</div>
+                    </div>
+                    <div class="di-matrix-cell bad-luck">
+                        <i class="bi bi-cloud-rain"></i>
+                        <div class="di-matrix-value">{{ m.unlucky }}</div>
+                        <div class="di-matrix-label">Bad Luck</div>
+                        <div class="di-matrix-desc">Researched but lost</div>
+                    </div>
+                    <div class="di-matrix-cell lucky-wins">
+                        <i class="bi bi-lightning-fill"></i>
+                        <div class="di-matrix-value">{{ m.lucky }}</div>
+                        <div class="di-matrix-label">Lucky Wins</div>
+                        <div class="di-matrix-desc">No research but won</div>
+                    </div>
+                    <div class="di-matrix-cell expected-losses">
+                        <i class="bi bi-x-circle-fill"></i>
+                        <div class="di-matrix-value">{{ m.expected }}</div>
+                        <div class="di-matrix-label">Expected Losses</div>
+                        <div class="di-matrix-desc">No research &amp; lost</div>
+                    </div>
+                </div>
+                <div class="di-insight-card learning">
+                    <div class="di-insight-title">
+                        <i class="bi bi-lightbulb-fill"></i>
+                        Key Insight
+                    </div>
+                    <div>
+                        <span class="di-highlight">{{ m.earned }} deserved wins</span> vs {{ m.lucky }} lucky wins.
+                        Research process yields a <span class="di-highlight">{{ "%.0f"|format(panel.process_win_rate) }}% win rate</span> &mdash; focus on process, not outcomes.
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if panel.has_confidence %}
+        {% set max_return = [cs.high.avg_return|abs, cs.medium.avg_return|abs, cs.low.avg_return|abs, 1]|max %}
+        <div class="di-section-card" id="confidence-calibration">
+            <div class="di-section-header">
+                <div>
+                    <h3 class="di-section-title">
+                        <i class="bi bi-speedometer2"></i>
+                        Confidence Calibration
+                    </h3>
+                    <p class="di-section-subtitle">Are your high-confidence picks actually performing better?</p>
+                </div>
+                <span class="di-badge info">Self-Awareness</span>
+            </div>
+            <div class="di-section-body">
+                <div class="di-confidence-rows">
+                    {% for key, label, icon in (('high', 'High (8-10)', 'star-fill'), ('medium', 'Medium (5-7)', 'star-half'), ('low', 'Low (1-4)', 'star')) %}
+                    {% set stat = cs[key] %}
+                    <div class="di-confidence-row di-confidence-{{ key }}">
+                        <div class="di-confidence-label">
+                            <i class="bi bi-{{ icon }}"></i>
+                            <span>{{ label }}</span>
+                        </div>
+                        <div class="di-confidence-bar-wrapper">
+                            <div class="di-confidence-bar-fill" style="width: {{ [8, (stat.avg_return|abs / max_return * 100)]|max }}%"></div>
+                            <div class="di-confidence-bar-value">
+                                {% if stat.avg_return >= 0 %}+{% endif %}{{ stat.avg_return }}%
+                            </div>
+                        </div>
+                        <div class="di-confidence-count">{{ stat.count }} pos</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if panel.confidence_diff is not none %}
+                {% set conf_diff = panel.confidence_diff %}
+                <div class="di-insight-card {% if conf_diff > 5 %}learning{% else %}warning{% endif %}">
+                    <div class="di-insight-title">
+                        <i class="bi bi-{% if conf_diff > 5 %}lightbulb-fill{% else %}exclamation-triangle-fill{% endif %}"></i>
+                        Key Insight
+                    </div>
+                    <div>
+                        {% if conf_diff > 5 %}
+                        Your confidence is well-calibrated. High confidence picks outperform medium by <span class="di-highlight">+{{ "%.1f"|format(conf_diff) }}pp</span>. Trust your conviction.
+                        {% else %}
+                        Confidence may need recalibration. High confidence picks {% if conf_diff >= 0 %}only slightly outperform{% else %}underperform{% endif %} medium by <span class="di-highlight">{{ "%.1f"|format(conf_diff|abs) }}pp</span>. Be more selective with high ratings.
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if panel.expectations_total_count > 0 %}
+    <div class="di-section-card" id="expectations">
+        <div class="di-section-header">
+            <div>
+                <h3 class="di-section-title">
+                    <i class="bi bi-bullseye"></i>
+                    Performance vs Expectations
+                </h3>
+                <p class="di-section-subtitle">Actual returns vs your initial projections</p>
+            </div>
+            <span class="di-badge {% if panel.expectations_met_pct >= 50 %}success{% else %}warning{% endif %}">{{ "%.0f"|format(panel.expectations_met_pct) }}% Met</span>
+        </div>
+        <div class="di-section-body">
+            <div class="di-table-wrapper">
+                <table class="di-table di-expectations">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Expected CAGR</th>
+                            <th>Actual CAGR</th>
+                            <th>Diff</th>
+                            <th>Met?</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in panel.expectations %}
+                        <tr>
+                            <td>
+                                <span class="di-mono di-company-ticker">{{ item.company.ticker_symbol }}</span>
+                                <span class="checkpoints-company-name"> &middot; {{ item.company.name }}</span>
+                                <div class="checkpoints-company-name">{% if item.exit_date %}{{ item.entry_date.strftime('%b %Y') }} – {{ item.exit_date.strftime('%b %Y') }}{% else %}since {{ item.entry_date.strftime('%b %Y') }}{% endif %}</div>
+                            </td>
+                            <td class="di-num di-num-muted">{{ "%.1f"|format(item.expected) }}%{% if not item.annualized %}<span title="Held under 30 days: total return so far against the return due so far">*</span>{% endif %}</td>
+                            <td class="di-num {% if item.actual >= 0 %}positive{% else %}negative{% endif %}">
+                                {% if item.actual >= 0 %}+{% endif %}{{ "%.1f"|format(item.actual) }}%
+                            </td>
+                            <td class="di-num {% if item.diff >= 0 %}positive{% else %}negative{% endif %}">
+                                {% if item.diff >= 0 %}+{% endif %}{{ "%.1f"|format(item.diff) }}pp
+                            </td>
+                            <td class="di-met {% if item.met %}positive{% else %}negative{% endif %}">
+                                <i class="bi bi-{% if item.met %}check-circle-fill{% else %}x-circle-fill{% endif %}"></i>
+                                <span class="visually-hidden">{{ 'Met' if item.met else 'Not met' }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="di-insight-card learning">
+                <div class="di-insight-title">
+                    <i class="bi bi-lightbulb-fill"></i>
+                    Key Insight
+                </div>
+                <div>
+                    You've met expectations in <span class="di-highlight">{{ panel.expectations_met_count }} of {{ panel.expectations_total_count }} trades</span> ({{ "%.0f"|format(panel.expectations_met_pct) }}%).
+                    {% if panel.expectations_met_pct >= 60 %}
+                    Strong forecasting &mdash; you know your picks.
+                    {% else %}
+                    Review missed targets to calibrate future projections.
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>

@@ -1,0 +1,36 @@
+{% set pill_labels = {'edge': 'Your edge', 'winning_pattern': 'Winning pattern', 'warning': 'Watch out for', 'improvement': 'To improve'} %}
+{% set pill_tones = {'edge': 'edge', 'winning_pattern': 'winning', 'warning': 'warning', 'improvement': 'improvement'} %}
+{% if panel.locked %}
+<div class="di-section-card di-locked">
+    <div class="di-section-body">
+        <h3 class="di-section-title"><i class="bi bi-lock"></i> Your insights</h3>
+        <p class="di-locked-text">Unlocks at {{ panel.needed }} closed trades. You have {{ panel.closed_count }}.</p>
+        <div class="di-progress" role="progressbar" aria-label="Closed trades toward insights"
+             aria-valuenow="{{ panel.closed_count }}" aria-valuemin="0" aria-valuemax="{{ panel.needed }}">
+            <div class="di-progress-fill" style="width: {{ [panel.closed_count / panel.needed * 100, 100]|min }}%"></div>
+        </div>
+    </div>
+</div>
+{% elif not panel.cards %}
+<div class="di-section-card">
+    <div class="di-section-body">
+        <p class="di-rq-empty">No clear patterns yet across {{ panel.closed_count }} closed trades.</p>
+    </div>
+</div>
+{% else %}
+<div class="priority-lane-grid di-insight-grid">
+    {% for card in panel.cards %}
+    {% set insight = card.insight %}
+    {% set tone = pill_tones.get(insight.category, 'improvement') %}
+    <article class="di-insight di-insight--{{ tone }}">
+        <span class="di-pill di-pill--{{ tone }}">{{ pill_labels.get(insight.category, 'To improve') }}</span>
+        <h3 class="di-insight-heading">{{ insight.title }}</h3>
+        <p class="di-insight-description">{{ insight.description }}</p>
+        {% if insight.supporting_data %}<p class="di-insight-data">{{ insight.supporting_data }}</p>{% endif %}
+        {% if card.action %}
+        <a href="{{ card.action.url }}" class="action-btn"{% if card.action.tab %} data-tab-link="{{ card.action.tab }}"{% endif %}>{{ card.action.label }}</a>
+        {% endif %}
+    </article>
+    {% endfor %}
+</div>
+{% endif %}
