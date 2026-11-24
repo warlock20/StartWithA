@@ -177,6 +177,7 @@ class LearningInsight:
     description: str
     supporting_data: Optional[str]
     importance: str  # 'high', 'medium', 'low'
+    key: str = ''
 
 
 def outcome_hold_days(outcome) -> Optional[int]:
