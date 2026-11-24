@@ -55,7 +55,7 @@ from app.constants import (
 from app.services.portfolio_intelligence import (
     get_thesis_reality_check, get_return_target,
     compare_to_expected_cagr,
-    get_learning_insights, get_correlation_data, outcome_hold_days
+    get_learning_insights, outcome_hold_days
     )
 from app.services.exit_watch import episodes as exit_episodes
 from app.services.exit_watch import view as exit_watch_view
@@ -63,7 +63,7 @@ from app.services.portfolio_alerts import PortfolioAlertsService
 from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
-from app.services.decision_quality import compare_research, research_quality_view
+from app.services.decision_quality import compare_research, grade_table, research_quality_view
 from app.services.decision_trades import decision_trades
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
@@ -637,21 +637,9 @@ def analytics_decisions():
 @portfolio_bp.route('/analytics/research-correlation')
 @login_required
 def research_correlation():
-    """Research Quality → Returns Correlation Dashboard"""
-    from app.services.portfolio_intelligence import (
-        get_correlation_data,
-        get_learning_insights
-    )
-    
-    correlation_data = get_correlation_data(current_user.id)
-    
-    insights = []
-    if correlation_data.has_sufficient_data:
-        insights = get_learning_insights(current_user.id)
-    
-    return render_template('research_correlation.html',
-                          correlation_data=correlation_data,
-                          insights=insights)
+    """Retired page; the research quality section on Decision Intelligence replaced it."""
+    return redirect(url_for('portfolio.analytics_decisions', tab='research', _anchor='research-quality'),
+                    code=301)
 
 
 @portfolio_bp.route('/thesis-reality')
@@ -873,17 +861,18 @@ def intelligence_hub():
         'edge': comparison.edge
     }
 
-    # Correlation Card
-    correlation_data = get_correlation_data(current_user.id)
-    
-    correlation = {
-        'has_data': correlation_data.has_sufficient_data,
-        'research_advantage': correlation_data.research_advantage,
-        'total_outcomes': correlation_data.total_outcomes,
-        'best_grade': correlation_data.best_grade,
-        'min_needed': MIN_TRADES_FOR_INSIGHTS
+    # Research Quality Card
+    researched = [t for t in trades if t.research in ('low', 'high')]
+    graded_rows = [row for row in grade_table(researched)[0] if row.group.count > 0]
+    best_row = max(graded_rows, key=lambda row: row.group.avg_return, default=None)
+    quality_edge = comparison.quality_edge
+    research_quality_card = {
+        'has_data': len(researched) > 0,
+        'quality_edge': quality_edge,
+        'researched_count': len(researched),
+        'best_grade': best_row.grade if best_row else None,
     }
-    
+
     # Checkpoints Card
     checkpoints = {
         'overdue': checkpoint_summary.get('overdue_count', 0),
@@ -927,7 +916,7 @@ def intelligence_hub():
                           coverage_rows=coverage_rows(alerts_service.coverage, rule_states),
                           performance=performance,
                           decisions=decisions,
-                          correlation=correlation,
+                          research_quality_card=research_quality_card,
                           checkpoints=checkpoints,
                           thesis=thesis,
                           learning=learning)

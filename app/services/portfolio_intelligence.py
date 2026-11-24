@@ -29,7 +29,6 @@ Usage:
     from app.services.portfolio_intelligence import PortfolioIntelligenceService
     
     service = PortfolioIntelligenceService(user_id=123)
-    correlation_data = service.get_correlation_data()
     checkpoints = service.get_upcoming_checkpoints()
     insights = service.get_learning_insights()
 """
@@ -46,13 +45,12 @@ from app import cache
 from app.constants import HIGH_QUALITY_RESEARCH_SCORE
 from app.utils.time_utils import days_between, now_utc
 from app.utils.financial_utils import calculate_cagr
-from app.utils.grading import score_to_grade
 
 from app.models.ai_intelligence import ResearchOutcome
 from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company, ThesisEvolution
 from app.services.decision_journals import opening_buy_decision
 from app.services.decision_quality import classify_research
-from app.services.outcome_tracking import decision_outcomes, portfolio_outcomes
+from app.services.outcome_tracking import portfolio_outcomes
 # Below MIN_DAYS_FOR_ANNUALIZED_COMPARISON days held, total return is compared with
 # the return the expected CAGR implies by now
 from app.services.position_returns import MIN_DAYS_FOR_ANNUALIZED_COMPARISON, position_returns
@@ -98,44 +96,6 @@ def compare_to_expected_cagr(
     if annualized_return is None:
         annualized_return = calculate_cagr(total_return, days_held)
     return ReturnComparison(float(annualized_return), float(expected_cagr), True)
-
-
-@dataclass
-class GradePerformance:
-    """Performance metrics for a quality grade"""
-    grade: str
-    count: int
-    avg_return: float
-    win_rate: float
-    avg_hold_days: int
-
-
-@dataclass
-class CorrelationData:
-    """Research quality to returns correlation data"""
-    # By grade breakdown
-    grade_performance: List[GradePerformance]
-    
-    # Overall metrics
-    total_outcomes: int
-    researched_count: int
-    non_researched_count: int
-    
-    # Averages
-    researched_avg_return: float
-    non_researched_avg_return: float
-    research_advantage: float  # Difference between researched and non-researched
-    
-    # Quality correlation
-    correlation_coefficient: Optional[float]  # -1 to 1, how correlated is quality to returns
-    
-    # Best/Worst
-    best_grade: Optional[str]
-    worst_grade: Optional[str]
-    
-    # Enough data?
-    has_sufficient_data: bool
-    min_data_message: Optional[str]
 
 
 @dataclass
@@ -232,152 +192,9 @@ class PortfolioIntelligenceService:
     """
     Main service for portfolio intelligence and learning insights.
     """
-    
-    # Thresholds (will be configurable later)
-    MIN_OUTCOMES_FOR_ANALYSIS = 3
-    MIN_OUTCOMES_PER_GRADE = 1
-    
+
     def __init__(self, user_id: int):
         self.user_id = user_id
-    
-    # =========================================================================
-    # STEP 1: Correlation Dashboard
-    # =========================================================================
-    
-    def get_correlation_data(self) -> CorrelationData:
-        """
-        Get research quality to returns correlation data.
-        
-        Returns:
-            CorrelationData with grade breakdown, averages, and correlation metrics
-        """
-        # Get all completed outcomes for this user
-        outcomes = decision_outcomes(self.user_id).filter(
-            ResearchOutcome.realized_return_pct.isnot(None)
-        ).all()
-        
-        # Check if we have enough data
-        if len(outcomes) < self.MIN_OUTCOMES_FOR_ANALYSIS:
-            return CorrelationData(
-                grade_performance=[],
-                total_outcomes=len(outcomes),
-                researched_count=0,
-                non_researched_count=0,
-                researched_avg_return=0.0,
-                non_researched_avg_return=0.0,
-                research_advantage=0.0,
-                correlation_coefficient=None,
-                best_grade=None,
-                worst_grade=None,
-                has_sufficient_data=False,
-                min_data_message=f"Need at least {self.MIN_OUTCOMES_FOR_ANALYSIS} completed trades to analyze. You have {len(outcomes)}."
-            )
-        
-        # Group by grade
-        grade_buckets = {'A': [], 'B': [], 'C': [], 'D': [], 'F': []}
-        researched_returns = []
-        non_researched_returns = []
-        
-        for outcome in outcomes:
-            return_pct = float(outcome.realized_return_pct)
-            score = outcome.research_quality_score
-
-            # A null score means no research: no letter grade, non-researched group
-            if score is None:
-                non_researched_returns.append(return_pct)
-                continue
-
-            grade_buckets[score_to_grade(score)].append({
-                'return': return_pct,
-                'hold_days': outcome_hold_days(outcome) or 0,
-                'won': return_pct > 0
-            })
-
-            if score >= HIGH_QUALITY_RESEARCH_SCORE:
-                researched_returns.append(return_pct)
-            else:
-                non_researched_returns.append(return_pct)
-        
-        # Calculate grade performance
-        grade_performance = []
-        for grade in ['A', 'B', 'C', 'D', 'F']:
-            bucket = grade_buckets[grade]
-            if len(bucket) >= self.MIN_OUTCOMES_PER_GRADE:
-                returns = [b['return'] for b in bucket]
-                hold_days = [b['hold_days'] for b in bucket]
-                wins = [b['won'] for b in bucket]
-                
-                grade_performance.append(GradePerformance(
-                    grade=grade,
-                    count=len(bucket),
-                    avg_return=round(sum(returns) / len(returns), 1),
-                    win_rate=round(sum(wins) / len(wins) * 100, 1),
-                    avg_hold_days=round(sum(hold_days) / len(hold_days)) if hold_days else 0
-                ))
-        
-        # Calculate averages
-        researched_avg = sum(researched_returns) / len(researched_returns) if researched_returns else 0
-        non_researched_avg = sum(non_researched_returns) / len(non_researched_returns) if non_researched_returns else 0
-        research_advantage = researched_avg - non_researched_avg
-        
-        # Find best/worst grades
-        best_grade = None
-        worst_grade = None
-        if grade_performance:
-            sorted_by_return = sorted(grade_performance, key=lambda x: x.avg_return, reverse=True)
-            best_grade = sorted_by_return[0].grade
-            worst_grade = sorted_by_return[-1].grade
-        
-        # Calculate correlation coefficient (Pearson)
-        correlation = self._calculate_correlation(outcomes)
-        
-        return CorrelationData(
-            grade_performance=grade_performance,
-            total_outcomes=len(outcomes),
-            researched_count=len(researched_returns),
-            non_researched_count=len(non_researched_returns),
-            researched_avg_return=round(researched_avg, 1),
-            non_researched_avg_return=round(non_researched_avg, 1),
-            research_advantage=round(research_advantage, 1),
-            correlation_coefficient=correlation,
-            best_grade=best_grade,
-            worst_grade=worst_grade,
-            has_sufficient_data=True,
-            min_data_message=None
-        )
-    
-    def _calculate_correlation(self, outcomes) -> Optional[float]:
-        """Calculate Pearson correlation between quality score and returns"""
-        if len(outcomes) < 3:
-            return None
-        
-        scores = []
-        returns = []
-        
-        for outcome in outcomes:
-            if outcome.research_quality_score is not None and outcome.realized_return_pct is not None:
-                scores.append(float(outcome.research_quality_score))
-                returns.append(float(outcome.realized_return_pct))
-        
-        if len(scores) < 3:
-            return None
-        
-        # Calculate Pearson correlation
-        n = len(scores)
-        sum_x = sum(scores)
-        sum_y = sum(returns)
-        sum_xy = sum(x * y for x, y in zip(scores, returns))
-        sum_x2 = sum(x ** 2 for x in scores)
-        sum_y2 = sum(y ** 2 for y in returns)
-        
-        numerator = n * sum_xy - sum_x * sum_y
-        denominator = ((n * sum_x2 - sum_x ** 2) * (n * sum_y2 - sum_y ** 2)) ** 0.5
-        
-        if denominator == 0:
-            return None
-        
-        correlation = numerator / denominator
-        return round(correlation, 2)
     
     # =========================================================================
     # STEP 2: Checkpoint Reminders
@@ -806,13 +623,6 @@ class PortfolioIntelligenceService:
 # ============================================================
 # Convenience Functions (cached to avoid redundant computation)
 # ============================================================
-
-@cache.memoize(timeout=3600)  # 1 hour — correlation data changes only on trade close
-def get_correlation_data(user_id: int) -> CorrelationData:
-    """Get research quality to returns correlation data"""
-    service = PortfolioIntelligenceService(user_id)
-    return service.get_correlation_data()
-
 
 # Not cached: Met / Not Met and the destination-analysis edits change this list,
 # and a stale copy keeps resolved checkpoints on the reminders page. It is one
