@@ -151,6 +151,28 @@
     text-decoration: underline;
 }
 
+/* Decision Intelligence tab links */
+.hub-intel-links {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.75rem;
+}
+
+.hub-intel-links a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    color: var(--text-primary, #111827);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.hub-intel-links a:hover {
+    color: var(--primary, var(--accent-color));
+}
+
 /* Empty State for Cards */
 .hub-intel-card-empty {
     text-align: center;

@@ -146,113 +146,47 @@
             </div>
         </div>
 
-        <!-- Decisions Card -->
+        <!-- Decision Intelligence Card -->
         <div class="hub-intel-card decisions">
             <div class="hub-intel-card-header">
                 <div class="hub-intel-card-icon">
                     <i class="bi bi-signpost-split"></i>
                 </div>
                 <div>
-                    <h3 class="hub-intel-card-title">Decision Quality</h3>
-                    <p class="hub-intel-card-subtitle">Research impact on returns</p>
+                    <h3 class="hub-intel-card-title">Decision Intelligence</h3>
+                    <p class="hub-intel-card-subtitle">What your past decisions teach you</p>
                 </div>
             </div>
             <div class="hub-intel-card-body">
-                {% if decisions.has_data %}
                 <div class="hub-intel-card-metrics">
                     <div class="hub-intel-metric">
-                        {% if decisions.research_count > 0 %}
-                        <div class="hub-intel-metric-value {% if decisions.research_return >= 0 %}positive{% else %}negative{% endif %}">
-                            {% if decisions.research_return >= 0 %}+{% endif %}{{ "%.1f"|format(decisions.research_return) }}%
-                        </div>
-                        {% else %}
+                        {% if di_card.research_edge is none %}
                         <div class="hub-intel-metric-value">&mdash;</div>
+                        {% else %}
+                        <div class="hub-intel-metric-value {% if di_card.research_edge >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if di_card.research_edge >= 0 %}+{% endif %}{{ "%.1f"|format(di_card.research_edge) }}pp
+                        </div>
                         {% endif %}
-                        <div class="hub-intel-metric-label">With Research ({{ decisions.research_count }})</div>
+                        <div class="hub-intel-metric-label">Research edge</div>
                     </div>
                     <div class="hub-intel-metric">
-                        {% if decisions.no_research_count > 0 %}
-                        <div class="hub-intel-metric-value {% if decisions.no_research_return >= 0 %}positive{% else %}negative{% endif %}">
-                            {% if decisions.no_research_return >= 0 %}+{% endif %}{{ "%.1f"|format(decisions.no_research_return) }}%
-                        </div>
+                        {% if di_card.insights_count is none %}
+                        <div class="hub-intel-metric-value">{{ di_card.closed_count }}/{{ di_card.needed }} trades</div>
                         {% else %}
-                        <div class="hub-intel-metric-value">&mdash;</div>
+                        <div class="hub-intel-metric-value">{{ di_card.insights_count }}</div>
                         {% endif %}
-                        <div class="hub-intel-metric-label">No Research ({{ decisions.no_research_count }})</div>
+                        <div class="hub-intel-metric-label">Insights</div>
                     </div>
                 </div>
-                <div class="hub-intel-card-highlight">
-                    {% if decisions.edge is none %}
-                    <i class="bi bi-info-circle"></i>
-                    <span>{% if decisions.no_research_count == 0 %}No unresearched trades to compare{% else %}No research-backed trades to compare{% endif %}</span>
-                    {% elif decisions.edge >= 0 %}
-                    <i class="bi bi-check-circle text-success"></i>
-                    <span>Research adds +{{ "%.1f"|format(decisions.edge) }}% edge</span>
-                    {% else %}
-                    <i class="bi bi-exclamation-circle text-warning"></i>
-                    <span>Research trails by {{ "%.1f"|format(-decisions.edge) }}%</span>
-                    {% endif %}
-                </div>
-                {% else %}
-                <div class="hub-intel-card-empty">
-                    <i class="bi bi-clipboard-data"></i>
-                    <p>No trades with a return yet</p>
-                </div>
-                {% endif %}
+                <nav class="hub-intel-links" aria-label="Decision Intelligence sections">
+                    {% for label, url in di_card.links %}
+                    <a href="{{ url }}">{{ label }}</a>
+                    {% endfor %}
+                </nav>
             </div>
             <div class="hub-intel-card-footer">
                 <a href="{{ url_for('portfolio.analytics_decisions') }}">
-                    View Decision Analysis <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-
-        <!-- Research Quality Card -->
-        <div class="hub-intel-card research">
-            <div class="hub-intel-card-header">
-                <div class="hub-intel-card-icon">
-                    <i class="bi bi-bar-chart-line"></i>
-                </div>
-                <div>
-                    <h3 class="hub-intel-card-title">Research Quality</h3>
-                    <p class="hub-intel-card-subtitle">Grades A–C vs your other researched trades</p>
-                </div>
-            </div>
-            <div class="hub-intel-card-body">
-                {% if research_quality_card.has_data %}
-                {% set edge = research_quality_card.quality_edge %}
-                <div class="hub-intel-card-metrics">
-                    <div class="hub-intel-metric">
-                        {% if edge is none %}
-                        <div class="hub-intel-metric-value">—</div>
-                        {% else %}
-                        <div class="hub-intel-metric-value {% if edge >= 0 %}positive{% else %}negative{% endif %}">
-                            {% if edge >= 0 %}+{% endif %}{{ "%.1f"|format(edge) }}pp
-                        </div>
-                        {% endif %}
-                        <div class="hub-intel-metric-label">Quality Edge</div>
-                    </div>
-                    <div class="hub-intel-metric">
-                        <div class="hub-intel-metric-value">{{ research_quality_card.researched_count }}</div>
-                        <div class="hub-intel-metric-label">Researched Trades</div>
-                    </div>
-                </div>
-                {% if research_quality_card.best_grade %}
-                <div class="hub-intel-card-highlight">
-                    <i class="bi bi-award text-primary"></i>
-                    <span>Best grade: {{ research_quality_card.best_grade }} trades</span>
-                </div>
-                {% endif %}
-                {% else %}
-                <div class="hub-intel-card-empty">
-                    <i class="bi bi-graph-up"></i>
-                    <p>No researched trades yet</p>
-                </div>
-                {% endif %}
-            </div>
-            <div class="hub-intel-card-footer">
-                <a href="{{ url_for('portfolio.analytics_decisions', tab='research', _anchor='research-quality') }}">
-                    View Research Quality <i class="bi bi-arrow-right"></i>
+                    Open Decision Intelligence <i class="bi bi-arrow-right"></i>
                 </a>
             </div>
         </div>
@@ -362,57 +296,6 @@
             <div class="hub-intel-card-footer">
                 <a href="{{ url_for('portfolio.thesis_reality') }}">
                     View Thesis Details <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-
-        <!-- Learning Insights Card -->
-        <div class="hub-intel-card learning">
-            <div class="hub-intel-card-header">
-                <div class="hub-intel-card-icon">
-                    <i class="bi bi-lightbulb"></i>
-                </div>
-                <div>
-                    <h3 class="hub-intel-card-title">Learning Insights</h3>
-                    <p class="hub-intel-card-subtitle">Patterns from your history</p>
-                </div>
-            </div>
-            <div class="hub-intel-card-body">
-                {% if learning.has_insights %}
-                <div class="hub-intel-card-metrics">
-                    <div class="hub-intel-metric">
-                        <div class="hub-intel-metric-value positive">{{ learning.edge_count }}</div>
-                        <div class="hub-intel-metric-label">Your Edge</div>
-                    </div>
-                    <div class="hub-intel-metric">
-                        <div class="hub-intel-metric-value">{{ learning.patterns_count }}</div>
-                        <div class="hub-intel-metric-label">Patterns</div>
-                    </div>
-                    <div class="hub-intel-metric">
-                        <div class="hub-intel-metric-value warning">{{ learning.warnings_count }}</div>
-                        <div class="hub-intel-metric-label">Warnings</div>
-                    </div>
-                    <div class="hub-intel-metric">
-                        <div class="hub-intel-metric-value">{{ learning.total_trades }}</div>
-                        <div class="hub-intel-metric-label">Trades</div>
-                    </div>
-                </div>
-                {% if learning.top_insight %}
-                <div class="hub-intel-card-highlight">
-                    <i class="bi bi-star text-warning"></i>
-                    <span>{{ learning.top_insight }}</span>
-                </div>
-                {% endif %}
-                {% else %}
-                <div class="hub-intel-card-empty">
-                    <i class="bi bi-lightbulb"></i>
-                    <p>{% if learning.total_trades >= learning.min_needed %}No patterns detected yet across {{ learning.total_trades }} trades{% else %}Needs {{ learning.min_needed }} closed trades with tracked research ({{ learning.total_trades }} so far){% endif %}</p>
-                </div>
-                {% endif %}
-            </div>
-            <div class="hub-intel-card-footer">
-                <a href="{{ url_for('portfolio.learning_insights') }}">
-                    View All Insights <i class="bi bi-arrow-right"></i>
                 </a>
             </div>
         </div>

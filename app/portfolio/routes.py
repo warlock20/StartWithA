@@ -29,7 +29,6 @@ from app.models import (
     PortfolioPosition,
     Company,
     ThesisEvolution,
-    ResearchOutcome,
     BackgroundTask,
 )
 from app.services.currency_service import CurrencyService
@@ -41,7 +40,6 @@ from app.utils.navigation_utils import get_smart_return_url
 from app.services.background_tasks import BackgroundTaskService
 
 from app.constants import (
-    MIN_TRADES_FOR_INSIGHTS,
     MAX_DYNAMIC_FORM_FIELDS,
 )
 from app.services.portfolio_intelligence import get_thesis_reality_check, get_return_target
@@ -52,13 +50,10 @@ from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_intelligence import (
-    TAB_LABELS, DecisionIntelligenceService, get_learning_insights, normalise_tab,
+    TABS, TAB_LABELS, DecisionIntelligenceService, get_learning_insights, normalise_tab,
 )
-from app.services.decision_quality import compare_research, grade_table
-from app.services.decision_trades import decision_trades
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
-from app.services.outcome_tracking import portfolio_outcomes
 from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
@@ -620,11 +615,6 @@ def intelligence_hub():
     summary = PortfolioDataExtractor(current_user.id).summary()
     closed_count = summary['wins'] + summary['losses']
 
-    # Research outcomes still feed the learning-insights gate
-    outcomes = portfolio_outcomes(current_user.id).filter(
-        ResearchOutcome.realized_return_pct.isnot(None)
-    ).all()
-    
     # Alerts, checkpoints, theses and coverage all come from one service so the
     # strip, the health bar and the cards agree (issue #435)
     alerts_service = PortfolioAlertsService(current_user.id)
@@ -688,29 +678,15 @@ def intelligence_hub():
         'top_performer': top_performer
     }
     
-    # Decisions Card
-    trades = decision_trades(current_user.id)
-    comparison = compare_research(trades)
-
-    decisions = {
-        'has_data': comparison.research.count > 0 or comparison.none.count > 0,
-        'research_count': comparison.research.count,
-        'research_return': comparison.research.avg_return,
-        'no_research_count': comparison.none.count,
-        'no_research_return': comparison.none.avg_return,
-        'edge': comparison.edge
-    }
-
-    # Research Quality Card
-    researched = [t for t in trades if t.research in ('low', 'high')]
-    graded_rows = [row for row in grade_table(researched)[0] if row.group.count > 0]
-    best_row = max(graded_rows, key=lambda row: row.group.avg_return, default=None)
-    quality_edge = comparison.quality_edge
-    research_quality_card = {
-        'has_data': len(researched) > 0,
-        'quality_edge': quality_edge,
-        'researched_count': len(researched),
-        'best_grade': best_row.grade if best_row else None,
+    # Decision Intelligence Card: the edge from the page's own header, the count from the cached insights
+    di_service = DecisionIntelligenceService(current_user.id)
+    di_insights = di_service.insights()
+    di_card = {
+        'research_edge': di_service.header()['research_edge'],
+        'insights_count': None if di_insights['locked'] else len(get_learning_insights(current_user.id)),
+        'closed_count': di_insights['closed_count'],
+        'needed': di_insights['needed'],
+        'links': [(TAB_LABELS[tab], url_for('portfolio.analytics_decisions', tab=tab)) for tab in TABS],
     }
 
     # Checkpoints Card
@@ -730,23 +706,6 @@ def intelligence_hub():
         'needs_attention': needs_attention
     }
     
-    # Learning Card — memoized, so this is the same call the alerts service made
-    insights = get_learning_insights(current_user.id) if len(outcomes) >= MIN_TRADES_FOR_INSIGHTS else []
-    insights_by_cat = {'edge': [], 'winning_pattern': [], 'warning': [], 'improvement': []}
-    for insight in insights:
-        if insight.category in insights_by_cat:
-            insights_by_cat[insight.category].append(insight)
-    
-    learning = {
-        'has_insights': len(insights) > 0,
-        'edge_count': len(insights_by_cat['edge']),
-        'patterns_count': len(insights_by_cat['winning_pattern']),
-        'warnings_count': len(insights_by_cat['warning']),
-        'total_trades': len(outcomes),
-        'top_insight': insights[0].title if insights else None,
-        'min_needed': MIN_TRADES_FOR_INSIGHTS
-    }
-    
     rule_states = exit_watch_view.rule_states(
         current_user.id, [rule.id for row in alerts_service.coverage for rule in row.rules])
 
@@ -755,11 +714,9 @@ def intelligence_hub():
                           alerts=alerts,
                           coverage_rows=coverage_rows(alerts_service.coverage, rule_states),
                           performance=performance,
-                          decisions=decisions,
-                          research_quality_card=research_quality_card,
+                          di_card=di_card,
                           checkpoints=checkpoints,
-                          thesis=thesis,
-                          learning=learning)
+                          thesis=thesis)
 
 
 #############################
