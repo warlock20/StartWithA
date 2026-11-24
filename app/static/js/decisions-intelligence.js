@@ -5,6 +5,7 @@
     if (!tabList) return;
 
     var content = document.querySelector('.di-tab-content');
+    var LOADING = 'Loading\u2026';
     var FAILED = 'Could not load this tab. Reload the page.';
     var pendingHash = null;
     var pendingJump = false;
@@ -13,22 +14,35 @@
         return document.querySelector(button.getAttribute('data-bs-target'));
     }
 
+    // One in-flight fetch per pane, so rapid re-clicks share it
+    var inFlight = new WeakMap();
+
+    function showMessage(pane, text) {
+        var message = document.createElement('p');
+        message.setAttribute('role', 'status');
+        message.className = 'di-rq-empty';
+        message.textContent = text;
+        pane.replaceChildren(message);
+    }
+
     // Fetch a pane's HTML once; resolves when the pane is filled
     function load(pane) {
         if (pane.dataset.loaded === 'true') return Promise.resolve();
-        return fetch(pane.dataset.panelUrl, { credentials: 'same-origin' }).then(function (response) {
+        if (inFlight.has(pane)) return inFlight.get(pane);
+        showMessage(pane, LOADING);
+        var promise = fetch(pane.dataset.panelUrl, { credentials: 'same-origin' }).then(function (response) {
             if (!response.ok || response.redirected) throw new Error('status ' + response.status);
             return response.text();
         }).then(function (html) {
             pane.innerHTML = html;
             pane.dataset.loaded = 'true';
         }).catch(function () {
-            var message = document.createElement('p');
-            message.setAttribute('role', 'status');
-            message.className = 'di-rq-empty';
-            message.textContent = FAILED;
-            pane.replaceChildren(message);
+            showMessage(pane, FAILED);
+        }).then(function () {
+            inFlight.delete(pane);
         });
+        inFlight.set(pane, promise);
+        return promise;
     }
 
     // Scroll to the anchor and move focus there; with no anchor, focus the tab button

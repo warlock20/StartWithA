@@ -50,7 +50,7 @@ from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_intelligence import (
-    TABS, TAB_LABELS, DecisionIntelligenceService, get_learning_insights, normalise_tab,
+    TABS, TAB_LABELS, DecisionIntelligenceService, normalise_tab,
 )
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
@@ -543,6 +543,7 @@ def analytics_decisions_panel(tab):
         abort(404)
     return render_template(template, panel=DecisionIntelligenceService(current_user.id).tab(tab))
 
+
 @portfolio_bp.route('/analytics/research-correlation')
 @login_required
 def research_correlation():
@@ -678,12 +679,12 @@ def intelligence_hub():
         'top_performer': top_performer
     }
     
-    # Decision Intelligence Card: the edge from the page's own header, the count from the cached insights
+    # Decision Intelligence Card: the edge from the page's own header, the count from the same live cards
     di_service = DecisionIntelligenceService(current_user.id)
     di_insights = di_service.insights()
     di_card = {
         'research_edge': di_service.header()['research_edge'],
-        'insights_count': None if di_insights['locked'] else len(get_learning_insights(current_user.id)),
+        'insights_count': None if di_insights['locked'] else len(di_insights['cards']),
         'closed_count': di_insights['closed_count'],
         'needed': di_insights['needed'],
         'links': [(TAB_LABELS[tab], url_for('portfolio.analytics_decisions', tab=tab)) for tab in TABS],

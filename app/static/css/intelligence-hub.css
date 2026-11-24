@@ -49,11 +49,6 @@
     color: #9d174d;
 }
 
-.hub-intel-card.research .hub-intel-card-icon {
-    background: var(--success-50);
-    color: var(--success-600);
-}
-
 .hub-intel-card.checkpoints .hub-intel-card-icon {
     background: var(--warning-50);
     color: var(--warning-800);
@@ -62,11 +57,6 @@
 .hub-intel-card.thesis .hub-intel-card-icon {
     background: #ede9fe;
     color: #5b21b6;
-}
-
-.hub-intel-card.learning .hub-intel-card-icon {
-    background: #cffafe;
-    color: #0e7490;
 }
 
 .hub-intel-card-title {

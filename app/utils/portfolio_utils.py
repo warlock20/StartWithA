@@ -86,31 +86,6 @@ def categorize_by_holding_period(positions: List, returns: Mapping) -> Dict[str,
     return buckets
 
 
-def calculate_holding_period_stats(positions: List, returns: Mapping) -> Dict[str, float]:
-    """
-    Calculate average returns for each holding period bucket.
-
-    Args:
-        positions: List of PortfolioPosition objects
-        returns: position_returns() for these positions, keyed by company_id
-
-    Returns:
-        Dictionary with period as key and average return as value
-
-    Example:
-        >>> calculate_holding_period_stats(positions, position_returns(positions))
-        {'0-30': 4.2, '31-90': 10.5, '91-180': 15.2, ...}
-    """
-    buckets = categorize_by_holding_period(positions, returns)
-
-    stats = {}
-    for period, returns in buckets.items():
-        avg = sum(returns) / len(returns) if returns else 0.0
-        stats[period] = round(avg, 1)
-
-    return stats
-
-
 def categorize_confidence_level(confidence_score: int) -> str:
     """
     Categorize confidence score into low/medium/high.

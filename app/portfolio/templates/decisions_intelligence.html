@@ -31,10 +31,15 @@
                 {% endif %}
             </div>
             <div class="portfolio-metric">
-                <div class="portfolio-metric-icon blue"><i class="bi bi-shield-check"></i></div>
+                <div class="portfolio-metric-icon {% if header.researched_count == 0 %}gray{% else %}blue{% endif %}"><i class="bi bi-shield-check"></i></div>
                 <div class="portfolio-metric-label">Process Win Rate</div>
+                {% if header.researched_count == 0 %}
+                <div class="portfolio-metric-value">&mdash;</div>
+                <div class="portfolio-metric-subtext">No researched trades yet</div>
+                {% else %}
                 <div class="portfolio-metric-value">{{ "%.0f"|format(header.process_win_rate) }}%</div>
                 <div class="portfolio-metric-subtext">{{ header.researched_wins }} of {{ header.researched_count }} researched trades</div>
+                {% endif %}
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon {% if header.confidence_calibrated is none %}gray{% elif header.confidence_calibrated %}green{% else %}warning{% endif %}"><i class="bi bi-speedometer2"></i></div>
@@ -48,10 +53,15 @@
                 {% endif %}
             </div>
             <div class="portfolio-metric">
-                <div class="portfolio-metric-icon {% if header.expectations_met_pct >= 50 %}green{% else %}warning{% endif %}"><i class="bi bi-bullseye"></i></div>
+                <div class="portfolio-metric-icon {% if header.expectations_total_count == 0 %}gray{% elif header.expectations_met_pct >= 50 %}green{% else %}warning{% endif %}"><i class="bi bi-bullseye"></i></div>
                 <div class="portfolio-metric-label">Expectations Met</div>
+                {% if header.expectations_total_count == 0 %}
+                <div class="portfolio-metric-value">&mdash;</div>
+                <div class="portfolio-metric-subtext">No buys with an expected return yet</div>
+                {% else %}
                 <div class="portfolio-metric-value {% if header.expectations_met_pct >= 50 %}gain{% endif %}">{{ "%.0f"|format(header.expectations_met_pct) }}%</div>
                 <div class="portfolio-metric-subtext">{{ header.expectations_met_count }} of {{ header.expectations_total_count }} trades</div>
+                {% endif %}
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon purple"><i class="bi bi-check2-all"></i></div>
@@ -60,10 +70,15 @@
                 <div class="portfolio-metric-subtext">closed positions</div>
             </div>
             <div class="portfolio-metric">
-                <div class="portfolio-metric-icon blue"><i class="bi bi-hourglass-split"></i></div>
+                <div class="portfolio-metric-icon {% if header.completed_trades == 0 %}gray{% else %}blue{% endif %}"><i class="bi bi-hourglass-split"></i></div>
                 <div class="portfolio-metric-label">Avg Days Held</div>
+                {% if header.completed_trades == 0 %}
+                <div class="portfolio-metric-value">&mdash;</div>
+                <div class="portfolio-metric-subtext">No closed trades yet</div>
+                {% else %}
                 <div class="portfolio-metric-value">{{ header.avg_hold_days }}d</div>
                 <div class="portfolio-metric-subtext">per completed trade</div>
+                {% endif %}
             </div>
         </div>
         {% if header.alerts %}

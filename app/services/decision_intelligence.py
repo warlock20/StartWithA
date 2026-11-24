@@ -33,7 +33,7 @@ from app import cache
 from app.constants import (
     HIGH_QUALITY_RESEARCH_SCORE, MIN_TRADES_FOR_INSIGHTS, RECENT_DECISIONS_LIMIT,
 )
-from app.models import Company, DecisionJournal, PortfolioPosition, Transaction
+from app.models import Company, PortfolioPosition, Transaction
 from app.models.ai_intelligence import ResearchOutcome
 from app.services.decision_quality import compare_research, research_quality_view
 from app.services.decision_trades import decision_trades
@@ -61,7 +61,8 @@ MAX_HEADER_ALERTS = 2
 IMPORTANCE_ORDER = {'high': 0, 'medium': 1, 'low': 2}
 
 INSIGHT_KEYS = frozenset({
-    'research_edge', 'research_trails', 'quality_edge', 'quality_not_translating',
+    'research_edge', 'research_trails', 'quality_edge', 'quality_edge_no_baseline',
+    'quality_not_translating',
     'holding_long', 'holding_short', 'overconfidence', 'confidence_calibrated',
     'sector_strength', 'sector_weakness',
 })
@@ -70,6 +71,8 @@ INSIGHT_KEYS = frozenset({
 INSIGHT_ACTIONS: Dict[str, Tuple[str, str, dict]] = {
     'research_edge': ('Start new research', 'ideas.add_idea', {}),
     'quality_edge': ('Start new research', 'ideas.add_idea', {}),
+    'quality_edge_no_baseline': ('See research quality', 'portfolio.analytics_decisions',
+                                 {'tab': 'research', '_anchor': 'research-quality'}),
     'research_trails': ('See research quality', 'portfolio.analytics_decisions',
                         {'tab': 'research', '_anchor': 'research-quality'}),
     'quality_not_translating': ('See research quality', 'portfolio.analytics_decisions',
@@ -248,6 +251,17 @@ class DecisionIntelligenceService:
         hq_avg, lq_avg = high.avg_return, low.avg_return
         data = f'High quality: {hq_avg:.1f}% avg, Low quality: {lq_avg:.1f}% avg'
         if hq_avg > lq_avg + 5:
+            edge = self.comparison.edge
+            if edge is not None and edge < 0:
+                # The header says research trails; an "edge" card would contradict it
+                return [LearningInsight(
+                    category='improvement',
+                    title='Better research beats weaker research',
+                    description=f'High-quality research returned {hq_avg - lq_avg:.1f} points more than low-quality research, but researched trades still trail trades made without research.',
+                    supporting_data=data,
+                    importance='medium',
+                    key='quality_edge_no_baseline',
+                )]
             return [LearningInsight(
                 category='edge',
                 title='Research Quality Is Your Edge',
@@ -283,7 +297,7 @@ class DecisionIntelligenceService:
                 category='winning_pattern',
                 title='Patience Pays Off',
                 description=f'Positions held 90+ days return {long_avg - short_avg:.1f}% more on average.',
-                supporting_data=f'Long holds: {long_avg:.1f}% avg ({len(long_holds)} trades), Short holds: {short_avg:.1f}% avg ({len(short_holds)} trades)',
+                supporting_data=f'Closed trades: long holds {long_avg:.1f}% avg ({len(long_holds)} trades), short holds {short_avg:.1f}% avg ({len(short_holds)} trades)',
                 importance='high',
                 key='holding_long',
             )]
@@ -292,7 +306,7 @@ class DecisionIntelligenceService:
                 category='winning_pattern',
                 title='Quick Trades Working',
                 description='Your shorter-term trades (<90 days) are outperforming.',
-                supporting_data=f'Short holds: {short_avg:.1f}% avg, Long holds: {long_avg:.1f}% avg',
+                supporting_data=f'Closed trades: short holds {short_avg:.1f}% avg ({len(short_holds)} trades), long holds {long_avg:.1f}% avg ({len(long_holds)} trades)',
                 importance='medium',
                 key='holding_short',
             )]
@@ -452,7 +466,7 @@ class DecisionIntelligenceService:
             Transaction.type.in_(['BUY', 'SELL']),
         ).options(
             joinedload(Transaction.company),
-            joinedload(Transaction.decision_journal).joinedload(DecisionJournal.parent_decision),
+            joinedload(Transaction.decision_journal),
         ).order_by(Transaction.date.desc(), Transaction.id.desc()).limit(RECENT_DECISIONS_LIMIT).all()
 
         by_opening = {t.opening.id: t for t in self.trades if t.opening is not None}
