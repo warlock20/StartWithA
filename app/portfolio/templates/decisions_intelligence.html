@@ -84,14 +84,10 @@
         {% if header.alerts %}
         <div class="dashboard-alerts-strip">
             {% for alert in header.alerts %}
-            <div class="dashboard-alert-card dashboard-alert-card--warning">
+            <div class="dashboard-alert-card dashboard-alert-card--warning" data-alert-id="{{ alert.id }}">
                 <i class="bi bi-exclamation-triangle-fill"></i>
                 <div class="dashboard-alert-card__text">{{ alert.message }}</div>
-                {% if alert.action %}
-                <div class="dashboard-alert-card__actions">
-                    <a href="{{ alert.action.url }}" class="action-btn"{% if alert.action.tab %} data-tab-link="{{ alert.action.tab }}"{% endif %}>{{ alert.action.label }}</a>
-                </div>
-                {% endif %}
+                <button type="button" class="dashboard-alert-card__close" aria-label="Close alert"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
             </div>
             {% endfor %}
         </div>

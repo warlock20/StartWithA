@@ -22,6 +22,7 @@ header's Research Edge, and confidence insights the same confidence stats as the
 header. Holding and sector insights stay on closed outcomes (received included).
 """
 
+import hashlib
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Dict, List, Optional, Tuple
@@ -68,15 +69,16 @@ INSIGHT_KEYS = frozenset({
 })
 
 # key -> (label, endpoint, url kwargs)
-INSIGHT_ACTIONS: Dict[str, Tuple[str, str, dict]] = {
+# A None entry means the insight offers no next step.
+INSIGHT_ACTIONS: Dict[str, Optional[Tuple[str, str, dict]]] = {
     'research_edge': ('Start new research', 'ideas.add_idea', {}),
     'quality_edge': ('Start new research', 'ideas.add_idea', {}),
     'quality_edge_no_baseline': ('See research quality', 'portfolio.analytics_decisions',
-                                 {'tab': 'research', '_anchor': 'research-quality'}),
+                               {'tab': 'research', '_anchor': 'research-quality'}),
     'research_trails': ('See research quality', 'portfolio.analytics_decisions',
-                        {'tab': 'research', '_anchor': 'research-quality'}),
+                      {'tab': 'research', '_anchor': 'research-quality'}),
     'quality_not_translating': ('See research quality', 'portfolio.analytics_decisions',
-                                {'tab': 'research', '_anchor': 'research-quality'}),
+                              {'tab': 'research', '_anchor': 'research-quality'}),
     'holding_long': ('See holding periods', 'portfolio.analytics_decisions',
                      {'tab': 'behaviour', '_anchor': 'holding-periods'}),
     'holding_short': ('See holding periods', 'portfolio.analytics_decisions',
@@ -398,11 +400,14 @@ class DecisionIntelligenceService:
             'expectations_met_pct': met_pct,
             'completed_trades': len(self.closed_outcomes),
             'avg_hold_days': sum(durations) // len(durations) if durations else 0,
-            'alerts': [
-                {'message': f'{i.title}: {i.description}', 'action': insight_action(i)}
-                for i in warnings
-            ],
+            'alerts': [self._alert(i) for i in warnings],
         }
+
+    @staticmethod
+    def _alert(insight: LearningInsight) -> dict:
+        message = f'{insight.title}: {insight.description}'
+        digest = hashlib.sha1(message.encode()).hexdigest()[:10]
+        return {'message': message, 'id': f'{insight.key}:{digest}'}
 
     def insights(self) -> dict:
         closed = len(self.closed_outcomes)

@@ -1,6 +1,57 @@
 // Decision Intelligence (portfolio/decisions_intelligence.html): tabs that load on first
 // open, the URL sync, links between tabs, and the research scope switch.
 (function () {
+    var DISMISSED_KEY = 'di-dismissed-alerts';
+    var DISMISSED_MAX = 50;
+
+    function readDismissed() {
+        try {
+            var list = JSON.parse(window.localStorage.getItem(DISMISSED_KEY) || '[]');
+            return Array.isArray(list) ? list : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveDismissed(id) {
+        try {
+            var list = readDismissed().filter(function (item) { return item !== id; });
+            list.push(id);
+            window.localStorage.setItem(DISMISSED_KEY, JSON.stringify(list.slice(-DISMISSED_MAX)));
+        } catch (e) {
+            // Storage is unavailable (private mode): the alert stays closed for this view only
+        }
+    }
+
+    function hideStripWhenEmpty(strip) {
+        var open = strip.querySelectorAll('.dashboard-alert-card:not([hidden])');
+        if (!open.length) strip.hidden = true;
+    }
+
+    function setupAlerts() {
+        var strip = document.querySelector('.dashboard-alerts-strip');
+        if (!strip) return;
+        var dismissed = readDismissed();
+        strip.querySelectorAll('.dashboard-alert-card[data-alert-id]').forEach(function (card) {
+            if (dismissed.indexOf(card.getAttribute('data-alert-id')) !== -1) card.hidden = true;
+        });
+        strip.addEventListener('click', function (event) {
+            var button = event.target.closest('.dashboard-alert-card__close');
+            if (!button) return;
+            var card = button.closest('.dashboard-alert-card');
+            saveDismissed(card.getAttribute('data-alert-id'));
+            card.hidden = true;
+            hideStripWhenEmpty(strip);
+        });
+        hideStripWhenEmpty(strip);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupAlerts);
+    } else {
+        setupAlerts();
+    }
+
     var tabList = document.getElementById('di-tabs');
     if (!tabList) return;
 
