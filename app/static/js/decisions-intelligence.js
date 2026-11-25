@@ -52,6 +52,14 @@
         setupAlerts();
     }
 
+    // A finding action's result (?re=<code>) is shown once: drop it from the URL (tab and hash stay),
+    // so a reload or the tab sync below does not show the status line again
+    var landing = new URL(window.location.href);
+    if (landing.searchParams.has('re')) {
+        landing.searchParams.delete('re');
+        window.history.replaceState(null, '', landing.toString());
+    }
+
     var tabList = document.getElementById('di-tabs');
     if (!tabList) return;
 
@@ -143,6 +151,7 @@
         var button = event.target.closest('[data-scope-btn]');
         if (!button) return;
         var section = button.closest('.tab-pane');
+        if (!section) return;
         section.querySelectorAll('[data-scope-btn]').forEach(function (other) {
             other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
         });

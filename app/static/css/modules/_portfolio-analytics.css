@@ -385,6 +385,11 @@
     margin-top: 12px;
 }
 
+.di-re-status {
+    margin-bottom: 16px;
+    font-size: var(--font-size-sm);
+}
+
 .di-re-list {
     list-style: none;
     margin: 0;

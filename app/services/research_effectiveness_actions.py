@@ -23,7 +23,7 @@ Both re-derive the finding from the server's own numbers by key; nothing the bro
 besides the key is trusted. Both flush and leave the commit to the caller.
 """
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 from app import db
 from app.models import KillChecklistSuggestion, ResearchEffectivenessDismissal
@@ -34,6 +34,33 @@ from app.services.research_effectiveness import Finding
 TRIGGER_EVENT = 'research_effectiveness'
 TITLE_MAX_LENGTH = 200
 RED_FLAG_QUESTION = 'Before buying, are all red flags on this company resolved?'
+
+
+# The result of a finding action, shown at the top of the section after the redirect (?re=<code>):
+# code -> (Bootstrap alert category, text). {name} is the user's default kill checklist.
+STATUS_MESSAGES = {
+    'added': ('success', 'Suggestion added to \u201c{name}\u201d. Review it under Kill checklists.'),
+    'exists': ('info', 'That suggestion is already waiting in \u201c{name}\u201d.'),
+    'no_kill_checklist': ('warning', 'Create a kill checklist first.'),
+    'changed': ('warning', 'This finding has changed. Reload and try again.'),
+    'hidden': ('info', 'Hidden until its numbers change.'),
+    'suggest_failed': ('danger', 'Could not add the suggestion. Try again.'),
+    'noise_failed': ('danger', 'Could not hide the finding. Try again.'),
+}
+
+
+def status_message(user_id: int, code: Optional[str]) -> Optional[dict]:
+    """{'code', 'category', 'text'} for a status code from the URL; None for a missing or unknown code."""
+    entry = STATUS_MESSAGES.get(code or '')
+    if entry is None:
+        return None
+    category, text = entry
+    if '{name}' in text:
+        checklist = default_kill_checklist(user_id)
+        if checklist is None:
+            return None
+        text = text.format(name=checklist.name)
+    return {'code': code, 'category': category, 'text': text}
 
 
 class NoKillChecklist(Exception):

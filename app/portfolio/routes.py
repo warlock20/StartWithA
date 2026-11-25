@@ -53,7 +53,7 @@ from app.services.decision_intelligence import (
     TABS, TAB_LABELS, DecisionIntelligenceService, normalise_tab,
 )
 from app.services.research_effectiveness_actions import (
-    FindingChanged, NoKillChecklist, mark_as_noise, suggest_from_finding,
+    FindingChanged, NoKillChecklist, mark_as_noise, status_message, suggest_from_finding,
 )
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
@@ -533,6 +533,7 @@ def analytics_decisions():
                            tab_templates=DECISION_TAB_TEMPLATES,
                            header=service.header(),
                            panel=service.tab(tab),
+                           effectiveness_status=status_message(current_user.id, request.args.get('re')),
                            return_url=return_url,
                            context_label=context_label)
 
@@ -547,11 +548,10 @@ def analytics_decisions_panel(tab):
     return render_template(template, panel=DecisionIntelligenceService(current_user.id).tab(tab))
 
 
-FINDING_CHANGED = 'This finding has changed. Reload and try again.'
-
-
-def _effectiveness_redirect():
-    return redirect(url_for('portfolio.analytics_decisions', tab='research', _anchor='research-effectiveness'))
+def _effectiveness_redirect(code):
+    """Back to the section, which shows the result for ``code`` (see STATUS_MESSAGES)."""
+    return redirect(url_for('portfolio.analytics_decisions', tab='research', re=code,
+                            _anchor='research-effectiveness'))
 
 
 @portfolio_bp.route('/analytics/decisions/effectiveness/suggest', methods=['POST'])
@@ -560,25 +560,21 @@ def effectiveness_suggest():
     """Add a pending kill-checklist suggestion for a research effectiveness finding."""
     key = request.form.get('key', '')
     try:
-        suggestion, created = suggest_from_finding(current_user.id, key)
+        _suggestion, created = suggest_from_finding(current_user.id, key)
         db.session.commit()
     except FindingChanged:
         db.session.rollback()
-        flash(FINDING_CHANGED, 'warning')
+        code = 'changed'
     except NoKillChecklist:
         db.session.rollback()
-        flash('Create a kill checklist first.', 'warning')
+        code = 'no_kill_checklist'
     except Exception:
         db.session.rollback()
         current_app.logger.exception('Research effectiveness suggestion failed for user %s', current_user.id)
-        flash('Could not add the suggestion. Try again.', 'danger')
+        code = 'suggest_failed'
     else:
-        name = suggestion.checklist.name
-        if created:
-            flash(f'Suggestion added to \u201c{name}\u201d. Review it under Kill checklists.', 'success')
-        else:
-            flash(f'That suggestion is already waiting in \u201c{name}\u201d.', 'info')
-    return _effectiveness_redirect()
+        code = 'added' if created else 'exists'
+    return _effectiveness_redirect(code)
 
 
 @portfolio_bp.route('/analytics/decisions/effectiveness/noise', methods=['POST'])
@@ -591,15 +587,15 @@ def effectiveness_noise():
         db.session.commit()
     except FindingChanged:
         db.session.rollback()
-        flash(FINDING_CHANGED, 'warning')
+        code = 'changed'
     except Exception:
         db.session.rollback()
         current_app.logger.exception('Marking research effectiveness finding as noise failed for user %s',
                                      current_user.id)
-        flash('Could not hide the finding. Try again.', 'danger')
+        code = 'noise_failed'
     else:
-        flash('Hidden until its numbers change.', 'info')
-    return _effectiveness_redirect()
+        code = 'hidden'
+    return _effectiveness_redirect(code)
 
 
 @portfolio_bp.route('/analytics/research-correlation')

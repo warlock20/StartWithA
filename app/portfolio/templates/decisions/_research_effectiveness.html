@@ -21,7 +21,7 @@
 {% macro finding_card(finding, rank) %}
 {% set n = finding.risk.count + finding.base.count %}
 <li class="di-re-card">
-    <span class="di-re-rank">{{ rank }}</span>
+    <span class="di-re-rank" aria-hidden="true">{{ rank }}</span>
     <div class="di-re-main">
         <h4 class="di-re-title">{{ finding.title }}</h4>
         <p class="di-re-body">{{ finding.body }}</p>
@@ -40,7 +40,10 @@
                 <p class="di-re-group-title">The open red flags</p>
                 <ul class="di-re-flags">
                     {% for flag in finding.flags %}
-                    <li><a href="{{ url_for('journal_enhanced.entry_detail', entry_id=flag.id) }}">{{ flag.finding_line() }}</a></li>
+                    <li>
+                        {% if flag.company %}<span class="di-mono di-company-ticker">{{ flag.company.ticker_symbol or flag.company.name }}</span> &mdash; {% endif %}
+                        <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=flag.id) }}">{{ flag.finding_line() }}</a>
+                    </li>
                     {% endfor %}
                 </ul>
             </div>
@@ -113,13 +116,23 @@
     <div class="di-section-header">
         <div>
             <h3 class="di-section-title">
-                <i class="bi bi-diagram-3"></i>
+                <i class="bi bi-diagram-3" aria-hidden="true"></i>
                 Research effectiveness
             </h3>
             <p class="di-section-subtitle">Which parts of your research came before the good and bad outcomes. Counts and rates, not AI guesses.</p>
         </div>
     </div>
     <div class="di-section-body">
+        {# The result of a finding action (?re=<code>); undefined when the tab is loaded as a panel #}
+        {% if effectiveness_status %}
+        <div class="alert alert-{{ effectiveness_status.category }} py-2 di-re-status" role="status">
+            {% if effectiveness_status.code == 'no_kill_checklist' %}
+            <a href="{{ url_for('ideas.manage_kill_checklists') }}">{{ effectiveness_status.text }}</a>
+            {% else %}
+            {{ effectiveness_status.text }}
+            {% endif %}
+        </div>
+        {% endif %}
         {{ scope_panel('closed', panel.effectiveness['closed'], false) }}
         {{ scope_panel('all', panel.effectiveness['all'], true) }}
     </div>
