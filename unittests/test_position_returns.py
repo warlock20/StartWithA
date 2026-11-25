@@ -261,6 +261,7 @@ def _sold_half_at_four_times(user, company):
 
 def test_intelligence_hub_top_performer_counts_dividends(app_context, _app):
     user = _make_user()
+    user.subscription_tier = 'pro'  # the hub is behind portfolio_intelligence
     aumann = _make_company(user.id, name='Aumann AG', ticker='AAG.DE')
     _aumann(user, aumann)
     other = _make_company(user.id, name='Plain Co', ticker='PLN')

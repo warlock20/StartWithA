@@ -38,7 +38,7 @@ from app.models import Company, PortfolioPosition, Transaction
 from app.models.ai_intelligence import ResearchOutcome
 from app.services.decision_quality import compare_research, research_quality_view
 from app.services.decision_trades import decision_trades
-from app.services.outcome_tracking import portfolio_outcomes
+from app.services.outcome_tracking import INSIGHTS_VERSION_KEY, portfolio_outcomes
 from app.services.portfolio_intelligence import (
     SHORT_HOLD_THRESHOLD_DAYS, LearningInsight, compare_to_expected_cagr, outcome_hold_days,
 )
@@ -72,13 +72,13 @@ INSIGHT_KEYS = frozenset({
 # A None entry means the insight offers no next step.
 INSIGHT_ACTIONS: Dict[str, Optional[Tuple[str, str, dict]]] = {
     'research_edge': ('Start new research', 'ideas.add_idea', {}),
-    'quality_edge': ('Start new research', 'ideas.add_idea', {}),
+    'quality_edge': None,
     'quality_edge_no_baseline': ('See research quality', 'portfolio.analytics_decisions',
-                               {'tab': 'research', '_anchor': 'research-quality'}),
+                                 {'tab': 'research', '_anchor': 'research-quality'}),
     'research_trails': ('See research quality', 'portfolio.analytics_decisions',
-                      {'tab': 'research', '_anchor': 'research-quality'}),
+                        {'tab': 'research', '_anchor': 'research-quality'}),
     'quality_not_translating': ('See research quality', 'portfolio.analytics_decisions',
-                              {'tab': 'research', '_anchor': 'research-quality'}),
+                                {'tab': 'research', '_anchor': 'research-quality'}),
     'holding_long': ('See holding periods', 'portfolio.analytics_decisions',
                      {'tab': 'behaviour', '_anchor': 'holding-periods'}),
     'holding_short': ('See holding periods', 'portfolio.analytics_decisions',
@@ -266,7 +266,7 @@ class DecisionIntelligenceService:
                 )]
             return [LearningInsight(
                 category='edge',
-                title='Research Quality Is Your Edge',
+                title='Research quality is your edge',
                 description=f'High-quality research (score {HIGH_QUALITY_RESEARCH_SCORE}+) delivers {hq_avg - lq_avg:.1f}% better returns than low-quality research.',
                 supporting_data=data,
                 importance='high',
@@ -275,7 +275,7 @@ class DecisionIntelligenceService:
         if lq_avg > hq_avg:
             return [LearningInsight(
                 category='warning',
-                title='Research Quality Not Translating',
+                title='Research quality not translating',
                 description="Your high-quality research isn't outperforming. Consider if your research process needs adjustment.",
                 supporting_data=data,
                 importance='high',
@@ -297,7 +297,7 @@ class DecisionIntelligenceService:
         if long_avg > short_avg + 5:
             return [LearningInsight(
                 category='winning_pattern',
-                title='Patience Pays Off',
+                title='Patience pays off',
                 description=f'Positions held 90+ days return {long_avg - short_avg:.1f}% more on average.',
                 supporting_data=f'Closed trades: long holds {long_avg:.1f}% avg ({len(long_holds)} trades), short holds {short_avg:.1f}% avg ({len(short_holds)} trades)',
                 importance='high',
@@ -306,7 +306,7 @@ class DecisionIntelligenceService:
         if short_avg > long_avg + 5:
             return [LearningInsight(
                 category='winning_pattern',
-                title='Quick Trades Working',
+                title='Quick trades working',
                 description='Your shorter-term trades (<90 days) are outperforming.',
                 supporting_data=f'Closed trades: short holds {short_avg:.1f}% avg ({len(short_holds)} trades), long holds {long_avg:.1f}% avg ({len(long_holds)} trades)',
                 importance='medium',
@@ -360,7 +360,7 @@ class DecisionIntelligenceService:
         if sector_avgs[best] > 10:
             insights.append(LearningInsight(
                 category='winning_pattern',
-                title=f'{best} Is Your Sweet Spot',
+                title=f'{best} is your sweet spot',
                 description=f"You're averaging {sector_avgs[best]:.1f}% returns in {best}.",
                 supporting_data=f'{len(sector_returns[best])} trades',
                 importance='medium',
@@ -510,7 +510,12 @@ class DecisionIntelligenceService:
         return handlers[name]()
 
 
-@cache.memoize(timeout=1800)  # 30 min: trade history doesn't change often
+@cache.memoize(timeout=1800)  # 30 min; the version in the key makes every outcome sync a miss
+def _cached_learning_insights(user_id: int, version: str) -> List[LearningInsight]:
+    return DecisionIntelligenceService(user_id).learning_insights()
+
+
 def get_learning_insights(user_id: int) -> List[LearningInsight]:
     """The cached insight list (no request context needed), for the dashboard alert."""
-    return DecisionIntelligenceService(user_id).learning_insights()
+    version = cache.get(INSIGHTS_VERSION_KEY.format(user_id=user_id)) or '0'
+    return _cached_learning_insights(user_id, version)

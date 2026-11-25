@@ -36,7 +36,7 @@ from app.services.cash_service import CashService
 from app.services.decision_journals import current_opening_decision, inherited_thesis
 from app.services.findings import MUST_EXIT
 from app.services.corporate_action_display import row_fields as corporate_row_fields
-from app.services.outcome_tracking import safe_sync_outcomes
+from app.services.outcome_tracking import bump_insights_version, safe_sync_outcomes
 from app.utils.blocknote_utils import blocknote_preview
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 
@@ -195,6 +195,7 @@ def reset_portfolio():
 
         # 3. Delete the user's research outcomes (derived from transactions)
         db.session.query(ResearchOutcome).filter_by(user_id=current_user.id).delete()
+        bump_insights_version(current_user.id)
 
         # 4. Reset cash balance
         current_user.cash_balance = 0
