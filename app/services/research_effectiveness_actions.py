@@ -19,14 +19,15 @@
 Actions behind the Research effectiveness finding cards (#440): suggest a kill-checklist
 criterion from a finding, and mark a finding as noise.
 
-Both re-derive the finding from the server's own numbers by key; nothing the browser sends
-besides the key is trusted. Both flush and leave the commit to the caller.
+Both re-derive the finding from the server's own numbers by key, looking first in the scope
+the card was shown in; nothing else the browser sends is trusted. Both flush and leave the
+commit to the caller.
 """
 
 from typing import Optional, Tuple
 
 from app import db
-from app.models import KillChecklistSuggestion, ResearchEffectivenessDismissal
+from app.models import KillChecklistSuggestion, KillCriterion, ResearchEffectivenessDismissal
 from app.services.decision_intelligence import DecisionIntelligenceService
 from app.services.kill_criterion_suggester import QUESTION_MAX_LENGTH, default_kill_checklist
 from app.services.research_effectiveness import Finding
@@ -79,16 +80,24 @@ def suggestion_question(finding: Finding) -> str:
     return question[:QUESTION_MAX_LENGTH]
 
 
-def _found(user_id: int, key: str):
-    found = DecisionIntelligenceService(user_id).find_finding(key)
+def _found(user_id: int, key: str, scope: str):
+    found = DecisionIntelligenceService(user_id).find_finding(key, scope=scope)
     if found is None:
         raise FindingChanged(key)
     return found
 
 
-def suggest_from_finding(user_id: int, key: str) -> Tuple[KillChecklistSuggestion, bool]:
-    """A pending add-criterion suggestion for this finding, as (suggestion, created)."""
-    finding, counts = _found(user_id, key)
+def _same_question(a: str, b: str) -> bool:
+    return (a or '').strip().lower() == (b or '').strip().lower()
+
+
+def suggest_from_finding(user_id: int, key: str,
+                         scope: str = 'closed') -> Tuple[Optional[KillChecklistSuggestion], bool]:
+    """
+    A pending add-criterion suggestion for this finding, as (suggestion, created).
+    (None, False) when the default kill checklist already has the question.
+    """
+    finding, counts = _found(user_id, key, scope)
     if not finding.worse_with_risk:
         raise FindingChanged(key)
     checklist = default_kill_checklist(user_id)
@@ -103,6 +112,9 @@ def suggest_from_finding(user_id: int, key: str) -> Tuple[KillChecklistSuggestio
             return existing, False
 
     question = suggestion_question(finding)
+    criteria = KillCriterion.query.filter_by(kill_checklist_id=checklist.id).all()
+    if any(_same_question(criterion.question, question) for criterion in criteria):
+        return None, False
     small = ', small sample' if finding.small_sample else ''
     suggestion = KillChecklistSuggestion(
         user_id=user_id,
@@ -124,9 +136,9 @@ def suggest_from_finding(user_id: int, key: str) -> Tuple[KillChecklistSuggestio
     return suggestion, True
 
 
-def mark_as_noise(user_id: int, key: str) -> ResearchEffectivenessDismissal:
+def mark_as_noise(user_id: int, key: str, scope: str = 'closed') -> ResearchEffectivenessDismissal:
     """Hide the finding while its counts in each scope stay as they are now."""
-    _, counts = _found(user_id, key)
+    _, counts = _found(user_id, key, scope)
     dismissal = ResearchEffectivenessDismissal.query.filter_by(user_id=user_id, finding_key=key).first()
     if dismissal is None:
         dismissal = ResearchEffectivenessDismissal(user_id=user_id, finding_key=key, counts=counts)

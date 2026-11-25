@@ -32,8 +32,10 @@ trades with research 'unknown' are left out everywhere.
 
 A finding needs both groups at MIN_GROUP_TRADES or more and a win-rate gap of
 WIN_RATE_GAP_PP or an average-return gap of RETURN_GAP_PP. It is shown in either
-direction. "Mark as noise" hides a finding in a scope while that scope's counts are
-the ones stored with the dismissal.
+direction. Its direction (``worse_with_risk``) is that of the larger gap measured against
+its threshold, the return gap on a tie; ``mixed`` says the two gaps point opposite ways.
+"Mark as noise" hides a finding in a scope while that scope's counts are the ones stored
+with the dismissal.
 
 Limitations:
 - ``verdict_at`` on answers saved before #440 is backfilled from ``answered_at``, which
@@ -79,6 +81,7 @@ VERDICT_GROUPS = {'not_satisfied': CONCERN, 'needs_attention': CONCERN, 'satisfi
 
 RESEARCHED = ('low', 'high')
 BETTER_WITH_RISK_NOTE = 'So far a concern here did not come before worse results.'
+MIXED_NOTE = 'Mixed so far: win rate and average return point in different directions.'
 
 
 def checklist_key(item_id: int) -> str:
@@ -177,6 +180,12 @@ class Group:
         return self.count < SMALL_SAMPLE_TRADES
 
 
+def _gaps(risk: Group, base: Group) -> Tuple[float, float]:
+    """(win-rate gap, average-return gap), risk minus base; negative means the risk group did worse."""
+    # Rounded so a gap of exactly the threshold (8/12 vs 5/12 is 24.999999999999986) qualifies
+    return round(risk.win_rate - base.win_rate, 9), round(risk.avg_return - base.avg_return, 9)
+
+
 @dataclass
 class Finding:
     key: str
@@ -203,38 +212,51 @@ class Finding:
                 f'Without one: {base.wins} of {base.count} gained.')
 
     @property
+    def mixed(self) -> bool:
+        """The win-rate gap and the return gap are both non-zero and point opposite ways."""
+        win_gap, return_gap = _gaps(self.risk, self.base)
+        return win_gap != 0 and return_gap != 0 and (win_gap < 0) != (return_gap < 0)
+
+    @property
     def note(self) -> Optional[str]:
-        """The second line, shown when the risk group did not do worse."""
+        """The second line: the gaps disagree, or the risk group did not do worse."""
+        if self.mixed:
+            return MIXED_NOTE
         return None if self.worse_with_risk else BETTER_WITH_RISK_NOTE
 
 
 @dataclass
 class FindingSlot:
     kind: str                  # 'checklist' | 'red_flags'
-    state: str                 # 'locked' | 'shown' | 'no_difference'
+    # 'locked' | 'shown' | 'no_difference' (both groups big enough, gap small) |
+    # 'too_few_groups' (checklist: no item has both groups at `needed`) |
+    # 'too_few_without' (red flags: fewer than `needed` trades with no open red flag)
+    state: str
     have: int
     needed: int
     findings: List[Finding]
     hidden: int                # qualifying findings marked as noise, counts unchanged
+    without: int = 0           # red flags: trades with no open red flag
 
 
 def _finding(key: str, kind: str, title: str, risk: Group, base: Group, **extra) -> Optional[Finding]:
     """The finding when the groups differ enough, else None."""
     if risk.count < MIN_GROUP_TRADES or base.count < MIN_GROUP_TRADES:
         return None
-    # Rounded so a gap of exactly the threshold (8/12 vs 5/12 is 24.999999999999986) qualifies
-    win_gap = round(abs(risk.win_rate - base.win_rate), 9)
-    return_gap = round(abs(risk.avg_return - base.avg_return), 9)
-    if win_gap < WIN_RATE_GAP_PP and return_gap < RETURN_GAP_PP:
+    win_gap, return_gap = _gaps(risk, base)
+    if abs(win_gap) < WIN_RATE_GAP_PP and abs(return_gap) < RETURN_GAP_PP:
         return None
+    win_strength, return_strength = abs(win_gap) / WIN_RATE_GAP_PP, abs(return_gap) / RETURN_GAP_PP
+    # The direction of the gap that sets the strength; the return gap on a tie
+    dominant = win_gap if win_strength > return_strength else return_gap
     return Finding(
         key=key,
         kind=kind,
         title=title,
         risk=risk,
         base=base,
-        worse_with_risk=risk.avg_return < base.avg_return,
-        strength=max(win_gap / WIN_RATE_GAP_PP, return_gap / RETURN_GAP_PP),
+        worse_with_risk=dominant < 0,
+        strength=max(win_strength, return_strength),
         small_sample=risk.small_sample or base.small_sample,
         counts=sorted([g.label, g.count, g.wins] for g in (risk, base)),
         **extra,
@@ -250,7 +272,9 @@ class ScopeFindings:
     checklist: List[Finding]       # every qualifying checklist finding, strongest first, uncapped
     red_flags: Optional[Finding]
     checklist_have: int            # researched trades with any checklist verdict
+    checklist_comparable: bool     # some item has both groups at MIN_GROUP_TRADES or more
     red_flags_have: int            # trades bought with an open red flag
+    red_flags_without: int         # trades bought with no open red flag
 
 
 def scope_findings(trades: List[DecisionTrade], history: TradeHistory, scope: str) -> ScopeFindings:
@@ -265,7 +289,9 @@ def scope_findings(trades: List[DecisionTrade], history: TradeHistory, scope: st
             if group is not None:
                 by_item[item_id][group].append(trade)
     checklist = []
+    comparable = False
     for item_id, groups in by_item.items():
+        comparable = comparable or min(len(groups[CONCERN]), len(groups[SATISFIED])) >= MIN_GROUP_TRADES
         item = history.items.get(item_id)
         found = _finding(
             checklist_key(item_id), 'checklist', item.text if item is not None else '',
@@ -290,22 +316,27 @@ def scope_findings(trades: List[DecisionTrade], history: TradeHistory, scope: st
         checklist=_by_strength(checklist),
         red_flags=red,
         checklist_have=sum(1 for t in researched if history.verdicts.get(t.outcome.id)),
+        checklist_comparable=comparable,
         red_flags_have=len(flagged),
+        red_flags_without=len(clean),
     )
 
 
 def _slot(kind: str, have: int, qualifying: List[Finding], scope: str, dismissals: Dict[str, dict],
-          cap: Optional[int] = None) -> FindingSlot:
+          too_few: Optional[str], cap: Optional[int] = None, without: int = 0) -> FindingSlot:
+    """``too_few`` is the state when nothing qualifies because the groups are too small, else None."""
     if have < MIN_GROUP_TRADES:
-        return FindingSlot(kind=kind, state='locked', have=have, needed=MIN_GROUP_TRADES, findings=[], hidden=0)
+        return FindingSlot(kind=kind, state='locked', have=have, needed=MIN_GROUP_TRADES, findings=[], hidden=0,
+                           without=without)
     visible = [f for f in qualifying if (dismissals.get(f.key) or {}).get(scope) != f.counts]
     return FindingSlot(
         kind=kind,
-        state='shown' if qualifying else 'no_difference',
+        state='shown' if qualifying else (too_few or 'no_difference'),
         have=have,
         needed=MIN_GROUP_TRADES,
         findings=visible[:cap] if cap is not None else visible,
         hidden=len(qualifying) - len(visible),
+        without=without,
     )
 
 
@@ -322,9 +353,12 @@ def effectiveness_view(trades: List[DecisionTrade], history: TradeHistory,
     for scope in SCOPES:
         found = scope_findings(trades, history, scope)
         checklist = _slot('checklist', found.checklist_have, found.checklist, scope, dismissals,
+                          too_few=None if found.checklist_comparable else 'too_few_groups',
                           cap=MAX_CHECKLIST_FINDINGS)
         red_flags = _slot('red_flags', found.red_flags_have,
-                          [found.red_flags] if found.red_flags is not None else [], scope, dismissals)
+                          [found.red_flags] if found.red_flags is not None else [], scope, dismissals,
+                          too_few='too_few_without' if found.red_flags_without < MIN_GROUP_TRADES else None,
+                          without=found.red_flags_without)
         view[scope] = {
             'checklist': checklist,
             'red_flags': red_flags,
@@ -334,18 +368,20 @@ def effectiveness_view(trades: List[DecisionTrade], history: TradeHistory,
 
 
 def find_finding(trades: List[DecisionTrade], history: TradeHistory,
-                 key: str) -> Optional[Tuple[Finding, Dict[str, list]]]:
+                 key: str, scope: str = 'closed') -> Optional[Tuple[Finding, Dict[str, list]]]:
     """
-    The qualifying finding with this key (closed scope first, then all), ignoring
+    The qualifying finding with this key (``scope`` first, then the other scope), ignoring
     dismissals and the cap, plus its counts per scope (a scope where it does not
     qualify gets []). None when it qualifies in no scope.
     """
+    if scope not in SCOPES:
+        raise ValueError(f'unknown scope {scope!r}')
     per_scope = {}
-    for scope in SCOPES:
-        found = scope_findings(trades, history, scope)
+    for each in SCOPES:
+        found = scope_findings(trades, history, each)
         candidates = found.checklist + ([found.red_flags] if found.red_flags is not None else [])
-        per_scope[scope] = next((f for f in candidates if f.key == key), None)
-    finding = per_scope['closed'] or per_scope['all']
+        per_scope[each] = next((f for f in candidates if f.key == key), None)
+    finding = per_scope[scope] or next((f for f in per_scope.values() if f is not None), None)
     if finding is None:
         return None
     return finding, {scope: (f.counts if f is not None else []) for scope, f in per_scope.items()}

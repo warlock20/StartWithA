@@ -18,7 +18,7 @@
 </div>
 {% endmacro %}
 
-{% macro finding_card(finding, rank) %}
+{% macro finding_card(finding, rank, scope) %}
 {% set n = finding.risk.count + finding.base.count %}
 <li class="di-re-card">
     <span class="di-re-rank" aria-hidden="true">{{ rank }}</span>
@@ -54,11 +54,13 @@
         {% if finding.worse_with_risk %}
         <form method="post" action="{{ url_for('portfolio.effectiveness_suggest') }}">
             <input type="hidden" name="key" value="{{ finding.key }}">
+            <input type="hidden" name="scope" value="{{ scope }}">
             <button type="submit" class="action-btn primary">{{ 'Add as kill question' if finding.kind == 'checklist' else 'Add kill criterion' }}</button>
         </form>
         {% endif %}
         <form method="post" action="{{ url_for('portfolio.effectiveness_noise') }}">
             <input type="hidden" name="key" value="{{ finding.key }}">
+            <input type="hidden" name="scope" value="{{ scope }}">
             <button type="submit" class="action-btn">Mark as noise</button>
         </form>
     </div>
@@ -93,7 +95,7 @@
     {% if data.ranked %}
     <ol class="di-re-list">
         {% for finding in data.ranked %}
-        {{ finding_card(finding, loop.index) }}
+        {{ finding_card(finding, loop.index, scope) }}
         {% endfor %}
     </ol>
     {% endif %}
@@ -102,9 +104,13 @@
     {% endfor %}
     {% if data.checklist.state == 'no_difference' %}
     <p class="di-rq-note">No checklist answer separates your wins from your losses yet.</p>
+    {% elif data.checklist.state == 'too_few_groups' %}
+    <p class="di-rq-note">Not enough answers on both sides of any checklist item to compare yet.</p>
     {% endif %}
     {% if data.red_flags.state == 'no_difference' %}
     <p class="di-rq-note">Trades with and without an open red flag did about the same so far.</p>
+    {% elif data.red_flags.state == 'too_few_without' %}
+    <p class="di-rq-note">Not enough trades without an open red flag to compare yet ({{ data.red_flags.without }} of {{ data.red_flags.needed }}).</p>
     {% endif %}
     {% if hidden_count %}
     <p class="di-rq-note">{{ hidden_count }} finding{{ '' if hidden_count == 1 else 's' }} marked as noise {{ 'is' if hidden_count == 1 else 'are' }} hidden until {{ 'its' if hidden_count == 1 else 'their' }} numbers change.</p>

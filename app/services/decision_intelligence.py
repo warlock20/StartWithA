@@ -441,9 +441,9 @@ class DecisionIntelligenceService:
         """Research effectiveness per scope (#440), dismissed findings hidden; see effectiveness_view."""
         return self._effectiveness
 
-    def find_finding(self, key: str) -> Optional[Tuple[Finding, Dict[str, list]]]:
-        """The finding with this key in either scope, ignoring dismissals, and its counts per scope."""
-        return find_finding(self._effectiveness_trades, self._effectiveness_history, key)
+    def find_finding(self, key: str, scope: str = 'closed') -> Optional[Tuple[Finding, Dict[str, list]]]:
+        """The finding with this key (``scope`` first, then the other), ignoring dismissals, and its counts per scope."""
+        return find_finding(self._effectiveness_trades, self._effectiveness_history, key, scope=scope)
 
     def research(self) -> dict:
         return {

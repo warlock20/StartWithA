@@ -52,6 +52,7 @@ from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_intelligence import (
     TABS, TAB_LABELS, DecisionIntelligenceService, normalise_tab,
 )
+from app.services.decision_quality import SCOPES
 from app.services.research_effectiveness_actions import (
     FindingChanged, NoKillChecklist, mark_as_noise, status_message, suggest_from_finding,
 )
@@ -548,6 +549,12 @@ def analytics_decisions_panel(tab):
     return render_template(template, panel=DecisionIntelligenceService(current_user.id).tab(tab))
 
 
+def _effectiveness_scope():
+    """The scope of the panel the finding card was in; 'closed' when missing or unknown."""
+    scope = request.form.get('scope', 'closed')
+    return scope if scope in SCOPES else 'closed'
+
+
 def _effectiveness_redirect(code):
     """Back to the section, which shows the result for ``code`` (see STATUS_MESSAGES)."""
     return redirect(url_for('portfolio.analytics_decisions', tab='research', re=code,
@@ -560,7 +567,7 @@ def effectiveness_suggest():
     """Add a pending kill-checklist suggestion for a research effectiveness finding."""
     key = request.form.get('key', '')
     try:
-        _suggestion, created = suggest_from_finding(current_user.id, key)
+        _suggestion, created = suggest_from_finding(current_user.id, key, scope=_effectiveness_scope())
         db.session.commit()
     except FindingChanged:
         db.session.rollback()
@@ -583,7 +590,7 @@ def effectiveness_noise():
     """Hide a research effectiveness finding until its numbers change."""
     key = request.form.get('key', '')
     try:
-        mark_as_noise(current_user.id, key)
+        mark_as_noise(current_user.id, key, scope=_effectiveness_scope())
         db.session.commit()
     except FindingChanged:
         db.session.rollback()
@@ -706,22 +713,24 @@ def intelligence_hub():
     # CARD DATA - Individual sections
     # ========================================
     
-    # Lifetime returns (unrealized + realized + dividends) for open and closed positions
+    # Returns (unrealized + realized + dividends) for open and closed positions
     all_positions = PortfolioPosition.query.filter_by(user_id=current_user.id).all()
     returns = position_returns(all_positions)
 
-    # Performance Card (open positions)
-    open_returns = [(p, returns[p.company_id]) for p in positions if p.company_id in returns]
-    winning_positions = sum(1 for _, r in open_returns if r.total_gain > 0)
-    losing_positions = sum(1 for _, r in open_returns if r.total_gain < 0)
+    # Performance Card (open positions), judged by the current holding: a trade
+    # closed before a re-buy does not make today's holding a winner
+    open_returns = [(p, returns[p.company_id]) for p in positions
+                    if p.company_id in returns and returns[p.company_id].holding_return_pct is not None]
+    winning_positions = sum(1 for _, r in open_returns if r.holding_return_pct > 0)
+    losing_positions = sum(1 for _, r in open_returns if r.holding_return_pct < 0)
 
     top_performer = None
     if open_returns:
-        best, best_return = max(open_returns, key=lambda pr: pr[1].total_return_pct)
+        best, best_return = max(open_returns, key=lambda pr: pr[1].holding_return_pct)
         if best.company:
             top_performer = {
                 'ticker': best.company.ticker_symbol,
-                'return': best_return.total_return_pct
+                'return': best_return.holding_return_pct
             }
     
     performance = {
