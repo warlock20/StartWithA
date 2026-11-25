@@ -52,6 +52,9 @@ from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.decision_intelligence import (
     TABS, TAB_LABELS, DecisionIntelligenceService, normalise_tab,
 )
+from app.services.research_effectiveness_actions import (
+    FindingChanged, NoKillChecklist, mark_as_noise, suggest_from_finding,
+)
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
 from app.services.cash_service import CashService
@@ -542,6 +545,61 @@ def analytics_decisions_panel(tab):
     if template is None:
         abort(404)
     return render_template(template, panel=DecisionIntelligenceService(current_user.id).tab(tab))
+
+
+FINDING_CHANGED = 'This finding has changed. Reload and try again.'
+
+
+def _effectiveness_redirect():
+    return redirect(url_for('portfolio.analytics_decisions', tab='research', _anchor='research-effectiveness'))
+
+
+@portfolio_bp.route('/analytics/decisions/effectiveness/suggest', methods=['POST'])
+@login_required
+def effectiveness_suggest():
+    """Add a pending kill-checklist suggestion for a research effectiveness finding."""
+    key = request.form.get('key', '')
+    try:
+        suggestion, created = suggest_from_finding(current_user.id, key)
+        db.session.commit()
+    except FindingChanged:
+        db.session.rollback()
+        flash(FINDING_CHANGED, 'warning')
+    except NoKillChecklist:
+        db.session.rollback()
+        flash('Create a kill checklist first.', 'warning')
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('Research effectiveness suggestion failed for user %s', current_user.id)
+        flash('Could not add the suggestion. Try again.', 'danger')
+    else:
+        name = suggestion.checklist.name
+        if created:
+            flash(f'Suggestion added to \u201c{name}\u201d. Review it under Kill checklists.', 'success')
+        else:
+            flash(f'That suggestion is already waiting in \u201c{name}\u201d.', 'info')
+    return _effectiveness_redirect()
+
+
+@portfolio_bp.route('/analytics/decisions/effectiveness/noise', methods=['POST'])
+@login_required
+def effectiveness_noise():
+    """Hide a research effectiveness finding until its numbers change."""
+    key = request.form.get('key', '')
+    try:
+        mark_as_noise(current_user.id, key)
+        db.session.commit()
+    except FindingChanged:
+        db.session.rollback()
+        flash(FINDING_CHANGED, 'warning')
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('Marking research effectiveness finding as noise failed for user %s',
+                                     current_user.id)
+        flash('Could not hide the finding. Try again.', 'danger')
+    else:
+        flash('Hidden until its numbers change.', 'info')
+    return _effectiveness_redirect()
 
 
 @portfolio_bp.route('/analytics/research-correlation')
