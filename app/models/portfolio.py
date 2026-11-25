@@ -267,6 +267,8 @@ class PortfolioPosition(db.Model):
     total_dividends = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)
 
     # Metadata
+    # First purchase of the current holding: a re-buy after selling out starts a new
+    # date (for a closed position, the last holding's). See _FifoResult.
     first_purchase_date = db.Column(db.Date, nullable=True, index=True)
     last_transaction_date = db.Column(db.Date, nullable=True)
     last_price_update = db.Column(db.DateTime, nullable=True)
@@ -295,7 +297,7 @@ class PortfolioPosition(db.Model):
 
     @property
     def days_held(self):
-        """Calculate number of days position has been held"""
+        """Days since the current holding's first purchase (not the first purchase ever)"""
         if not self.first_purchase_date:
             return 0
         return (now_utc().date() - self.first_purchase_date).days
@@ -422,6 +424,9 @@ class _FifoResult:
     # positive. Their sum plus the market value of the shares held equals
     # unrealized + realized (dividends included). Feeds position_returns' XIRR.
     cash_flows: List[Tuple[date, Decimal]] = field(default_factory=list)
+    # Index in cash_flows where the current holding (or, once closed, the last one)
+    # starts: the flows of earlier round trips come before it
+    holding_flows_start: int = 0
 
 
 def _load_transactions(company_id, user_id):
@@ -436,7 +441,9 @@ def _walk_fifo(transactions):
     Single FIFO pass over a company's transactions (oldest first).
 
     Returns a _FifoResult with the position totals and the round trips (0 shares -> 0 shares).
-    Uses base currency values (_base fields) when available.
+    first_purchase_date is the first purchase of the current holding: buying back
+    after selling out starts a new holding. Uses base currency values (_base fields)
+    when available.
     """
     # FIFO queue: [{date, quantity, price_per_share, fees}, ...]
     shares_queue = []
@@ -452,6 +459,7 @@ def _walk_fifo(transactions):
     trip = None
     first_oversold = None
     cash_flows = []
+    holding_flows_start = 0
 
     def flow(txn, amount):
         if amount:
@@ -459,8 +467,11 @@ def _walk_fifo(transactions):
 
     def add_lot(txn, quantity, unit_price, lot_fees, cost, opens_trip=True):
         """Put a lot at the back of the queue; a lot added at 0 shares opens a round trip."""
-        nonlocal total_shares, total_cost, first_purchase_date, trip
+        nonlocal total_shares, total_cost, first_purchase_date, trip, holding_flows_start
         if opens_trip and total_shares == 0:
+            # A new holding: called before the lot's own flow is recorded
+            first_purchase_date = txn.date
+            holding_flows_start = len(cash_flows)
             trip = RoundTrip(
                 opening_transaction=txn,
                 closing_transaction=None,
@@ -635,6 +646,7 @@ def _walk_fifo(transactions):
         round_trips=round_trips,
         first_oversold=first_oversold,
         cash_flows=cash_flows,
+        holding_flows_start=holding_flows_start,
     )
 
 
@@ -794,3 +806,28 @@ def update_portfolio_position_for_company(company_id, user_id, last_transaction_
                 company.is_in_portfolio = False
 
     return position
+
+
+def backfill_holding_start_dates(user_id=None, dry_run=False):
+    """
+    Move each position's stored first_purchase_date to its current holding's.
+
+    Positions saved before a re-buy started a new holding keep the first purchase
+    ever, so days held counts the time spent out of the stock. Only that column is
+    written. Returns {'checked': n, 'changed': n}; dry_run rolls back.
+    """
+    query = PortfolioPosition.query
+    if user_id is not None:
+        query = query.filter_by(user_id=user_id)
+    checked = changed = 0
+    for position in query.order_by(PortfolioPosition.id).all():
+        checked += 1
+        start = _walk_fifo(_load_transactions(position.company_id, position.user_id)).first_purchase_date
+        if start != position.first_purchase_date:
+            position.first_purchase_date = start
+            changed += 1
+    if dry_run:
+        db.session.rollback()
+    else:
+        db.session.commit()
+    return {'checked': checked, 'changed': changed}

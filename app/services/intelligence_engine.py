@@ -735,11 +735,11 @@ class IntelligenceEngine:
         if days_held < min_days:
             return None  # Position too new for meaningful CAGR analysis
 
-        # Lifetime return: realized gains and dividends count, money-weighted over the holding
+        # The current holding's return: realized gains and dividends count, money-weighted
         measured = position_return(existing_position)
-        if measured is None:
+        if measured is None or measured.holding_return_pct is None:
             return None  # no price yet
-        total_return = measured.total_return_pct
+        total_return = measured.holding_return_pct
         cagr = (measured.annualized_pct if measured.annualized_pct is not None
                 else calculate_cagr(total_return, days_held))
 

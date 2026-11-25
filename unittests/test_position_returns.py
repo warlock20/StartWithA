@@ -25,7 +25,8 @@ import pytest
 
 from app import db
 from app.models import DecisionJournal
-from app.models.portfolio import PortfolioPosition, Transaction, update_portfolio_position_for_company
+from app.models.portfolio import (PortfolioPosition, Transaction, backfill_holding_start_dates,
+                                  update_portfolio_position_for_company)
 from app.services.argos.core import ArgosService
 from app.services.intelligence_engine import IntelligenceEngine
 from app.services.outcome_tracking import sync_outcomes_for_company
@@ -316,3 +317,134 @@ def test_similar_decision_outcome_uses_the_lifetime_return(app_context):
     assert outcome['return_pct'] == pytest.approx(150.0)
     assert outcome['holding_days'] == 400
     assert outcome['is_open']
+
+
+# ── re-buy after a full exit: the current holding is measured on its own ──
+
+def _sold_out_then_rebought(user, company):
+    """+50% in 50 days, out for over two years, re-bought 100 days ago and now down 5%."""
+    _txn(user, company, 'BUY', 1000, 10, Decimal('100'))
+    _txn(user, company, 'SELL', 950, 10, Decimal('150'))
+    _txn(user, company, 'BUY', 100, 10, Decimal('100'))
+    return _position(user, company, Decimal('95'))
+
+
+def test_rebuy_annualizes_only_the_current_holding(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    position = _sold_out_then_rebought(user, company)
+
+    measured = position_return(position)
+
+    # Over all the flows the 50-day round trip annualizes to ~1,800% and drowns the rest
+    assert measured.annualized_pct == calculate_xirr([(TODAY - timedelta(days=100), -1000), (TODAY, 950)])
+    assert measured.annualized_pct < 0
+    assert measured.days == 100
+    assert measured.holding_return_pct == pytest.approx(-5.0)
+    # The lifetime figures still count the closed trade
+    assert float(measured.total_gain) == pytest.approx(450.0)
+    assert measured.total_return_pct == pytest.approx(22.5)
+
+
+def test_rebuy_restarts_days_held(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    position = _sold_out_then_rebought(user, company)
+
+    assert position.first_purchase_date == TODAY - timedelta(days=100)
+    assert position.days_held == 100
+
+
+def test_same_day_sell_and_rebuy_starts_a_new_holding(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _txn(user, company, 'BUY', 400, 10, Decimal('100'))
+    _txn(user, company, 'SELL', 200, 10, Decimal('150'))
+    _txn(user, company, 'BUY', 200, 10, Decimal('150'))
+    position = _position(user, company, Decimal('165'))
+
+    measured = position_return(position)
+
+    assert measured.annualized_pct == calculate_xirr([(TODAY - timedelta(days=200), -1500), (TODAY, 1650)])
+    assert measured.holding_return_pct == pytest.approx(10.0)
+    assert measured.days == 200
+
+
+def test_closed_position_measures_its_last_holding(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _txn(user, company, 'BUY', 1000, 10, Decimal('100'))
+    _txn(user, company, 'SELL', 950, 10, Decimal('150'))
+    _txn(user, company, 'BUY', 400, 10, Decimal('100'))
+    _txn(user, company, 'SELL', 35, 10, Decimal('110'))
+    position = _position(user, company, None)
+
+    measured = position_return(position)
+
+    assert measured.days == 365
+    assert measured.holding_return_pct == pytest.approx(10.0)
+    assert measured.annualized_pct == pytest.approx(10.0, abs=0.01)
+    assert measured.total_return_pct == pytest.approx(30.0)
+
+
+def test_dividend_from_the_closed_trade_is_not_in_the_holding(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _txn(user, company, 'BUY', 1000, 10, Decimal('100'))
+    _txn(user, company, 'SELL', 600, 10, Decimal('100'))
+    _txn(user, company, 'DIVIDEND', 590, 1, Decimal('50'))  # paid after the exit, earned before it
+    _txn(user, company, 'BUY', 100, 10, Decimal('100'))
+    position = _position(user, company, Decimal('100'))
+
+    measured = position_return(position)
+
+    assert measured.holding_return_pct == pytest.approx(0.0)
+    assert float(measured.total_gain) == pytest.approx(50.0)
+
+
+def test_thesis_reality_judges_a_rebuy_by_the_current_holding(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _sold_out_then_rebought(user, company)
+    db.session.add(DecisionJournal(
+        user_id=user.id, company_id=company.id, decision_type='BUY',
+        decision_date=TODAY - timedelta(days=100), is_portfolio_decision=True,
+        investment_thesis='Thesis', expected_cagr=15, expected_timeframe=72))
+    db.session.commit()
+
+    [result] = PortfolioIntelligenceService(user.id).get_thesis_reality_check()
+
+    assert result.days_held == 100
+    assert result.actual_return_pct == pytest.approx(-5.0)
+    assert result.annualized_return_pct < 0
+    assert result.status == 'needs_attention'
+
+
+def test_company_page_return_tile_shows_the_current_holding(app_context, _app):
+    user = _make_user()
+    company = _make_company(user.id)
+    _sold_out_then_rebought(user, company)
+    company.is_in_portfolio = True
+    PortfolioPosition.query.filter_by(company_id=company.id).one().last_price_update = now_utc()
+    client = _logged_in(_app, user)
+
+    html = client.get(f'/companies/{company.id}').get_data(as_text=True)
+
+    tile = re.search(r'id="posReturnValue">\s*([^<]+?)\s*</div>', html).group(1)
+    assert tile == '-5.0%'
+
+
+def test_backfill_moves_first_purchase_date_to_the_current_holding(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    position = _sold_out_then_rebought(user, company)
+    position.first_purchase_date = TODAY - timedelta(days=1000)  # stored before the fix
+    db.session.commit()
+
+    dry = backfill_holding_start_dates(dry_run=True)
+    assert dry == {'checked': 1, 'changed': 1}
+    assert PortfolioPosition.query.one().first_purchase_date == TODAY - timedelta(days=1000)
+
+    assert backfill_holding_start_dates() == {'checked': 1, 'changed': 1}
+    assert PortfolioPosition.query.one().first_purchase_date == TODAY - timedelta(days=100)
+    assert backfill_holding_start_dates() == {'checked': 1, 'changed': 0}

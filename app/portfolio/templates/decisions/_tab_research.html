@@ -122,8 +122,8 @@
         </div>
         {% if panel.has_trades %}
         <div class="di-scope-switch" role="group" aria-label="Trade scope">
-            <button type="button" class="di-scope-btn" data-scope-btn="all" aria-pressed="true">Closed + open</button>
-            <button type="button" class="di-scope-btn" data-scope-btn="closed" aria-pressed="false">Closed only</button>
+            <button type="button" class="di-scope-btn" data-scope-btn="closed" aria-pressed="true">Closed trades</button>
+            <button type="button" class="di-scope-btn" data-scope-btn="all" aria-pressed="false">Closed + open</button>
         </div>
         {% endif %}
     </div>
@@ -131,11 +131,13 @@
         {% if not panel.has_trades %}
         <p class="di-rq-empty">No trades with a return yet.</p>
         {% else %}
-        {{ scope_panel('all', panel.view['all'], 'No trades yet', false) }}
-        {{ scope_panel('closed', panel.view['closed'], 'No closed trades yet', true) }}
+        {{ scope_panel('closed', panel.view['closed'], 'No closed trades yet', false) }}
+        {{ scope_panel('all', panel.view['all'], 'No trades yet', true) }}
         {% endif %}
         <a href="{{ url_for('portfolio.analytics_decisions', tab='insights') }}" class="action-btn di-rq-link" data-tab-link="insights">
             <i class="bi bi-lightbulb"></i> See all your insights
         </a>
     </div>
 </div>
+
+{% include 'decisions/_research_effectiveness.html' %}

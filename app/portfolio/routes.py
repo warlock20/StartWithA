@@ -745,7 +745,10 @@ def intelligence_hub():
         'insights_count': None if di_insights['locked'] else len(di_insights['cards']),
         'closed_count': di_insights['closed_count'],
         'needed': di_insights['needed'],
-        'links': [(TAB_LABELS[tab], url_for('portfolio.analytics_decisions', tab=tab)) for tab in TABS],
+        'links': [(TAB_LABELS[tab], url_for('portfolio.analytics_decisions', tab=tab)) for tab in TABS] + [
+            ('Research effectiveness',
+             url_for('portfolio.analytics_decisions', tab='research', _anchor='research-effectiveness')),
+        ],
     }
 
     # Checkpoints Card

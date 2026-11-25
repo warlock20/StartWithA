@@ -137,11 +137,12 @@
         bootstrap.Tab.getOrCreateInstance(button).show();
     });
 
-    // Research scope switch (Closed + open / Closed only), by delegation: the pane may load later
+    // Research scope switch (Closed trades / Closed + open), by delegation: the pane may load later.
+    // It drives every scoped panel in its tab (Research quality and Research effectiveness).
     content.addEventListener('click', function (event) {
         var button = event.target.closest('[data-scope-btn]');
         if (!button) return;
-        var section = button.closest('#research-quality');
+        var section = button.closest('.tab-pane');
         section.querySelectorAll('[data-scope-btn]').forEach(function (other) {
             other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
         });

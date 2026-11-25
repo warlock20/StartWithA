@@ -525,13 +525,13 @@ class SimilarMistakesService:
         ).first()
         
         if position and position.is_active:
-            # Position still open - lifetime return so far (realized gains and dividends count)
+            # Position still open - the current holding's return so far (realized gains and dividends count)
             measured = position_return(position)
-            if measured is not None and measured.total_return_pct:
+            if measured is not None and measured.holding_return_pct:
                 return {
-                    'return_pct': measured.total_return_pct,
+                    'return_pct': measured.holding_return_pct,
                     'holding_days': measured.days,
-                    'category': self._categorize_return(measured.total_return_pct),
+                    'category': self._categorize_return(measured.holding_return_pct),
                     'lessons_learned': None,
                     'is_open': True
                 }

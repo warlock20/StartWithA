@@ -549,11 +549,12 @@ def _gather_journey_data(company, user_id):
         company_id=company.id
     ).filter(JournalEntry.entry_type.notin_(FINDING_TYPES)).count()
 
-    # Journey statistics: the lifetime return, so realized gains and dividends count
+    # Journey statistics: the current holding's return, so realized gains and dividends
+    # count but a closed trade before a re-buy does not
     measured = position_return(position) if position else None
-    total_return = measured.total_return_pct if measured else 0
+    total_return = (measured.holding_return_pct or 0) if measured else 0
     annualized_return = measured.annualized_pct if measured else None
-    days_held = (position.days_held or 0) if position else 0
+    days_held = measured.days if measured else ((position.days_held or 0) if position else 0)
 
     checkpoints_met = sum(1 for cp in checkpoints if cp.status == 'Met')
 
@@ -604,7 +605,7 @@ def _gather_journey_data(company, user_id):
                     and measured is not None):
                 return_vs_expected = compare_to_expected_cagr(
                     portfolio_decision_journal.expected_cagr,
-                    measured.total_return_pct,
+                    measured.holding_return_pct or 0,
                     measured.days,
                     measured.annualized_pct)
 

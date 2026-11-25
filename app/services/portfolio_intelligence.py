@@ -287,9 +287,10 @@ class PortfolioIntelligenceService:
     def get_thesis_reality_check(self) -> List[ThesisReality]:
         """
         Compare original investment thesis to actual performance.
-        Uses the position's annualized return (XIRR over its own cash flows, so
-        realized gains and dividends count) for a fair comparison across
-        holding periods.
+        Uses the current holding's annualized return (XIRR over its own cash
+        flows, so realized gains and dividends count) for a fair comparison
+        across holding periods. A stock sold out and bought back is judged by
+        the holding since the re-buy.
 
         Returns:
             List of ThesisReality for each active position
@@ -328,7 +329,7 @@ class PortfolioIntelligenceService:
         ).order_by(ThesisEvolution.version.desc()).all():
             theses_map.setdefault(t.company_id, []).append(t)
 
-        # Lifetime returns: realized gains and dividends count, not only the open shares
+        # Realized gains and dividends count, not only the open shares
         returns = position_returns(positions)
 
         results = []
@@ -339,8 +340,8 @@ class PortfolioIntelligenceService:
 
             # Calculate actual returns (a position with no price yet reads as flat)
             measured = returns.get(position.company_id)
-            actual_return = measured.total_return_pct if measured else 0.0
-            days_held = position.days_held or 0
+            actual_return = measured.holding_return_pct if measured and measured.holding_return_pct is not None else 0.0
+            days_held = measured.days if measured else (position.days_held or 0)
             annualized_return = (measured.annualized_pct if measured and measured.annualized_pct is not None
                                  else calculate_cagr(actual_return, days_held))
 

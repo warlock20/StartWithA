@@ -1,0 +1,126 @@
+{# Research effectiveness (#440): which checklist answers and open red flags came before good and bad trades.
+   Included by _tab_research.html; the scope switch in the Research quality header drives both sections. #}
+{% macro signed_pct(value) %}{% if value >= 0 %}+{% endif %}{{ "%.1f"|format(value) }}%{% endmacro %}
+
+{% macro trade_group(group) %}
+<div class="di-re-group">
+    <p class="di-re-group-title">{{ group.label }} &middot; {{ group.count }} trade{{ '' if group.count == 1 else 's' }}, {{ group.wins }} gained</p>
+    <ul class="di-re-trades">
+        {% for t in group.trades|sort(attribute='entry_date') %}
+        {% set company = t.outcome.company %}
+        <li class="di-re-trade">
+            <a href="{{ url_for('companies.company_detail', company_id=t.company_id) }}" class="di-mono di-company-ticker">{{ company.ticker_symbol or company.name }}</a>
+            <span class="di-re-trade-date">{{ t.entry_date.strftime('%b %d, %Y') }}</span>
+            <span class="di-num{% if t.return_pct > 0 %} positive{% elif t.return_pct < 0 %} negative{% endif %}">{{ signed_pct(t.return_pct) }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endmacro %}
+
+{% macro finding_card(finding, rank) %}
+{% set n = finding.risk.count + finding.base.count %}
+<li class="di-re-card">
+    <span class="di-re-rank">{{ rank }}</span>
+    <div class="di-re-main">
+        <h4 class="di-re-title">{{ finding.title }}</h4>
+        <p class="di-re-body">{{ finding.body }}</p>
+        {% if finding.note %}
+        <p class="di-re-note">{{ finding.note }}</p>
+        {% endif %}
+        <p class="di-re-basis">{{ n }} trades{% if finding.small_sample %} · small sample{% endif %}</p>
+        <details class="di-re-details">
+            <summary>Show the {{ n }} trades</summary>
+            <div class="di-re-groups">
+                {{ trade_group(finding.risk) }}
+                {{ trade_group(finding.base) }}
+            </div>
+            {% if finding.kind == 'red_flags' and finding.flags %}
+            <div class="di-re-group">
+                <p class="di-re-group-title">The open red flags</p>
+                <ul class="di-re-flags">
+                    {% for flag in finding.flags %}
+                    <li><a href="{{ url_for('journal_enhanced.entry_detail', entry_id=flag.id) }}">{{ flag.finding_line() }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </details>
+    </div>
+    <div class="di-re-actions">
+        {% if finding.worse_with_risk %}
+        <form method="post" action="{{ url_for('portfolio.effectiveness_suggest') }}">
+            <input type="hidden" name="key" value="{{ finding.key }}">
+            <button type="submit" class="action-btn primary">{{ 'Add as kill question' if finding.kind == 'checklist' else 'Add kill criterion' }}</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('portfolio.effectiveness_noise') }}">
+            <input type="hidden" name="key" value="{{ finding.key }}">
+            <button type="submit" class="action-btn">Mark as noise</button>
+        </form>
+    </div>
+</li>
+{% endmacro %}
+
+{% macro locked_card(slot, scope) %}
+{% set closed = 'closed ' if scope == 'closed' else '' %}
+<div class="di-re-card di-locked">
+    <span class="di-re-rank di-re-rank--locked"><i class="bi bi-lock" aria-hidden="true"></i></span>
+    <div class="di-re-main">
+        {% if slot.kind == 'checklist' %}
+        <h4 class="di-re-title">Checklist answers vs outcome</h4>
+        <p class="di-re-body">Unlocks at {{ slot.needed }} {{ closed }}trades with checklist answers. You have {{ slot.have }}.</p>
+        {% else %}
+        <h4 class="di-re-title">Red flags you bought through</h4>
+        <p class="di-re-body">Unlocks at {{ slot.needed }} {{ closed }}trades bought with an open red flag. You have {{ slot.have }}.</p>
+        {% endif %}
+        <div class="di-progress di-re-progress" role="progressbar"
+             aria-label="{{ 'Trades with checklist answers' if slot.kind == 'checklist' else 'Trades bought with an open red flag' }} toward unlocking"
+             aria-valuenow="{{ slot.have }}" aria-valuemin="0" aria-valuemax="{{ slot.needed }}">
+            <div class="di-progress-fill" style="width: {{ [slot.have / slot.needed * 100, 100]|min }}%"></div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro scope_panel(scope, data, hidden) %}
+{% set slots = [data.checklist, data.red_flags] %}
+{% set hidden_count = data.checklist.hidden + data.red_flags.hidden %}
+<div data-scope="{{ scope }}" {% if hidden %}hidden{% endif %}>
+    {% if data.ranked %}
+    <ol class="di-re-list">
+        {% for finding in data.ranked %}
+        {{ finding_card(finding, loop.index) }}
+        {% endfor %}
+    </ol>
+    {% endif %}
+    {% for slot in slots if slot.state == 'locked' %}
+    {{ locked_card(slot, scope) }}
+    {% endfor %}
+    {% if data.checklist.state == 'no_difference' %}
+    <p class="di-rq-note">No checklist answer separates your wins from your losses yet.</p>
+    {% endif %}
+    {% if data.red_flags.state == 'no_difference' %}
+    <p class="di-rq-note">Trades with and without an open red flag did about the same so far.</p>
+    {% endif %}
+    {% if hidden_count %}
+    <p class="di-rq-note">{{ hidden_count }} finding{{ '' if hidden_count == 1 else 's' }} marked as noise {{ 'is' if hidden_count == 1 else 'are' }} hidden until {{ 'its' if hidden_count == 1 else 'their' }} numbers change.</p>
+    {% endif %}
+</div>
+{% endmacro %}
+
+<div class="di-section-card di-re-section" id="research-effectiveness">
+    <div class="di-section-header">
+        <div>
+            <h3 class="di-section-title">
+                <i class="bi bi-diagram-3"></i>
+                Research effectiveness
+            </h3>
+            <p class="di-section-subtitle">Which parts of your research came before the good and bad outcomes. Counts and rates, not AI guesses.</p>
+        </div>
+    </div>
+    <div class="di-section-body">
+        {{ scope_panel('closed', panel.effectiveness['closed'], false) }}
+        {{ scope_panel('all', panel.effectiveness['all'], true) }}
+    </div>
+</div>

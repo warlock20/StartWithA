@@ -19,19 +19,30 @@ A position's return, counting everything it earned: one definition for every pag
 
 ``unrealized_gain_loss_pct`` only covers the shares still held, so it leaves out
 dividends and the gains on shares already sold, and annualizing it over
-``days_held`` (from the first purchase ever) mixes a short-lived cost base with a
+the days held (from the holding's first purchase) mixes a short-lived cost base with a
 long holding period. This module measures the position from its own cash flows
 instead (see ``_FifoResult.cash_flows``):
 
     total_gain        = unrealized + realized (trading and dividends)
     capital_invested  = cost of every lot bought or received
     total_return_pct  = total_gain / capital_invested
-    annualized_pct    = XIRR of the flows, with the market value of the shares
-                        held as the closing flow (money-weighted, so a top-up made
-                        last month is not treated as if it had been held for years)
+
+Those three are lifetime figures. The rest cover only the current holding: after
+selling out and buying back, the earlier round trips are closed trades of their
+own. Spanning them would let a quick early trade (say +50% in 50 days, ~1,800% a
+year) swamp the holding owned today, and count the years out of the stock as
+time held.
+
+    holding_return_pct = the holding's gain / the money put into it
+    annualized_pct     = XIRR of the holding's flows, with the market value of the
+                         shares held as the closing flow (money-weighted, so a
+                         top-up made last month is not treated as if it had been
+                         held for years)
+    days               = from the holding's first purchase
 
 For a single purchase held with no sales or dividends, the annualized figure is
-the plain CAGR. A closed position is measured up to its last flow.
+the plain CAGR. A closed position is measured over its last holding, up to its
+last flow.
 
 Prices are read from the materialized position (``current_value``); nothing here
 fetches prices, so it is safe on every page render.
@@ -55,50 +66,61 @@ MIN_DAYS_FOR_ANNUALIZED_COMPARISON = 30
 
 @dataclass
 class PositionReturn:
-    """Lifetime result of one position, in the user's base currency."""
+    """Result of one position, in the user's base currency (see the module docstring)."""
+    # Lifetime
     total_gain: Decimal                 # unrealized + realized, dividends included
     capital_invested: Decimal           # every lot bought or received
     total_return_pct: Optional[float]   # total_gain / capital_invested
-    annualized_pct: Optional[float]     # XIRR; None under MIN_DAYS_FOR_ANNUALIZED_COMPARISON days
-    days: int                           # first flow to today (open) or to the last flow (closed)
+    # The current holding (the last one, once closed)
+    holding_return_pct: Optional[float]  # its gain over the money put into it
+    annualized_pct: Optional[float]     # its XIRR; None under MIN_DAYS_FOR_ANNUALIZED_COMPARISON days
+    days: int                           # its first flow to today (open) or to its last flow (closed)
 
     @property
     def is_gain(self) -> bool:
         return self.total_gain > 0
 
 
-def _measure(position, cash_flows, as_of: date) -> Optional[PositionReturn]:
-    """PositionReturn from a position's flows, or None when it cannot be valued yet."""
-    if not cash_flows:
+def _gain_and_capital(flows):
+    """(sum of the flows, money put in) for (date, amount) flows."""
+    return sum((a for _, a in flows), ZERO), -sum((a for _, a in flows if a < 0), ZERO)
+
+
+def _measure(position, fifo, as_of: date) -> Optional[PositionReturn]:
+    """PositionReturn from a position's FIFO walk, or None when it cannot be valued yet."""
+    if not fifo.cash_flows:
         return None
 
-    flows = list(cash_flows)
+    flows = list(fifo.cash_flows)
     if position.is_active:
         if position.current_value is None:
             return None  # no price yet: the open shares cannot be valued
         flows.append((as_of, Decimal(str(position.current_value))))
 
-    capital_invested = -sum((a for _, a in flows if a < 0), ZERO)
+    total_gain, capital_invested = _gain_and_capital(flows)
     if capital_invested <= 0:
         return None
-
-    total_gain = sum((a for _, a in flows), ZERO)
     total_return_pct = float(total_gain / capital_invested * 100)
-    start = min(d for d, _ in flows)
-    end = as_of if position.is_active else max(d for d, _ in flows)
+
+    holding = flows[fifo.holding_flows_start:]
+    holding_gain, holding_capital = _gain_and_capital(holding)
+    holding_return_pct = float(holding_gain / holding_capital * 100) if holding_capital > 0 else None
+    start = min(d for d, _ in holding)
+    end = as_of if position.is_active else max(d for d, _ in holding)
     days = (end - start).days
 
     annualized_pct = None
-    if days >= MIN_DAYS_FOR_ANNUALIZED_COMPARISON:
-        annualized_pct = calculate_xirr(flows)
+    if days >= MIN_DAYS_FOR_ANNUALIZED_COMPARISON and holding_return_pct is not None:
+        annualized_pct = calculate_xirr(holding)
         if annualized_pct is None:
             # No sign change or no root (e.g. a total loss): fall back to the plain CAGR
-            annualized_pct = calculate_cagr(total_return_pct, days)
+            annualized_pct = calculate_cagr(holding_return_pct, days)
 
     return PositionReturn(
         total_gain=total_gain,
         capital_invested=capital_invested,
         total_return_pct=total_return_pct,
+        holding_return_pct=holding_return_pct,
         annualized_pct=annualized_pct,
         days=days,
     )
@@ -129,7 +151,7 @@ def position_returns(positions: Iterable, as_of: Optional[date] = None) -> Dict[
     results = {}
     for position in positions:
         fifo = _walk_fifo(by_key.get((position.user_id, position.company_id), []))
-        measured = _measure(position, fifo.cash_flows, as_of)
+        measured = _measure(position, fifo, as_of)
         if measured is not None:
             results[position.company_id] = measured
     return results
@@ -147,9 +169,11 @@ def holding_return_fields(measured: Optional[PositionReturn]) -> dict:
     the Total P/L and Total Return columns agree with the position page.
     """
     if measured is None:
-        return {'gain_loss': None, 'gain_loss_pct': None, 'annualized_pct': None}
+        return {'gain_loss': None, 'gain_loss_pct': None, 'holding_return_pct': None, 'annualized_pct': None}
     return {
         'gain_loss': float(round(measured.total_gain)),
         'gain_loss_pct': round(measured.total_return_pct, 1),
+        'holding_return_pct': (round(measured.holding_return_pct, 1)
+                               if measured.holding_return_pct is not None else None),
         'annualized_pct': round(measured.annualized_pct, 1) if measured.annualized_pct is not None else None,
     }

@@ -31,6 +31,7 @@ from app.services.outcome_tracking import backfill_received_outcomes, rebuild_tr
 from app.services.decision_journals import fix_imported_decisions
 from app.services.expected_cagr_review import KINDS, convert_totals, keep_values, review_entries, set_values
 from app.models.research import ResearchProject
+from app.models.portfolio import backfill_holding_start_dates
 # 1. Create the Flask app instance FIRST.
 app = create_app()
 
@@ -263,6 +264,20 @@ def rebuild_trade_outcomes_command(user_id, dry_run):
             click.echo("DRY RUN — nothing written")
         if failed:
             sys.exit(1)
+
+
+@app.cli.command("backfill-holding-start-dates")
+@click.option('--user-id', type=int, default=None, help='Only backfill this user.')
+@click.option('--dry-run', is_flag=True, help='Count the changes, then roll back.')
+def backfill_holding_start_dates_command(user_id, dry_run):
+    """Restarts days held at the re-buy for stocks sold out and bought back."""
+    with app.app_context():
+        if dry_run:
+            click.echo("DRY RUN — nothing written")
+        report = backfill_holding_start_dates(user_id=user_id, dry_run=dry_run)
+        click.echo(f"positions checked={report['checked']} changed={report['changed']}")
+        if dry_run:
+            click.echo("DRY RUN — nothing written")
 
 
 @app.cli.command("fix-imported-decisions")
