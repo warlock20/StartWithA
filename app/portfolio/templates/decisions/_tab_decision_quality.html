@@ -1,0 +1,114 @@
+{% set m = panel.matrix %}
+{% set cs = panel.confidence_stats %}
+<div class="priority-lane-grid di-quality-grid">
+    <div class="di-section-card" id="process-outcome">
+        <div class="di-section-header">
+            <h3 class="di-section-title">Process vs outcome</h3>
+        </div>
+        <div class="di-section-body">
+            {% if not panel.has_matrix %}
+            <p class="di-rq-empty">No trades with a return yet.</p>
+            {% else %}
+            <div class="di-matrix">
+                <span></span>
+                <span class="di-matrix-axis">Gained</span>
+                <span class="di-matrix-axis">Lost</span>
+                <span class="di-matrix-row-label">Researched</span>
+                <div class="di-matrix-cell di-matrix-cell--earned">
+                    <div class="di-matrix-value"><span class="visually-hidden">Researched, gained: </span>{{ m.earned }}</div>
+                    <div class="di-matrix-label">Earned</div>
+                </div>
+                <div class="di-matrix-cell di-matrix-cell--unlucky">
+                    <div class="di-matrix-value"><span class="visually-hidden">Researched, lost: </span>{{ m.unlucky }}</div>
+                    <div class="di-matrix-label">Unlucky</div>
+                </div>
+                <span class="di-matrix-row-label">No research</span>
+                <div class="di-matrix-cell di-matrix-cell--lucky">
+                    <div class="di-matrix-value"><span class="visually-hidden">No research, gained: </span>{{ m.lucky }}</div>
+                    <div class="di-matrix-label">Lucky</div>
+                </div>
+                <div class="di-matrix-cell di-matrix-cell--expected">
+                    <div class="di-matrix-value"><span class="visually-hidden">No research, lost: </span>{{ m.expected }}</div>
+                    <div class="di-matrix-label">Expected</div>
+                </div>
+            </div>
+            {% if m.earned + m.unlucky > 0 %}
+            <p class="di-rq-summary">Researched trades gained <span class="di-highlight">{{ "%.0f"|format(panel.process_win_rate) }}%</span> of the time.</p>
+            {% endif %}
+            {% endif %}
+            {% if panel.imported_unknown %}
+            <p class="di-rq-note">{{ panel.imported_unknown }} imported trade{{ '' if panel.imported_unknown == 1 else 's' }} with no recorded research {{ 'is' if panel.imported_unknown == 1 else 'are' }} left out.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="di-section-card" id="confidence-calibration">
+        <div class="di-section-header">
+            <h3 class="di-section-title">Confidence calibration</h3>
+        </div>
+        <div class="di-section-body">
+            {% if not panel.has_confidence %}
+            <p class="di-rq-empty">No buys with a confidence score yet.</p>
+            {% else %}
+            {% set max_return = [cs.high.avg_return|abs, cs.medium.avg_return|abs, cs.low.avg_return|abs, 1]|max %}
+            <div class="di-calib">
+                {% for key, label in (('high', 'High (8&ndash;10)'), ('medium', 'Medium (5&ndash;7)'), ('low', 'Low (1&ndash;4)')) %}
+                {% set stat = cs[key] %}
+                <div class="di-calib-row{% if stat.avg_return < 0 %} di-calib-row--negative{% endif %}">
+                    <div class="di-calib-head">
+                        <span class="di-calib-label">{{ label|safe }}</span>
+                        {% if stat.count %}
+                        <span class="di-num {% if stat.avg_return >= 0 %}positive{% else %}negative{% endif %}">{% if stat.avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(stat.avg_return) }}%</span>
+                        {% else %}
+                        <span class="di-num di-num-muted">&mdash;</span>
+                        {% endif %}
+                    </div>
+                    <div class="di-calib-track">
+                        <div class="di-calib-fill" style="--di-bar: {{ [4, (stat.avg_return|abs / max_return * 100)|round|int]|max if stat.count else 0 }}%"></div>
+                    </div>
+                    <div class="di-calib-meta">{{ stat.count }} buy{{ '' if stat.count == 1 else 's' }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if panel.confidence_diff is not none %}
+            {% if panel.confidence_calibrated %}
+            <p class="di-verdict di-verdict--ok">High confidence beats medium by {{ "%.1f"|format(panel.confidence_diff) }} points. Your conviction is earning its keep.</p>
+            {% else %}
+            <p class="di-verdict di-verdict--warn">Higher confidence should mean higher returns. Here it doesn't.</p>
+            {% endif %}
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="di-section-card" id="expectations">
+        <div class="di-section-header">
+            <div>
+                <h3 class="di-section-title">Expected vs actual</h3>
+                <p class="di-section-subtitle">Annual return (CAGR) you expected vs what you got</p>
+            </div>
+            {% if panel.expectations_total_count %}
+            <span class="di-rq-note">{{ panel.expectations_met_count }} of {{ panel.expectations_total_count }} met</span>
+            {% endif %}
+        </div>
+        <div class="di-section-body">
+            {% if not panel.expectations_total_count %}
+            <p class="di-rq-empty">No buys with an expected return yet.</p>
+            {% else %}
+            <ul class="di-expect">
+                {% for item in panel.expectations %}
+                <li class="di-expect-row">
+                    <div class="di-expect-name">
+                        <span class="di-mono di-company-ticker">{{ item.company.ticker_symbol }}</span>
+                        <div class="di-rq-note">{% if item.exit_date %}{{ item.entry_date.strftime('%b %Y') }} – {{ item.exit_date.strftime('%b %Y') }}{% else %}since {{ item.entry_date.strftime('%b %Y') }}{% endif %}</div>
+                    </div>
+                    <span class="di-num di-num-muted"><span class="visually-hidden">Expected </span>{{ "%.1f"|format(item.expected) }}%{% if not item.annualized %}<span title="Held under 30 days: total return so far against the return due so far">*</span><span class="visually-hidden"> (held under 30 days: total return so far)</span>{% endif %}</span>
+                    <span class="di-num {% if item.actual >= 0 %}positive{% else %}negative{% endif %}"><span class="visually-hidden">Actual </span>{% if item.actual >= 0 %}+{% endif %}{{ "%.1f"|format(item.actual) }}%</span>
+                    <span class="di-chip {% if item.met %}di-chip--researched{% else %}di-chip--none{% endif %}">{{ 'Met' if item.met else 'Below' }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+</div>

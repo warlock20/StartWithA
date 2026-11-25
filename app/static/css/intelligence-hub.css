@@ -49,11 +49,6 @@
     color: #9d174d;
 }
 
-.hub-intel-card.research .hub-intel-card-icon {
-    background: var(--success-50);
-    color: var(--success-600);
-}
-
 .hub-intel-card.checkpoints .hub-intel-card-icon {
     background: var(--warning-50);
     color: var(--warning-800);
@@ -62,11 +57,6 @@
 .hub-intel-card.thesis .hub-intel-card-icon {
     background: #ede9fe;
     color: #5b21b6;
-}
-
-.hub-intel-card.learning .hub-intel-card-icon {
-    background: #cffafe;
-    color: #0e7490;
 }
 
 .hub-intel-card-title {
@@ -149,6 +139,28 @@
 
 .hub-intel-card-footer a:hover {
     text-decoration: underline;
+}
+
+/* Decision Intelligence tab links */
+.hub-intel-links {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.75rem;
+}
+
+.hub-intel-links a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    color: var(--text-primary, #111827);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.hub-intel-links a:hover {
+    color: var(--primary, var(--accent-color));
 }
 
 /* Empty State for Cards */

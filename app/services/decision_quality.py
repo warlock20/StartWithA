@@ -19,7 +19,10 @@
 A trade is a round trip (0 shares to 0 shares), see ``decision_trades``. Its research
 class comes from ``classify_research``: 'none' (no project), 'low' (a project with no
 score or a score under HIGH_QUALITY_RESEARCH_SCORE) or 'high'. "Research-backed" means
-low or high. This module is pure: it takes the trades a caller built and splits them.
+low or high. A fourth class, 'unknown', is set by ``decision_trades`` for an imported
+trade with no project (the user never said whether they researched it); it is neither
+researched nor unresearched and every analytic here leaves it out. This module is pure:
+it takes the trades a caller built and splits them.
 
 Limitations: a trade's return leaves out dividends, and the class is the project and
 score stored on the outcome at its last sync (see ``decision_trades``).
@@ -92,6 +95,7 @@ class ResearchComparison:
     low: TradeGroup
     high: TradeGroup
     research: TradeGroup  # low and high trades together
+    unknown: TradeGroup   # imported, no recorded research; in no edge
 
     @property
     def edge(self) -> Optional[float]:
@@ -110,7 +114,7 @@ class ResearchComparison:
 
 def compare_research(trades: List) -> ResearchComparison:
     """Split trades by research class (their ``research`` attribute)."""
-    by_class = {'none': [], 'low': [], 'high': []}
+    by_class = {'none': [], 'low': [], 'high': [], 'unknown': []}
     for trade in trades:
         by_class[trade.research].append(trade)
     return ResearchComparison(
@@ -118,6 +122,7 @@ def compare_research(trades: List) -> ResearchComparison:
         low=TradeGroup(by_class['low']),
         high=TradeGroup(by_class['high']),
         research=TradeGroup(by_class['low'] + by_class['high']),
+        unknown=TradeGroup(by_class['unknown']),
     )
 
 
@@ -135,12 +140,12 @@ def grade_table(trades: List) -> Tuple[List[GradeRow], int]:
     One row per letter grade (A to F, empty rows kept) over the researched trades.
 
     The second value counts researched trades that have no score yet, so they are
-    in no row. Trades with no research are left out.
+    in no row. Trades with no or unknown research are left out.
     """
     by_grade = {grade: [] for grade in GRADES}
     unscored = 0
     for trade in trades:
-        if trade.research == 'none':
+        if trade.research not in ('low', 'high'):
             continue
         if trade.grade is None:
             unscored += 1
@@ -171,12 +176,14 @@ def research_quality_view(trades: List) -> Dict[str, dict]:
     view = {}
     for scope in SCOPES:
         scoped = in_scope(trades, scope)
+        comparison = compare_research(scoped)
         grades, unscored = grade_table(scoped)
         view[scope] = {
-            'comparison': compare_research(scoped),
+            'comparison': comparison,
             'grades': grades,
             'unscored': unscored,
             'summary': quality_summary(scoped),
+            'unknown_count': comparison.unknown.count,
             'count': len(scoped),
         }
     return view

@@ -18,7 +18,7 @@
 
 import logging
 from decimal import Decimal
-from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import abort, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from app import db
@@ -26,11 +26,9 @@ from app import db
 # Configure logger
 logger = logging.getLogger(__name__)
 from app.models import (
-    Transaction,
     PortfolioPosition,
     Company,
     ThesisEvolution,
-    ResearchOutcome,
     BackgroundTask,
 )
 from app.services.currency_service import CurrencyService
@@ -39,39 +37,34 @@ from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.utils.response_utils import json_error
 from app.utils.decorators import require_feature
 from app.utils.navigation_utils import get_smart_return_url
-from app.utils.portfolio_utils import (
-    calculate_holding_period_stats,
-    calculate_confidence_stats,
-    process_win_rate,
-)
 from app.services.background_tasks import BackgroundTaskService
 
 from app.constants import (
-    HIGH_QUALITY_RESEARCH_SCORE,
-    MIN_TRADES_FOR_INSIGHTS,
-    RECENT_DECISIONS_LIMIT,
     MAX_DYNAMIC_FORM_FIELDS,
 )
-from app.services.portfolio_intelligence import (
-    get_thesis_reality_check, get_return_target,
-    compare_to_expected_cagr,
-    get_learning_insights, outcome_hold_days
-    )
+from app.services.portfolio_intelligence import get_thesis_reality_check, get_return_target
 from app.services.exit_watch import episodes as exit_episodes
 from app.services.exit_watch import view as exit_watch_view
 from app.services.portfolio_alerts import PortfolioAlertsService
 from app.services.position_coverage import coverage_rows
 from app.services.portfolio_analytics_metrics import build_portfolio_analytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
-from app.services.decision_quality import compare_research, grade_table, research_quality_view
-from app.services.decision_trades import decision_trades
+from app.services.decision_intelligence import (
+    TABS, TAB_LABELS, DecisionIntelligenceService, normalise_tab,
+)
 from app.services.position_returns import holding_return_fields, position_returns
 from app.services.expected_return import ExpectedReturnError, expected_return_from_form
-from app.services.outcome_tracking import portfolio_outcomes
 from app.services.cash_service import CashService
 from app.services.capital_timing import GRADUAL, LUMP_SUM, record_imported_capital
 from app.services.portfolio_performance import PortfolioPerformanceService
 from app.services.conviction_service import current_theses, conviction_summary
+
+DECISION_TAB_TEMPLATES = {
+    'insights': 'decisions/_tab_insights.html',
+    'research': 'decisions/_tab_research.html',
+    'decision-quality': 'decisions/_tab_decision_quality.html',
+    'behaviour': 'decisions/_tab_behaviour.html',
+}
 
 import json
 # Import blueprint from current package (avoids circular import)
@@ -526,101 +519,30 @@ def analytics_run_module(template_name):
 @portfolio_bp.route('/analytics/decisions')
 @login_required
 def analytics_decisions():
-    """
-    Decision Intelligence
-    Deep behavioral analysis and learning from patterns
-    """
-    # Get all positions (both active and closed)
-    all_positions = PortfolioPosition.query.filter_by(
-        user_id=current_user.id
-    ).all()
-
-    # Lifetime returns (unrealized + realized + dividends), one per position
-    returns = position_returns(all_positions)
-
-    # Per trade (holding period) analytics, shared definition (#439).
-    # Received holdings (mergers, spin-offs) are not decisions and are left out.
-    trades = decision_trades(current_user.id)
-    comparison = compare_research(trades)
-
-    # Get active positions for current analysis
-    active_positions = [p for p in all_positions if p.is_active]
-
-    # Calculate holding period performance using utility
-    hold_period_stats = calculate_holding_period_stats(active_positions, returns)
-
-    # Decision Quality Matrix
-    # Good Process = Research-backed, Bad Process = No research
-    good_process_good_outcome = sum(1 for t in comparison.research.trades if t.is_gain)
-    good_process_bad_outcome = comparison.research.count - good_process_good_outcome
-    bad_process_good_outcome = sum(1 for t in comparison.none.trades if t.is_gain)
-    bad_process_bad_outcome = comparison.none.count - bad_process_good_outcome
-
-    # Recent decisions
-    recent_decisions = Transaction.query.filter_by(
-        user_id=current_user.id
-    ).filter(
-        Transaction.type.in_(['BUY', 'SELL'])
-    ).order_by(Transaction.date.desc()).limit(RECENT_DECISIONS_LIMIT).all()
-
-    # Confidence calibration: each holding period (trade) with its own opening decision.
-    # Imported or missing openings carry no confidence and are left out.
-    journals_with_confidence = [
-        {'confidence': t.confidence, 'return': t.return_pct}
-        for t in trades if t.confidence is not None
-    ]
-
-    # Calculate confidence calibration stats using utility
-    confidence_stats = calculate_confidence_stats(journals_with_confidence)
-    confidence_calibrated = confidence_stats['high']['avg_return'] > confidence_stats['medium']['avg_return']
-
-    # Performance vs Expectations Analysis: the expected return is a CAGR, so each
-    # trade's annualized return is set against it (closed trades up to their last flow)
-    expectations_analysis = []
-    for t in trades:
-        if t.expected_cagr is None:
-            continue
-        vs_target = compare_to_expected_cagr(t.expected_cagr, t.return_pct, t.days, t.annualized_pct)
-        expectations_analysis.append({
-            'company': t.outcome.company,
-            'entry_date': t.entry_date,
-            'exit_date': t.exit_date,
-            'expected': vs_target.expected,
-            'actual': vs_target.actual,
-            'annualized': vs_target.annualized,
-            'diff': vs_target.actual - vs_target.expected,
-            'met': vs_target.actual >= vs_target.expected
-        })
-
-    # Calculate summary stats
-    expectations_met_count = sum(1 for item in expectations_analysis if item['met'])
-    expectations_total_count = len(expectations_analysis)
-    expectations_met_pct = (expectations_met_count / expectations_total_count * 100) if expectations_total_count > 0 else 0
-
+    """Decision Intelligence: one header, four tabs; only the requested tab is rendered."""
+    tab = normalise_tab(request.args.get('tab'))
+    service = DecisionIntelligenceService(current_user.id)
     # Smart back: wherever the user came from, else the intelligence hub
     return_url, context_label = get_smart_return_url('portfolio.intelligence_hub')
-
     return render_template('decisions_intelligence.html',
-                          return_url=return_url,
-                          context_label=context_label,
-                          research_edge=comparison.edge,
-                          research_quality=research_quality_view(trades),
-                          HIGH_QUALITY_RESEARCH_SCORE=HIGH_QUALITY_RESEARCH_SCORE,
-                          research_backed_count=comparison.research.count,
-                          non_research_count=comparison.none.count,
-                          hold_period_stats=hold_period_stats,
-                          good_process_good_outcome=good_process_good_outcome,
-                          good_process_bad_outcome=good_process_bad_outcome,
-                          bad_process_good_outcome=bad_process_good_outcome,
-                          bad_process_bad_outcome=bad_process_bad_outcome,
-                          process_win_rate=process_win_rate(good_process_good_outcome, good_process_bad_outcome),
-                          recent_decisions=recent_decisions,
-                          confidence_stats=confidence_stats,
-                          confidence_calibrated=confidence_calibrated,
-                          expectations_analysis=expectations_analysis,
-                          expectations_met_count=expectations_met_count,
-                          expectations_total_count=expectations_total_count,
-                          expectations_met_pct=expectations_met_pct)
+                           tab=tab,
+                           tabs=TAB_LABELS,
+                           tab_templates=DECISION_TAB_TEMPLATES,
+                           header=service.header(),
+                           panel=service.tab(tab),
+                           return_url=return_url,
+                           context_label=context_label)
+
+
+@portfolio_bp.route('/analytics/decisions/panel/<tab>')
+@login_required
+def analytics_decisions_panel(tab):
+    """One tab's HTML, fetched when the user opens a tab that was not rendered with the page."""
+    template = DECISION_TAB_TEMPLATES.get(tab)
+    if template is None:
+        abort(404)
+    return render_template(template, panel=DecisionIntelligenceService(current_user.id).tab(tab))
+
 
 @portfolio_bp.route('/analytics/research-correlation')
 @login_required
@@ -656,83 +578,9 @@ def thesis_reality():
 @portfolio_bp.route('/learning-insights')
 @login_required
 def learning_insights():
-    """
-    Learning Insights Dashboard
-    Shows personalized patterns from trading history
-    """
-    # Get outcomes for stats
-    outcomes = portfolio_outcomes(current_user.id).filter(
-        ResearchOutcome.realized_return_pct.isnot(None)
-    ).all()
-    
-    current_trades = len(outcomes)
-    has_sufficient_data = current_trades >= MIN_TRADES_FOR_INSIGHTS
-    
-    # Initialize default values
-    insights_by_category = {
-        'edge': [],
-        'winning_pattern': [],
-        'warning': [],
-        'improvement': []
-    }
-    stats = {
-        'total_trades': 0,
-        'win_rate': 0,
-        'avg_return': 0,
-        'avg_hold_days': 0
-    }
-    has_quality_edge = False
-    has_holding_insight = False
-    has_sector_insight = False
-    
-    if has_sufficient_data:
-        # Get insights
-        insights = get_learning_insights(current_user.id)
-        
-        # Group insights by category
-        for insight in insights:
-            category = insight.category
-            if category in insights_by_category:
-                insights_by_category[category].append(insight)
-            else:
-                insights_by_category['improvement'].append(insight)
-        
-        # Calculate stats
-        returns = [float(o.realized_return_pct) for o in outcomes]
-        wins = [r for r in returns if r > 0]
-        
-        hold_days = []
-        for o in outcomes:
-            days = outcome_hold_days(o)
-            if days is not None:
-                hold_days.append(days)
-        
-        stats = {
-            'total_trades': len(outcomes),
-            'win_rate': (len(wins) / len(returns) * 100) if returns else 0,
-            'avg_return': sum(returns) / len(returns) if returns else 0,
-            'avg_hold_days': sum(hold_days) // len(hold_days) if hold_days else 0
-        }
-        
-        # Check for specific insight types to show relevant actions
-        for insight in insights:
-            if 'research' in insight.title.lower() or 'quality' in insight.title.lower():
-                has_quality_edge = True
-            if 'hold' in insight.title.lower() or 'patience' in insight.title.lower():
-                has_holding_insight = True
-            if 'sector' in insight.title.lower():
-                has_sector_insight = True
-    
-    return render_template('learning_insights.html',
-                          has_sufficient_data=has_sufficient_data,
-                          min_trades_needed=MIN_TRADES_FOR_INSIGHTS,
-                          current_trades=current_trades,
-                          insights_by_category=insights_by_category,
-                          stats=stats,
-                          has_quality_edge=has_quality_edge,
-                          has_holding_insight=has_holding_insight,
-                          has_sector_insight=has_sector_insight)
-    
+    """Retired page: its content is the Your insights tab of Decision Intelligence (#442)."""
+    return redirect(url_for('portfolio.analytics_decisions', tab='insights'), code=301)
+
 
 @portfolio_bp.route('/intelligence')
 @login_required
@@ -768,11 +616,6 @@ def intelligence_hub():
     summary = PortfolioDataExtractor(current_user.id).summary()
     closed_count = summary['wins'] + summary['losses']
 
-    # Research outcomes still feed the learning-insights gate
-    outcomes = portfolio_outcomes(current_user.id).filter(
-        ResearchOutcome.realized_return_pct.isnot(None)
-    ).all()
-    
     # Alerts, checkpoints, theses and coverage all come from one service so the
     # strip, the health bar and the cards agree (issue #435)
     alerts_service = PortfolioAlertsService(current_user.id)
@@ -836,29 +679,15 @@ def intelligence_hub():
         'top_performer': top_performer
     }
     
-    # Decisions Card
-    trades = decision_trades(current_user.id)
-    comparison = compare_research(trades)
-
-    decisions = {
-        'has_data': comparison.research.count > 0 or comparison.none.count > 0,
-        'research_count': comparison.research.count,
-        'research_return': comparison.research.avg_return,
-        'no_research_count': comparison.none.count,
-        'no_research_return': comparison.none.avg_return,
-        'edge': comparison.edge
-    }
-
-    # Research Quality Card
-    researched = [t for t in trades if t.research in ('low', 'high')]
-    graded_rows = [row for row in grade_table(researched)[0] if row.group.count > 0]
-    best_row = max(graded_rows, key=lambda row: row.group.avg_return, default=None)
-    quality_edge = comparison.quality_edge
-    research_quality_card = {
-        'has_data': len(researched) > 0,
-        'quality_edge': quality_edge,
-        'researched_count': len(researched),
-        'best_grade': best_row.grade if best_row else None,
+    # Decision Intelligence Card: the edge from the page's own header, the count from the same live cards
+    di_service = DecisionIntelligenceService(current_user.id)
+    di_insights = di_service.insights()
+    di_card = {
+        'research_edge': di_service.header()['research_edge'],
+        'insights_count': None if di_insights['locked'] else len(di_insights['cards']),
+        'closed_count': di_insights['closed_count'],
+        'needed': di_insights['needed'],
+        'links': [(TAB_LABELS[tab], url_for('portfolio.analytics_decisions', tab=tab)) for tab in TABS],
     }
 
     # Checkpoints Card
@@ -878,23 +707,6 @@ def intelligence_hub():
         'needs_attention': needs_attention
     }
     
-    # Learning Card — memoized, so this is the same call the alerts service made
-    insights = get_learning_insights(current_user.id) if len(outcomes) >= MIN_TRADES_FOR_INSIGHTS else []
-    insights_by_cat = {'edge': [], 'winning_pattern': [], 'warning': [], 'improvement': []}
-    for insight in insights:
-        if insight.category in insights_by_cat:
-            insights_by_cat[insight.category].append(insight)
-    
-    learning = {
-        'has_insights': len(insights) > 0,
-        'edge_count': len(insights_by_cat['edge']),
-        'patterns_count': len(insights_by_cat['winning_pattern']),
-        'warnings_count': len(insights_by_cat['warning']),
-        'total_trades': len(outcomes),
-        'top_insight': insights[0].title if insights else None,
-        'min_needed': MIN_TRADES_FOR_INSIGHTS
-    }
-    
     rule_states = exit_watch_view.rule_states(
         current_user.id, [rule.id for row in alerts_service.coverage for rule in row.rules])
 
@@ -903,11 +715,9 @@ def intelligence_hub():
                           alerts=alerts,
                           coverage_rows=coverage_rows(alerts_service.coverage, rule_states),
                           performance=performance,
-                          decisions=decisions,
-                          research_quality_card=research_quality_card,
+                          di_card=di_card,
                           checkpoints=checkpoints,
-                          thesis=thesis,
-                          learning=learning)
+                          thesis=thesis)
 
 
 #############################

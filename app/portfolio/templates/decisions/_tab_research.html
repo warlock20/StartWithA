@@ -1,0 +1,141 @@
+{% macro signed_pct(value) %}{% if value >= 0 %}+{% endif %}{{ "%.1f"|format(value) }}%{% endmacro %}
+
+{% macro group_card(label, icon, tone, group) %}
+<div class="di-group di-group-{{ tone }}">
+    <div class="di-comparison-label">
+        <i class="bi bi-{{ icon }}"></i>
+        <span>{{ label }}</span>
+    </div>
+    {% if group.count %}
+    <div class="di-comparison-return {% if group.avg_return >= 0 %}positive{% else %}negative{% endif %}">{{ signed_pct(group.avg_return) }}</div>
+    <div class="di-comparison-meta">avg return &middot; {{ group.count }} trade{{ '' if group.count == 1 else 's' }}</div>
+    <div class="di-comparison-stats">
+        <div>
+            <div class="di-comparison-stat-value">{{ "%.0f"|format(group.win_rate) }}%</div>
+            <div class="di-comparison-stat-label">Win Rate</div>
+        </div>
+        <div>
+            <div class="di-comparison-stat-value">{{ "%.0f"|format(group.avg_hold_days) }}d</div>
+            <div class="di-comparison-stat-label">Avg Hold</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="di-comparison-return">&mdash;</div>
+    <div class="di-comparison-meta">No trades</div>
+    <div class="di-comparison-stats">
+        <div>
+            <div class="di-comparison-stat-value">&mdash;</div>
+            <div class="di-comparison-stat-label">Win Rate</div>
+        </div>
+        <div>
+            <div class="di-comparison-stat-value">&mdash;</div>
+            <div class="di-comparison-stat-label">Avg Hold</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro scope_panel(scope, data, empty_text, hidden) %}
+{% set cmp = data.comparison %}
+<div data-scope="{{ scope }}" {% if hidden %}hidden{% endif %}>
+    {% if data.count == 0 %}
+    <p class="di-rq-empty">{{ empty_text }}</p>
+    {% else %}
+    <div class="priority-lane-grid di-rq-groups">
+        {{ group_card('No research', 'x-circle-fill', 'none', cmp.none) }}
+        {{ group_card('Low-quality research', 'check-circle', 'low', cmp.low) }}
+        {{ group_card('High-quality research', 'check-circle-fill', 'high', cmp.high) }}
+    </div>
+    {% if data.unknown_count %}
+    <p class="di-rq-note">{{ data.unknown_count }} imported trade{{ '' if data.unknown_count == 1 else 's' }} with no recorded research {{ 'is' if data.unknown_count == 1 else 'are' }} left out.</p>
+    {% endif %}
+    {% if cmp.edge is not none or cmp.quality_edge is not none %}
+    <div class="di-insight-card learning">
+        <div class="di-insight-title">
+            <i class="bi bi-lightbulb-fill"></i>
+            Key Insight
+        </div>
+        <div>
+            {% if cmp.edge is not none %}
+            Researched trades {% if cmp.edge >= 0 %}outperform{% else %}underperform{% endif %} trades with no research by
+            <span class="di-highlight">{{ "%.1f"|format(cmp.edge|abs) }} percentage points</span>.
+            {% endif %}
+            {% if cmp.quality_edge is not none %}
+            High-quality research {% if cmp.quality_edge >= 0 %}outperforms{% else %}underperforms{% endif %} low-quality research by
+            <span class="di-highlight">{{ "%.1f"|format(cmp.quality_edge|abs) }} percentage points</span>.
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <h4 class="di-rq-subtitle">Return by research grade</h4>
+    <div class="di-table-wrapper di-rq-grades-wrapper">
+        <table class="di-table di-rq-grades">
+            <thead>
+                <tr><th>Grade</th><th>Trades</th><th>Avg return</th><th>Win rate</th><th>Avg hold</th></tr>
+            </thead>
+            <tbody>
+                {% for row in data.grades %}
+                <tr>
+                    <td class="ticker">{{ row.grade }}</td>
+                    <td>{{ row.group.count }}</td>
+                    {% if row.group.count %}
+                    <td class="{% if row.group.avg_return >= 0 %}positive{% else %}negative{% endif %}">{{ signed_pct(row.group.avg_return) }}</td>
+                    <td>{{ "%.0f"|format(row.group.win_rate) }}%</td>
+                    <td>{{ "%.0f"|format(row.group.avg_hold_days) }}d</td>
+                    {% else %}
+                    <td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if data.unscored %}
+    <p class="di-rq-note">Researched, not scored: {{ data.unscored }}</p>
+    {% endif %}
+
+    {% set summary = data.summary %}
+    <p class="di-rq-summary">
+        {% if summary.edge is none %}
+        Not enough graded trades on both sides yet.
+        {% else %}
+        A–C graded trades (score {{ panel.high_score }}+) returned {{ "%.1f"|format(summary.edge|abs) }} pp {{ 'more' if summary.edge >= 0 else 'less' }} than your other researched trades, across {{ summary.n }} trades.
+        {% endif %}
+    </p>
+    {% if summary.edge is not none and summary.small_sample %}
+    <p class="di-rq-note">Small sample: {{ summary.n }} trade{{ '' if summary.n == 1 else 's' }}; treat this as a hint, not a pattern.</p>
+    {% endif %}
+    {% endif %}
+</div>
+{% endmacro %}
+
+<div class="di-section-card" id="research-quality">
+    <div class="di-section-header">
+        <div>
+            <h3 class="di-section-title">
+                <i class="bi bi-clipboard-data"></i>
+                Research quality
+            </h3>
+            <p class="di-section-subtitle">Does better research lead to better returns?</p>
+        </div>
+        {% if panel.has_trades %}
+        <div class="di-scope-switch" role="group" aria-label="Trade scope">
+            <button type="button" class="di-scope-btn" data-scope-btn="all" aria-pressed="true">Closed + open</button>
+            <button type="button" class="di-scope-btn" data-scope-btn="closed" aria-pressed="false">Closed only</button>
+        </div>
+        {% endif %}
+    </div>
+    <div class="di-section-body">
+        {% if not panel.has_trades %}
+        <p class="di-rq-empty">No trades with a return yet.</p>
+        {% else %}
+        {{ scope_panel('all', panel.view['all'], 'No trades yet', false) }}
+        {{ scope_panel('closed', panel.view['closed'], 'No closed trades yet', true) }}
+        {% endif %}
+        <a href="{{ url_for('portfolio.analytics_decisions', tab='insights') }}" class="action-btn di-rq-link" data-tab-link="insights">
+            <i class="bi bi-lightbulb"></i> See all your insights
+        </a>
+    </div>
+</div>

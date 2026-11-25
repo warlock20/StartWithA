@@ -39,8 +39,9 @@ Usage:
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional
 import logging
+from uuid import uuid4
 
-from app import db
+from app import cache, db
 from app.utils.financial_utils import calculate_cagr
 from app.utils.time_utils import date, days_between, now_utc
 from app.models.ai_intelligence import ResearchOutcome
@@ -387,6 +388,14 @@ def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company
     return changed
 
 
+INSIGHTS_VERSION_KEY = 'insights-version:{user_id}'
+
+
+def bump_insights_version(user_id: int) -> None:
+    """Give the user's cached learning insights a new cache key (see get_learning_insights)."""
+    cache.set(INSIGHTS_VERSION_KEY.format(user_id=user_id), uuid4().hex, timeout=0)
+
+
 def sync_outcomes_for_company(user_id: int, company_id: int) -> OutcomeSyncStats:
     """
     Make the company's ResearchOutcome rows match its round trips (one per trade).
@@ -427,6 +436,7 @@ def sync_outcomes_for_company(user_id: int, company_id: int) -> OutcomeSyncStats
 
     stats.closed = len([o for o in kept if o.exit_date is not None])
     db.session.flush()
+    bump_insights_version(user_id)
     return stats
 
 

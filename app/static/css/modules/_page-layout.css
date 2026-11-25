@@ -296,6 +296,32 @@
     padding: 0.2rem 0.6rem;
 }
 
+.dashboard-alert-card[hidden],
+.dashboard-alerts-strip[hidden] {
+    display: none;
+}
+
+.dashboard-alert-card__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-width: 44px;
+    min-height: 44px;
+    margin: calc(-1 * var(--space-sm)) calc(-1 * var(--space-sm)) calc(-1 * var(--space-sm)) 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+}
+
+.dashboard-alert-card__close:hover,
+.dashboard-alert-card__close:focus-visible {
+    background: var(--border-light);
+}
+
 .cash-setup-input {
     width: 120px;
     padding: 0.2rem 0.5rem;

@@ -245,11 +245,11 @@ def test_decisions_and_intelligence_pages_use_the_trade_return(app_context, _app
     hub = client.get('/portfolio/intelligence')
 
     assert decisions.status_code == hub.status_code == 200
-    html = decisions.get_data(as_text=True)
     # the trade return leaves dividends out: 7.5% over 831 days is 3.2% a year, short of the 8% expected
-    assert '0 of 1 trades' in html
+    assert '0 of 1 trades' in decisions.get_data(as_text=True)
     # the trade's return if sold now (12.55 on 11.67), leaving dividends out
-    assert '+7.5%' in html
+    research = client.get('/portfolio/analytics/decisions?tab=research')
+    assert '+7.5%' in research.get_data(as_text=True)
 
 
 def _sold_half_at_four_times(user, company):
@@ -261,6 +261,7 @@ def _sold_half_at_four_times(user, company):
 
 def test_intelligence_hub_top_performer_counts_dividends(app_context, _app):
     user = _make_user()
+    user.subscription_tier = 'pro'  # the hub is behind portfolio_intelligence
     aumann = _make_company(user.id, name='Aumann AG', ticker='AAG.DE')
     _aumann(user, aumann)
     other = _make_company(user.id, name='Plain Co', ticker='PLN')

@@ -30,6 +30,9 @@ Limitations:
   return here can differ from the position's lifetime return.
 - The research class comes from the project and score stored on the outcome at its
   last sync (the project's quality then, not at entry); see ``classify_research``.
+- A trade with no research project whose opening decision is an importer placeholder is
+  class 'unknown': the user never said whether they researched it, so it counts as neither
+  researched nor unresearched. Trades with no opening decision keep class 'none'.
 - An open trade whose outcome row no longer matches the live round trip (the
   transactions changed and the sync has not run) is skipped until the next sync.
 - An open outcome whose position is inactive or has no price yet is left out.
@@ -66,7 +69,7 @@ class DecisionTrade:
     return_pct: float
     days: int                           # entry to exit, or entry to as_of while open
     annualized_pct: Optional[float]     # CAGR of return_pct; None under MIN_DAYS_FOR_ANNUALIZED_COMPARISON days
-    research: str                       # 'none' | 'low' | 'high'
+    research: str                       # 'none' | 'low' | 'high' | 'unknown'
     grade: Optional[str]                # letter grade when the outcome has a score
     opening: Optional[DecisionJournal]  # the trade's opening decision, None if it has none
     confidence: Optional[int]           # opening's confidence, None for no or an imported opening
@@ -147,6 +150,9 @@ def decision_trades(user_id: int, as_of: Optional[date] = None) -> List[Decision
         opening = journals.get(outcome.decision_journal_id)
         has_values = opening is not None and not opening.is_imported
         score = outcome.research_quality_score
+        research = classify_research(outcome)
+        if research == 'none' and opening is not None and opening.is_imported:
+            research = 'unknown'
         trades.append(DecisionTrade(
             outcome=outcome,
             company_id=outcome.company_id,
@@ -156,7 +162,7 @@ def decision_trades(user_id: int, as_of: Optional[date] = None) -> List[Decision
             return_pct=return_pct,
             days=days,
             annualized_pct=calculate_cagr(return_pct, days) if days >= MIN_DAYS_FOR_ANNUALIZED_COMPARISON else None,
-            research=classify_research(outcome),
+            research=research,
             grade=score_to_grade(score) if score is not None else None,
             opening=opening,
             confidence=opening.confidence_score if has_values else None,

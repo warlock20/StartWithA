@@ -1,0 +1,63 @@
+<div class="priority-lane-grid di-behaviour-grid">
+    <div class="di-section-card" id="holding-periods">
+        <div class="di-section-header">
+            <h3 class="di-section-title">Return by holding period</h3>
+        </div>
+        <div class="di-section-body">
+            {% if not panel.has_open_positions %}
+            <p class="di-rq-empty">No open positions yet.</p>
+            {% else %}
+            <div class="di-table-wrapper di-table-wrapper--light">
+                <table class="di-table di-holding di-table--light">
+                    <thead>
+                        <tr><th>Held</th><th>Positions</th><th>Avg return</th><th>Win rate</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in panel.holding_periods %}
+                        <tr{% if row.small_sample and row.count %} class="di-row-muted"{% endif %}>
+                            <td>{{ row.label }}{% if row.small_sample and row.count %}<br><span class="di-chip di-chip--muted">small sample</span>{% endif %}</td>
+                            <td class="di-num">{{ row.count }}</td>
+                            {% if row.count %}
+                            <td class="di-num {% if row.avg_return >= 0 %}positive{% else %}negative{% endif %}">{% if row.avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(row.avg_return) }}%</td>
+                            <td class="di-num">{{ "%.0f"|format(row.win_rate) }}%</td>
+                            {% else %}
+                            <td class="di-num">&mdash;</td><td class="di-num">&mdash;</td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="di-rq-note">Open positions, by days held so far</p>
+            <p class="di-rq-note">Insights about holding time use your closed trades.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="di-section-card" id="recent-decisions">
+        <div class="di-section-header">
+            <h3 class="di-section-title">Recent decisions</h3>
+            <a href="{{ url_for('portfolio.decision_journal_list') }}" class="di-card-link">Decision journal</a>
+        </div>
+        <div class="di-section-body">
+            {% if not panel.recent %}
+            <p class="di-rq-empty">No decisions yet.</p>
+            {% else %}
+            <ul class="di-recent">
+                {% for row in panel.recent %}
+                {% set txn = row.transaction %}
+                <li class="di-recent-row">
+                    <span class="di-recent-date">{{ txn.date.strftime('%b %d, %Y') }}</span>
+                    <span class="di-chip {% if row.kind == 'BUY' %}di-chip--buy{% elif row.kind == 'TOP-UP' %}di-chip--topup{% else %}di-chip--sell{% endif %}">{{ row.kind }}</span>
+                    <span class="di-mono di-company-ticker">{{ txn.company.ticker_symbol }}</span>
+                    {% if row.research %}
+                    <span class="di-chip {% if row.research == 'Researched' %}di-chip--researched{% else %}di-chip--none{% endif %}">{{ row.research }}</span>
+                    {% endif %}
+                    <span class="di-recent-note">{{ txn.quantity }} shares at {{ txn.currency|currency_symbol }}{{ "%.2f"|format(txn.price_per_share) }}{% if txn.notes %} &mdash; {{ txn.notes }}{% endif %}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+</div>
