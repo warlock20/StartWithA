@@ -36,6 +36,9 @@
             <p class="di-rq-summary">Researched trades gained <span class="di-highlight">{{ "%.0f"|format(panel.process_win_rate) }}%</span> of the time.</p>
             {% endif %}
             {% endif %}
+            {% if panel.imported_unknown %}
+            <p class="di-rq-note">{{ panel.imported_unknown }} imported trade{{ '' if panel.imported_unknown == 1 else 's' }} with no recorded research {{ 'is' if panel.imported_unknown == 1 else 'are' }} left out.</p>
+            {% endif %}
         </div>
     </div>
 

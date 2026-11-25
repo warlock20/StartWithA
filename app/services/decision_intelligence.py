@@ -426,6 +426,7 @@ class DecisionIntelligenceService:
         diff = self._confidence_diff
         return {
             'matrix': matrix,
+            'imported_unknown': self.comparison.unknown.count,
             'has_matrix': self.comparison.research.count + self.comparison.none.count > 0,
             'process_win_rate': process_win_rate(matrix['earned'], matrix['unlucky']),
             'confidence_stats': self.confidence_stats,
@@ -481,7 +482,14 @@ class DecisionIntelligenceService:
                 # The chip follows the trade the decision belongs to, as the header counts it
                 opening_id = None if journal is None else (journal.parent_decision_id if is_top_up else journal.id)
                 trade = by_opening.get(opening_id)
-                research = None if trade is None else ('Researched' if trade.research != 'none' else 'No research')
+                if trade is None:
+                    research = None
+                elif trade.research in ('low', 'high'):
+                    research = 'Researched'
+                elif trade.research == 'none':
+                    research = 'No research'
+                else:
+                    research = None
             rows.append({'transaction': txn, 'kind': kind, 'research': research})
         return rows
 

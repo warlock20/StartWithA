@@ -47,6 +47,9 @@
         {{ group_card('Low-quality research', 'check-circle', 'low', cmp.low) }}
         {{ group_card('High-quality research', 'check-circle-fill', 'high', cmp.high) }}
     </div>
+    {% if data.unknown_count %}
+    <p class="di-rq-note">{{ data.unknown_count }} imported trade{{ '' if data.unknown_count == 1 else 's' }} with no recorded research {{ 'is' if data.unknown_count == 1 else 'are' }} left out.</p>
+    {% endif %}
     {% if cmp.edge is not none or cmp.quality_edge is not none %}
     <div class="di-insight-card learning">
         <div class="di-insight-title">
