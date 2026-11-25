@@ -73,6 +73,7 @@ class ChecklistAnswer(db.Model):
     answer_text = db.Column(db.Text, nullable=True)
     answered_at = db.Column(db.DateTime, default=now_utc)
     satisfaction_status = db.Column(db.String(30), nullable=True, default=None)
+    verdict_at = db.Column(db.DateTime, nullable=True)  # when the verdict last changed; notes-only saves keep it
 
     checklist_analysis_id = db.Column(
         db.Integer, db.ForeignKey("checklist_analysis.id"), nullable=False, index=True

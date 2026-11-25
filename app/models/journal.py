@@ -175,6 +175,7 @@ class JournalEntry(db.Model):
     review_notes = db.Column(db.Text)  # Notes added during review process
     is_starred = db.Column(db.Boolean, default=False)
     is_archived = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    archived_at = db.Column(db.DateTime, nullable=True)
 
     # AI Intelligence fields
     ai_analysis_result = db.Column(db.JSON)  # Full AI analysis results
