@@ -567,7 +567,7 @@ def effectiveness_suggest():
     """Add a pending kill-checklist suggestion for a research effectiveness finding."""
     key = request.form.get('key', '')
     try:
-        _suggestion, created = suggest_from_finding(current_user.id, key, scope=_effectiveness_scope())
+        suggestion, created = suggest_from_finding(current_user.id, key, scope=_effectiveness_scope())
         db.session.commit()
     except FindingChanged:
         db.session.rollback()
@@ -580,7 +580,8 @@ def effectiveness_suggest():
         current_app.logger.exception('Research effectiveness suggestion failed for user %s', current_user.id)
         code = 'suggest_failed'
     else:
-        code = 'added' if created else 'exists'
+        # No suggestion back means the kill checklist already has the question
+        code = 'added' if created else ('exists' if suggestion else 'already_in_checklist')
     return _effectiveness_redirect(code)
 
 

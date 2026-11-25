@@ -42,6 +42,7 @@ RED_FLAG_QUESTION = 'Before buying, are all red flags on this company resolved?'
 STATUS_MESSAGES = {
     'added': ('success', 'Suggestion added to \u201c{name}\u201d. Review it under Kill checklists.'),
     'exists': ('info', 'That suggestion is already waiting in \u201c{name}\u201d.'),
+    'already_in_checklist': ('info', 'That question is already on \u201c{name}\u201d.'),
     'no_kill_checklist': ('warning', 'Create a kill checklist first.'),
     'changed': ('warning', 'This finding has changed. Reload and try again.'),
     'hidden': ('info', 'Hidden until its numbers change.'),
