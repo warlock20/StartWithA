@@ -45,6 +45,7 @@ from app.utils.time_utils import days_between, now_utc
 from app.utils.financial_utils import calculate_cagr
 
 from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company, ThesisEvolution
+from app.services.conviction_service import current_theses
 from app.services.decision_journals import opening_buy_decision
 # Below MIN_DAYS_FOR_ANNUALIZED_COMPARISON days held, total return is compared with
 # the return the expected CAGR implies by now
@@ -149,7 +150,7 @@ class ThesisReality:
     expected_timeframe_months: Optional[int]  # Holding period the CAGR is expected over
     target_source: Optional[str]  # 'thesis', 'purchase', or None (no target)
     target_version: Optional[int]  # Thesis version that set the target
-    confidence_score: Optional[int]
+    conviction: Optional[int]  # 1-10 from the current thesis version; None when unrated
 
     # Reality
     actual_return_pct: float
@@ -287,9 +288,10 @@ class PortfolioIntelligenceService:
     def get_thesis_reality_check(self) -> List[ThesisReality]:
         """
         Compare original investment thesis to actual performance.
-        Uses the position's annualized return (XIRR over its own cash flows, so
-        realized gains and dividends count) for a fair comparison across
-        holding periods.
+        Uses the current holding's annualized return (XIRR over its own cash
+        flows, so realized gains and dividends count) for a fair comparison
+        across holding periods. A stock sold out and bought back is judged by
+        the holding since the re-buy.
 
         Returns:
             List of ThesisReality for each active position
@@ -328,7 +330,10 @@ class PortfolioIntelligenceService:
         ).order_by(ThesisEvolution.version.desc()).all():
             theses_map.setdefault(t.company_id, []).append(t)
 
-        # Lifetime returns: realized gains and dividends count, not only the open shares
+        # Conviction as the portfolio page shows it: the current thesis version's
+        convictions = {cid: t.conviction_level for cid, t in current_theses(self.user_id, company_ids).items()}
+
+        # Realized gains and dividends count, not only the open shares
         returns = position_returns(positions)
 
         results = []
@@ -339,8 +344,8 @@ class PortfolioIntelligenceService:
 
             # Calculate actual returns (a position with no price yet reads as flat)
             measured = returns.get(position.company_id)
-            actual_return = measured.total_return_pct if measured else 0.0
-            days_held = position.days_held or 0
+            actual_return = measured.holding_return_pct if measured and measured.holding_return_pct is not None else 0.0
+            days_held = measured.days if measured else (position.days_held or 0)
             annualized_return = (measured.annualized_pct if measured and measured.annualized_pct is not None
                                  else calculate_cagr(actual_return, days_held))
 
@@ -362,7 +367,7 @@ class PortfolioIntelligenceService:
                 expected_timeframe_months=target.expected_timeframe_months,
                 target_source=target.source,
                 target_version=target.thesis_version,
-                confidence_score=journal.confidence_score if journal else None,
+                conviction=convictions.get(position.company_id),
                 actual_return_pct=actual_return,
                 annualized_return_pct=annualized_return,
                 days_held=days_held,

@@ -31,7 +31,7 @@ from flask_login import login_required, logout_user, current_user
 from app import db, limiter
 from app.auth import auth_bp
 from app.constants import RATELIMIT_AUTH
-from app.models import CorporateAction, ExitRuleTrigger, UserMonitorSetting
+from app.models import CorporateAction, ExitRuleTrigger, ResearchEffectivenessDismissal, UserMonitorSetting
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import serialize_model_to_dict
 from app.utils.db_utils import safe_db_transaction
@@ -124,6 +124,8 @@ def _collect_user_data(user):
         ('portfolio_insights', PortfolioUIInsight, PortfolioUIInsight.user_id == user.id),
         ('exit_rule_triggers', ExitRuleTrigger, ExitRuleTrigger.user_id == user.id),
         ('monitor_settings', UserMonitorSetting, UserMonitorSetting.user_id == user.id),
+        ('research_effectiveness_dismissals', ResearchEffectivenessDismissal,
+         ResearchEffectivenessDismissal.user_id == user.id),
     ]
 
     for section_name, model, filter_expr in sections:
@@ -351,6 +353,8 @@ def delete_account():
 
             # User config
             UserInvestmentProfile.query.filter_by(user_id=user_id).delete()
+
+            ResearchEffectivenessDismissal.query.filter_by(user_id=user_id).delete()
 
             # Finally, delete the user
             user = User.query.get(user_id)

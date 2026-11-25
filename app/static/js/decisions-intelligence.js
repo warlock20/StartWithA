@@ -52,6 +52,14 @@
         setupAlerts();
     }
 
+    // A finding action's result (?re=<code>) is shown once: drop it from the URL (tab and hash stay),
+    // so a reload or the tab sync below does not show the status line again
+    var landing = new URL(window.location.href);
+    if (landing.searchParams.has('re')) {
+        landing.searchParams.delete('re');
+        window.history.replaceState(null, '', landing.toString());
+    }
+
     var tabList = document.getElementById('di-tabs');
     if (!tabList) return;
 
@@ -137,11 +145,13 @@
         bootstrap.Tab.getOrCreateInstance(button).show();
     });
 
-    // Research scope switch (Closed + open / Closed only), by delegation: the pane may load later
+    // Research scope switch (Closed trades / Closed + open), by delegation: the pane may load later.
+    // It drives every scoped panel in its tab (Research quality and Research effectiveness).
     content.addEventListener('click', function (event) {
         var button = event.target.closest('[data-scope-btn]');
         if (!button) return;
-        var section = button.closest('#research-quality');
+        var section = button.closest('.tab-pane');
+        if (!section) return;
         section.querySelectorAll('[data-scope-btn]').forEach(function (other) {
             other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
         });

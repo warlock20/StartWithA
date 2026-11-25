@@ -87,6 +87,17 @@
         {{ "%+.1f"|format(p.expected_cagr) }}%/yr{% if p.expected_timeframe_months %} for {{ p.expected_timeframe_months }}mo{% endif %}{% if p.target_source == 'thesis' %} (revised in V{{ p.target_version }}){% endif %}
     {%- endmacro %}
 
+    {# Conviction changes only through a new thesis version, so both states link there #}
+    {% macro conviction_badge(p) -%}
+        {% set url = url_for('portfolio.add_thesis_version', company_id=p.company_id) %}
+        {% if p.conviction is none %}
+        <a href="{{ url }}" class="tr-conviction tr-conviction--unrated" title="Add a thesis version with your conviction" aria-label="Add conviction for {{ p.company_ticker }}" onclick="event.stopPropagation()"><span aria-hidden="true">&#9888;</span> Add</a>
+        {% else %}
+        {% set tone = 'high' if p.conviction >= 7 else ('mid' if p.conviction >= 4 else 'low') %}
+        <a href="{{ url }}" class="tr-conviction tr-conviction--{{ tone }}" title="Change via a new thesis version" onclick="event.stopPropagation()">{{ p.conviction }}/10</a>
+        {% endif %}
+    {%- endmacro %}
+
     {% macro position_section(section, is_active) %}
     <div class="tr-section-content{% if is_active %} active{% endif %}" id="section-{{ section.id }}">
         <div class="tr-positions-panel">
@@ -100,7 +111,7 @@
                     <tr>
                         <th>Company</th>
                         <th class="tr-hide-sm">Thesis</th>
-                        <th class="tr-hide-md">Confidence</th>
+                        <th class="tr-hide-md">Conviction</th>
                         <th class="tr-hide-md">Held</th>
                         <th style="text-align:right">CAGR</th>
                         <th style="text-align:right">Actions</th>
@@ -128,13 +139,7 @@
                             <div class="tr-thesis-snippet tr-no-thesis">No thesis recorded</div>
                             {% endif %}
                         </td>
-                        <td class="tr-hide-md">
-                            {% if p.confidence_score %}
-                            <span class="tr-pill"><i class="bi bi-star-fill" style="color:#f59e0b;"></i> {{ p.confidence_score }}/10</span>
-                            {% else %}
-                            <span class="tr-pill">--</span>
-                            {% endif %}
-                        </td>
+                        <td class="tr-hide-md">{{ conviction_badge(p) }}</td>
                         <td class="tr-hide-md"><span class="tr-pill"><i class="bi bi-calendar3"></i> {{ p.days_held }}d</span></td>
                         <td class="tr-return-cell {% if p.annualized_return_pct >= 0 %}positive{% else %}negative{% endif %}">
                             {% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%{% if p.days_held < 365 %}<span class="tr-asterisk">*</span>{% endif %}
@@ -184,12 +189,10 @@
                                             <div class="tr-detail-metric-label">Actual CAGR</div>
                                             <div class="tr-detail-metric-value" style="color:{% if p.annualized_return_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %};">{% if p.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.annualized_return_pct) }}%</div>
                                         </div>
-                                        {% if p.confidence_score %}
                                         <div class="tr-detail-metric">
-                                            <div class="tr-detail-metric-label">Confidence</div>
-                                            <div class="tr-detail-metric-value">{{ p.confidence_score }}/10</div>
+                                            <div class="tr-detail-metric-label">Conviction</div>
+                                            <div class="tr-detail-metric-value">{{ conviction_badge(p) }}</div>
                                         </div>
-                                        {% endif %}
                                         {% if p.current_price %}
                                         <div class="tr-detail-metric">
                                             <div class="tr-detail-metric-label">Current Price</div>

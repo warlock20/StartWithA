@@ -206,6 +206,7 @@ def assert_can_remove_must_exit(entry: JournalEntry) -> None:
 
 def _archive_finding(entry: JournalEntry) -> None:
     entry.is_archived = True
+    entry.archived_at = now_utc()
     _expire_cached_findings(entry.user_id, entry.company_id)
 
 

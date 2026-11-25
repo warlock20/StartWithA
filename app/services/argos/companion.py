@@ -154,7 +154,10 @@ class CompanionMixin:
             position = {
                 # Lifetime: unrealized + realized + dividends over the capital put in
                 'total_return_pct': round(measured.total_return_pct, 1) if measured else None,
-                # Money-weighted (XIRR) a year; None under 30 days held
+                # Since the current holding's first purchase (a re-buy after selling out starts anew)
+                'holding_return_pct': (round(measured.holding_return_pct, 1)
+                                       if measured and measured.holding_return_pct is not None else None),
+                # The current holding, money-weighted (XIRR) a year; None under 30 days held
                 'annualized_return_pct': (round(measured.annualized_pct, 1)
                                           if measured and measured.annualized_pct is not None else None),
                 # Only the shares still held, against their cost

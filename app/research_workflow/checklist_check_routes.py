@@ -96,13 +96,16 @@ def save_answer(session, item, answer_text, satisfaction_status, set_status=True
         answer.answer_text = answer_text
         answer.answered_at = now_utc()
         if set_status:
+            if satisfaction_status != answer.satisfaction_status:
+                answer.verdict_at = now_utc() if satisfaction_status else None
             answer.satisfaction_status = satisfaction_status
     else:
         answer = ChecklistAnswer(
             answer_text=answer_text,
             checklist_analysis_id=session.id,
             checklist_item_id=item.id,
-            satisfaction_status=satisfaction_status if set_status else None
+            satisfaction_status=satisfaction_status if set_status else None,
+            verdict_at=now_utc() if set_status and satisfaction_status else None,
         )
         db.session.add(answer)
     return answer

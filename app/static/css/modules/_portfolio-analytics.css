@@ -374,6 +374,181 @@
 }
 
 /* =============================================================================
+   RESEARCH EFFECTIVENESS (#440) - ranked finding cards, locked cards
+   ============================================================================= */
+
+.di-re-section {
+    margin-top: var(--space-lg);
+}
+
+.di-re-section [data-scope] > * + * {
+    margin-top: 12px;
+}
+
+.di-re-status {
+    margin-bottom: 16px;
+    font-size: var(--font-size-sm);
+}
+
+.di-re-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* rank | text | actions; the actions drop under the text on narrow screens */
+.di-re-card {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    gap: 12px 16px;
+    align-items: start;
+    padding: 16px;
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    background: var(--background-white);
+}
+
+.di-re-card.di-locked {
+    border: 1px dashed var(--gray-300);
+    background: var(--gray-50);
+}
+
+.di-re-rank {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+}
+
+.di-re-rank--locked {
+    background: var(--gray-200);
+    color: var(--gray-600);
+}
+
+.di-re-title {
+    margin: 0 0 4px;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+.di-re-body {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    color: var(--gray-700);
+}
+
+.di-re-note,
+.di-re-basis {
+    margin: 4px 0 0;
+    font-size: 0.8125rem;
+    color: var(--gray-500);
+}
+
+.di-re-note {
+    color: var(--gray-600);
+}
+
+.di-re-details {
+    margin-top: 8px;
+    font-size: 0.8125rem;
+}
+
+.di-re-details summary {
+    padding: 4px 0;
+    color: var(--primary-600);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.di-re-groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px 20px;
+    margin-top: 8px;
+}
+
+.di-re-groups + .di-re-group {
+    margin-top: 12px;
+}
+
+.di-re-group-title {
+    margin: 0 0 4px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.di-re-trades,
+.di-re-flags {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.di-re-trade {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    padding: 4px 0;
+    border-top: 1px solid var(--gray-100);
+}
+
+.di-re-trade:first-child,
+.di-re-flags li:first-child {
+    border-top: 0;
+}
+
+.di-re-trade-date {
+    flex: 1 1 auto;
+    color: var(--gray-500);
+}
+
+.di-re-flags li {
+    padding: 4px 0;
+    border-top: 1px solid var(--gray-100);
+    overflow-wrap: anywhere;
+}
+
+.di-re-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.di-re-actions form {
+    margin: 0;
+}
+
+.di-re-progress {
+    max-width: 360px;
+    height: 8px;
+    margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+    .di-re-card {
+        grid-template-columns: 32px minmax(0, 1fr);
+    }
+
+    .di-re-actions {
+        grid-column: 2;
+    }
+}
+
+/* =============================================================================
    DECISION INTELLIGENCE TABS (#442)
    ============================================================================= */
 

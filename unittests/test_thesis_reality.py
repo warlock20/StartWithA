@@ -396,3 +396,72 @@ def test_update_thesis_rejects_a_total_without_timeframe(app_context, _app):
                 data=_thesis_form(expected_return='50', expected_return_basis='total'))
 
     assert ThesisEvolution.query.filter_by(user_id=user.id).count() == 0
+
+
+# ── conviction (from the current thesis) replaces the purchase-time confidence ──
+
+def test_reality_check_carries_current_thesis_conviction(app_context):
+    user = _make_user()
+    company = _make_company(user.id)
+    _seed_position(user.id, company.id, gain_pct=32, days_held=730)
+    db.session.add(DecisionJournal(
+        user_id=user.id, company_id=company.id, decision_type='BUY',
+        decision_date=now_utc().date(), is_portfolio_decision=True,
+        investment_thesis='Thesis', expected_cagr=15, expected_timeframe=36, confidence_score=9))
+    _seed_thesis(user.id, company.id, 1)  # conviction 7
+    db.session.add(ThesisEvolution(
+        user_id=user.id, company_id=company.id, version=2, thesis='Thesis',
+        change_summary='Less sure', conviction_level=4, is_current=True))
+    db.session.commit()
+
+    [result] = PortfolioIntelligenceService(user.id).get_thesis_reality_check()
+
+    assert result.conviction == 4
+    assert not hasattr(result, 'confidence_score')
+
+
+def test_page_shows_conviction_not_confidence(app_context, _app):
+    user = _make_user()
+    rated = _make_company(user.id, name='Rated Co', ticker='RTD')
+    unrated = _make_company(user.id, name='Unrated Co', ticker='UNR')
+    for company in (rated, unrated):
+        _seed_position(user.id, company.id, gain_pct=32, days_held=730)
+        db.session.add(DecisionJournal(
+            user_id=user.id, company_id=company.id, decision_type='BUY',
+            decision_date=now_utc().date(), is_portfolio_decision=True,
+            investment_thesis='Thesis', expected_cagr=15, expected_timeframe=36, confidence_score=9))
+    _seed_thesis(user.id, rated.id, 1)  # conviction 7
+    client = _logged_in(_app, user)
+
+    html = client.get('/portfolio/thesis-reality').get_data(as_text=True)
+
+    assert 'Confidence' not in html
+    assert '9/10' not in html
+    assert '>Conviction</th>' in html
+    assert 'tr-conviction tr-conviction--high' in html and '7/10' in html
+    assert f'/portfolio/position/{unrated.id}/thesis/new' in html
+    assert 'tr-conviction--unrated' in html
+
+
+def test_hub_top_performer_uses_the_current_holding(app_context, _app):
+    user = _make_user()
+    user.subscription_tier = 'pro'  # the hub is behind portfolio_intelligence
+    rebought = _make_company(user.id, name='Rebought Co', ticker='RBT')
+    today = now_utc().date()
+    # +50% in 50 days, sold out, re-bought 100 days ago and now down 5%
+    for days_ago, type_, price in ((1000, 'BUY', 100), (950, 'SELL', 150), (100, 'BUY', 100)):
+        db.session.add(Transaction(user_id=user.id, company_id=rebought.id, type=type_,
+                                   date=today - timedelta(days=days_ago), quantity=10, price_per_share=price))
+    steady = _make_company(user.id, name='Steady Co', ticker='STD')
+    db.session.add(Transaction(user_id=user.id, company_id=steady.id, type='BUY',
+                               date=today - timedelta(days=400), quantity=10, price_per_share=100))
+    db.session.flush()
+    for company, price in ((rebought, 95), (steady, 110)):
+        update_portfolio_position_for_company(company.id, user.id)
+        PortfolioPosition.query.filter_by(company_id=company.id).one().update_market_data(price)
+    client = _logged_in(_app, user)
+
+    html = client.get('/portfolio/intelligence').get_data(as_text=True)
+
+    # Lifetime, RBT is +22.5% (the closed trade) and beat STD (+10%)
+    assert 'Top: STD (+10.0%)' in html

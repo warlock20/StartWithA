@@ -34,10 +34,13 @@ from app import cache
 from app.constants import (
     HIGH_QUALITY_RESEARCH_SCORE, MIN_TRADES_FOR_INSIGHTS, RECENT_DECISIONS_LIMIT,
 )
-from app.models import Company, PortfolioPosition, Transaction
+from app.models import Company, PortfolioPosition, ResearchEffectivenessDismissal, Transaction
 from app.models.ai_intelligence import ResearchOutcome
 from app.services.decision_quality import compare_research, research_quality_view
-from app.services.decision_trades import decision_trades
+from app.services.decision_trades import DecisionTrade, decision_trades
+from app.services.research_effectiveness import (
+    Finding, TradeHistory, effectiveness_view, find_finding, load_history,
+)
 from app.services.outcome_tracking import INSIGHTS_VERSION_KEY, portfolio_outcomes
 from app.services.portfolio_intelligence import (
     SHORT_HOLD_THRESHOLD_DAYS, LearningInsight, compare_to_expected_cagr, outcome_hold_days,
@@ -171,6 +174,22 @@ class DecisionIntelligenceService:
             })
         rows.sort(key=lambda r: r['diff'], reverse=True)
         return rows
+
+    @cached_property
+    def _effectiveness_trades(self) -> List[DecisionTrade]:
+        return [t for t in self.trades if t.research != 'unknown']
+
+    @cached_property
+    def _effectiveness_history(self) -> TradeHistory:
+        return load_history(self.user_id, self._effectiveness_trades)
+
+    @cached_property
+    def _effectiveness(self) -> Dict[str, dict]:
+        dismissals = {
+            d.finding_key: d.counts
+            for d in ResearchEffectivenessDismissal.query.filter_by(user_id=self.user_id).all()
+        }
+        return effectiveness_view(self._effectiveness_trades, self._effectiveness_history, dismissals)
 
     @cached_property
     def closed_outcomes(self) -> List[ResearchOutcome]:
@@ -418,11 +437,20 @@ class DecisionIntelligenceService:
             'cards': [{'insight': i, 'action': insight_action(i)} for i in self._insight_list],
         }
 
+    def research_effectiveness(self) -> Dict[str, dict]:
+        """Research effectiveness per scope (#440), dismissed findings hidden; see effectiveness_view."""
+        return self._effectiveness
+
+    def find_finding(self, key: str, scope: str = 'closed') -> Optional[Tuple[Finding, Dict[str, list]]]:
+        """The finding with this key (``scope`` first, then the other), ignoring dismissals, and its counts per scope."""
+        return find_finding(self._effectiveness_trades, self._effectiveness_history, key, scope=scope)
+
     def research(self) -> dict:
         return {
             'view': research_quality_view(self.trades),
             'high_score': HIGH_QUALITY_RESEARCH_SCORE,
             'has_trades': bool(self.trades),
+            'effectiveness': self.research_effectiveness(),
         }
 
     def decision_quality(self) -> dict:

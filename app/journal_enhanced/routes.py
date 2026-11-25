@@ -517,6 +517,7 @@ def archive_entry(entry_id):
        return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry.id))
 
    entry.is_archived = True
+   entry.archived_at = now_utc()
 
    try:
        db.session.commit()

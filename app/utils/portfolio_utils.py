@@ -70,7 +70,9 @@ def categorize_by_holding_period(positions: List, returns: Mapping) -> Dict[str,
             continue
 
         days = measured.days
-        return_pct = measured.total_return_pct
+        return_pct = measured.holding_return_pct
+        if return_pct is None:
+            continue
 
         if days <= 30:
             buckets['0-30'].append(return_pct)

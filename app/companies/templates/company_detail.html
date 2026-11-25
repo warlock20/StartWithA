@@ -152,7 +152,7 @@
             {% set shown_return = journey_stats.annualized_return if show_annualized else journey_stats.total_return %}
             <div id="posReturnCard"
                 class="journey-stat {% if shown_return > 0 %}gain{% elif shown_return < 0 %}loss{% endif %}"
-                title="Counts unrealized and realized gains and dividends. {% if show_annualized %}Money-weighted annual return (XIRR) of your buys, sells and dividends.{% else %}Total gain over the capital you put in.{% endif %}">
+                title="Your current holding, from the buy that opened it. Counts unrealized and realized gains and dividends. {% if show_annualized %}Money-weighted annual return (XIRR) of your buys, sells and dividends.{% else %}Total gain over the capital you put in.{% endif %}">
                 <div class="journey-stat-value" id="posReturnValue">
                     {% if shown_return > 0 %}+{% endif %}{{ "%.1f"|format(shown_return) }}%
                 </div>
@@ -661,8 +661,8 @@ window.companyConfig = {
                             var pctSign = p.unrealized_gain_loss_pct >= 0 ? '+' : '';
                             document.getElementById('posPLPct').textContent = pctSign + p.unrealized_gain_loss_pct.toFixed(1) + '%';
                         }
-                        // Lifetime return tile: annualized from a year held, total before that
-                        var shown = (p.days_held >= 365 && p.annualized_pct !== null) ? p.annualized_pct : p.gain_loss_pct;
+                        // Current holding's return tile: annualized from a year held, total before that
+                        var shown = (p.days_held >= 365 && p.annualized_pct !== null) ? p.annualized_pct : p.holding_return_pct;
                         if (shown !== null && document.getElementById('posReturnValue')) {
                             document.getElementById('posReturnValue').textContent = (shown > 0 ? '+' : '') + shown.toFixed(1) + '%';
                             document.getElementById('posReturnCard').className = 'journey-stat ' + (shown > 0 ? 'gain' : (shown < 0 ? 'loss' : ''));
