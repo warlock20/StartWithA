@@ -522,7 +522,8 @@ class TransactionService:
             )
 
             if decision_journal:
-                transaction.decision_journal_id = decision_journal.id
+                # Through the relationship: a top-up's parent lookup has already loaded it as None
+                transaction.decision_journal = decision_journal
 
             # Rebuild research outcomes (after the journal link so the sync sees it).
             # A sync failure must never lose the transaction.

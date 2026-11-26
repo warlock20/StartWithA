@@ -21,7 +21,9 @@ A decision journal freezes the company's must-exit rules when it is created, so
 later edits or deletes of the rules do not rewrite what was decided. Every buy is
 its own decision: the one that opens a holding period (round trip) is the opening
 decision, and each later buy in the period is a top-up pointing to it through
-parent_decision_id. Imported holding periods get one opening decision each
+parent_decision_id. When a backdated, edited or deleted transaction merges or splits
+holding periods, sync_outcomes_for_company re-links these parents (relink_trip_decisions
+in outcome_tracking). Imported holding periods get one opening decision each
 (ensure_import_decisions) and their later buys are linked to it, not given top-ups.
 Nothing here commits except the one-off repair fix_imported_decisions; callers own
 the transaction.
@@ -295,6 +297,7 @@ class ImportFixReport:
     companies: int = 0
     created: int = 0
     linked: int = 0
+    relinked: int = 0  # decisions whose parent the outcome sync changed
     failed: bool = False
     error: Optional[str] = None
 
@@ -336,7 +339,7 @@ def fix_imported_decisions(user_id: Optional[int] = None, dry_run: bool = False)
                 stats = ensure_import_decisions(uid, company_id)
                 report.created += stats.created
                 report.linked += stats.linked
-                sync_outcomes_for_company(uid, company_id)
+                report.relinked += sync_outcomes_for_company(uid, company_id).relinked
             if dry_run:
                 db.session.rollback()
             else:
@@ -345,7 +348,7 @@ def fix_imported_decisions(user_id: Optional[int] = None, dry_run: bool = False)
             db.session.rollback()
             logger.error(f"Imported-decision fix failed for user {uid}", exc_info=True)
             # Nothing landed for this user, so don't let the totals count it
-            report.created = report.linked = 0
+            report.created = report.linked = report.relinked = 0
             report.failed = True
             report.error = str(exc)
         reports.append(report)
