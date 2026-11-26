@@ -299,10 +299,16 @@ class ClaudeProvider(AIProvider):
                 out.append({'role': 'user', 'content': msg.content})
         return out
 
-    def generate_turn(self, messages, tools, system=None, max_tokens=1024, temperature=0.3):
+    def generate_turn(self, messages, tools, system=None, max_tokens=1024, temperature=0.3,
+                      google_search=False):
         """One turn of a tool-calling conversation. Returns a TurnResult.
 
-        `temperature` is ignored (see generate_text)."""
+        `temperature` is ignored (see generate_text). `google_search` is Gemini's
+        grounding; Claude refuses it rather than answering ungrounded."""
+
+        if google_search:
+            raise NotImplementedError(
+                f"{self.model_name} has no Google Search grounding in the tool loop")
 
         create_params = {
             'model': self._model_enum.model_id,

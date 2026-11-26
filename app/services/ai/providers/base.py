@@ -168,7 +168,8 @@ class AIProvider(ABC):
         """
         return False
 
-    def generate_turn(self, messages, tools, system=None, max_tokens=1024, temperature=0.3):
+    def generate_turn(self, messages, tools, system=None, max_tokens=1024, temperature=0.3,
+                      google_search=False):
         """
         Execute ONE turn of a tool-calling conversation.
 
@@ -183,6 +184,8 @@ class AIProvider(ABC):
             tools: list[ToolSpec] the model may call (empty to force a prose answer)
             system: optional system prompt
             max_tokens/temperature: generation controls
+            google_search: also ground the turn on Google Search. `run_tool_loop`
+                always passes it; a provider that can't ground must refuse True.
 
         Raises:
             NotImplementedError: if the provider does not support tools
