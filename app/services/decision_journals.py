@@ -297,6 +297,7 @@ class ImportFixReport:
     companies: int = 0
     created: int = 0
     linked: int = 0
+    relinked: int = 0  # decisions whose parent the outcome sync changed
     failed: bool = False
     error: Optional[str] = None
 
@@ -338,7 +339,7 @@ def fix_imported_decisions(user_id: Optional[int] = None, dry_run: bool = False)
                 stats = ensure_import_decisions(uid, company_id)
                 report.created += stats.created
                 report.linked += stats.linked
-                sync_outcomes_for_company(uid, company_id)
+                report.relinked += sync_outcomes_for_company(uid, company_id).relinked
             if dry_run:
                 db.session.rollback()
             else:
@@ -347,7 +348,7 @@ def fix_imported_decisions(user_id: Optional[int] = None, dry_run: bool = False)
             db.session.rollback()
             logger.error(f"Imported-decision fix failed for user {uid}", exc_info=True)
             # Nothing landed for this user, so don't let the totals count it
-            report.created = report.linked = 0
+            report.created = report.linked = report.relinked = 0
             report.failed = True
             report.error = str(exc)
         reports.append(report)

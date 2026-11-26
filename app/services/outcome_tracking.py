@@ -314,6 +314,18 @@ def _first_decision_made_in_trip(trip: RoundTrip) -> Optional[DecisionJournal]:
     return None
 
 
+def _orphan_buy_decisions(user_id: int, company_id: int) -> List[DecisionJournal]:
+    """Portfolio BUY decisions with no transactions left (their buys were deleted), oldest first."""
+    linked = db.session.query(Transaction.id).filter(Transaction.decision_journal_id == DecisionJournal.id)
+    return DecisionJournal.query.filter(
+        DecisionJournal.user_id == user_id,
+        DecisionJournal.company_id == company_id,
+        DecisionJournal.decision_type == 'BUY',
+        DecisionJournal.is_portfolio_decision.is_(True),
+        ~linked.exists(),
+    ).order_by(DecisionJournal.decision_date, DecisionJournal.id).all()
+
+
 def relink_trip_decisions(trips: List[RoundTrip]) -> int:
     """
     Give each round trip exactly one opening decision (#448): the earliest BUY decision
@@ -322,35 +334,69 @@ def relink_trip_decisions(trips: List[RoundTrip]) -> int:
     transaction can merge two holding periods or split one.
 
     A decision belongs to the trip of its first BUY row, so a pre-#434 journal that is
-    also on a later trip's buys stays with its own trip. Only parent_decision_id
-    changes, never the decision's reasoning or which transactions it is on. A trip
-    whose buys only carry an earlier trip's decision (a split imported period) gets no
-    opening. Returns how many decisions changed. Flushes when something changed.
+    also on a later trip's buys stays with its own trip. A trip whose opening row
+    carries an earlier trip's decision (a split imported period) keeps that decision as
+    its opening, as opening_decision_for_trip reads it, so its own decisions point
+    there. A decision whose buys were all deleted is never an opening: it points at the
+    opening of the first trip that ends on or after its date (else the last trip).
+
+    Only parent_decision_id changes, never the decision's reasoning or which
+    transactions it is on. Returns how many decisions changed. Flushes when something
+    changed.
     """
-    seen = {}
-    changed = 0
+    if not trips:
+        return 0
+    first = trips[0].opening_transaction
+    journals: Dict[int, DecisionJournal] = {}  # every decision on a trip's BUY rows, by id
+    wanted: Dict[int, Optional[int]] = {}  # decision id -> its parent_decision_id after the relink
+    trip_openings: List[Optional[int]] = []
     for trip in trips:
+        opening_row = trip.opening_transaction.decision_journal
+        inherited = (opening_row is not None and opening_row.decision_type == 'BUY'
+                     and opening_row.id in journals)
         decisions = []
         for txn in trip.buys:
             journal = txn.decision_journal
-            if journal is None or journal.decision_type != 'BUY' or journal.id in seen:
+            if journal is None or journal.decision_type != 'BUY' or journal.id in journals:
                 continue
-            seen[journal.id] = journal
+            journals[journal.id] = journal
             decisions.append(journal)
-        if not decisions:
-            continue
-        opening = decisions[0]
+        if inherited:
+            # The opening row's decision (or its parent, if a top-up) is this trip's opening
+            parent_id = wanted.get(opening_row.id, opening_row.parent_decision_id)
+            opening_id = parent_id if parent_id is not None else opening_row.id
+        elif decisions:
+            opening_id = decisions.pop(0).id
+            wanted[opening_id] = None
+        else:
+            opening_id = None
         for journal in decisions:
-            parent_id = None if journal is opening else opening.id
-            if journal.parent_decision_id != parent_id:
-                # The column, not the relationship: swapping two decisions' roles would be
-                # a circular dependency for the unit of work
-                journal.parent_decision_id = parent_id
-                changed += 1
+            wanted[journal.id] = opening_id
+        trip_openings.append(opening_id)
+
+    for orphan in _orphan_buy_decisions(first.user_id, first.company_id):
+        index = next((i for i, trip in enumerate(trips)
+                      if trip.exit_date is None or trip.exit_date >= orphan.decision_date), len(trips) - 1)
+        if trip_openings[index] is not None:
+            journals[orphan.id] = orphan
+            wanted[orphan.id] = trip_openings[index]
+
+    touched = set(journals)
+    changed = 0
+    for journal_id, parent_id in wanted.items():
+        journal = journals[journal_id]
+        if journal.parent_decision_id != parent_id:
+            touched.add(journal.parent_decision_id)
+            # The column, not the relationship: swapping two decisions' roles would be
+            # a circular dependency for the unit of work
+            journal.parent_decision_id = parent_id
+            changed += 1
     if changed:
         db.session.flush()
-        for journal in seen.values():
-            db.session.expire(journal, ['parent_decision', 'top_ups'])
+        # Old parents too, so their top_ups don't list the moved decisions
+        for obj in list(db.session.identity_map.values()):
+            if isinstance(obj, DecisionJournal) and obj.id in touched:
+                db.session.expire(obj, ['parent_decision', 'top_ups'])
     return changed
 
 

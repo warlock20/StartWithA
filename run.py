@@ -290,9 +290,10 @@ def fix_imported_decisions_command(user_id, dry_run):
         if dry_run:
             click.echo("DRY RUN — nothing written")
         reports = fix_imported_decisions(user_id=user_id, dry_run=dry_run)
-        totals = dict(companies=0, created=0, linked=0)
+        totals = dict(companies=0, created=0, linked=0, relinked=0)
         for r in reports:
-            line = f"user {r.user_id}: companies={r.companies} created={r.created} linked={r.linked}"
+            line = (f"user {r.user_id}: companies={r.companies} created={r.created} linked={r.linked} "
+                    f"relinked={r.relinked}")
             if r.failed:
                 line += f" FAILED: {r.error}"
             click.echo(line)
