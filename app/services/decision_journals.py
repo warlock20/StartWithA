@@ -21,7 +21,9 @@ A decision journal freezes the company's must-exit rules when it is created, so
 later edits or deletes of the rules do not rewrite what was decided. Every buy is
 its own decision: the one that opens a holding period (round trip) is the opening
 decision, and each later buy in the period is a top-up pointing to it through
-parent_decision_id. Imported holding periods get one opening decision each
+parent_decision_id. When a backdated, edited or deleted transaction merges or splits
+holding periods, sync_outcomes_for_company re-links these parents (relink_trip_decisions
+in outcome_tracking). Imported holding periods get one opening decision each
 (ensure_import_decisions) and their later buys are linked to it, not given top-ups.
 Nothing here commits except the one-off repair fix_imported_decisions; callers own
 the transaction.

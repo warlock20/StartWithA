@@ -27,7 +27,9 @@ Lifecycle:
 3. The sync rebuilds that company's ResearchOutcome rows from its FIFO round
    trips (get_round_trips): open trips stay open, closed trips get exit data.
    Trips a merger or spin-off opened get an outcome flagged is_received, with no
-   research or expectation fields
+   research or expectation fields. First it re-links the BUY decisions
+   (relink_trip_decisions), so each trip keeps one opening decision when a
+   backdated, edited or deleted transaction merges or splits holding periods
 4. Correlation analysis runs to identify patterns
 
 Usage:
@@ -218,6 +220,7 @@ class OutcomeSyncStats:
     updated: int = 0
     deleted: int = 0
     closed: int = 0  # outcomes that are closed after the sync
+    relinked: int = 0  # BUY decisions whose parent_decision_id changed
 
 
 def is_placeholder_journal(journal: Optional[DecisionJournal]) -> bool:
@@ -311,6 +314,46 @@ def _first_decision_made_in_trip(trip: RoundTrip) -> Optional[DecisionJournal]:
     return None
 
 
+def relink_trip_decisions(trips: List[RoundTrip]) -> int:
+    """
+    Give each round trip exactly one opening decision (#448): the earliest BUY decision
+    made in the trip loses its parent, and the trip's later BUY decisions point at it.
+    Run whenever round trips can change, since a backdated, edited or deleted
+    transaction can merge two holding periods or split one.
+
+    A decision belongs to the trip of its first BUY row, so a pre-#434 journal that is
+    also on a later trip's buys stays with its own trip. Only parent_decision_id
+    changes, never the decision's reasoning or which transactions it is on. A trip
+    whose buys only carry an earlier trip's decision (a split imported period) gets no
+    opening. Returns how many decisions changed. Flushes when something changed.
+    """
+    seen = {}
+    changed = 0
+    for trip in trips:
+        decisions = []
+        for txn in trip.buys:
+            journal = txn.decision_journal
+            if journal is None or journal.decision_type != 'BUY' or journal.id in seen:
+                continue
+            seen[journal.id] = journal
+            decisions.append(journal)
+        if not decisions:
+            continue
+        opening = decisions[0]
+        for journal in decisions:
+            parent_id = None if journal is opening else opening.id
+            if journal.parent_decision_id != parent_id:
+                # The column, not the relationship: swapping two decisions' roles would be
+                # a circular dependency for the unit of work
+                journal.parent_decision_id = parent_id
+                changed += 1
+    if changed:
+        db.session.flush()
+        for journal in seen.values():
+            db.session.expire(journal, ['parent_decision', 'top_ups'])
+    return changed
+
+
 def _apply_trip_to_outcome(outcome: ResearchOutcome, trip, user_id: int, company_id: int,
                            checkpoints: List[DestinationCheckpoint],
                            quality_cache: Dict[int, Any]) -> bool:
@@ -398,13 +441,15 @@ def bump_insights_version(user_id: int) -> None:
 
 def sync_outcomes_for_company(user_id: int, company_id: int) -> OutcomeSyncStats:
     """
-    Make the company's ResearchOutcome rows match its round trips (one per trade).
+    Make the company's ResearchOutcome rows match its round trips (one per trade),
+    after re-linking the trips' BUY decisions (relink_trip_decisions).
 
     Rows are matched to trades by decision_date (in id order when several share a date)
     and updated in place so ids stay stable. Flushes, never commits; raises on error.
     """
     stats = OutcomeSyncStats()
     trips = get_round_trips(company_id, user_id)
+    stats.relinked = relink_trip_decisions(trips)
     existing = ResearchOutcome.query.filter_by(user_id=user_id, company_id=company_id) \
         .order_by(ResearchOutcome.id).all()
     by_date: Dict[Any, List[ResearchOutcome]] = {}
@@ -502,6 +547,7 @@ class UserRebuildReport:
     updated: int = 0
     deleted: int = 0
     closed: int = 0
+    relinked: int = 0
     positions_with_realized_pct: int = 0
     failed: bool = False
     error: Optional[str] = None
@@ -538,6 +584,7 @@ def rebuild_trade_outcomes(user_id: Optional[int] = None, dry_run: bool = False)
                 report.updated += stats.updated
                 report.deleted += stats.deleted
                 report.closed += stats.closed
+                report.relinked += stats.relinked
             report.positions_with_realized_pct = PortfolioPosition.query.filter(
                 PortfolioPosition.user_id == uid,
                 PortfolioPosition.realized_gain_loss_pct.isnot(None),
@@ -550,7 +597,7 @@ def rebuild_trade_outcomes(user_id: Optional[int] = None, dry_run: bool = False)
             db.session.rollback()
             logger.error(f"Outcome rebuild failed for user {uid}", exc_info=True)
             # Nothing landed for this user, so don't let the totals count it
-            report.created = report.updated = report.deleted = report.closed = 0
+            report.created = report.updated = report.deleted = report.closed = report.relinked = 0
             report.positions_with_realized_pct = 0
             report.failed = True
             report.error = str(exc)

@@ -242,15 +242,16 @@ def fix_imported_research_flags_command():
 @click.option('--user-id', type=int, default=None, help='Only rebuild this user.')
 @click.option('--dry-run', is_flag=True, help='Do the full rebuild, then roll back.')
 def rebuild_trade_outcomes_command(user_id, dry_run):
-    """Backfills realized_gain_loss_pct and per-trade ResearchOutcome rows from transactions."""
+    """Backfills realized_gain_loss_pct and per-trade ResearchOutcome rows, and re-links opening decisions."""
     with app.app_context():
         if dry_run:
             click.echo("DRY RUN — nothing written")
         reports = rebuild_trade_outcomes(user_id=user_id, dry_run=dry_run)
-        totals = dict(companies=0, created=0, updated=0, deleted=0, closed=0, positions_with_realized_pct=0)
+        totals = dict(companies=0, created=0, updated=0, deleted=0, closed=0, relinked=0,
+                      positions_with_realized_pct=0)
         for r in reports:
             line = (f"user {r.user_id}: companies={r.companies} created={r.created} updated={r.updated} "
-                    f"deleted={r.deleted} closed={r.closed} "
+                    f"deleted={r.deleted} closed={r.closed} relinked={r.relinked} "
                     f"positions_with_realized_pct={r.positions_with_realized_pct}")
             if r.failed:
                 line += f" FAILED: {r.error}"
