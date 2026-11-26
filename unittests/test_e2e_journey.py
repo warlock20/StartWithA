@@ -25,21 +25,19 @@ Every step goes through the Flask test client, so routes, services, models and
 templates are exercised together. Each step asserts what the user would see:
 the page renders, the record exists, the status moved on.
 
-No LLM is ever called, nothing reaches Celery/Redis and nothing goes online:
-all three are intercepted (market data is a fixed stub), and the journey fails
-if anything tries to spend tokens or call out.
+No LLM is ever called and nothing reaches Celery/Redis: both are intercepted
+(market data is a fixed stub), and the journey fails if anything tries to spend
+tokens. Going online is refused by the suite-wide guard in conftest.py.
 
 This file is the place to extend when a feature changes the core flow. Unit
 tests stay for behaviour that is cheaper to pin down in isolation.
 """
 
-import socket
 from datetime import date, timedelta
 from urllib.parse import urlparse
 
 import pytest
 from celery.app.task import Task
-from curl_cffi import requests as curl_requests
 
 from app import db
 from app.models import (
@@ -62,39 +60,18 @@ class _QueuedTask:
     id = 'journey-fake-task-id'
 
 
-_LOCAL_HOSTS = {'localhost', '127.0.0.1', '::1'}
-
-
 @pytest.fixture
 def guards(monkeypatch):
-    """Intercept every LLM call, every Celery enqueue and all outbound network.
+    """Intercept every LLM call and every Celery enqueue.
 
     LLM calls raise (and are recorded, because many routes swallow
     exceptions into a flash). Enqueued tasks are recorded and never sent, so
     a local dev worker can't pick them up against the scratch DB's ids.
-    Market data comes from a fixed stub; any other connection off this machine is
-    refused and recorded, so the journey runs offline and deterministically.
+    Market data comes from a fixed stub, so the journey is deterministic. The
+    network guard is conftest's `no_network`, which every test gets.
     """
-    calls = {'ai': [], 'tasks': [], 'net': []}
+    calls = {'ai': [], 'tasks': []}
 
-    real_connect = socket.socket.connect
-
-    def _local_only(sock, address):
-        host = address[0] if isinstance(address, tuple) else address
-        if isinstance(host, str) and host not in _LOCAL_HOSTS and not host.startswith('/'):
-            calls['net'].append(host)
-            raise OSError(f'journey must stay offline (tried {host})')
-        return real_connect(sock, address)
-
-    monkeypatch.setattr(socket.socket, 'connect', _local_only)
-
-    # yfinance fetches through curl_cffi (libcurl), which never touches
-    # Python's socket module, so it needs its own gate.
-    def _no_curl(session, method, url, *args, **kwargs):
-        calls['net'].append(url)
-        raise OSError(f'journey must stay offline (tried {url})')
-
-    monkeypatch.setattr(curl_requests.Session, 'request', _no_curl)
     # Market data: one fixed price, no history (so no run-up warning on a buy).
     monkeypatch.setattr(FinancialDataService, 'get_current_price_with_currency',
                         lambda self, ticker: {'price': 750.0, 'currency': 'USD'})
@@ -124,7 +101,6 @@ def guards(monkeypatch):
 
 def _assert_quiet(guards):
     assert guards['ai'] == [], f'the journey called the LLM: {guards["ai"]}'
-    assert guards['net'] == [], f'the journey went online: {guards["net"]}'
 
 
 def _open(client, url):

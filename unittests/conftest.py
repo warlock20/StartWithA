@@ -26,9 +26,25 @@ paying to rebuild the schema every time.
 
 Embeddings are stubbed (``stub_embedding``) to a fixed vector — indexing/retrieval
 logic is what we test here, not the embedding model.
+
+The suite runs offline (#447). For every test, by default:
+
+- ``offline_market_data`` makes Yahoo Finance answer "no data" (no price, no
+  history, no FX rate, ticker not found) without calling out. A test that needs
+  figures patches ``FinancialDataService`` (or ``CurrencyService``) itself.
+- ``no_network`` refuses any connection off this machine and fails the test that
+  tried, even when the code under test swallowed the error.
+- The historical-price file cache points at a temp dir for the session, so tests
+  neither read nor write ``instance/cache``.
+
+Opt out with ``@pytest.mark.real_market_data`` (the real ``YahooFinanceProvider``
+runs, for tests that fake ``yfinance`` itself; the guard stays on) or
+``@pytest.mark.network`` (no stub and no guard: the test may really go online).
 """
 
+import ipaddress
 import os
+import socket
 import sys
 from types import SimpleNamespace
 
@@ -37,6 +53,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import fitz
 import numpy as np
 import pytest
+from curl_cffi import requests as curl_requests
 from flask import current_app
 from flask.sessions import SecureCookieSessionInterface
 from itsdangerous import BadSignature
@@ -54,6 +71,9 @@ from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.portfolio import PortfolioPosition
 from app.services.findings import add_finding
 from app.services.ai_check import setup as ai_check_setup
+from app.services.financial_data import FinancialDataService
+from app.services.financial_data.providers.cached_provider import CachedFinancialDataProvider
+from app.services.financial_data.providers.yahoo_finance import YahooFinanceProvider
 
 _BASE_URL = make_url(Config.SQLALCHEMY_DATABASE_URI)
 # TEST_DB_SUFFIX gives each parallel run (e.g. one per worktree) its own scratch DB;
@@ -92,6 +112,169 @@ class ClockTolerantSessionInterface(SecureCookieSessionInterface):
             return self.session_class(serializer.loads(value))
         except BadSignature:
             return self.session_class()
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        'markers', 'network: the test may go online (no network guard, no market-data stub)')
+    config.addinivalue_line(
+        'markers', 'real_market_data: run the real YahooFinanceProvider; the network guard stays on')
+
+
+# =========================================================================
+# Offline by default (#447)
+# =========================================================================
+
+class NetworkBlocked(OSError):
+    """Raised when a test tries to reach a host off this machine."""
+
+
+def _is_local_host(host):
+    """True for loopback names and addresses, and for Unix socket paths."""
+    if host is None:
+        return True
+    if isinstance(host, bytes):
+        host = host.decode()
+    if not isinstance(host, str) or host in ('', 'localhost') or host.startswith('/'):
+        return True
+    try:
+        return ipaddress.ip_address(host.split('%')[0]).is_loopback
+    except ValueError:
+        return False
+
+
+def _is_ip_literal(host):
+    if isinstance(host, bytes):
+        host = host.decode()
+    try:
+        ipaddress.ip_address(str(host).split('%')[0])
+        return True
+    except ValueError:
+        return False
+
+
+@pytest.fixture(autouse=True)
+def no_network(request, monkeypatch):
+    """Refuse connections off this machine; fail the test that tried.
+
+    Python sockets (requests, httpx, the AI SDKs), name lookups and curl_cffi
+    (yfinance's HTTP client, which bypasses Python sockets) are all gated. The
+    attempt raises NetworkBlocked and is recorded, and the test fails at teardown,
+    because most callers catch the error and carry on.
+
+    Yields the list of attempts; a test of the guard itself clears it.
+    """
+    attempts = []
+    if request.node.get_closest_marker('network'):
+        yield attempts
+        return
+
+    def _refuse(target):
+        attempts.append(target)
+        raise NetworkBlocked(f'tests run offline (tried {target}); '
+                             'stub the call, or mark the test @pytest.mark.network')
+
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+    real_getaddrinfo = socket.getaddrinfo
+
+    def _connect(sock, address):
+        host = address[0] if isinstance(address, tuple) else address
+        if not _is_local_host(host):
+            _refuse(host)
+        return real_connect(sock, address)
+
+    def _connect_ex(sock, address):
+        host = address[0] if isinstance(address, tuple) else address
+        if not _is_local_host(host):
+            _refuse(host)
+        return real_connect_ex(sock, address)
+
+    def _getaddrinfo(host, *args, **kwargs):
+        # Resolving an IP literal never leaves the machine; a hostname does.
+        if not _is_local_host(host) and not _is_ip_literal(host):
+            _refuse(host)
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    def _curl_request(session, method, url, *args, **kwargs):
+        _refuse(url)
+
+    monkeypatch.setattr(socket.socket, 'connect', _connect)
+    monkeypatch.setattr(socket.socket, 'connect_ex', _connect_ex)
+    monkeypatch.setattr(socket, 'getaddrinfo', _getaddrinfo)
+    monkeypatch.setattr(curl_requests.Session, 'request', _curl_request)
+    yield attempts
+    if attempts:
+        pytest.fail(f'test tried to go online: {attempts}', pytrace=False)
+
+
+class _OfflineYahoo:
+    """What YahooFinanceProvider answers in tests: no data for anything."""
+
+    def get_current_price(self, ticker):
+        return None
+
+    def get_current_price_with_currency(self, ticker):
+        return None
+
+    def get_watch_metrics(self, ticker):
+        return None
+
+    def get_historical_price(self, ticker, price_date):
+        return None
+
+    def get_historical_prices_bulk(self, ticker, start_date, end_date):
+        return {}
+
+    def get_ticker_info(self, ticker):
+        return None
+
+    def get_valuation_metrics(self, ticker):
+        return None
+
+    def get_batch_current_prices(self, tickers):
+        return {t: None for t in tickers}
+
+    def get_exchange_rate(self, from_currency, to_currency):
+        return None
+
+    def validate_ticker(self, ticker):
+        return {'valid': False, 'ticker': (ticker or '').strip().upper(),
+                'error': 'Market data is offline in tests', 'company_name': None,
+                'current_price': None, 'exchange': None, 'currency': None}
+
+    def get_financial_statements(self, ticker, years=5):
+        return None
+
+    def search_companies(self, query, max_results=5):
+        return []
+
+
+_OFFLINE_YAHOO_METHODS = [name for name in vars(_OfflineYahoo) if not name.startswith('_')]
+
+
+@pytest.fixture(autouse=True)
+def offline_market_data(request, monkeypatch):
+    """Yahoo Finance answers "no data" without calling out (see module docstring)."""
+    if (request.node.get_closest_marker('network')
+            or request.node.get_closest_marker('real_market_data')):
+        return
+    for name in _OFFLINE_YAHOO_METHODS:
+        monkeypatch.setattr(YahooFinanceProvider, name, getattr(_OfflineYahoo, name))
+
+
+@pytest.fixture(scope='session', autouse=True)
+def _isolated_price_cache(tmp_path_factory):
+    """Point the shared historical-price file cache at a temp dir for the session.
+
+    The default provider is built once and shared by every FinancialDataService,
+    so installing it before any test runs covers them all.
+    """
+    previous = FinancialDataService._default_provider
+    FinancialDataService._default_provider = CachedFinancialDataProvider(
+        YahooFinanceProvider(), cache_dir=tmp_path_factory.mktemp('historical_prices'))
+    yield
+    FinancialDataService._default_provider = previous
 
 
 def _ensure_scratch_db():

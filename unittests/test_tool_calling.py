@@ -16,12 +16,20 @@
 
 """Provider-agnostic tool-calling types + agentic loop (Tasks 3-5)."""
 
+import inspect
 import os
 import sys
+from types import SimpleNamespace
+
+import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app.services.ai import ai_service
+from app.services.ai.providers import claude as claude_module
+from app.services.ai.providers.base import AIProvider
+from app.services.ai.providers.claude import ClaudeProvider
+from app.services.ai.providers.gemini import GeminiProvider
 from app.services.ai.tool_calling import (
     ToolSpec, ToolCall, ToolResult, TurnResult, ToolLoopResult, run_tool_loop,
 )
@@ -44,14 +52,22 @@ def test_toolspec_roundtrips():
 # --------------------------------------------------------------------------
 
 def _fake_provider(script):
-    """A provider whose generate_turn returns scripted TurnResults in order."""
+    """A provider whose generate_turn returns scripted TurnResults in order.
+
+    Its signature matches the provider contract (`AIProvider.generate_turn`), and it
+    records the google_search flag each turn was asked for in `.google_search_seen`.
+    """
     state = {'i': 0}
 
     class FakeProvider:
+        google_search_seen = []
+
         def supports_tools(self):
             return True
 
-        def generate_turn(self, messages, tools, system=None, max_tokens=1024, temperature=0.3):
+        def generate_turn(self, messages, tools, system=None, max_tokens=1024,
+                          temperature=0.3, google_search=False):
+            self.google_search_seen.append(google_search)
             step = script[state['i']]
             state['i'] += 1
             return TurnResult(text=step.get('text'), tool_calls=step.get('tool_calls', []))
@@ -90,6 +106,71 @@ def test_loop_stops_at_hop_cap():
                            [ToolSpec('get', 'd', {'type': 'object', 'properties': {}})],
                            executor, max_hops=3)
     assert result.hops == 3  # capped
+
+
+def test_loop_passes_google_search_to_every_turn():
+    provider = _fake_provider([
+        {'tool_calls': [ToolCall(id='a', name='get', arguments={})]},
+        {'text': 'done'},
+    ])
+    run_tool_loop(provider, [{'role': 'user', 'content': 'q'}],
+                  [ToolSpec('get', 'd', {'type': 'object', 'properties': {}})],
+                  lambda c: ToolResult(id=c.id, content='D'), google_search=True)
+    assert provider.google_search_seen == [True, True]
+
+
+# --------------------------------------------------------------------------
+# Provider contract — every tool-capable provider takes the loop's arguments
+# --------------------------------------------------------------------------
+
+@pytest.mark.parametrize('provider_cls', [AIProvider, ClaudeProvider, GeminiProvider])
+def test_generate_turn_accepts_google_search(provider_cls):
+    """run_tool_loop always passes google_search, so every provider must accept it."""
+    assert 'google_search' in inspect.signature(provider_cls.generate_turn).parameters
+
+
+class _FakeClaudeClient:
+    """Stands in for anthropic.Anthropic: one scripted response per messages.create."""
+
+    def __init__(self, responses):
+        self.calls = []
+        self._responses = list(responses)
+        self.messages = SimpleNamespace(create=self._create)
+
+    def _create(self, **params):
+        self.calls.append(params)
+        return SimpleNamespace(content=self._responses.pop(0))
+
+
+def _claude_provider(monkeypatch, responses):
+    monkeypatch.setattr(claude_module, '_anthropic_available', True)
+    provider = ClaudeProvider()
+    provider._client = _FakeClaudeClient(responses)
+    return provider
+
+
+@pytest.mark.usefixtures('app_context')
+def test_loop_runs_on_claude(monkeypatch):
+    """The companion routed to Claude used to crash: generate_turn rejected google_search."""
+    provider = _claude_provider(monkeypatch, [
+        [SimpleNamespace(type='tool_use', id='t1', name='get', input={'x': 1})],
+        [SimpleNamespace(type='text', text='final answer')],
+    ])
+    result = run_tool_loop(provider, [{'role': 'user', 'content': 'q'}],
+                           [ToolSpec('get', 'd', {'type': 'object', 'properties': {}})],
+                           lambda c: ToolResult(id=c.id, content='DATA'))
+    assert result.text == 'final answer'
+    assert result.hops == 1
+    assert len(provider._client.calls) == 2
+
+
+@pytest.mark.usefixtures('app_context')
+def test_claude_refuses_google_search(monkeypatch):
+    """Claude has no Google Search grounding; asking for it must fail, not answer ungrounded."""
+    provider = _claude_provider(monkeypatch, [[SimpleNamespace(type='text', text='x')]])
+    with pytest.raises(NotImplementedError, match='Google Search'):
+        provider.generate_turn([{'role': 'user', 'content': 'q'}], [], google_search=True)
+    assert provider._client.calls == []
 
 
 # --------------------------------------------------------------------------
