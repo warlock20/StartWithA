@@ -73,7 +73,18 @@
                             <div class="form-text">Be specific about the reasoning behind your exit</div>
                         </div>
 
-                        {% if graded %}
+                        {% if graded and not grades_opening %}
+                        <!-- Trim: the trade is still open, so its return isn't the decision's outcome -->
+                        <div class="alert alert-light border mb-4">
+                            {% if calculated_return is not none %}
+                            <div class="fw-semibold">Return on the shares sold: {{ '%+.2f'|format(calculated_return) }}%</div>
+                            <div class="small text-muted">FIFO, excluding dividends.</div>
+                            {% endif %}
+                            <div class="small text-muted mt-1">You still hold shares, so the trade's result is recorded when you sell the rest. Your notes below are saved on this sale.</div>
+                        </div>
+                        {% endif %}
+
+                        {% if grades_opening %}
                         <!-- Actual Return -->
                         <div class="mb-4">
                             <label for="actual_return" class="form-label fw-semibold">
@@ -91,7 +102,9 @@
                             <div class="form-text">Positive for gain, negative for loss</div>
                             {% endif %}
                         </div>
+                        {% endif %}
 
+                        {% if graded %}
                         <!-- What Went Right -->
                         <div class="mb-4">
                             <label for="what_went_right" class="form-label fw-semibold">
@@ -120,7 +133,9 @@
                                       required></textarea>
                             <div class="form-text">This is the most important field - capture your learnings</div>
                         </div>
+                        {% endif %}
 
+                        {% if grades_opening %}
                         <!-- Would You Repeat This Decision? -->
                         <div class="mb-4">
                             <label class="form-label fw-semibold">Would you make this same decision again?</label>
@@ -166,7 +181,7 @@
                                 </select>
                             </div>
                         </div>
-                        {% else %}
+                        {% elif not graded %}
                         <div class="alert alert-info mb-4">
                             <i class="bi bi-info-circle me-2"></i>This holding wasn't opened by a buy decision of its own, so nothing is graded.
                         </div>

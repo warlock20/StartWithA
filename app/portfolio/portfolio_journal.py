@@ -139,8 +139,9 @@ def sell_postmortem(journal_id):
         # Update SELL journal with exit reasoning
         journal.investment_thesis = sell_reason if sell_reason else journal.investment_thesis
 
-        # Grade the opening decision only when the holding was opened by a buy decision of its own
-        if postmortem.graded:
+        # Only the closing sale grades the opening decision, and only when the holding was
+        # opened by a buy decision of its own. A trim keeps its lessons on its own SELL decision.
+        if postmortem.grades_opening:
             opening.actual_return = actual_return
             opening.outcome_date = journal.decision_date
             opening.what_went_right = what_went_right
@@ -150,6 +151,11 @@ def sell_postmortem(journal_id):
             opening.mistake_category = mistake_category if actual_return and actual_return < 0 else None
             opening.success_category = success_category if actual_return and actual_return > 0 else None
             opening.updated_at = now_utc()
+        elif postmortem.graded:
+            journal.what_went_right = what_went_right
+            journal.what_went_wrong = what_went_wrong
+            journal.lessons_learned = lessons_learned
+            journal.updated_at = now_utc()
 
         try:
             db.session.commit()
@@ -168,5 +174,6 @@ def sell_postmortem(journal_id):
                               journal.user_id, journal.company_id, journal.decision_date),
                           calculated_return=calculated_return,
                           closed_trade=postmortem.closed_trade,
-                          graded=postmortem.graded)
+                          graded=postmortem.graded,
+                          grades_opening=postmortem.grades_opening)
 

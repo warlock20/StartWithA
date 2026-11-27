@@ -561,6 +561,15 @@ class SalePostmortem:
     # not a split imported period that inherits an earlier period's decision)
     graded: bool = False
 
+    @property
+    def grades_opening(self) -> bool:
+        """
+        True when this post-mortem writes the trade's outcome onto the opening decision:
+        only the sale that closes the holding does (#473). A trim's lessons go on its
+        own SELL decision, so a later or earlier save can't overwrite the trade's result.
+        """
+        return self.graded and self.closed_trade
+
 
 def sale_postmortem(sell_journal: DecisionJournal) -> SalePostmortem:
     """
