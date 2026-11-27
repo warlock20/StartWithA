@@ -92,14 +92,14 @@ def test_sale_that_closes_first_trade_gets_that_trade_return(rebought):
     pm = _pm(rebought['sell1'])
     assert pm.closed_trade is True
     assert pm.calculated_return == pytest.approx(50.0)
-    assert pm.buy_journal.id == rebought['buy1']
+    assert pm.opening_decision.id == rebought['buy1']
 
 
 def test_partial_sale_gets_return_on_shares_it_sold(rebought):
     pm = _pm(rebought['partial'])
     assert pm.closed_trade is False
     assert pm.calculated_return == pytest.approx(10.0)  # 4 @ 220 against 4 @ 200
-    assert pm.buy_journal.id == rebought['buy2']
+    assert pm.opening_decision.id == rebought['buy2']
 
 
 def test_sale_closing_rebought_trade_ignores_earlier_trade(rebought):
@@ -107,7 +107,7 @@ def test_sale_closing_rebought_trade_ignores_earlier_trade(rebought):
     # Trade 2: cost 2000, proceeds 880 + 1020 = 1900 -> -5%. Lifetime would be +11.7%.
     assert pm.closed_trade is True
     assert pm.calculated_return == pytest.approx(-5.0)
-    assert pm.buy_journal.id == rebought['buy2']
+    assert pm.opening_decision.id == rebought['buy2']
 
 
 def test_closed_trade_return_matches_research_outcome(rebought):
@@ -132,7 +132,7 @@ def test_sell_journal_without_transaction_has_no_prefill(app_context):
     db.session.commit()
     pm = sale_postmortem(journal)
     assert pm.calculated_return is None
-    assert pm.buy_journal is None
+    assert pm.opening_decision is None
 
 
 def test_postmortem_page_prefills_and_saves_to_this_trades_buy_journal(client_logged_in):

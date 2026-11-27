@@ -20,6 +20,10 @@ Utility functions for working with BlockNote content
 import json
 import re
 
+# A real HTML tag: '<' then a letter (or '/' and a letter). Plain text such as
+# 'P/E < 5 and > 3' or 'debt <2x' is not a tag and must survive.
+_HTML_TAG = re.compile(r'</?[A-Za-z][^<>]*>')
+
 
 def blocknote_to_text(content, block_separator=' '):
     """
@@ -86,12 +90,12 @@ def blocknote_to_text(content, block_separator=' '):
     except (json.JSONDecodeError, TypeError, ValueError):
         if block_separator != ' ':
             text = re.sub(r'<br\s*/?>|</(?:p|div|li|h[1-6])>', '\n', content, flags=re.IGNORECASE)
-            text = re.sub(r'<[^>]+>', '', text)
+            text = _HTML_TAG.sub('', text)
             lines = (re.sub(r'\s+', ' ', line).strip() for line in text.splitlines())
             return block_separator.join(line for line in lines if line)
         # Not JSON - might be HTML from old Quill editor
         # Strip HTML tags
-        text = re.sub(r'<[^>]+>', '', content)
+        text = _HTML_TAG.sub('', content)
         # Remove extra whitespace
         text = re.sub(r'\s+', ' ', text)
         return text.strip()

@@ -308,10 +308,15 @@ def _first_decision_made_in_trip(trip: RoundTrip) -> Optional[DecisionJournal]:
         journal = txn.decision_journal
         if txn.type != 'BUY' or journal is None or journal.decision_type != 'BUY' or journal.is_top_up:
             continue
-        first = journal.transactions.order_by(Transaction.date.asc(), Transaction.id.asc()).first()
-        if first is not None and first.id in trip_ids:
+        if _decision_starts_in(journal, trip_ids):
             return journal
     return None
+
+
+def _decision_starts_in(journal: DecisionJournal, trip_ids: set) -> bool:
+    """True when the journal's own first transaction is one of the trip's transactions."""
+    first = journal.transactions.order_by(Transaction.date.asc(), Transaction.id.asc()).first()
+    return first is not None and first.id in trip_ids
 
 
 def _orphan_buy_decisions(user_id: int, company_id: int) -> List[DecisionJournal]:
@@ -549,14 +554,17 @@ def safe_sync_outcomes(user_id: int, company_id: int) -> Optional[OutcomeSyncSta
 class SalePostmortem:
     """What the sell post-mortem shows for one SELL journal."""
     sell_transaction: Optional[Transaction] = None
-    buy_journal: Optional[DecisionJournal] = None
+    opening_decision: Optional[DecisionJournal] = None
     calculated_return: Optional[float] = None
     closed_trade: bool = False  # True when this sale took the holding to 0 shares
+    # True when the holding was opened by a buy decision of its own (not a merger/spin-off,
+    # not a split imported period that inherits an earlier period's decision)
+    graded: bool = False
 
 
 def sale_postmortem(sell_journal: DecisionJournal) -> SalePostmortem:
     """
-    The return and BUY journal for the trade a SELL journal's sale belongs to.
+    The return and opening decision for the trade a SELL journal's sale belongs to.
 
     A sale that closed the trade gets the trade's realized return (the value the
     trade's ResearchOutcome holds); a partial sale gets the return on the shares it
@@ -577,11 +585,16 @@ def sale_postmortem(sell_journal: DecisionJournal) -> SalePostmortem:
 
     trip, sale = match
     closed = trip.closing_transaction is not None and trip.closing_transaction.id == txn.id
+    opening = opening_decision_for_trip(trip)
+    trip_ids = {t.id for t in _trip_transactions(trip)}
+    graded = (opening is not None and not trip.opened_by_corporate_action
+              and _decision_starts_in(opening, trip_ids))
     return SalePostmortem(
         sell_transaction=txn,
-        buy_journal=trip_buy_journal(trip),
+        opening_decision=opening,
         calculated_return=trip.realized_return_pct if closed else sale.return_pct,
         closed_trade=closed,
+        graded=graded,
     )
 
 

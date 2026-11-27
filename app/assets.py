@@ -77,6 +77,7 @@ css_core = Bundle(
 
     # Reusable detail card for truncated preview cells (detail-card.js).
     'css/modules/_detail-card.css',
+    'css/modules/_exit-plan-snapshot.css',
 
     filters='rcssmin',
     output='css/gen/core.%(version)s.css',

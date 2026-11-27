@@ -1,0 +1,13 @@
+{# Exit-plan snapshot body (no heading). `plan` is an ExitPlanView or None. full=True shows the whole legacy text. #}
+{% macro exit_plan_snapshot(plan, full=False) -%}
+{%- if plan -%}
+{%- if plan.legacy_text -%}
+{% if full %}<div class="exit-plan-legacy">{{ plan.legacy_text|blocknote_text }}</div>{% else %}{{ plan.legacy_text|blocknote_preview(160) }}{% endif %}
+{%- elif plan.rules -%}
+<ul class="exit-plan-rules">{% for rule in plan.rules %}<li>{{ rule.text }}</li>{% endfor %}</ul>
+{%- if plan.captured_at %}<span class="exit-plan-captured">captured {{ plan.captured_at.strftime('%Y-%m-%d') }}</span>{% endif -%}
+{%- else -%}
+No exit rules at the time.
+{%- endif -%}
+{%- endif -%}
+{%- endmacro %}

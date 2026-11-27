@@ -30,6 +30,7 @@ from flask_caching import Cache
 from config import Config
 from celery_app import celery
 from app.assets import init_assets
+from app.utils.blocknote_utils import blocknote_to_text
 from app.features import user_has_feature
 
 db = SQLAlchemy()
@@ -219,6 +220,11 @@ def create_app(config_class=Config):
         """Convert BlockNote JSON content to preview text"""
         from app.utils.blocknote_utils import blocknote_preview
         return blocknote_preview(content, max_length)
+
+    @app.template_filter('blocknote_text')
+    def blocknote_text_filter(content):
+        """Full plain text of BlockNote, HTML or plain content, one block per line (autoescaped)"""
+        return blocknote_to_text(content, block_separator='\n')
 
     @app.template_filter('blocknote_to_html')
     def blocknote_to_html_filter(content):

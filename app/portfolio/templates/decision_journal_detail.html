@@ -1,4 +1,5 @@
 {% extends "main/_base_portfolio.html" %}
+{% from 'components/_exit_plan_snapshot.html' import exit_plan_snapshot %}
 
 {% block title %}Decision Journal - {{ journal.company.ticker_symbol }}{% endblock %}
 
@@ -40,6 +41,12 @@
                         <label class="form-label fw-semibold">Decision Type</label>
                         <div>
                             <span class="badge bg-primary">{{ journal.decision_type }}</span>
+                            {% if journal.is_top_up %}
+                            <a class="badge bg-info text-dark" href="{{ url_for('portfolio.view_decision_journal', journal_id=journal.parent_decision_id) }}">Top-up</a>
+                            {% endif %}
+                            {% if journal.is_imported %}
+                            <span class="badge bg-secondary">Imported</span>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -121,6 +128,13 @@
                             <li>{{ risk }}</li>
                             {% endfor %}
                         </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if exit_plan %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Exit plan at time of decision</label>
+                        {{ exit_plan_snapshot(exit_plan, full=True) }}
                     </div>
                     {% endif %}
                 </div>

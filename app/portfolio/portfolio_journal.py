@@ -21,6 +21,8 @@ from flask_login import login_required, current_user
 from app import db
 from app.portfolio import portfolio_bp
 from app.models import DecisionJournal, Transaction, PortfolioPosition, ResearchProject
+from app.services.decision_journals import exit_plan_view
+from app.services.exit_watch.episodes import triggered_rules_on
 from app.services.outcome_tracking import sale_postmortem
 from app.constants import JOURNALS_PER_PAGE
 from app.utils.time_utils import now_utc
@@ -104,7 +106,8 @@ def view_decision_journal(journal_id):
                           journal=journal,
                           transactions=transactions,
                           position=position,
-                          research_project=research_project)
+                          research_project=research_project,
+                          exit_plan=exit_plan_view(journal.exit_criteria))
 
 
 @portfolio_bp.route('/sell-postmortem/<int:journal_id>', methods=['GET', 'POST'])
@@ -117,9 +120,9 @@ def sell_postmortem(journal_id):
         decision_type='SELL'
     ).first_or_404()
 
-    # Return and BUY journal of the trade this sale belongs to (not the company's lifetime figure)
+    # Return and opening decision of the trade this sale belongs to (not the company's lifetime figure)
     postmortem = sale_postmortem(journal)
-    buy_journal = postmortem.buy_journal
+    opening = postmortem.opening_decision
     calculated_return = postmortem.calculated_return
 
     if request.method == 'POST':
@@ -136,17 +139,17 @@ def sell_postmortem(journal_id):
         # Update SELL journal with exit reasoning
         journal.investment_thesis = sell_reason if sell_reason else journal.investment_thesis
 
-        # Update BUY journal with post-mortem data if it exists
-        if buy_journal:
-            buy_journal.actual_return = actual_return
-            buy_journal.outcome_date = journal.decision_date
-            buy_journal.what_went_right = what_went_right
-            buy_journal.what_went_wrong = what_went_wrong
-            buy_journal.lessons_learned = lessons_learned
-            buy_journal.would_repeat = would_repeat
-            buy_journal.mistake_category = mistake_category if actual_return and actual_return < 0 else None
-            buy_journal.success_category = success_category if actual_return and actual_return > 0 else None
-            buy_journal.updated_at = now_utc()
+        # Grade the opening decision only when the holding was opened by a buy decision of its own
+        if postmortem.graded:
+            opening.actual_return = actual_return
+            opening.outcome_date = journal.decision_date
+            opening.what_went_right = what_went_right
+            opening.what_went_wrong = what_went_wrong
+            opening.lessons_learned = lessons_learned
+            opening.would_repeat = would_repeat
+            opening.mistake_category = mistake_category if actual_return and actual_return < 0 else None
+            opening.success_category = success_category if actual_return and actual_return > 0 else None
+            opening.updated_at = now_utc()
 
         try:
             db.session.commit()
@@ -159,7 +162,11 @@ def sell_postmortem(journal_id):
 
     return render_template('sell_postmortem.html',
                           journal=journal,
-                          buy_journal=buy_journal,
+                          opening=opening,
+                          opening_exit_plan=exit_plan_view(opening.exit_criteria) if opening else None,
+                          triggered_rules=triggered_rules_on(
+                              journal.user_id, journal.company_id, journal.decision_date),
                           calculated_return=calculated_return,
-                          closed_trade=postmortem.closed_trade)
+                          closed_trade=postmortem.closed_trade,
+                          graded=postmortem.graded)
 
