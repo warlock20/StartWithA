@@ -160,3 +160,112 @@ def test_postmortem_page_prefills_and_saves_to_this_trades_buy_journal(client_lo
     assert db.session.get(DecisionJournal, buy2_id).actual_return == pytest.approx(-10.0)
     assert db.session.get(DecisionJournal, buy2_id).lessons_learned == 'Paid too much'
     assert db.session.get(DecisionJournal, buy1_id).actual_return is None
+
+
+@pytest.fixture
+def trimmed(client_logged_in):
+    """One trade: 10 @ 200 -> trim 4 @ 220 (+10% on those shares), close 6 @ 170. Trade -5%."""
+    client, uid = client_logged_in
+    company = _make_company(uid)
+    cid = company.id
+    buy = _journal(uid, cid, 'BUY', date(2025, 1, 10))
+    _txn(uid, cid, 'BUY', date(2025, 1, 10), 10, 200, buy)
+    trim = _sell(uid, cid, date(2025, 3, 1), 4, 220)
+    close = _sell(uid, cid, date(2025, 9, 1), 6, 170)
+    _finish(uid, cid)
+    return client, {'buy': buy.id, 'trim': trim.id, 'close': close.id}
+
+
+def _post_trim(client, trim_id):
+    return client.post(f'/portfolio/sell-postmortem/{trim_id}', data={
+        'sell_reason': 'Valuation stretched', 'actual_return': '10.00',
+        'what_went_right': 'Bought cheap', 'what_went_wrong': 'Sized too big',
+        'lessons_learned': 'Took profit early', 'would_repeat': 'true', 'success_category': 'patience',
+    })
+
+
+def _post_close(client, close_id):
+    return client.post(f'/portfolio/sell-postmortem/{close_id}', data={
+        'sell_reason': 'Thesis broke', 'actual_return': '-5.00',
+        'lessons_learned': 'Held too long', 'would_repeat': 'false', 'mistake_category': 'thesis_wrong',
+    })
+
+
+def _assert_opening_graded_by_close(buy_id):
+    opening = db.session.get(DecisionJournal, buy_id)
+    assert opening.actual_return == pytest.approx(-5.0)
+    assert opening.outcome_date == date(2025, 9, 1)
+    assert opening.lessons_learned == 'Held too long'
+    assert opening.would_repeat is False
+    assert opening.mistake_category == 'thesis_wrong'
+    assert opening.success_category is None
+
+
+def test_trim_postmortem_leaves_opening_decision_ungraded(trimmed):
+    client, ids = trimmed
+    assert _post_trim(client, ids['trim']).status_code == 302
+    db.session.expire_all()
+    opening = db.session.get(DecisionJournal, ids['buy'])
+    assert opening.actual_return is None
+    assert opening.outcome_date is None
+    assert opening.lessons_learned is None
+    assert opening.success_category is None
+
+
+def test_trim_postmortem_saves_reason_and_lessons_on_its_own_sell_decision(trimmed):
+    client, ids = trimmed
+    _post_trim(client, ids['trim'])
+    db.session.expire_all()
+    trim = db.session.get(DecisionJournal, ids['trim'])
+    assert trim.investment_thesis == 'Valuation stretched'
+    assert trim.what_went_right == 'Bought cheap'
+    assert trim.what_went_wrong == 'Sized too big'
+    assert trim.lessons_learned == 'Took profit early'
+    # The partial return is not the trade's outcome, so stats never count it
+    assert trim.actual_return is None
+    assert trim.success_category is None
+
+
+def test_trim_then_close_grades_opening_with_trade_return(trimmed):
+    client, ids = trimmed
+    _post_trim(client, ids['trim'])
+    _post_close(client, ids['close'])
+    db.session.expire_all()
+    _assert_opening_graded_by_close(ids['buy'])
+    assert db.session.get(DecisionJournal, ids['trim']).lessons_learned == 'Took profit early'
+
+
+def test_close_then_trim_keeps_trade_return_on_opening(trimmed):
+    client, ids = trimmed
+    _post_close(client, ids['close'])
+    _post_trim(client, ids['trim'])
+    db.session.expire_all()
+    _assert_opening_graded_by_close(ids['buy'])
+    assert db.session.get(DecisionJournal, ids['trim']).lessons_learned == 'Took profit early'
+
+
+def test_trim_page_shows_partial_return_without_grading_fields(trimmed):
+    client, ids = trimmed
+    html = client.get(f'/portfolio/sell-postmortem/{ids["trim"]}').get_data(as_text=True)
+    assert 'name="lessons_learned"' in html
+    assert 'name="what_went_right"' in html
+    assert '+10.00%' in html
+    assert 'name="actual_return"' not in html
+    assert 'name="would_repeat"' not in html
+    assert 'name="success_category"' not in html
+
+
+def test_close_page_still_grades_the_trade(trimmed):
+    client, ids = trimmed
+    html = client.get(f'/portfolio/sell-postmortem/{ids["close"]}').get_data(as_text=True)
+    assert 'value="-5.00"' in html
+    assert 'name="would_repeat"' in html
+
+
+def test_trim_lessons_show_on_its_decision_page(trimmed):
+    client, ids = trimmed
+    _post_trim(client, ids['trim'])
+    html = client.get(f'/portfolio/decision-journal/{ids["trim"]}').get_data(as_text=True)
+    assert 'Took profit early' in html
+    assert 'Sized too big' in html
+    assert 'Actual Return' not in html

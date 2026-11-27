@@ -141,12 +141,14 @@
             </div>
 
             <!-- Post-Mortem Section (if completed) -->
-            {% if journal.actual_return is not none %}
+            {# A trim's post-mortem saves lessons on its SELL decision but no return (#473) #}
+            {% if journal.actual_return is not none or journal.what_went_right or journal.what_went_wrong or journal.lessons_learned %}
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">Post-Mortem: Actual Outcome</h5>
+                    <h5 class="mb-0">{{ 'Post-Mortem: Actual Outcome' if journal.actual_return is not none else 'Post-Mortem' }}</h5>
                 </div>
                 <div class="card-body">
+                    {% if journal.actual_return is not none %}
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-semibold">Actual Return</label>
@@ -161,6 +163,7 @@
                         </div>
                         {% endif %}
                     </div>
+                    {% endif %}
 
                     {% if journal.what_went_right %}
                     <div class="mb-3">
