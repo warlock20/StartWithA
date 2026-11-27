@@ -58,9 +58,13 @@ def open_for_rules(rule_ids) -> dict:
 
 def triggered_rules_on(user_id: int, company_id: int, on: date) -> list:
     """
-    The must-exit rules that were triggered on a date, oldest episode first, one per rule:
-    episodes whose worst status is triggered, opened by that day and not closed before it.
-    Archived rules count: the rule was live when the user sold.
+    The must-exit rules that were triggered on a date, oldest episode first, one per rule.
+
+    An episode counts when it was open that day (opened by then, not closed before it) and the
+    rule's latest check on or before the end of that day, not older than the episode's opening,
+    said triggered. The episode's worst status is only a pre-filter: a rule that was merely
+    at risk on the day and escalated later does not count. Archived rules count: the rule was
+    live when the user sold.
     """
     day_start = datetime(on.year, on.month, on.day)
     day_end = add_days(day_start, 1)
@@ -71,7 +75,25 @@ def triggered_rules_on(user_id: int, company_id: int, on: date) -> list:
         ExitRuleTrigger.opened_at < day_end,
         db.or_(ExitRuleTrigger.closed_at.is_(None), ExitRuleTrigger.closed_at >= day_start),
     ).order_by(ExitRuleTrigger.opened_at, ExitRuleTrigger.id).all()
-    rule_ids = list(dict.fromkeys(episode.rule_id for episode in episodes))
+    if not episodes:
+        return []
+    checks = (AIInsight.query
+              .filter(AIInsight.user_id == user_id, AIInsight.context_type == CONTEXT_TYPE,
+                      AIInsight.context_id.in_({episode.rule_id for episode in episodes}),
+                      AIInsight.created_at < day_end)
+              .order_by(AIInsight.context_id, AIInsight.created_at.desc(), AIInsight.id.desc()).all())
+    checks_by_rule = {}
+    for check in checks:
+        checks_by_rule.setdefault(check.context_id, []).append(check)
+    rule_ids = []
+    for episode in episodes:
+        latest = next((check for check in checks_by_rule.get(episode.rule_id, [])
+                       # The opening check counts even if a clock step dated it before opened_at
+                       if check.created_at >= episode.opened_at
+                       or check.id == episode.opening_insight_id), None)
+        status = ((latest.supporting_data or {}).get('status') if latest else None)
+        if status == 'triggered' and episode.rule_id not in rule_ids:
+            rule_ids.append(episode.rule_id)
     rules = {rule.id: rule for rule in JournalEntry.query.filter(JournalEntry.id.in_(rule_ids))}
     return [rules[rule_id] for rule_id in rule_ids]
 

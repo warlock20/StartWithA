@@ -53,7 +53,7 @@
                         {% if triggered_rules %}
                         <div class="alert alert-warning mb-4">
                             <i class="bi bi-exclamation-triangle me-2"></i>
-                            You sold while this must-exit rule was triggered:
+                            You sold while {{ 'these must-exit rules were' if triggered_rules|length > 1 else 'this must-exit rule was' }} triggered:
                             <ul class="mb-0 mt-2">
                                 {% for rule in triggered_rules %}
                                 <li>{{ rule.finding_line() }}</li>

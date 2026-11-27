@@ -411,12 +411,8 @@ def edit_entry(entry_id):
        if new_type == MUST_EXIT and new_company_id is None:
            # The DB refuses a rule without a company. Show the form with what
            # was typed, without flushing it, then drop the unsaved changes.
-           flash(MUST_EXIT_NEEDS_COMPANY_MESSAGE, 'error')
-           with db.session.no_autoflush:
-               _apply_entry_form(entry, new_type, new_company_id)
-               page = _render_edit_entry_form(entry)
-           db.session.rollback()
-           return page
+           return _render_unsaved_edit(entry, new_type, new_company_id,
+                                       MUST_EXIT_NEEDS_COMPANY_MESSAGE)
 
        # Retyping a rule, or moving it to another company, takes it away
        # from its company, so it can't be the last rule of a held one
@@ -425,8 +421,7 @@ def edit_entry(entry_id):
            try:
                assert_can_remove_must_exit(entry)
            except LastExitRuleError as e:
-               flash(str(e), 'error')
-               return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry.id))
+               return _render_unsaved_edit(entry, new_type, new_company_id, str(e))
 
        _apply_entry_form(entry, new_type, new_company_id)
 
@@ -448,6 +443,20 @@ def _render_edit_entry_form(entry):
                          title="Edit Entry",
                          entry=entry,
                          companies=companies)
+
+
+def _render_unsaved_edit(entry, entry_type, company_id, message):
+   """Show the edit form with what was typed and an error, saving nothing.
+
+   The typed values go on the entry without flushing, then the session is
+   rolled back so they never reach the database.
+   """
+   flash(message, 'error')
+   with db.session.no_autoflush:
+       _apply_entry_form(entry, entry_type, company_id)
+       page = _render_edit_entry_form(entry)
+   db.session.rollback()
+   return page
 
 
 def _apply_entry_form(entry, entry_type, company_id):

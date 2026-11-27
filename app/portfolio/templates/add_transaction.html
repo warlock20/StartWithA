@@ -1270,8 +1270,7 @@ function renderThesisFeedback(data, container) {
     html += renderElementCheck('Valuation', data.has_valuation);
     html += renderElementCheck('Risks', data.has_risks);
     html += renderElementCheck('Catalysts', data.has_catalysts);
-    const exitRules = exitRuleCount();
-    html += renderElementCheck('Exit plan (' + exitRules + (exitRules === 1 ? ' rule)' : ' rules)'), exitRules > 0);
+    html += exitPlanCheckHtml();
     html += '</div>';
 
     // Quick score
@@ -1282,6 +1281,18 @@ function renderThesisFeedback(data, container) {
 
     html += '</div>';
     container.innerHTML = html;
+}
+
+function exitPlanCheckHtml() {
+    const exitRules = exitRuleCount();
+    const label = 'Exit plan (' + exitRules + (exitRules === 1 ? ' rule)' : ' rules)');
+    return '<span id="exit_plan_count_check">' + renderElementCheck(label, exitRules > 0) + '</span>';
+}
+
+// Re-draw the thesis-feedback exit plan count when the company or rules change.
+function refreshExitRuleCount() {
+    const check = document.getElementById('exit_plan_count_check');
+    if (check) check.outerHTML = exitPlanCheckHtml();
 }
 
 function renderElementCheck(name, hasIt) {
@@ -1334,6 +1345,7 @@ function refreshExitPlan() {
         list.appendChild(row);
     });
     if (exitRuleCount() > 0) hideExitPlanError();
+    refreshExitRuleCount();
 }
 
 function hideExitPlanError() {
