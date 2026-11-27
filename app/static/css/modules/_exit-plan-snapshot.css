@@ -12,3 +12,7 @@
     font-weight: 400;
     color: var(--text-muted);
 }
+
+.exit-plan-legacy {
+    white-space: pre-line;
+}

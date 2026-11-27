@@ -45,7 +45,7 @@
                             {% endif %}
                             {% if opening_exit_plan %}
                             <div class="fw-semibold small mt-3 mb-1">Exit plan at time of decision</div>
-                            {{ exit_plan_snapshot(opening_exit_plan) }}
+                            {{ exit_plan_snapshot(opening_exit_plan, full=True) }}
                             {% endif %}
                         </div>
                         {% endif %}
@@ -73,6 +73,7 @@
                             <div class="form-text">Be specific about the reasoning behind your exit</div>
                         </div>
 
+                        {% if graded %}
                         <!-- Actual Return -->
                         <div class="mb-4">
                             <label for="actual_return" class="form-label fw-semibold">
@@ -165,6 +166,11 @@
                                 </select>
                             </div>
                         </div>
+                        {% else %}
+                        <div class="alert alert-info mb-4">
+                            <i class="bi bi-info-circle me-2"></i>This holding wasn't opened by a buy decision of its own, so nothing is graded.
+                        </div>
+                        {% endif %}
 
                         <!-- Action Buttons -->
                         <div class="d-flex justify-content-between mt-4">

@@ -139,8 +139,8 @@ def sell_postmortem(journal_id):
         # Update SELL journal with exit reasoning
         journal.investment_thesis = sell_reason if sell_reason else journal.investment_thesis
 
-        # Update the opening decision with post-mortem data if it exists
-        if opening:
+        # Grade the opening decision only when the holding was opened by a buy decision of its own
+        if postmortem.graded:
             opening.actual_return = actual_return
             opening.outcome_date = journal.decision_date
             opening.what_went_right = what_went_right
@@ -167,5 +167,6 @@ def sell_postmortem(journal_id):
                           triggered_rules=triggered_rules_on(
                               journal.user_id, journal.company_id, journal.decision_date),
                           calculated_return=calculated_return,
-                          closed_trade=postmortem.closed_trade)
+                          closed_trade=postmortem.closed_trade,
+                          graded=postmortem.graded)
 
