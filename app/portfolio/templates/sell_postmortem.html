@@ -1,4 +1,5 @@
 {% extends "main/_base_portfolio.html" %}
+{% from 'components/_exit_plan_snapshot.html' import exit_plan_snapshot %}
 
 {% block title %}Post-Mortem Analysis - {{ journal.company.ticker_symbol }}{% endblock %}
 
@@ -32,16 +33,32 @@
                     <form method="POST" action="{{ url_for('portfolio.sell_postmortem', journal_id=journal.id) }}">
 
                         <!-- Original Investment Context (if available) -->
-                        {% if buy_journal %}
+                        {% if opening %}
                         <div class="mb-4 p-3 bg-light rounded">
                             <h6 class="fw-semibold mb-3">Original Investment Thesis</h6>
-                            <div class="mb-2">{{ buy_journal.investment_thesis|blocknote_to_html|safe }}</div>
-                            {% if buy_journal.expected_cagr %}
+                            <div class="mb-2">{{ opening.investment_thesis|blocknote_to_html|safe }}</div>
+                            {% if opening.expected_cagr %}
                             <div class="small text-muted">
-                                <strong>Expected CAGR:</strong> {{ buy_journal.expected_cagr }}% a year
-                                {% if buy_journal.expected_timeframe %}for {{ buy_journal.expected_timeframe }} months{% endif %}
+                                <strong>Expected CAGR:</strong> {{ opening.expected_cagr }}% a year
+                                {% if opening.expected_timeframe %}for {{ opening.expected_timeframe }} months{% endif %}
                             </div>
                             {% endif %}
+                            {% if opening_exit_plan %}
+                            <div class="fw-semibold small mt-3 mb-1">Exit plan at time of decision</div>
+                            {{ exit_plan_snapshot(opening_exit_plan) }}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if triggered_rules %}
+                        <div class="alert alert-warning mb-4">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            You sold while this must-exit rule was triggered:
+                            <ul class="mb-0 mt-2">
+                                {% for rule in triggered_rules %}
+                                <li>{{ rule.finding_line() }}</li>
+                                {% endfor %}
+                            </ul>
                         </div>
                         {% endif %}
 

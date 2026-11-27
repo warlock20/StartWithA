@@ -1,3 +1,4 @@
+{% from 'components/_exit_plan_snapshot.html' import exit_plan_snapshot %}
 {# Timeline Tab — compact, month-grouped event list. One row per event; details expand on click. #}
 
 {% if timeline_events %}
@@ -214,14 +215,7 @@
                     {% endif %}
                     {% if event.exit_plan %}
                     <div><dt>Exit plan at time of decision</dt><dd>
-                        {% if event.exit_plan.legacy_text %}
-                        {{ event.exit_plan.legacy_text|blocknote_preview(160) }}
-                        {% elif event.exit_plan.rules %}
-                        <ul class="tl-exit-rules">{% for rule in event.exit_plan.rules %}<li>{{ rule.text }}</li>{% endfor %}</ul>
-                        {% if event.exit_plan.captured_at %}<span class="tl-captured">captured {{ event.exit_plan.captured_at.strftime('%Y-%m-%d') }}</span>{% endif %}
-                        {% else %}
-                        No exit rules at the time.
-                        {% endif %}
+                        {{ exit_plan_snapshot(event.exit_plan) }}
                     </dd></div>
                     {% endif %}
                     {% if d.project_id %}

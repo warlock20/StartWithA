@@ -1,0 +1,14 @@
+.exit-plan-rules {
+    margin: 0 0 0.25rem;
+    padding-left: 1.125rem;
+}
+
+.exit-plan-rules li + li {
+    margin-top: 0.125rem;
+}
+
+.exit-plan-captured {
+    font-size: 0.6875rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}

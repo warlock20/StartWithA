@@ -56,6 +56,26 @@ def open_for_rules(rule_ids) -> dict:
     return {row.rule_id: row for row in rows}
 
 
+def triggered_rules_on(user_id: int, company_id: int, on: date) -> list:
+    """
+    The must-exit rules that were triggered on a date, oldest episode first, one per rule:
+    episodes whose worst status is triggered, opened by that day and not closed before it.
+    Archived rules count: the rule was live when the user sold.
+    """
+    day_start = datetime(on.year, on.month, on.day)
+    day_end = add_days(day_start, 1)
+    episodes = ExitRuleTrigger.query.filter(
+        ExitRuleTrigger.user_id == user_id,
+        ExitRuleTrigger.company_id == company_id,
+        ExitRuleTrigger.worst_status == 'triggered',
+        ExitRuleTrigger.opened_at < day_end,
+        db.or_(ExitRuleTrigger.closed_at.is_(None), ExitRuleTrigger.closed_at >= day_start),
+    ).order_by(ExitRuleTrigger.opened_at, ExitRuleTrigger.id).all()
+    rule_ids = list(dict.fromkeys(episode.rule_id for episode in episodes))
+    rules = {rule.id: rule for rule in JournalEntry.query.filter(JournalEntry.id.in_(rule_ids))}
+    return [rules[rule_id] for rule_id in rule_ids]
+
+
 def _close(episode: ExitRuleTrigger, reason: str, now: datetime) -> None:
     episode.closed_at = naive_utc(now)
     episode.close_reason = reason

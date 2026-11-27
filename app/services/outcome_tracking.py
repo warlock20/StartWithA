@@ -549,14 +549,14 @@ def safe_sync_outcomes(user_id: int, company_id: int) -> Optional[OutcomeSyncSta
 class SalePostmortem:
     """What the sell post-mortem shows for one SELL journal."""
     sell_transaction: Optional[Transaction] = None
-    buy_journal: Optional[DecisionJournal] = None
+    opening_decision: Optional[DecisionJournal] = None
     calculated_return: Optional[float] = None
     closed_trade: bool = False  # True when this sale took the holding to 0 shares
 
 
 def sale_postmortem(sell_journal: DecisionJournal) -> SalePostmortem:
     """
-    The return and BUY journal for the trade a SELL journal's sale belongs to.
+    The return and opening decision for the trade a SELL journal's sale belongs to.
 
     A sale that closed the trade gets the trade's realized return (the value the
     trade's ResearchOutcome holds); a partial sale gets the return on the shares it
@@ -579,7 +579,7 @@ def sale_postmortem(sell_journal: DecisionJournal) -> SalePostmortem:
     closed = trip.closing_transaction is not None and trip.closing_transaction.id == txn.id
     return SalePostmortem(
         sell_transaction=txn,
-        buy_journal=trip_buy_journal(trip),
+        opening_decision=opening_decision_for_trip(trip),
         calculated_return=trip.realized_return_pct if closed else sale.return_pct,
         closed_trade=closed,
     )
